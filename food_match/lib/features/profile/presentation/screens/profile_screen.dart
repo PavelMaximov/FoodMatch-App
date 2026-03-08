@@ -10,12 +10,12 @@ class ProfileScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: <Widget>[
-          const Card(
+          Card(
             child: Padding(
-              padding: EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
+                children: const <Widget>[
                   Text('email: demo@foodmatch.app'),
                   SizedBox(height: 8),
                   Text('displayName: Demo User'),
@@ -26,14 +26,14 @@ class ProfileScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          const ElevatedButton(
-            onPressed: null,
-            child: Text('Выйти'),
+          ElevatedButton(
+            onPressed: () {},
+            child: const Text('Выйти'),
           ),
           const SizedBox(height: 8),
-          const OutlinedButton(
-            onPressed: null,
-            child: Text('Покинуть пару'),
+          OutlinedButton(
+            onPressed: () {},
+            child: const Text('Покинуть пару'),
           ),
         ],
       ),
