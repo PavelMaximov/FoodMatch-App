@@ -8,8 +8,8 @@ class SwipeRepository {
 
   final ApiService _apiService;
 
-  Future<void> sendSwipe({required String dishId, required String action}) async {
-    await _apiService.post(ApiConstants.swipes, {
+  Future<dynamic> sendSwipe({required String dishId, required String action}) async {
+    return _apiService.post(ApiConstants.swipes, {
       'dishId': dishId,
       'action': action,
     });

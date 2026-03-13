@@ -107,14 +107,18 @@ class ApiService {
     }
 
     final message = data is Map<String, dynamic> ? data['message'] as String? : null;
-    throw ApiException(message ?? 'Request failed with status ${response.statusCode}');
+    throw ApiException(
+      message ?? 'Request failed with status ${response.statusCode}',
+      statusCode: response.statusCode,
+    );
   }
 }
 
 class ApiException implements Exception {
-  const ApiException(this.message);
+  const ApiException(this.message, {this.statusCode});
 
   final String message;
+  final int? statusCode;
 
   @override
   String toString() => 'ApiException: $message';

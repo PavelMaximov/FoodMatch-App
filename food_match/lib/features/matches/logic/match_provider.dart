@@ -1,0 +1,45 @@
+import 'package:flutter/foundation.dart';
+
+import '../../../data/models/dish.dart';
+import '../../../data/repositories/swipe_repository.dart';
+import '../../../data/services/api_service.dart';
+
+class MatchProvider extends ChangeNotifier {
+  MatchProvider({required SwipeRepository swipeRepository})
+      : _swipeRepository = swipeRepository;
+
+  final SwipeRepository _swipeRepository;
+
+  List<Dish> matches = <Dish>[];
+  bool isLoading = false;
+  String? error;
+
+  int get matchCount => matches.length;
+
+  Future<void> loadMatches() async {
+    isLoading = true;
+    error = null;
+    notifyListeners();
+
+    try {
+      matches = await _swipeRepository.getMatches();
+    } catch (e) {
+      error = _mapError(e);
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  void clearMatches() {
+    matches = <Dish>[];
+    notifyListeners();
+  }
+
+  String _mapError(Object e) {
+    if (e is ApiException) {
+      return e.message;
+    }
+    return 'Unexpected error occurred';
+  }
+}
