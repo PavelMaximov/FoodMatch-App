@@ -8,6 +8,7 @@ import 'data/repositories/couple_repository.dart';
 import 'data/repositories/dish_repository.dart';
 import 'data/repositories/recipe_repository.dart';
 import 'data/repositories/swipe_repository.dart';
+import 'data/repositories/upload_repository.dart';
 import 'data/services/api_service.dart';
 import 'features/auth/logic/auth_provider.dart';
 import 'features/couple/logic/couple_provider.dart';
@@ -26,10 +27,13 @@ void main() {
   final dishRepo = DishRepository(apiService);
   final swipeRepo = SwipeRepository(apiService);
   final recipeRepo = RecipeRepository(apiService);
+  final uploadRepo = UploadRepository(apiService);
 
   runApp(
     MultiProvider(
       providers: [
+        Provider<DishRepository>.value(value: dishRepo),
+        Provider<UploadRepository>.value(value: uploadRepo),
         ChangeNotifierProvider<AuthProvider>(
           create: (_) => AuthProvider(
             repository: authRepo,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../data/models/dish.dart';
 import '../../features/auth/logic/auth_provider.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
@@ -34,37 +35,26 @@ class AppRouter {
             return null;
           },
           routes: <RouteBase>[
-            GoRoute(
-              path: '/login',
-              builder: (BuildContext context, GoRouterState state) =>
-                  const LoginScreen(),
-            ),
-            GoRoute(
-              path: '/register',
-              builder: (BuildContext context, GoRouterState state) =>
-                  const RegisterScreen(),
-            ),
+            GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
+            GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
             GoRoute(
               path: '/forgot-password',
-              builder: (BuildContext context, GoRouterState state) =>
-                  const ForgotPasswordScreen(),
+              builder: (_, __) => const ForgotPasswordScreen(),
             ),
             GoRoute(
               path: '/connect-couple',
-              builder: (BuildContext context, GoRouterState state) =>
-                  const ConnectCoupleScreen(),
+              builder: (_, __) => const ConnectCoupleScreen(),
             ),
             GoRoute(
-              path: '/recipe/:dishId',
+              path: '/recipe-detail/:dishId',
               builder: (BuildContext context, GoRouterState state) =>
-                  RecipeDetailScreen(
-                dishId: state.pathParameters['dishId'] ?? 'unknown',
-              ),
+                  RecipeDetailScreen(dishId: state.pathParameters['dishId'] ?? 'unknown'),
             ),
             GoRoute(
               path: '/match-overlay',
-              builder: (BuildContext context, GoRouterState state) =>
-                  const MatchOverlayScreen(),
+              builder: (BuildContext context, GoRouterState state) => MatchOverlayScreen(
+                dish: state.extra is Dish ? state.extra! as Dish : null,
+              ),
             ),
             StatefulShellRoute.indexedStack(
               builder: (BuildContext context, GoRouterState state,
@@ -73,38 +63,22 @@ class AppRouter {
               branches: <StatefulShellBranch>[
                 StatefulShellBranch(
                   routes: <RouteBase>[
-                    GoRoute(
-                      path: '/swipes',
-                      builder: (BuildContext context, GoRouterState state) =>
-                          const SwipesScreen(),
-                    ),
+                    GoRoute(path: '/swipes', builder: (_, __) => const SwipesScreen()),
                   ],
                 ),
                 StatefulShellBranch(
                   routes: <RouteBase>[
-                    GoRoute(
-                      path: '/matches',
-                      builder: (BuildContext context, GoRouterState state) =>
-                          const MatchesScreen(),
-                    ),
+                    GoRoute(path: '/matches', builder: (_, __) => const MatchesScreen()),
                   ],
                 ),
                 StatefulShellBranch(
                   routes: <RouteBase>[
-                    GoRoute(
-                      path: '/add-dish',
-                      builder: (BuildContext context, GoRouterState state) =>
-                          const AddDishScreen(),
-                    ),
+                    GoRoute(path: '/add-dish', builder: (_, __) => const AddDishScreen()),
                   ],
                 ),
                 StatefulShellBranch(
                   routes: <RouteBase>[
-                    GoRoute(
-                      path: '/profile',
-                      builder: (BuildContext context, GoRouterState state) =>
-                          const ProfileScreen(),
-                    ),
+                    GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
                   ],
                 ),
               ],
