@@ -45,6 +45,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
       final url = await uploadRepository.uploadImage(File(image.path));
       _imageUrlController.text = url;
     } catch (_) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Не удалось загрузить изображение')),
       );
