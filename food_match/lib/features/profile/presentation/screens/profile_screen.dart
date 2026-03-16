@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../auth/logic/auth_provider.dart';
+import '../../../../core/utils/snackbar_utils.dart';
 import '../../../couple/logic/couple_provider.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -48,6 +49,9 @@ class ProfileScreen extends StatelessWidget {
                 );
                 if (confirmed == true && context.mounted) {
                   await context.read<CoupleProvider>().leaveCouple();
+                  if (context.mounted) {
+                    SnackBarUtils.showSuccess(context, 'Вы покинули пару');
+                  }
                 }
               },
               child: const Text('Покинуть пару'),
@@ -72,7 +76,10 @@ class ProfileScreen extends StatelessWidget {
               );
               if (confirmed == true && context.mounted) {
                 await context.read<AuthProvider>().logout();
-                if (context.mounted) context.go('/login');
+                if (context.mounted) {
+                  SnackBarUtils.showSuccess(context, 'Вы вышли из аккаунта');
+                  context.go('/login');
+                }
               }
             },
             child: const Text('Выйти'),

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/utils/snackbar_utils.dart';
 import '../../logic/couple_provider.dart';
 
 class ConnectCoupleScreen extends StatefulWidget {
@@ -26,7 +27,7 @@ class _ConnectCoupleScreenState extends State<ConnectCoupleScreen> {
     await provider.createCouple();
     if (!mounted) return;
     if (provider.error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(provider.error!)));
+      SnackBarUtils.showError(context, provider.error!);
     }
   }
 
@@ -39,10 +40,11 @@ class _ConnectCoupleScreenState extends State<ConnectCoupleScreen> {
     if (!mounted) return;
 
     if (provider.error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(provider.error!)));
+      SnackBarUtils.showError(context, provider.error!);
       return;
     }
 
+    SnackBarUtils.showSuccess(context, 'Пара успешно подключена');
     context.go('/swipes');
   }
 
@@ -82,9 +84,7 @@ class _ConnectCoupleScreenState extends State<ConnectCoupleScreen> {
                           onPressed: () async {
                             await Clipboard.setData(ClipboardData(text: couple.inviteCode!));
                             if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Код скопирован')),
-                            );
+                            SnackBarUtils.showSuccess(context, 'Код скопирован');
                           },
                           child: const Text('Скопировать код'),
                         ),

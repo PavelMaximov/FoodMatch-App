@@ -4,8 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../data/repositories/dish_repository.dart';
 import '../../../../core/utils/image_utils.dart';
+import '../../../../core/utils/snackbar_utils.dart';
+import '../../../../data/repositories/dish_repository.dart';
 import '../../../../data/repositories/upload_repository.dart';
 
 class AddDishScreen extends StatefulWidget {
@@ -47,9 +48,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
       _imageUrlController.text = url;
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Не удалось загрузить изображение')),
-      );
+      SnackBarUtils.showError(context, 'Не удалось загрузить изображение');
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -82,11 +81,11 @@ class _AddDishScreenState extends State<AddDishScreen> {
       _tagsController.clear();
       _imageUrlController.clear();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Блюдо добавлено!')));
+        SnackBarUtils.showSuccess(context, 'Блюдо добавлено!');
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ошибка при добавлении блюда')));
+        SnackBarUtils.showError(context, 'Ошибка при добавлении блюда');
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);

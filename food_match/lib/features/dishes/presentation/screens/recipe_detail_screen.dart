@@ -1,8 +1,12 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/utils/image_utils.dart';
 import '../../../../data/models/dish.dart';
+import '../../../../shared/widgets/empty_state.dart';
+import '../../../../shared/widgets/error_state.dart';
+import '../../../../shared/widgets/shimmer_card.dart';
 import '../../logic/recipe_provider.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
@@ -30,24 +34,20 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     final recipe = recipeProvider.currentRecipe;
 
     if (recipeProvider.isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        body: Padding(
+          padding: EdgeInsets.all(16),
+          child: ShimmerCard(),
+        ),
+      );
     }
 
     if (recipeProvider.error != null) {
       return Scaffold(
         appBar: AppBar(),
-        body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              const Text('Рецепт не найден'),
-              const SizedBox(height: 12),
-              OutlinedButton(
-                onPressed: () => Navigator.of(context).maybePop(),
-                child: const Text('Назад'),
-              ),
-            ],
-          ),
+        body: ErrorState(
+          message: recipeProvider.error!,
+          onRetry: () => context.read<RecipeProvider>().loadRecipe(widget.dishId),
         ),
       );
     }
@@ -55,7 +55,11 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     if (recipe == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Рецепт')),
-        body: const Center(child: Text('Для этого блюда рецепт пока не загружен')),
+        body: const EmptyState(
+          icon: Icons.menu_book,
+          title: 'Рецепт не найден',
+          subtitle: 'Для этого блюда рецепт пока недоступен',
+        ),
       );
     }
 
@@ -69,12 +73,15 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             flexibleSpace: FlexibleSpaceBar(
               title: const Text('Рецепт'),
               background: widget.dish != null
-                  ? Image.network(
-                      ImageUtils.getImageUrl(widget.dish!.imageUrl),
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        color: Colors.black12,
-                        child: const Icon(Icons.restaurant_menu, size: 72),
+                  ? Hero(
+                      tag: 'dish-image-${widget.dishId}',
+                      child: CachedNetworkImage(
+                        imageUrl: ImageUtils.getImageUrl(widget.dish!.imageUrl),
+                        fit: BoxFit.cover,
+                        errorWidget: (_, __, ___) => Container(
+                          color: Colors.black12,
+                          child: const Icon(Icons.restaurant_menu, size: 72),
+                        ),
                       ),
                     )
                   : Container(
@@ -89,7 +96,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text(widget.dish?.title ?? 'Блюдо ${widget.dishId}', style: Theme.of(context).textTheme.headlineSmall),
+                  Text(
+                    widget.dish?.title ?? 'Блюдо ${widget.dishId}',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
                   const SizedBox(height: 8),
                   const Wrap(
                     spacing: 8,
@@ -127,7 +137,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: <Widget>[
-                                Text(entry.value.title, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                Text(
+                                  entry.value.title,
+                                  style: const TextStyle(fontWeight: FontWeight.w600),
+                                ),
                                 Text(entry.value.text),
                               ],
                             ),
