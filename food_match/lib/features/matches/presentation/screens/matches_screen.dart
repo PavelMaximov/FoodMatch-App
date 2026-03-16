@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/utils/image_utils.dart';
 import '../../logic/match_provider.dart';
 
 class MatchesScreen extends StatefulWidget {
@@ -42,7 +43,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
           margin: const EdgeInsets.only(bottom: 12),
           child: InkWell(
             borderRadius: BorderRadius.circular(16),
-            onTap: () => context.push('/recipe-detail/${dish.id}'),
+            onTap: () => context.push('/recipe-detail/${dish.id}', extra: dish),
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Row(
@@ -50,7 +51,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(12),
                     child: CachedNetworkImage(
-                      imageUrl: dish.imageUrl,
+                      imageUrl: ImageUtils.getImageUrl(dish.imageUrl),
                       width: 80,
                       height: 80,
                       fit: BoxFit.cover,

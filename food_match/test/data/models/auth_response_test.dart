@@ -13,6 +13,13 @@ void main() {
     });
 
     expect(model.token, 'jwt');
-    expect(model.user.id, 'u1');
+    expect(model.user!.id, 'u1');
+  });
+
+  test('AuthResponse.fromJson parses token-only response', () {
+    final model = AuthResponse.fromJson({'token': 'jwt'});
+
+    expect(model.token, 'jwt');
+    expect(model.user, isNull);
   });
 }

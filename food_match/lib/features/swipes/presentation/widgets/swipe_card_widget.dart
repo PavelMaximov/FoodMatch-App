@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../core/utils/image_utils.dart';
 import '../../../../data/models/dish.dart';
 
 class SwipeCardWidget extends StatelessWidget {
@@ -18,7 +19,7 @@ class SwipeCardWidget extends StatelessWidget {
         fit: StackFit.expand,
         children: <Widget>[
           CachedNetworkImage(
-            imageUrl: dish.imageUrl,
+            imageUrl: ImageUtils.getImageUrl(dish.imageUrl),
             fit: BoxFit.cover,
             placeholder: (_, __) => const Center(child: CircularProgressIndicator()),
             errorWidget: (_, __, ___) => const ColoredBox(

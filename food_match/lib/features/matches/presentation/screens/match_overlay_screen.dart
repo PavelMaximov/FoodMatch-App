@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/utils/image_utils.dart';
 import '../../../../data/models/dish.dart';
 
 class MatchOverlayScreen extends StatelessWidget {
@@ -32,7 +33,7 @@ class MatchOverlayScreen extends StatelessWidget {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(16),
                     child: CachedNetworkImage(
-                      imageUrl: dish!.imageUrl,
+                      imageUrl: ImageUtils.getImageUrl(dish!.imageUrl),
                       width: 240,
                       height: 180,
                       fit: BoxFit.cover,
@@ -47,7 +48,7 @@ class MatchOverlayScreen extends StatelessWidget {
                 ],
                 const SizedBox(height: 24),
                 ElevatedButton(
-                  onPressed: dish == null ? null : () => context.go('/recipe-detail/${dish!.id}'),
+                  onPressed: dish == null ? null : () => context.go('/recipe-detail/${dish!.id}', extra: dish),
                   child: const Text('Посмотреть рецепт'),
                 ),
                 const SizedBox(height: 8),

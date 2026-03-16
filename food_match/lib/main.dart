@@ -38,6 +38,7 @@ void main() {
           create: (_) => AuthProvider(
             repository: authRepo,
             secureStorage: secureStorage,
+            apiService: apiService,
           ),
         ),
         ChangeNotifierProvider<CoupleProvider>(
