@@ -48,7 +48,10 @@ class AppRouter {
             GoRoute(
               path: '/recipe-detail/:dishId',
               builder: (BuildContext context, GoRouterState state) =>
-                  RecipeDetailScreen(dishId: state.pathParameters['dishId'] ?? 'unknown'),
+                  RecipeDetailScreen(
+                    dishId: state.pathParameters['dishId'] ?? 'unknown',
+                    dish: state.extra is Dish ? state.extra! as Dish : null,
+                  ),
             ),
             GoRoute(
               path: '/match-overlay',

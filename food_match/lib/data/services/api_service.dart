@@ -6,6 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
 import '../../core/constants/api_constants.dart';
+import '../../core/utils/logger.dart';
 
 class ApiService {
   ApiService({
@@ -17,100 +18,150 @@ class ApiService {
   final http.Client _client;
   final FlutterSecureStorage _secureStorage;
   static const Duration _timeout = Duration(seconds: 15);
+  static const int _maxRetries = 1;
+
+  String? _token;
+
+  Future<void> loadToken() async {
+    _token = await _secureStorage.read(key: 'foodmatch_token');
+  }
+
+  void setToken(String? token) {
+    _token = token;
+  }
 
   Future<dynamic> get(String endpoint) async {
+    final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint');
     try {
-      final response = await _client
-          .get(
-            Uri.parse('${ApiConstants.baseUrl}$endpoint'),
-            headers: await _getHeaders(),
-          )
-          .timeout(_timeout);
+      AppLogger.api('GET', uri.toString());
+      final response = await _requestWithRetry(
+        () => _client.get(uri, headers: _getHeaders()),
+      );
+      AppLogger.api('GET', uri.toString(), statusCode: response.statusCode, body: response.body);
       return _handleResponse(response);
-    } on SocketException {
-      throw const ApiException('Network error. Please check your connection.');
-    } on HttpException {
-      throw const ApiException('Server is unavailable.');
-    } on FormatException {
-      throw const ApiException('Invalid response format.');
     } on TimeoutException {
-      throw const ApiException('Request timeout.');
+      throw const ApiException('Превышено время ожидания');
+    } on SocketException {
+      throw const ApiException('Нет подключения к сети');
+    } catch (e) {
+      AppLogger.error('GET request failed', e);
+      rethrow;
     }
   }
 
   Future<dynamic> post(String endpoint, Map<String, dynamic> body) async {
+    final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint');
     try {
-      final response = await _client
-          .post(
-            Uri.parse('${ApiConstants.baseUrl}$endpoint'),
-            headers: await _getHeaders(),
-            body: jsonEncode(body),
-          )
-          .timeout(_timeout);
+      AppLogger.api('POST', uri.toString(), body: jsonEncode(body));
+      final response = await _requestWithRetry(
+        () => _client.post(
+          uri,
+          headers: _getHeaders(),
+          body: jsonEncode(body),
+        ),
+      );
+      AppLogger.api('POST', uri.toString(), statusCode: response.statusCode, body: response.body);
       return _handleResponse(response);
-    } on SocketException {
-      throw const ApiException('Network error. Please check your connection.');
-    } on HttpException {
-      throw const ApiException('Server is unavailable.');
-    } on FormatException {
-      throw const ApiException('Invalid response format.');
     } on TimeoutException {
-      throw const ApiException('Request timeout.');
+      throw const ApiException('Превышено время ожидания');
+    } on SocketException {
+      throw const ApiException('Нет подключения к сети');
+    } catch (e) {
+      AppLogger.error('POST request failed', e);
+      rethrow;
     }
   }
 
   Future<dynamic> postMultipart(String endpoint, File file) async {
+    final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint');
     try {
-      final request = http.MultipartRequest(
-        'POST',
-        Uri.parse('${ApiConstants.baseUrl}$endpoint'),
-      )
-        ..headers.addAll(await _getHeaders(includeContentType: false))
-        ..files.add(await http.MultipartFile.fromPath('file', file.path));
+      AppLogger.api('POST-MULTIPART', uri.toString(), body: file.path);
+      final response = await _requestWithRetry(() async {
+        final headers = _getHeaders(withAuth: true)..remove('Content-Type');
+        final request = http.MultipartRequest('POST', uri)
+          ..headers.addAll(headers)
+          ..files.add(await http.MultipartFile.fromPath('file', file.path));
 
-      final streamed = await request.send().timeout(_timeout);
-      final response = await http.Response.fromStream(streamed);
+        final streamed = await request.send();
+        return http.Response.fromStream(streamed);
+      });
+
+      AppLogger.api(
+        'POST-MULTIPART',
+        uri.toString(),
+        statusCode: response.statusCode,
+        body: response.body,
+      );
       return _handleResponse(response);
-    } on SocketException {
-      throw const ApiException('Network error. Please check your connection.');
-    } on HttpException {
-      throw const ApiException('Server is unavailable.');
-    } on FormatException {
-      throw const ApiException('Invalid response format.');
     } on TimeoutException {
-      throw const ApiException('Request timeout.');
+      throw const ApiException('Превышено время ожидания');
+    } on SocketException {
+      throw const ApiException('Нет подключения к сети');
+    } catch (e) {
+      AppLogger.error('POST multipart request failed', e);
+      rethrow;
     }
   }
 
-  Future<Map<String, String>> _getHeaders({bool includeContentType = true}) async {
-    final token = await _secureStorage.read(key: 'token');
-    final headers = <String, String>{};
-
-    if (includeContentType) {
-      headers['Content-Type'] = 'application/json';
+  Map<String, String> _getHeaders({bool withAuth = true}) {
+    final headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
+    if (withAuth && _token != null) {
+      headers['Authorization'] = 'Bearer $_token';
     }
-    if (token != null && token.isNotEmpty) {
-      headers['Authorization'] = 'Bearer $token';
-    }
-
     return headers;
   }
 
+  Future<http.Response> _requestWithRetry(
+    Future<http.Response> Function() request,
+  ) async {
+    int attempt = 0;
+    while (true) {
+      try {
+        return await request().timeout(_timeout);
+      } catch (e) {
+        attempt++;
+        if (attempt > _maxRetries) rethrow;
+        AppLogger.info('Retrying request: attempt $attempt');
+        await Future.delayed(const Duration(seconds: 1));
+      }
+    }
+  }
+
   dynamic _handleResponse(http.Response response) {
-    dynamic data;
-    if (response.body.isNotEmpty) {
-      data = jsonDecode(response.body);
-    }
-
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      return data;
+      if (response.body.isEmpty) return null;
+      return jsonDecode(response.body);
     }
 
-    final message = data is Map<String, dynamic> ? data['message'] as String? : null;
+    if (response.statusCode == 401) {
+      throw ApiException(_extractErrorMessage(response), statusCode: 401);
+    }
+    if (response.statusCode == 404) {
+      throw ApiException(_extractErrorMessage(response), statusCode: 404);
+    }
+    if (response.statusCode == 400) {
+      throw ApiException(_extractErrorMessage(response), statusCode: 400);
+    }
+    if (response.statusCode >= 500) {
+      throw const ApiException('Ошибка сервера', statusCode: 500);
+    }
+
     throw ApiException(
-      message ?? 'Request failed with status ${response.statusCode}',
+      _extractErrorMessage(response),
       statusCode: response.statusCode,
     );
+  }
+
+  String _extractErrorMessage(http.Response response) {
+    try {
+      final body = jsonDecode(response.body);
+      return body['message'] ?? body['error'] ?? 'Неизвестная ошибка';
+    } catch (_) {
+      return 'Ошибка: ${response.statusCode}';
+    }
   }
 }
 

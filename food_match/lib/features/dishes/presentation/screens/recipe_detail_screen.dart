@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/utils/image_utils.dart';
+import '../../../../data/models/dish.dart';
 import '../../logic/recipe_provider.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
-  const RecipeDetailScreen({required this.dishId, super.key});
+  const RecipeDetailScreen({required this.dishId, this.dish, super.key});
 
   final String dishId;
+  final Dish? dish;
 
   @override
   State<RecipeDetailScreen> createState() => _RecipeDetailScreenState();
@@ -65,10 +68,19 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             leading: const BackButton(),
             flexibleSpace: FlexibleSpaceBar(
               title: const Text('Рецепт'),
-              background: Container(
-                color: Colors.black12,
-                child: const Icon(Icons.restaurant_menu, size: 72),
-              ),
+              background: widget.dish != null
+                  ? Image.network(
+                      ImageUtils.getImageUrl(widget.dish!.imageUrl),
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        color: Colors.black12,
+                        child: const Icon(Icons.restaurant_menu, size: 72),
+                      ),
+                    )
+                  : Container(
+                      color: Colors.black12,
+                      child: const Icon(Icons.restaurant_menu, size: 72),
+                    ),
             ),
           ),
           SliverToBoxAdapter(
@@ -77,7 +89,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text('Блюдо ${widget.dishId}', style: Theme.of(context).textTheme.headlineSmall),
+                  Text(widget.dish?.title ?? 'Блюдо ${widget.dishId}', style: Theme.of(context).textTheme.headlineSmall),
                   const SizedBox(height: 8),
                   const Wrap(
                     spacing: 8,

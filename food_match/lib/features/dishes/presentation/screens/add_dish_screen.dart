@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../data/repositories/dish_repository.dart';
+import '../../../../core/utils/image_utils.dart';
 import '../../../../data/repositories/upload_repository.dart';
 
 class AddDishScreen extends StatefulWidget {
@@ -130,7 +131,24 @@ class _AddDishScreenState extends State<AddDishScreen> {
                 TextFormField(
                   controller: _imageUrlController,
                   decoration: const InputDecoration(labelText: 'URL изображения'),
+                  onChanged: (_) => setState(() {}),
                 ),
+                if (_imageUrlController.text.trim().isNotEmpty) ...<Widget>[
+                  const SizedBox(height: 12),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      ImageUtils.getImageUrl(_imageUrlController.text.trim()),
+                      height: 160,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const SizedBox(
+                        height: 160,
+                        child: Center(child: Text('Превью недоступно')),
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 8),
                 OutlinedButton.icon(
                   onPressed: _isSubmitting ? null : _pickImage,

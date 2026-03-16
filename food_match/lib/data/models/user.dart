@@ -15,6 +15,7 @@ class User {
   final String id;
   final String email;
   final String displayName;
+  @JsonKey(name: 'coupleId')
   final String? coupleId;
 
   static Object? _readId(Map<dynamic, dynamic> json, String _) {

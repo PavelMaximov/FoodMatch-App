@@ -3,12 +3,13 @@
 part of 'dish.dart';
 
 Dish _$DishFromJson(Map<String, dynamic> json) => Dish(
-      id: json['_id'] as String,
+      id: json['_id'] as String? ?? '',
       title: json['title'] as String,
       description: json['description'] as String,
-      imageUrl: json['imageUrl'] as String,
+      imageUrl: json['imageUrl'] as String? ?? '',
       cuisine: json['cuisine'] as String,
-      tags: (json['tags'] as List<dynamic>).map((e) => e as String).toList(),
+      tags: (json['tags'] as List<dynamic>?)?.map((e) => e as String).toList() ??
+          <String>[],
       source: json['source'] as String,
       externalId: json['externalId'] as String?,
       createdBy: json['createdBy'] as String,

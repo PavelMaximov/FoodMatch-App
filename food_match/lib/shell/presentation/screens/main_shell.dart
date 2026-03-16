@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../../features/auth/logic/auth_provider.dart';
 import '../../../features/couple/logic/couple_provider.dart';
+import '../../../features/couple/presentation/screens/connect_couple_screen.dart';
 import '../../../features/matches/logic/match_provider.dart';
 
 class MainShell extends StatefulWidget {
@@ -21,9 +22,18 @@ class _MainShellState extends State<MainShell> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final auth = context.read<AuthProvider>();
+      if (!auth.isAuthenticated) return;
+
       final couple = context.read<CoupleProvider>();
-      if (auth.isAuthenticated && couple.currentCouple == null) {
-        context.push('/connect-couple');
+      await couple.loadCouple();
+
+      if (!couple.hasCouple && mounted) {
+        await showModalBottomSheet<void>(
+          context: context,
+          isDismissible: false,
+          enableDrag: false,
+          builder: (_) => const ConnectCoupleScreen(),
+        );
       }
     });
   }
