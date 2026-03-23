@@ -3,18 +3,27 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../core/utils/snackbar_utils.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_dimensions.dart';
+import '../../../../core/theme/app_text_styles.dart';
+import '../../../../shared/widgets/app_button.dart';
+import '../../../../shared/widgets/app_text_field.dart';
 import '../../logic/couple_provider.dart';
 
 class ConnectCoupleScreen extends StatefulWidget {
-  const ConnectCoupleScreen({super.key});
+  final bool isBottomSheet;
+
+  const ConnectCoupleScreen({
+    super.key,
+    this.isBottomSheet = false,
+  });
 
   @override
   State<ConnectCoupleScreen> createState() => _ConnectCoupleScreenState();
 }
 
 class _ConnectCoupleScreenState extends State<ConnectCoupleScreen> {
-  final _codeController = TextEditingController();
+  final TextEditingController _codeController = TextEditingController();
 
   @override
   void dispose() {
@@ -22,111 +31,162 @@ class _ConnectCoupleScreenState extends State<ConnectCoupleScreen> {
     super.dispose();
   }
 
+  bool _isPresentedAsBottomSheet(BuildContext context) {
+    return widget.isBottomSheet || ModalRoute.of(context) is PopupRoute<dynamic>;
+  }
+
   Future<void> _createCouple() async {
-    final provider = context.read<CoupleProvider>();
-    await provider.createCouple();
-    if (!mounted) return;
-    if (provider.error != null) {
-      SnackBarUtils.showError(context, provider.error!);
-    }
+    await context.read<CoupleProvider>().createCouple();
   }
 
   Future<void> _joinCouple() async {
-    final code = _codeController.text.trim();
-    if (code.isEmpty) return;
-
-    final provider = context.read<CoupleProvider>();
-    await provider.joinCouple(code);
-    if (!mounted) return;
-
-    if (provider.error != null) {
-      SnackBarUtils.showError(context, provider.error!);
+    final String code = _codeController.text.trim();
+    if (code.isEmpty) {
       return;
     }
 
-    SnackBarUtils.showSuccess(context, 'Пара успешно подключена');
+    final CoupleProvider provider = context.read<CoupleProvider>();
+    await provider.joinCouple(code);
+    if (!mounted || provider.error != null) {
+      return;
+    }
+
+    if (_isPresentedAsBottomSheet(context)) {
+      Navigator.of(context).pop(true);
+      return;
+    }
+
     context.go('/swipes');
+  }
+
+  Future<void> _copyInviteCode(String inviteCode) async {
+    await Clipboard.setData(ClipboardData(text: inviteCode));
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(content: Text('Code copied!')));
+  }
+
+  Widget _buildContent(CoupleProvider provider) {
+    final String? inviteCode = provider.inviteCode;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingL),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: <Widget>[
+          const SizedBox(height: AppDimensions.paddingL),
+          const Icon(
+            Icons.link,
+            size: AppDimensions.iconSizeL,
+            color: AppColors.primary,
+          ),
+          const SizedBox(height: AppDimensions.paddingS),
+          Text('Joining a session', style: AppTextStyles.screenHeader),
+          const SizedBox(height: AppDimensions.paddingXL),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text('Create your own session', style: AppTextStyles.bodyMedium),
+          ),
+          const SizedBox(height: 12),
+          AppButton(
+            text: 'Create a pair',
+            icon: Icons.link,
+            onPressed: _createCouple,
+            isLoading: provider.isLoading,
+          ),
+          if (inviteCode != null) ...<Widget>[
+            const SizedBox(height: AppDimensions.paddingM),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppDimensions.paddingM),
+              decoration: BoxDecoration(
+                color: AppColors.chipBg,
+                borderRadius: BorderRadius.circular(AppDimensions.radiusM),
+              ),
+              child: Column(
+                children: <Widget>[
+                  Text('Your invite code:', style: AppTextStyles.bodyMedium),
+                  const SizedBox(height: AppDimensions.paddingS),
+                  Text(
+                    inviteCode,
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.sectionHeader,
+                  ),
+                  const SizedBox(height: AppDimensions.paddingS),
+                  TextButton.icon(
+                    onPressed: () => _copyInviteCode(inviteCode),
+                    icon: const Icon(Icons.copy, color: AppColors.primary),
+                    label: const Text('Copy code'),
+                  ),
+                  Text(
+                    'Share this code with your partner',
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: AppDimensions.paddingXL),
+          Row(
+            children: <Widget>[
+              const Expanded(child: Divider(color: AppColors.divider)),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingM),
+                child: Text('or', style: AppTextStyles.bodySmall),
+              ),
+              const Expanded(child: Divider(color: AppColors.divider)),
+            ],
+          ),
+          const SizedBox(height: AppDimensions.paddingXL),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text('Join an existing session', style: AppTextStyles.bodyMedium),
+          ),
+          const SizedBox(height: 12),
+          AppTextField(
+            hint: 'Invite code',
+            controller: _codeController,
+          ),
+          const SizedBox(height: AppDimensions.paddingM),
+          AppButton(
+            text: 'Connect to session',
+            onPressed: _joinCouple,
+            isLoading: provider.isLoading,
+          ),
+          if (provider.error != null) ...<Widget>[
+            const SizedBox(height: AppDimensions.paddingM),
+            Text(
+              provider.error!,
+              style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
+              textAlign: TextAlign.center,
+            ),
+          ],
+          const SizedBox(height: AppDimensions.paddingL),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final couple = context.watch<CoupleProvider>();
+    final CoupleProvider provider = context.watch<CoupleProvider>();
+    final Widget content = SafeArea(child: _buildContent(provider));
+
+    if (_isPresentedAsBottomSheet(context)) {
+      return Container(
+        color: AppColors.background,
+        child: content,
+      );
+    }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Подключение к паре')),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: <Widget>[
-                      Text('Создать пару', style: Theme.of(context).textTheme.titleLarge),
-                      const SizedBox(height: 12),
-                      ElevatedButton(
-                        onPressed: couple.isLoading ? null : _createCouple,
-                        child: const Text('Создать пару'),
-                      ),
-                      if (couple.inviteCode != null) ...<Widget>[
-                        const SizedBox(height: 12),
-                        SelectableText(
-                          couple.inviteCode!,
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.headlineSmall,
-                        ),
-                        const SizedBox(height: 8),
-                        OutlinedButton(
-                          onPressed: () async {
-                            await Clipboard.setData(ClipboardData(text: couple.inviteCode!));
-                            if (!context.mounted) return;
-                            SnackBarUtils.showSuccess(context, 'Код скопирован');
-                          },
-                          child: const Text('Скопировать код'),
-                        ),
-                        const Text('Отправьте этот код партнёру', textAlign: TextAlign.center),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: <Widget>[
-                      Text('Присоединиться', style: Theme.of(context).textTheme.titleLarge),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: _codeController,
-                        decoration: const InputDecoration(
-                          labelText: 'Invite code',
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      ElevatedButton(
-                        onPressed: couple.isLoading ? null : _joinCouple,
-                        child: const Text('Присоединиться'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              if (couple.isLoading)
-                const Padding(
-                  padding: EdgeInsets.only(top: 16),
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-            ],
-          ),
-        ),
-      ),
+      backgroundColor: AppColors.background,
+      body: content,
     );
   }
 }
