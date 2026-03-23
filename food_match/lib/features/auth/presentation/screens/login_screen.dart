@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/utils/snackbar_utils.dart';
 import '../../logic/auth_provider.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -32,9 +33,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (!mounted) return;
     if (auth.error != null) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(auth.error!)));
+      SnackBarUtils.showError(context, auth.error!);
     }
   }
 
@@ -115,13 +114,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         : const Text('Войти'),
                   ),
                 ),
-                if (auth.error != null) ...<Widget>[
-                  const SizedBox(height: 12),
-                  Text(
-                    auth.error!,
-                    style: TextStyle(color: Theme.of(context).colorScheme.error),
-                  ),
-                ],
                 const SizedBox(height: 16),
                 TextButton(
                   onPressed: () => context.push('/forgot-password'),

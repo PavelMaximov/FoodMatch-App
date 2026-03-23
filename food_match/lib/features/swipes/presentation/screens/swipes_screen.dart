@@ -7,6 +7,9 @@ import '../../../couple/logic/couple_provider.dart';
 import '../../../couple/presentation/screens/connect_couple_screen.dart';
 import '../../../matches/logic/match_provider.dart';
 import '../../logic/swipe_provider.dart';
+import '../../../../shared/widgets/empty_state.dart';
+import '../../../../shared/widgets/error_state.dart';
+import '../../../../shared/widgets/shimmer_card.dart';
 import '../widgets/swipe_card_widget.dart';
 
 class SwipesScreen extends StatefulWidget {
@@ -46,22 +49,26 @@ class _SwipesScreenState extends State<SwipesScreen> {
     }
 
     if (swipe.isLoading && swipe.deck.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return const Padding(
+        padding: EdgeInsets.all(16),
+        child: ShimmerCard(),
+      );
+    }
+
+    if (swipe.error != null && swipe.deck.isEmpty) {
+      return ErrorState(
+        message: swipe.error!,
+        onRetry: () => context.read<SwipeProvider>().loadDeck(),
+      );
     }
 
     if (swipe.isDeckEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            const Text('Блюда закончились! 🎉'),
-            const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: () => context.read<SwipeProvider>().loadDeck(),
-              child: const Text('Загрузить ещё'),
-            ),
-          ],
-        ),
+      return EmptyState(
+        icon: Icons.restaurant,
+        title: 'Блюда закончились!',
+        subtitle: 'Загрузите ещё',
+        buttonText: 'Обновить',
+        onButtonPressed: () => context.read<SwipeProvider>().loadDeck(),
       );
     }
 

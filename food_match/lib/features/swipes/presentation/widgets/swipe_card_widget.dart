@@ -18,13 +18,15 @@ class SwipeCardWidget extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: <Widget>[
-          CachedNetworkImage(
-            imageUrl: ImageUtils.getImageUrl(dish.imageUrl),
-            fit: BoxFit.cover,
-            placeholder: (_, __) => const Center(child: CircularProgressIndicator()),
-            errorWidget: (_, __, ___) => const ColoredBox(
-              color: Colors.black12,
-              child: Center(child: Icon(Icons.image_not_supported_outlined, size: 48)),
+          Hero(
+            tag: 'dish-image-${dish.id}',
+            child: CachedNetworkImage(
+              imageUrl: ImageUtils.getImageUrl(dish.imageUrl),
+              fit: BoxFit.cover,
+              errorWidget: (_, __, ___) => const ColoredBox(
+                color: Colors.black12,
+                child: Center(child: Icon(Icons.image_not_supported_outlined, size: 48)),
+              ),
             ),
           ),
           const DecoratedBox(

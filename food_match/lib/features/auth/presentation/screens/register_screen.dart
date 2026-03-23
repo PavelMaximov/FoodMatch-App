@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/utils/snackbar_utils.dart';
 import '../../logic/auth_provider.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -37,9 +38,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     if (!mounted) return;
     if (auth.error != null) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(auth.error!)));
+      SnackBarUtils.showError(context, auth.error!);
     }
   }
 
@@ -120,13 +119,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         : const Text('Зарегистрироваться'),
                   ),
                 ),
-                if (auth.error != null) ...<Widget>[
-                  const SizedBox(height: 12),
-                  Text(
-                    auth.error!,
-                    style: TextStyle(color: Theme.of(context).colorScheme.error),
-                  ),
-                ],
                 const SizedBox(height: 12),
                 TextButton(
                   onPressed: () => context.go('/login'),
