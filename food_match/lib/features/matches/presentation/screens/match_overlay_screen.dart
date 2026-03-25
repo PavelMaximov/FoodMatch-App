@@ -1,9 +1,16 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_dimensions.dart';
+import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/image_utils.dart';
 import '../../../../data/models/dish.dart';
+import '../../../auth/logic/auth_provider.dart';
+import '../../../couple/logic/couple_provider.dart';
+import '../../../../shared/widgets/app_button.dart';
 
 class MatchOverlayScreen extends StatelessWidget {
   const MatchOverlayScreen({this.dish, super.key});
@@ -12,49 +19,122 @@ class MatchOverlayScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final CoupleProvider coupleProvider = context.watch<CoupleProvider>();
+    final String? currentUserName = context.watch<AuthProvider>().currentUser?.displayName;
+    final String partnerName = _resolvePartnerName(
+      members: coupleProvider.currentCouple?.members,
+      currentUserName: currentUserName,
+    );
+
     return Scaffold(
-      backgroundColor: Colors.black.withValues(alpha: 0.85),
-      body: SafeArea(
-        child: Center(
+      backgroundColor: Colors.transparent,
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              AppColors.matchOverlayStart,
+              AppColors.matchOverlayEnd,
+            ],
+          ),
+        ),
+        child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(AppDimensions.paddingL),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
               children: <Widget>[
+                const Spacer(),
+                Text('Congratulations', style: AppTextStyles.matchCongrats),
+                const SizedBox(height: AppDimensions.paddingXS),
                 Text(
-                  "It's a Match! 🎉",
-                  style: Theme.of(context)
-                      .textTheme
-                      .headlineMedium
-                      ?.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
+                  'You have a',
+                  style: AppTextStyles.sectionHeader.copyWith(
+                    fontSize: 20,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-                const SizedBox(height: 20),
-                if (dish != null) ...<Widget>[
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: CachedNetworkImage(
-                      imageUrl: ImageUtils.getImageUrl(dish!.imageUrl),
-                      width: 240,
-                      height: 180,
-                      fit: BoxFit.cover,
+                Text(
+                  'Match!',
+                  style: AppTextStyles.matchCongrats.copyWith(
+                    fontSize: 40,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: AppDimensions.paddingL),
+                if (dish != null)
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(AppDimensions.radiusL),
+                      boxShadow: const <BoxShadow>[
+                        BoxShadow(
+                          color: Color(0x66FFFFFF),
+                          blurRadius: 18,
+                          spreadRadius: 1,
+                        ),
+                        BoxShadow(
+                          color: Color(0x33000000),
+                          blurRadius: 24,
+                          offset: Offset(0, 12),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(AppDimensions.radiusL),
+                      child: CachedNetworkImage(
+                        imageUrl: ImageUtils.getImageUrl(dish!.imageUrl),
+                        width: 250,
+                        height: 250,
+                        fit: BoxFit.cover,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                    dish!.title,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white),
-                    textAlign: TextAlign.center,
+                const SizedBox(height: AppDimensions.paddingL),
+                Text(
+                  'You and $partnerName',
+                  style: AppTextStyles.bodyLarge.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 18,
                   ),
-                ],
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: dish == null ? null : () => context.go('/recipe-detail/${dish!.id}', extra: dish),
-                  child: const Text('Посмотреть рецепт'),
+                  textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed: () => context.pop(),
-                  child: const Text('Продолжить свайпы'),
+                const SizedBox(height: AppDimensions.paddingXS),
+                Text(
+                  'have chosen the same dish.',
+                  style: AppTextStyles.bodyLarge.copyWith(
+                    color: Colors.white,
+                    fontSize: 16,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppDimensions.paddingS),
+                Text(
+                  'Now you have a choice',
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: Colors.white70,
+                    fontSize: 14,
+                  ),
+                ),
+                const Spacer(),
+                AppButton(
+                  text: 'Continue browsing',
+                  onPressed: () => Navigator.pop(context),
+                  darkBackground: true,
+                ),
+                const SizedBox(height: AppDimensions.paddingM - 4),
+                AppButton(
+                  text: 'Go to match results',
+                  isOutlined: true,
+                  darkBackground: true,
+                  onPressed: () {
+                    Navigator.pop(context);
+                    context.go('/matches');
+                  },
                 ),
               ],
             ),
@@ -62,5 +142,19 @@ class MatchOverlayScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _resolvePartnerName({List<String>? members, String? currentUserName}) {
+    if (members == null || members.isEmpty) {
+      return 'your partner';
+    }
+
+    for (final String member in members) {
+      if (member.isNotEmpty && member != currentUserName) {
+        return member;
+      }
+    }
+
+    return 'your partner';
   }
 }

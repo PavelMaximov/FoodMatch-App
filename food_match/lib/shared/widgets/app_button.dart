@@ -9,6 +9,7 @@ class AppButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final bool isLoading;
   final bool isOutlined;
+  final bool darkBackground;
   final IconData? icon;
 
   const AppButton({
@@ -17,24 +18,28 @@ class AppButton extends StatelessWidget {
     this.onPressed,
     this.isLoading = false,
     this.isOutlined = false,
+    this.darkBackground = false,
     this.icon,
   });
 
   @override
   Widget build(BuildContext context) {
     if (isOutlined) {
+      final Color outlinedColor = darkBackground ? Colors.white : AppColors.primary;
       return SizedBox(
         width: double.infinity,
         height: AppDimensions.buttonHeight,
         child: OutlinedButton(
           onPressed: isLoading ? null : onPressed,
           style: OutlinedButton.styleFrom(
-            side: const BorderSide(color: AppColors.divider),
+            side: BorderSide(color: darkBackground ? Colors.white : AppColors.divider),
+            foregroundColor: outlinedColor,
+            backgroundColor: Colors.transparent,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppDimensions.radiusButton),
             ),
           ),
-          child: _buildChild(isOutlined: true),
+          child: _buildChild(isOutlined: true, outlinedColor: outlinedColor),
         ),
       );
     }
@@ -57,14 +62,14 @@ class AppButton extends StatelessWidget {
     );
   }
 
-  Widget _buildChild({bool isOutlined = false}) {
+  Widget _buildChild({bool isOutlined = false, Color? outlinedColor}) {
     if (isLoading) {
       return SizedBox(
         height: 20,
         width: 20,
         child: CircularProgressIndicator(
           strokeWidth: 2,
-          color: isOutlined ? AppColors.primary : Colors.white,
+          color: isOutlined ? (outlinedColor ?? AppColors.primary) : Colors.white,
         ),
       );
     }
@@ -78,7 +83,7 @@ class AppButton extends StatelessWidget {
           Text(
             text,
             style: isOutlined
-                ? AppTextStyles.button.copyWith(color: AppColors.primary)
+                ? AppTextStyles.button.copyWith(color: outlinedColor ?? AppColors.primary)
                 : AppTextStyles.button,
           ),
         ],
@@ -88,7 +93,7 @@ class AppButton extends StatelessWidget {
     return Text(
       text,
       style: isOutlined
-          ? AppTextStyles.button.copyWith(color: AppColors.primary)
+          ? AppTextStyles.button.copyWith(color: outlinedColor ?? AppColors.primary)
           : AppTextStyles.button,
     );
   }
