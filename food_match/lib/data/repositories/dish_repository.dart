@@ -1,4 +1,5 @@
 import '../../core/constants/api_constants.dart';
+import '../../core/utils/logger.dart';
 import '../models/dish.dart';
 import '../services/api_service.dart';
 
@@ -12,7 +13,9 @@ class DishRepository {
         ? ApiConstants.dishes
         : '${ApiConstants.dishes}?cuisine=${Uri.encodeQueryComponent(cuisine)}';
     final data = await _apiService.get(endpoint);
-    final list = _extractList(data, fallbackKey: 'dishes');
+    final List<dynamic> list = data is Map<String, dynamic>
+        ? (data['dishes'] as List<dynamic>? ?? <dynamic>[])
+        : <dynamic>[];
 
     return list
         .map((item) => Dish.fromJson(Map<String, dynamic>.from(item as Map)))
@@ -37,25 +40,13 @@ class DishRepository {
     return Dish.fromJson(dishJson);
   }
 
-  List<dynamic> _extractList(dynamic data, {required String fallbackKey}) {
-    if (data is List<dynamic>) {
-      return data;
-    }
-    if (data is Map<String, dynamic>) {
-      final raw = data[fallbackKey] ?? data['data'];
-      if (raw is List<dynamic>) {
-        return raw;
-      }
-    }
-    throw const FormatException('Unexpected dishes response format.');
-  }
-
   Map<String, dynamic> _extractMap(dynamic data, {required String fallbackKey}) {
     if (data is Map<String, dynamic>) {
       final raw = data[fallbackKey];
       if (raw is Map<String, dynamic>) {
         return raw;
       }
+      AppLogger.info('Response data: $data');
       return data;
     }
     throw const FormatException('Unexpected dish response format.');
