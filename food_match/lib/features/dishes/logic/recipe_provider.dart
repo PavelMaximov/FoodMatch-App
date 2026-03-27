@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../data/models/dish.dart';
 import '../../../data/models/recipe.dart';
 import '../../../data/repositories/recipe_repository.dart';
 import '../../../data/services/api_service.dart';
@@ -26,6 +27,18 @@ class RecipeProvider extends ChangeNotifier {
       isLoading = false;
       notifyListeners();
     }
+  }
+
+  Future<void> loadRecipeForDish({required String dishId, Dish? dish}) async {
+    if (dish?.recipe != null) {
+      currentRecipe = dish!.recipe;
+      error = null;
+      isLoading = false;
+      notifyListeners();
+      return;
+    }
+
+    await loadRecipe(dishId);
   }
 
   void clearRecipe() {

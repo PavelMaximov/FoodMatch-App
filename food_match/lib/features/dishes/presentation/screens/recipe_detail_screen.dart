@@ -24,7 +24,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<RecipeProvider>().loadRecipe(widget.dishId);
+      context.read<RecipeProvider>().loadRecipeForDish(
+            dishId: widget.dishId,
+            dish: widget.dish,
+          );
     });
   }
 
@@ -47,18 +50,21 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         appBar: AppBar(),
         body: ErrorState(
           message: recipeProvider.error!,
-          onRetry: () => context.read<RecipeProvider>().loadRecipe(widget.dishId),
+          onRetry: () => context.read<RecipeProvider>().loadRecipeForDish(
+            dishId: widget.dishId,
+            dish: widget.dish,
+          ),
         ),
       );
     }
 
     if (recipe == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Рецепт')),
+        appBar: AppBar(title: const Text('Recipe')),
         body: const EmptyState(
           icon: Icons.menu_book,
-          title: 'Рецепт не найден',
-          subtitle: 'Для этого блюда рецепт пока недоступен',
+          title: 'Recipe not found',
+          subtitle: 'Recipe is not available for this dish yet',
         ),
       );
     }
@@ -71,7 +77,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             pinned: true,
             leading: const BackButton(),
             flexibleSpace: FlexibleSpaceBar(
-              title: const Text('Рецепт'),
+              title: const Text('Recipe'),
               background: widget.dish != null
                   ? Hero(
                       tag: 'dish-image-${widget.dishId}',
@@ -97,7 +103,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
-                    widget.dish?.title ?? 'Блюдо ${widget.dishId}',
+                    widget.dish?.title ?? 'Dish ${widget.dishId}',
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
                   const SizedBox(height: 8),
@@ -109,7 +115,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                     ],
                   ),
                   const SizedBox(height: 20),
-                  Text('Ингредиенты', style: Theme.of(context).textTheme.titleLarge),
+                  Text('Ingredients', style: Theme.of(context).textTheme.titleLarge),
                   const SizedBox(height: 8),
                   ...recipe.ingredients.map(
                     (item) => Padding(
@@ -124,7 +130,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  Text('Приготовление', style: Theme.of(context).textTheme.titleLarge),
+                  Text('Preparation', style: Theme.of(context).textTheme.titleLarge),
                   const SizedBox(height: 8),
                   ...recipe.steps.asMap().entries.map(
                     (entry) => Padding(
