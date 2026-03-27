@@ -108,8 +108,9 @@ class ApiService {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
     };
-    if (withAuth && _token != null) {
-      headers['Authorization'] = 'Bearer $_token';
+    final token = _token;
+    if (withAuth && token != null) {
+      headers['Authorization'] = 'Bearer $token';
     }
     return headers;
   }

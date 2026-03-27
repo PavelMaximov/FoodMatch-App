@@ -1,4 +1,5 @@
 import '../../core/constants/api_constants.dart';
+import '../../core/utils/logger.dart';
 import '../models/recipe.dart';
 import '../services/api_service.dart';
 
@@ -9,16 +10,12 @@ class RecipeRepository {
 
   Future<Recipe> getRecipe(String dishId) async {
     final data = await _apiService.get('${ApiConstants.recipes}/$dishId');
-    return Recipe.fromJson(_extractMap(data, fallbackKey: 'recipe'));
-  }
-
-  Map<String, dynamic> _extractMap(dynamic data, {required String fallbackKey}) {
+    AppLogger.info('Response data: $data');
     if (data is Map<String, dynamic>) {
-      final raw = data[fallbackKey];
-      if (raw is Map<String, dynamic>) {
-        return raw;
+      final dynamic recipeData = data['recipe'] ?? data['dish']?['recipe'] ?? data;
+      if (recipeData is Map<String, dynamic>) {
+        return Recipe.fromJson(recipeData);
       }
-      return data;
     }
     throw const FormatException('Unexpected recipe response format.');
   }

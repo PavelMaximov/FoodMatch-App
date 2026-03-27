@@ -1,4 +1,5 @@
 import '../../core/constants/api_constants.dart';
+import '../../core/utils/logger.dart';
 import '../models/couple.dart';
 import '../services/api_service.dart';
 
@@ -21,6 +22,13 @@ class CoupleRepository {
 
   Future<Couple> getMyCouple() async {
     final data = await _apiService.get(ApiConstants.coupleMe);
+    if (data is Map<String, dynamic>) {
+      final couple = data['couple'];
+      if (couple is Map<String, dynamic>) {
+        return Couple.fromJson(couple);
+      }
+    }
+    AppLogger.info('Response data: $data');
     return Couple.fromJson(_extractMap(data, fallbackKey: 'couple'));
   }
 

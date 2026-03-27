@@ -3,10 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_dimensions.dart';
+import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/image_utils.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
+import '../../../auth/logic/auth_provider.dart';
+import '../../../couple/logic/couple_provider.dart';
 import '../../logic/match_provider.dart';
 
 class MatchesScreen extends StatefulWidget {
@@ -22,19 +27,48 @@ class _MatchesScreenState extends State<MatchesScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<MatchProvider>().loadMatches();
+      context.read<CoupleProvider>().loadCouple();
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final matchProvider = context.watch<MatchProvider>();
+    final MatchProvider matchProvider = context.watch<MatchProvider>();
+    final CoupleProvider coupleProvider = context.watch<CoupleProvider>();
+    final String? currentUserName = context.watch<AuthProvider>().currentUser?.displayName;
+    final String partnerName = _resolvePartnerName(
+      members: coupleProvider.currentCouple?.members,
+      currentUserName: currentUserName,
+    );
 
+    return Scaffold(
+      backgroundColor: AppColors.scaffoldBg,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingL),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const SizedBox(height: AppDimensions.paddingM),
+              _Header(partnerName: partnerName),
+              const SizedBox(height: AppDimensions.paddingM),
+              Expanded(
+                child: _buildBody(matchProvider),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody(MatchProvider matchProvider) {
     if (matchProvider.isLoading && matchProvider.matches.isEmpty) {
       return ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: 4,
+        physics: const AlwaysScrollableScrollPhysics(),
+        itemCount: 5,
         itemBuilder: (_, __) => const Padding(
-          padding: EdgeInsets.only(bottom: 8),
+          padding: EdgeInsets.only(bottom: AppDimensions.paddingS),
           child: ShimmerListTile(),
         ),
       );
@@ -48,77 +82,158 @@ class _MatchesScreenState extends State<MatchesScreen> {
     }
 
     if (matchProvider.matches.isEmpty) {
-      return const EmptyState(
-        icon: Icons.favorite_border,
-        title: 'Пока нет совпадений',
-        subtitle: 'Свайпайте блюда вместе с партнёром',
+      return RefreshIndicator(
+        onRefresh: () => context.read<MatchProvider>().loadMatches(),
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: const <Widget>[
+            SizedBox(height: 120),
+            EmptyState(
+              icon: Icons.favorite_border,
+              title: 'No matches yet',
+              subtitle: 'Swipe dishes together with your partner',
+            ),
+          ],
+        ),
       );
     }
 
     return RefreshIndicator(
       onRefresh: () => context.read<MatchProvider>().loadMatches(),
       child: ListView.builder(
-        padding: const EdgeInsets.all(16),
+        physics: const AlwaysScrollableScrollPhysics(),
         itemCount: matchProvider.matches.length,
-        itemBuilder: (context, index) {
+        itemBuilder: (BuildContext context, int index) {
           final dish = matchProvider.matches[index];
-          return Card(
-            margin: const EdgeInsets.only(bottom: 12),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(16),
-              onTap: () => context.push('/recipe-detail/${dish.id}', extra: dish),
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  children: <Widget>[
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Hero(
-                        tag: 'dish-image-${dish.id}',
+          return Padding(
+            padding: const EdgeInsets.only(bottom: AppDimensions.paddingS),
+            child: Card(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppDimensions.radiusM),
+              ),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(AppDimensions.radiusM),
+                onTap: () => context.push('/recipe-detail/${dish.id}', extra: dish),
+                child: Padding(
+                  padding: const EdgeInsets.all(AppDimensions.paddingM),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      const Padding(
+                        padding: EdgeInsets.only(top: 2),
+                        child: Icon(Icons.check_box_outline_blank, size: 22),
+                      ),
+                      const SizedBox(width: AppDimensions.paddingS),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(dish.title, style: AppTextStyles.cardTitle),
+                            const SizedBox(height: 4),
+                            Text(
+                              dish.description,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.bodyMedium,
+                            ),
+                            const SizedBox(height: AppDimensions.paddingS),
+                            Row(
+                              children: <Widget>[
+                                const Icon(Icons.access_time, size: 14, color: AppColors.textSecondary),
+                                const SizedBox(width: 4),
+                                Text('15 min.', style: AppTextStyles.bodySmall),
+                                const SizedBox(width: AppDimensions.paddingM),
+                                const Icon(Icons.people, size: 14, color: AppColors.textSecondary),
+                                const SizedBox(width: 4),
+                                Text('2 servings', style: AppTextStyles.bodySmall),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: AppDimensions.paddingS),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(AppDimensions.radiusS),
                         child: CachedNetworkImage(
                           imageUrl: ImageUtils.getImageUrl(dish.imageUrl),
-                          width: 80,
-                          height: 80,
+                          width: AppDimensions.matchThumbnailSize,
+                          height: AppDimensions.matchThumbnailSize,
                           fit: BoxFit.cover,
                           errorWidget: (_, __, ___) => const ColoredBox(
                             color: Colors.black12,
                             child: SizedBox(
-                              width: 80,
-                              height: 80,
+                              width: AppDimensions.matchThumbnailSize,
+                              height: AppDimensions.matchThumbnailSize,
                               child: Icon(Icons.image_not_supported_outlined),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Text(
-                            dish.title,
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                          Text(dish.cuisine),
-                          const SizedBox(height: 6),
-                          Wrap(
-                            spacing: 6,
-                            children: dish.tags
-                                .take(3)
-                                .map((tag) => Chip(label: Text(tag)))
-                                .toList(),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
           );
         },
       ),
+    );
+  }
+
+  String _resolvePartnerName({List<String>? members, String? currentUserName}) {
+    if (members == null || members.isEmpty) {
+      return 'your partner';
+    }
+
+    for (final String member in members) {
+      if (member.isNotEmpty && member != currentUserName) {
+        return member;
+      }
+    }
+
+    return 'your partner';
+  }
+}
+
+class _Header extends StatelessWidget {
+  const _Header({required this.partnerName});
+
+  final String partnerName;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          'Matches',
+          style: AppTextStyles.sectionHeader.copyWith(
+            fontSize: 32,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        Text(
+          'with',
+          style: AppTextStyles.sectionHeader.copyWith(
+            fontSize: 32,
+            fontWeight: FontWeight.w400,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Row(
+          children: <Widget>[
+            Flexible(
+              child: Text(
+                partnerName,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.sectionHeader.copyWith(fontSize: 24),
+              ),
+            ),
+            const SizedBox(width: 6),
+            const Icon(Icons.person, size: 20, color: AppColors.textSecondary),
+          ],
+        ),
+      ],
     );
   }
 }
