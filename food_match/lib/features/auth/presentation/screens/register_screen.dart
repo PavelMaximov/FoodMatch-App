@@ -57,7 +57,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               children: <Widget>[
                 const SizedBox(height: 24),
                 Text(
-                  'Регистрация',
+                  'Sign Up',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
@@ -65,12 +65,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 TextFormField(
                   controller: _nameController,
                   decoration: const InputDecoration(
-                    labelText: 'Имя',
+                    labelText: 'Name',
                     prefixIcon: Icon(Icons.person_outline),
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Введите имя';
+                      return 'Enter name';
                     }
                     return null;
                   },
@@ -85,7 +85,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Введите email';
+                      return 'Enter email';
                     }
                     return null;
                   },
@@ -95,12 +95,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   controller: _passwordController,
                   obscureText: true,
                   decoration: const InputDecoration(
-                    labelText: 'Пароль',
+                    labelText: 'Password',
                     prefixIcon: Icon(Icons.lock_outline),
                   ),
                   validator: (value) {
                     if (value == null || value.length < 6) {
-                      return 'Минимум 6 символов';
+                      return 'Minimum 6 characters';
                     }
                     return null;
                   },
@@ -116,13 +116,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             height: 20,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('Зарегистрироваться'),
+                        : const Text('Sign up'),
                   ),
                 ),
                 const SizedBox(height: 12),
                 TextButton(
                   onPressed: () => context.go('/login'),
-                  child: const Text('Уже есть аккаунт? Войти'),
+                  child: const Text('Already have an account? Log in'),
                 ),
               ],
             ),

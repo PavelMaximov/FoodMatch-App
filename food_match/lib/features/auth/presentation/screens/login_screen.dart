@@ -72,7 +72,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Введите email';
+                      return 'Enter email';
                     }
                     return null;
                   },
@@ -82,12 +82,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   controller: _passwordController,
                   obscureText: true,
                   decoration: const InputDecoration(
-                    labelText: 'Пароль',
+                    labelText: 'Password',
                     prefixIcon: Icon(Icons.lock_outline),
                   ),
                   validator: (value) {
                     if (value == null || value.length < 6) {
-                      return 'Минимум 6 символов';
+                      return 'Minimum 6 characters';
                     }
                     return null;
                   },
@@ -96,7 +96,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 CheckboxListTile(
                   value: _rememberMe,
                   onChanged: (value) => setState(() => _rememberMe = value ?? true),
-                  title: const Text('Запомнить меня'),
+                  title: const Text('Remember me'),
                   controlAffinity: ListTileControlAffinity.leading,
                   contentPadding: EdgeInsets.zero,
                 ),
@@ -111,17 +111,17 @@ class _LoginScreenState extends State<LoginScreen> {
                             height: 20,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('Войти'),
+                        : const Text('Log in'),
                   ),
                 ),
                 const SizedBox(height: 16),
                 TextButton(
                   onPressed: () => context.push('/forgot-password'),
-                  child: const Text('Забыли пароль?'),
+                  child: const Text('Forgot password?'),
                 ),
                 TextButton(
                   onPressed: () => context.go('/register'),
-                  child: const Text('Нет аккаунта? Зарегистрироваться'),
+                  child: const Text('No account? Sign up'),
                 ),
               ],
             ),

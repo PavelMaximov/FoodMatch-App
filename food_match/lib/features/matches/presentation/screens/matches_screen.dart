@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -49,12 +50,10 @@ class _MatchesScreenState extends State<MatchesScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              const SizedBox(height: AppDimensions.paddingM),
+              const SizedBox(height: AppDimensions.paddingS),
               _Header(partnerName: partnerName),
-              const SizedBox(height: AppDimensions.paddingM),
-              Expanded(
-                child: _buildBody(matchProvider),
-              ),
+              const SizedBox(height: AppDimensions.paddingL),
+              Expanded(child: _buildBody(matchProvider)),
             ],
           ),
         ),
@@ -65,8 +64,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
   Widget _buildBody(MatchProvider matchProvider) {
     if (matchProvider.isLoading && matchProvider.matches.isEmpty) {
       return ListView.builder(
-        physics: const AlwaysScrollableScrollPhysics(),
-        itemCount: 5,
+        itemCount: 4,
         itemBuilder: (_, __) => const Padding(
           padding: EdgeInsets.only(bottom: AppDimensions.paddingS),
           child: ShimmerListTile(),
@@ -108,6 +106,9 @@ class _MatchesScreenState extends State<MatchesScreen> {
           return Padding(
             padding: const EdgeInsets.only(bottom: AppDimensions.paddingS),
             child: Card(
+              elevation: 2,
+              shadowColor: AppColors.cardShadow,
+              color: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(AppDimensions.radiusM),
               ),
@@ -115,20 +116,31 @@ class _MatchesScreenState extends State<MatchesScreen> {
                 borderRadius: BorderRadius.circular(AppDimensions.radiusM),
                 onTap: () => context.push('/recipe-detail/${dish.id}', extra: dish),
                 child: Padding(
-                  padding: const EdgeInsets.all(AppDimensions.paddingM),
+                  padding: const EdgeInsets.all(12),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       const Padding(
                         padding: EdgeInsets.only(top: 2),
-                        child: Icon(Icons.check_box_outline_blank, size: 22),
+                        child: Icon(
+                          Icons.check_box_outline_blank,
+                          size: 20,
+                          color: AppColors.divider,
+                        ),
                       ),
                       const SizedBox(width: AppDimensions.paddingS),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
-                            Text(dish.title, style: AppTextStyles.cardTitle),
+                            Text(
+                              dish.title,
+                              style: GoogleFonts.nunito(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
                             const SizedBox(height: 4),
                             Text(
                               dish.description,
@@ -156,14 +168,14 @@ class _MatchesScreenState extends State<MatchesScreen> {
                         borderRadius: BorderRadius.circular(AppDimensions.radiusS),
                         child: CachedNetworkImage(
                           imageUrl: ImageUtils.getImageUrl(dish.imageUrl),
-                          width: AppDimensions.matchThumbnailSize,
-                          height: AppDimensions.matchThumbnailSize,
+                          width: 80,
+                          height: 80,
                           fit: BoxFit.cover,
                           errorWidget: (_, __, ___) => const ColoredBox(
                             color: Colors.black12,
                             child: SizedBox(
-                              width: AppDimensions.matchThumbnailSize,
-                              height: AppDimensions.matchThumbnailSize,
+                              width: 80,
+                              height: 80,
                               child: Icon(Icons.image_not_supported_outlined),
                             ),
                           ),
@@ -205,18 +217,25 @@ class _Header extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text(
-          'Matches',
-          style: AppTextStyles.sectionHeader.copyWith(
-            fontSize: 32,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        Text(
-          'with',
-          style: AppTextStyles.sectionHeader.copyWith(
-            fontSize: 32,
-            fontWeight: FontWeight.w400,
+        RichText(
+          text: TextSpan(
+            children: <TextSpan>[
+              TextSpan(
+                text: 'Matches ',
+                style: GoogleFonts.pacifico(
+                  fontSize: 32,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              TextSpan(
+                text: 'with',
+                style: GoogleFonts.nunito(
+                  fontSize: 32,
+                  fontWeight: FontWeight.w400,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 2),
@@ -226,7 +245,11 @@ class _Header extends StatelessWidget {
               child: Text(
                 partnerName,
                 overflow: TextOverflow.ellipsis,
-                style: AppTextStyles.sectionHeader.copyWith(fontSize: 24),
+                style: GoogleFonts.nunito(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
               ),
             ),
             const SizedBox(width: 6),
