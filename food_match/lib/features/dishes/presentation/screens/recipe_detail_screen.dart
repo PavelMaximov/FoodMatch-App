@@ -73,7 +73,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               IconButton(onPressed: () => Navigator.of(context).pop(), icon: const Icon(Icons.arrow_back)),
-              const Expanded(
+              Expanded(
                 child: Center(
                   child: Text(
                     'Recipe not available for this dish',
