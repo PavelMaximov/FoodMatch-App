@@ -6,6 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/utils/image_utils.dart';
 import '../../../../data/models/dish.dart';
+import '../../../../core/constants/app_strings.dart';
 
 class SwipeCardWidget extends StatelessWidget {
   const SwipeCardWidget({
@@ -69,7 +70,7 @@ class SwipeCardWidget extends StatelessWidget {
                       borderRadius: BorderRadius.circular(AppDimensions.radiusXL),
                     ),
                     child: Text(
-                      'Connect session',
+                      AppStrings.connectSession,
                       style: GoogleFonts.nunito(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -85,7 +86,7 @@ class SwipeCardWidget extends StatelessWidget {
                     borderRadius: BorderRadius.circular(AppDimensions.radiusXL),
                   ),
                   child: Text(
-                    'Connected $connectedCount/2',
+                    '${AppStrings.connected} $connectedCount/2',
                     style: GoogleFonts.nunito(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,

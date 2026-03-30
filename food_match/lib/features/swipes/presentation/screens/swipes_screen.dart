@@ -12,6 +12,7 @@ import '../../../couple/presentation/screens/connect_couple_screen.dart';
 import '../../../matches/logic/match_provider.dart';
 import '../../logic/swipe_provider.dart';
 import '../widgets/swipe_card_widget.dart';
+import '../../../../core/constants/app_strings.dart';
 
 class SwipesScreen extends StatefulWidget {
   const SwipesScreen({super.key});
@@ -85,9 +86,9 @@ class _SwipesScreenState extends State<SwipesScreen> {
             if (provider.isDeckEmpty) {
               return EmptyState(
                 icon: Icons.restaurant,
-                title: 'No more dishes!',
-                subtitle: 'Refresh to load more',
-                buttonText: 'Refresh',
+                title: AppStrings.noMoreDishes,
+                subtitle: AppStrings.refreshToLoad,
+                buttonText: AppStrings.refresh,
                 onButtonPressed: provider.loadDeck,
               );
             }

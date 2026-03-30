@@ -11,6 +11,7 @@ import '../../../../data/models/dish.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../couple/logic/couple_provider.dart';
 import '../../../../shared/widgets/app_button.dart';
+import '../../../../core/constants/app_strings.dart';
 
 class MatchOverlayScreen extends StatelessWidget {
   const MatchOverlayScreen({this.dish, super.key});
@@ -47,10 +48,10 @@ class MatchOverlayScreen extends StatelessWidget {
             child: Column(
               children: <Widget>[
                 const Spacer(),
-                Text('Congratulations', style: AppTextStyles.matchCongrats),
+                Text(AppStrings.congratulations, style: AppTextStyles.matchCongrats),
                 const SizedBox(height: AppDimensions.paddingXS),
                 Text(
-                  'You have a',
+                  AppStrings.youHaveA,
                   style: AppTextStyles.sectionHeader.copyWith(
                     fontSize: 20,
                     color: Colors.white,
@@ -58,7 +59,7 @@ class MatchOverlayScreen extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  'Match!',
+                  AppStrings.match,
                   style: AppTextStyles.matchCongrats.copyWith(
                     fontSize: 40,
                     color: Colors.white,
@@ -95,7 +96,7 @@ class MatchOverlayScreen extends StatelessWidget {
                   ),
                 const SizedBox(height: AppDimensions.paddingL),
                 Text(
-                  'You and $partnerName',
+                  '${AppStrings.youAnd} $partnerName',
                   style: AppTextStyles.bodyLarge.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
@@ -105,7 +106,7 @@ class MatchOverlayScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: AppDimensions.paddingXS),
                 Text(
-                  'have chosen the same dish.',
+                  AppStrings.chosenSameDish,
                   style: AppTextStyles.bodyLarge.copyWith(
                     color: Colors.white,
                     fontSize: 16,
@@ -114,7 +115,7 @@ class MatchOverlayScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: AppDimensions.paddingS),
                 Text(
-                  'Now you have a choice',
+                  AppStrings.nowYouHaveChoice,
                   style: AppTextStyles.bodyMedium.copyWith(
                     color: Colors.white70,
                     fontSize: 14,
@@ -122,13 +123,13 @@ class MatchOverlayScreen extends StatelessWidget {
                 ),
                 const Spacer(),
                 AppButton(
-                  text: 'Continue browsing',
+                  text: AppStrings.continueBrowsing,
                   onPressed: () => Navigator.pop(context),
                   darkBackground: true,
                 ),
                 const SizedBox(height: AppDimensions.paddingM - 4),
                 AppButton(
-                  text: 'Go to match results',
+                  text: AppStrings.goToMatchResults,
                   isOutlined: true,
                   darkBackground: true,
                   onPressed: () {
@@ -146,7 +147,7 @@ class MatchOverlayScreen extends StatelessWidget {
 
   String _resolvePartnerName({List<String>? members, String? currentUserName}) {
     if (members == null || members.isEmpty) {
-      return 'your partner';
+      return AppStrings.yourPartner;
     }
 
     for (final String member in members) {
@@ -155,6 +156,6 @@ class MatchOverlayScreen extends StatelessWidget {
       }
     }
 
-    return 'your partner';
+    return AppStrings.yourPartner;
   }
 }

@@ -14,6 +14,7 @@ import '../../../../shared/widgets/shimmer_card.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../couple/logic/couple_provider.dart';
 import '../../logic/match_provider.dart';
+import '../../../../core/constants/app_strings.dart';
 
 class MatchesScreen extends StatefulWidget {
   const MatchesScreen({super.key});
@@ -88,8 +89,8 @@ class _MatchesScreenState extends State<MatchesScreen> {
             SizedBox(height: 120),
             EmptyState(
               icon: Icons.favorite_border,
-              title: 'No matches yet',
-              subtitle: 'Swipe dishes together with your partner',
+              title: AppStrings.noMatchesYet,
+              subtitle: AppStrings.swipeTogether,
             ),
           ],
         ),
@@ -153,11 +154,11 @@ class _MatchesScreenState extends State<MatchesScreen> {
                               children: <Widget>[
                                 const Icon(Icons.access_time, size: 14, color: AppColors.textSecondary),
                                 const SizedBox(width: 4),
-                                Text('15 min.', style: AppTextStyles.bodySmall),
+                                Text('15 ${AppStrings.minutes}', style: AppTextStyles.bodySmall),
                                 const SizedBox(width: AppDimensions.paddingM),
                                 const Icon(Icons.people, size: 14, color: AppColors.textSecondary),
                                 const SizedBox(width: 4),
-                                Text('2 servings', style: AppTextStyles.bodySmall),
+                                Text('2 ${AppStrings.servings}', style: AppTextStyles.bodySmall),
                               ],
                             ),
                           ],
@@ -194,7 +195,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
 
   String _resolvePartnerName({List<String>? members, String? currentUserName}) {
     if (members == null || members.isEmpty) {
-      return 'your partner';
+      return AppStrings.yourPartner;
     }
 
     for (final String member in members) {
@@ -203,7 +204,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
       }
     }
 
-    return 'your partner';
+    return AppStrings.yourPartner;
   }
 }
 
@@ -221,14 +222,14 @@ class _Header extends StatelessWidget {
           text: TextSpan(
             children: <TextSpan>[
               TextSpan(
-                text: 'Matches ',
+                text: '${AppStrings.matches} ',
                 style: GoogleFonts.pacifico(
                   fontSize: 32,
                   color: AppColors.textPrimary,
                 ),
               ),
               TextSpan(
-                text: 'with',
+                text: AppStrings.matchesWith,
                 style: GoogleFonts.nunito(
                   fontSize: 32,
                   fontWeight: FontWeight.w400,

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/utils/snackbar_utils.dart';
 import '../../logic/auth_provider.dart';
+import '../../../../core/constants/app_strings.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -57,7 +58,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               children: <Widget>[
                 const SizedBox(height: 24),
                 Text(
-                  'Sign Up',
+                  AppStrings.signUp,
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
@@ -65,12 +66,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 TextFormField(
                   controller: _nameController,
                   decoration: const InputDecoration(
-                    labelText: 'Name',
+                    labelText: AppStrings.name,
                     prefixIcon: Icon(Icons.person_outline),
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Enter name';
+                      return AppStrings.enterName;
                     }
                     return null;
                   },
@@ -80,12 +81,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   decoration: const InputDecoration(
-                    labelText: 'Email',
+                    labelText: AppStrings.email,
                     prefixIcon: Icon(Icons.email_outlined),
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Enter email';
+                      return AppStrings.enterEmail;
                     }
                     return null;
                   },
@@ -95,12 +96,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   controller: _passwordController,
                   obscureText: true,
                   decoration: const InputDecoration(
-                    labelText: 'Password',
+                    labelText: AppStrings.password,
                     prefixIcon: Icon(Icons.lock_outline),
                   ),
                   validator: (value) {
                     if (value == null || value.length < 6) {
-                      return 'Minimum 6 characters';
+                      return AppStrings.minimumSixChars;
                     }
                     return null;
                   },
@@ -116,13 +117,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             height: 20,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('Sign up'),
+                        : const Text(AppStrings.signUp),
                   ),
                 ),
                 const SizedBox(height: 12),
                 TextButton(
                   onPressed: () => context.go('/login'),
-                  child: const Text('Already have an account? Log in'),
+                  child: const Text(AppStrings.haveAccountLogin),
                 ),
               ],
             ),

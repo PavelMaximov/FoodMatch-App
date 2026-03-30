@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../core/constants/app_strings.dart';
 import '../../../data/models/dish.dart';
 import '../../../data/models/recipe.dart';
 import '../../../data/repositories/recipe_repository.dart';
@@ -50,6 +51,6 @@ class RecipeProvider extends ChangeNotifier {
     if (e is ApiException) {
       return e.message;
     }
-    return 'Unexpected error occurred';
+    return AppStrings.unexpectedError;
   }
 }

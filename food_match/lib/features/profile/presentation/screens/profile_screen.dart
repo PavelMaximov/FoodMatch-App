@@ -10,6 +10,7 @@ import '../../../../core/utils/snackbar_utils.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../couple/logic/couple_provider.dart';
+import '../../../../core/constants/app_strings.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -19,7 +20,7 @@ class ProfileScreen extends StatelessWidget {
     final AuthProvider auth = context.watch<AuthProvider>();
     final CoupleProvider couple = context.watch<CoupleProvider>();
     final user = auth.currentUser;
-    final String displayName = user?.displayName.isNotEmpty == true ? user!.displayName : 'No name';
+    final String displayName = user?.displayName.isNotEmpty == true ? user!.displayName : AppStrings.yourPartner;
 
     return Scaffold(
       backgroundColor: AppColors.scaffoldBg,
@@ -29,7 +30,7 @@ class ProfileScreen extends StatelessWidget {
           children: <Widget>[
             const SizedBox(height: AppDimensions.paddingS),
             Text(
-              'Profile',
+              AppStrings.profile,
               style: GoogleFonts.pacifico(
                 fontSize: 32,
                 color: AppColors.textPrimary,
@@ -80,7 +81,7 @@ class ProfileScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppDimensions.paddingL),
-            Text('Session', style: AppTextStyles.sectionHeader),
+            Text(AppStrings.session, style: AppTextStyles.sectionHeader),
             const SizedBox(height: 12),
             if (couple.currentCouple != null)
               Card(
@@ -95,28 +96,28 @@ class ProfileScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Text(
-                        'Invite code: ${couple.currentCouple!.inviteCode}',
+                        '${AppStrings.inviteCode}: ${couple.currentCouple!.inviteCode}',
                         style: AppTextStyles.bodyLarge,
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Members: ${couple.currentCouple!.members.length}/2',
+                        '${AppStrings.members}: ${couple.currentCouple!.members.length}/2',
                         style: AppTextStyles.bodyMedium,
                       ),
                       const SizedBox(height: 16),
                       AppButton(
-                        text: 'Leave session',
+                        text: AppStrings.leaveSession,
                         isOutlined: true,
                         onPressed: () async {
                           final bool confirmed = await _showConfirmDialog(
                             context,
-                            'Leave session?',
-                            'Are you sure you want to leave this session?',
+                            AppStrings.leaveSession,
+                            AppStrings.confirmLeave,
                           );
                           if (!confirmed || !context.mounted) return;
                           await context.read<CoupleProvider>().leaveCouple();
                           if (context.mounted) {
-                            SnackBarUtils.showSuccess(context, 'You left the session');
+                            SnackBarUtils.showSuccess(context, AppStrings.leaveSession);
                           }
                         },
                       ),
@@ -126,23 +127,23 @@ class ProfileScreen extends StatelessWidget {
               )
             else
               AppButton(
-                text: 'Connect to session',
+                text: AppStrings.connectToSessionBtn,
                 onPressed: () => context.push('/connect-couple'),
               ),
             const SizedBox(height: AppDimensions.paddingL),
             AppButton(
-              text: 'Log out',
+              text: AppStrings.logOut,
               isOutlined: true,
               onPressed: () async {
                 final bool confirmed = await _showConfirmDialog(
                   context,
-                  'Log out?',
-                  'Are you sure you want to log out?',
+                  AppStrings.logOut,
+                  AppStrings.confirmLogout,
                 );
                 if (!confirmed || !context.mounted) return;
                 await context.read<AuthProvider>().logout();
                 if (context.mounted) {
-                  SnackBarUtils.showSuccess(context, 'You have logged out');
+                  SnackBarUtils.showSuccess(context, AppStrings.logOut);
                   context.go('/login');
                 }
               },
@@ -167,12 +168,12 @@ class ProfileScreen extends StatelessWidget {
             actions: <Widget>[
               TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel'),
+                child: const Text(AppStrings.cancel),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(ctx, true),
                 child: const Text(
-                  'Confirm',
+                  AppStrings.confirm,
                   style: TextStyle(color: AppColors.primary),
                 ),
               ),

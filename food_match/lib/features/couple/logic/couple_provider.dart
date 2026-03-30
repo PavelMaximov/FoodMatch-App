@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../core/constants/app_strings.dart';
 import '../../../data/models/couple.dart';
 import '../../../data/repositories/couple_repository.dart';
 import '../../../data/services/api_service.dart';
@@ -101,6 +102,6 @@ class CoupleProvider extends ChangeNotifier {
     if (e is ApiException) {
       return e.message;
     }
-    return 'Unexpected error occurred';
+    return AppStrings.unexpectedError;
   }
 }

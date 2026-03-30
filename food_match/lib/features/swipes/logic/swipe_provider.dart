@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../core/constants/app_strings.dart';
 import '../../../core/utils/logger.dart';
 import '../../../data/models/dish.dart';
 import '../../../data/repositories/dish_repository.dart';
@@ -44,7 +45,7 @@ class SwipeProvider extends ChangeNotifier {
         deck = mealDbDishes.map((meal) => meal.toDish()).toList();
         AppLogger.info('SwipeProvider: loaded ${deck.length} dishes from MealDB');
       } catch (mealDbError) {
-        error = 'Failed to load dishes';
+        error = AppStrings.failedToLoadDishes;
         AppLogger.error('SwipeProvider: MealDB also failed', mealDbError);
       }
     }
@@ -56,7 +57,7 @@ class SwipeProvider extends ChangeNotifier {
         deck = mealDbDishes.map((meal) => meal.toDish()).toList();
         AppLogger.info('SwipeProvider: loaded ${deck.length} dishes from MealDB');
       } catch (e) {
-        error = 'No dishes available';
+        error = AppStrings.noDishesAvailable;
       }
     }
 
@@ -107,6 +108,6 @@ class SwipeProvider extends ChangeNotifier {
     if (e is ApiException) {
       return e.message;
     }
-    return 'Unexpected error occurred';
+    return AppStrings.unexpectedError;
   }
 }
