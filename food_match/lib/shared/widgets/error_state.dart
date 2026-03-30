@@ -30,7 +30,7 @@ class ErrorState extends StatelessWidget {
               ElevatedButton.icon(
                 onPressed: onRetry,
                 icon: const Icon(Icons.refresh),
-                label: const Text('Повторить'),
+                label: const Text('Retry'),
               ),
             ],
           ],

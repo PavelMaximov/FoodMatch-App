@@ -9,7 +9,7 @@ class ForgotPasswordScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return const PlaceholderScreen(
       title: 'Forgot Password',
-      description: 'MVP заглушка восстановления пароля.',
+      description: 'MVP placeholder for password recovery.',
     );
   }
 }

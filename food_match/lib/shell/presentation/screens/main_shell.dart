@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/theme/app_colors.dart';
 import '../../../features/auth/logic/auth_provider.dart';
 import '../../../features/couple/logic/couple_provider.dart';
 import '../../../features/couple/presentation/screens/connect_couple_screen.dart';
@@ -21,10 +22,10 @@ class _MainShellState extends State<MainShell> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final auth = context.read<AuthProvider>();
+      final AuthProvider auth = context.read<AuthProvider>();
       if (!auth.isAuthenticated) return;
 
-      final couple = context.read<CoupleProvider>();
+      final CoupleProvider couple = context.read<CoupleProvider>();
       await couple.loadCouple();
 
       if (!couple.hasCouple && mounted) {
@@ -51,26 +52,93 @@ class _MainShellState extends State<MainShell> {
 
   @override
   Widget build(BuildContext context) {
-    final matchCount = context.watch<MatchProvider>().matchCount;
+    final int matchCount = context.watch<MatchProvider>().matchCount;
 
     return Scaffold(
       body: widget.navigationShell,
       bottomNavigationBar: NavigationBar(
         selectedIndex: widget.navigationShell.currentIndex,
         onDestinationSelected: _onTap,
+        backgroundColor: Colors.white,
+        indicatorColor: Colors.transparent,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         destinations: <NavigationDestination>[
-          const NavigationDestination(icon: Icon(Icons.swipe), label: 'Свайпы'),
+          _destination(icon: Icons.restaurant, label: 'Swipes'),
           NavigationDestination(
-            icon: Badge(
-              label: Text(matchCount.toString()),
-              isLabelVisible: matchCount > 0,
-              child: const Icon(Icons.favorite),
+            icon: _unselectedMatchIcon(matchCount),
+            selectedIcon: _selectedIcon(
+              Stack(
+                clipBehavior: Clip.none,
+                children: <Widget>[
+                  const Icon(Icons.favorite, color: Colors.white),
+                  if (matchCount > 0)
+                    Positioned(
+                      right: -8,
+                      top: -8,
+                      child: _badge(matchCount),
+                    ),
+                ],
+              ),
             ),
-            label: 'Матчи',
+            label: 'Matches',
           ),
-          const NavigationDestination(icon: Icon(Icons.add_circle), label: 'Добавить'),
-          const NavigationDestination(icon: Icon(Icons.person), label: 'Профиль'),
+          _destination(icon: Icons.add_circle, label: 'Add dishes'),
+          _destination(icon: Icons.person, label: 'Profile'),
         ],
+      ),
+    );
+  }
+
+  NavigationDestination _destination({required IconData icon, required String label}) {
+    return NavigationDestination(
+      icon: Icon(icon, color: AppColors.navInactive),
+      selectedIcon: _selectedIcon(Icon(icon, color: Colors.white)),
+      label: label,
+    );
+  }
+
+  Widget _selectedIcon(Widget child) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: AppColors.primary,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: child,
+    );
+  }
+
+  Widget _unselectedMatchIcon(int matchCount) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: <Widget>[
+        const Icon(Icons.favorite, color: AppColors.navInactive),
+        if (matchCount > 0)
+          Positioned(
+            right: -8,
+            top: -8,
+            child: _badge(matchCount),
+          ),
+      ],
+    );
+  }
+
+  Widget _badge(int matchCount) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.red,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      constraints: const BoxConstraints(minWidth: 18),
+      child: Text(
+        '$matchCount',
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }

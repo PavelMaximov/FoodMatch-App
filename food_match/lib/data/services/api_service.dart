@@ -40,9 +40,9 @@ class ApiService {
       AppLogger.api('GET', uri.toString(), statusCode: response.statusCode, body: response.body);
       return _handleResponse(response);
     } on TimeoutException {
-      throw const ApiException('Превышено время ожидания');
+      throw const ApiException('Request timeout');
     } on SocketException {
-      throw const ApiException('Нет подключения к сети');
+      throw const ApiException('No internet connection');
     } catch (e) {
       AppLogger.error('GET request failed', e);
       rethrow;
@@ -63,9 +63,9 @@ class ApiService {
       AppLogger.api('POST', uri.toString(), statusCode: response.statusCode, body: response.body);
       return _handleResponse(response);
     } on TimeoutException {
-      throw const ApiException('Превышено время ожидания');
+      throw const ApiException('Request timeout');
     } on SocketException {
-      throw const ApiException('Нет подключения к сети');
+      throw const ApiException('No internet connection');
     } catch (e) {
       AppLogger.error('POST request failed', e);
       rethrow;
@@ -94,9 +94,9 @@ class ApiService {
       );
       return _handleResponse(response);
     } on TimeoutException {
-      throw const ApiException('Превышено время ожидания');
+      throw const ApiException('Request timeout');
     } on SocketException {
-      throw const ApiException('Нет подключения к сети');
+      throw const ApiException('No internet connection');
     } catch (e) {
       AppLogger.error('POST multipart request failed', e);
       rethrow;
@@ -147,7 +147,7 @@ class ApiService {
       throw ApiException(_extractErrorMessage(response), statusCode: 400);
     }
     if (response.statusCode >= 500) {
-      throw const ApiException('Ошибка сервера', statusCode: 500);
+      throw const ApiException('Server error', statusCode: 500);
     }
 
     throw ApiException(
@@ -159,9 +159,9 @@ class ApiService {
   String _extractErrorMessage(http.Response response) {
     try {
       final body = jsonDecode(response.body);
-      return body['message'] ?? body['error'] ?? 'Неизвестная ошибка';
+      return body['message'] ?? body['error'] ?? 'Unknown error';
     } catch (_) {
-      return 'Ошибка: ${response.statusCode}';
+      return 'Error: ${response.statusCode}';
     }
   }
 }

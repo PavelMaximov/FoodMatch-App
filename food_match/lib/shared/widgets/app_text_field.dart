@@ -10,6 +10,7 @@ class AppTextField extends StatelessWidget {
   final TextInputType? keyboardType;
   final String? Function(String?)? validator;
   final bool required;
+  final int maxLines;
 
   const AppTextField({
     super.key,
@@ -19,6 +20,7 @@ class AppTextField extends StatelessWidget {
     this.keyboardType,
     this.validator,
     this.required = false,
+    this.maxLines = 1,
   });
 
   @override
@@ -28,6 +30,7 @@ class AppTextField extends StatelessWidget {
       obscureText: obscureText,
       keyboardType: keyboardType,
       validator: validator,
+      maxLines: maxLines,
       decoration: InputDecoration(
         hintText: required ? '* $hint' : hint,
         hintStyle: const TextStyle(color: AppColors.textHint),
