@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:food_match/data/models/auth_response.dart';
@@ -28,17 +30,16 @@ void main() {
     );
   });
 
-  test('login успешный — устанавливает user и token', () async {
-    const user = User(
+  test('login successful sets user and token', () async {
+    const User user = User(
       id: '1',
       email: 'test@test.com',
       displayName: 'Test',
       coupleId: null,
     );
-    const response = AuthResponse(token: 'jwt123', user: user);
+    const AuthResponse response = AuthResponse(token: 'jwt123', user: user);
 
-    when(mockRepo.login('test@test.com', 'password'))
-        .thenAnswer((_) async => response);
+    when(mockRepo.login('test@test.com', 'password')).thenAnswer((_) async => response);
     when(mockStorage.write(key: anyNamed('key'), value: anyNamed('value')))
         .thenAnswer((_) async {});
     when(mockApi.setToken(any)).thenReturn(null);
@@ -50,7 +51,7 @@ void main() {
     expect(provider.error, isNull);
   });
 
-  test('login с ошибкой — устанавливает error', () async {
+  test('login with error sets error', () async {
     when(mockRepo.login(any, any)).thenThrow(Exception('Invalid credentials'));
 
     await provider.login('bad@test.com', 'wrong');
@@ -59,7 +60,7 @@ void main() {
     expect(provider.error, isNotNull);
   });
 
-  test('logout — очищает user и token', () async {
+  test('logout clears user and token', () async {
     provider.token = 'jwt';
     provider.currentUser = const User(
       id: '1',
@@ -75,5 +76,15 @@ void main() {
 
     expect(provider.isAuthenticated, false);
     expect(provider.currentUser, isNull);
+  });
+
+  test('expired token detected correctly', () {
+    final int pastExp = DateTime.now().millisecondsSinceEpoch ~/ 1000 - 60;
+    final String header = base64Url.encode(utf8.encode('{"alg":"HS256","typ":"JWT"}'));
+    final String payload = base64Url.encode(utf8.encode('{"exp":$pastExp}'));
+    const String signature = 'signature';
+    final String token = '$header.$payload.$signature';
+
+    expect(provider.isTokenExpiredForTest(token), isTrue);
   });
 }

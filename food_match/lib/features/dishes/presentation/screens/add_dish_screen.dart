@@ -18,6 +18,7 @@ import '../../../auth/logic/auth_provider.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/utils/validators.dart';
 
 class AddDishScreen extends StatefulWidget {
   const AddDishScreen({super.key});
@@ -159,16 +160,14 @@ class _AddDishScreenState extends State<AddDishScreen> {
                   hint: AppStrings.nameOfDish,
                   controller: _titleController,
                   required: true,
-                  validator: (String? value) =>
-                      (value == null || value.trim().isEmpty) ? AppStrings.requiredField : null,
+                  validator: (String? value) => Validators.required(value, 'Dish name'),
                 ),
                 const SizedBox(height: 12),
                 AppTextField(
                   hint: AppStrings.kitchenStyle,
                   controller: _cuisineController,
                   required: true,
-                  validator: (String? value) =>
-                      (value == null || value.trim().isEmpty) ? AppStrings.requiredField : null,
+                  validator: (String? value) => Validators.required(value, 'Cuisine'),
                 ),
                 const SizedBox(height: 12),
                 AppTextField(
@@ -176,8 +175,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
                   controller: _descriptionController,
                   required: true,
                   maxLines: 4,
-                  validator: (String? value) =>
-                      (value == null || value.trim().isEmpty) ? AppStrings.requiredField : null,
+                  validator: (String? value) => Validators.required(value, 'Description'),
                 ),
                 const SizedBox(height: 12),
                 InkWell(

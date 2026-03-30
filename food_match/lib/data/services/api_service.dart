@@ -20,8 +20,12 @@ class ApiService {
   final FlutterSecureStorage _secureStorage;
   static const Duration _timeout = Duration(seconds: 15);
   static const int _maxRetries = 1;
+  static const Duration _minRequestInterval = Duration(milliseconds: 300);
 
   String? _token;
+  DateTime? _lastRequestTime;
+
+  String? get token => _token;
 
   Future<void> loadToken() async {
     _token = await _secureStorage.read(key: 'foodmatch_token');
@@ -31,9 +35,20 @@ class ApiService {
     _token = token;
   }
 
+  Future<void> _throttle() async {
+    if (_lastRequestTime != null) {
+      final Duration elapsed = DateTime.now().difference(_lastRequestTime!);
+      if (elapsed < _minRequestInterval) {
+        await Future<void>.delayed(_minRequestInterval - elapsed);
+      }
+    }
+    _lastRequestTime = DateTime.now();
+  }
+
   Future<dynamic> get(String endpoint) async {
     final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint');
     try {
+      await _throttle();
       AppLogger.api('GET', uri.toString());
       final response = await _requestWithRetry(
         () => _client.get(uri, headers: _getHeaders()),
@@ -53,6 +68,7 @@ class ApiService {
   Future<dynamic> post(String endpoint, Map<String, dynamic> body) async {
     final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint');
     try {
+      await _throttle();
       AppLogger.api('POST', uri.toString(), body: jsonEncode(body));
       final response = await _requestWithRetry(
         () => _client.post(
@@ -127,7 +143,7 @@ class ApiService {
         attempt++;
         if (attempt > _maxRetries) rethrow;
         AppLogger.info('Retrying request: attempt $attempt');
-        await Future.delayed(const Duration(seconds: 1));
+        await Future<void>.delayed(const Duration(seconds: 1));
       }
     }
   }
@@ -138,29 +154,45 @@ class ApiService {
       return jsonDecode(response.body);
     }
 
+    final String errorMessage = _extractErrorMessage(response);
+
     if (response.statusCode == 401) {
-      throw ApiException(_extractErrorMessage(response), statusCode: 401);
+      _token = null;
+      throw ApiException(errorMessage, statusCode: 401);
     }
+
     if (response.statusCode == 404) {
-      throw ApiException(_extractErrorMessage(response), statusCode: 404);
+      throw ApiException(errorMessage, statusCode: 404);
     }
+
     if (response.statusCode == 400) {
-      throw ApiException(_extractErrorMessage(response), statusCode: 400);
+      throw ApiException(errorMessage, statusCode: 400);
     }
+
+    if (response.statusCode == 409) {
+      throw ApiException(errorMessage, statusCode: 409);
+    }
+
+    if (response.statusCode == 422) {
+      throw ApiException(errorMessage, statusCode: 422);
+    }
+
     if (response.statusCode >= 500) {
       throw const ApiException(AppStrings.serverError, statusCode: 500);
     }
 
-    throw ApiException(
-      _extractErrorMessage(response),
-      statusCode: response.statusCode,
-    );
+    throw ApiException(errorMessage, statusCode: response.statusCode);
   }
 
   String _extractErrorMessage(http.Response response) {
     try {
-      final body = jsonDecode(response.body);
-      return body['message'] ?? body['error'] ?? AppStrings.unknownError;
+      final dynamic body = jsonDecode(response.body);
+      if (body is Map<String, dynamic>) {
+        return body['message']?.toString() ??
+            body['error']?.toString() ??
+            AppStrings.unknownError;
+      }
+      return AppStrings.unknownError;
     } catch (_) {
       return '${AppStrings.error}: ${response.statusCode}';
     }

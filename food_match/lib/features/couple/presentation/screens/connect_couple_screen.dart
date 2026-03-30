@@ -3,13 +3,14 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../../logic/couple_provider.dart';
-import '../../../../core/constants/app_strings.dart';
 
 class ConnectCoupleScreen extends StatefulWidget {
   final bool isBottomSheet;
@@ -24,6 +25,7 @@ class ConnectCoupleScreen extends StatefulWidget {
 }
 
 class _ConnectCoupleScreenState extends State<ConnectCoupleScreen> {
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _codeController = TextEditingController();
 
   @override
@@ -41,11 +43,11 @@ class _ConnectCoupleScreenState extends State<ConnectCoupleScreen> {
   }
 
   Future<void> _joinCouple() async {
-    final String code = _codeController.text.trim();
-    if (code.isEmpty) {
+    if (!_formKey.currentState!.validate()) {
       return;
     }
 
+    final String code = _codeController.text.trim();
     final CoupleProvider provider = context.read<CoupleProvider>();
     await provider.joinCouple(code);
     if (!mounted || provider.error != null) {
@@ -74,101 +76,105 @@ class _ConnectCoupleScreenState extends State<ConnectCoupleScreen> {
   Widget _buildContent(CoupleProvider provider) {
     final String? inviteCode = provider.inviteCode;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingL),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: <Widget>[
-          const SizedBox(height: AppDimensions.paddingL),
-          const Icon(
-            Icons.link,
-            size: AppDimensions.iconSizeL,
-            color: AppColors.primary,
-          ),
-          const SizedBox(height: AppDimensions.paddingS),
-          Text(AppStrings.joiningSession, style: AppTextStyles.screenHeader),
-          const SizedBox(height: AppDimensions.paddingXL),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(AppStrings.createSession, style: AppTextStyles.bodyMedium),
-          ),
-          const SizedBox(height: 12),
-          AppButton(
-            text: AppStrings.createPair,
-            icon: Icons.link,
-            onPressed: _createCouple,
-            isLoading: provider.isLoading,
-          ),
-          if (inviteCode != null) ...<Widget>[
-            const SizedBox(height: AppDimensions.paddingM),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(AppDimensions.paddingM),
-              decoration: BoxDecoration(
-                color: AppColors.chipBg,
-                borderRadius: BorderRadius.circular(AppDimensions.radiusM),
-              ),
-              child: Column(
-                children: <Widget>[
-                  Text(AppStrings.yourInviteCode, style: AppTextStyles.bodyMedium),
-                  const SizedBox(height: AppDimensions.paddingS),
-                  Text(
-                    inviteCode,
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.sectionHeader,
-                  ),
-                  const SizedBox(height: AppDimensions.paddingS),
-                  TextButton.icon(
-                    onPressed: () => _copyInviteCode(inviteCode),
-                    icon: const Icon(Icons.copy, color: AppColors.primary),
-                    label: const Text(AppStrings.copyCode),
-                  ),
-                  Text(
-                    AppStrings.shareCode,
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.bodySmall,
-                  ),
-                ],
-              ),
+    return Form(
+      key: _formKey,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingL),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[
+            const SizedBox(height: AppDimensions.paddingL),
+            const Icon(
+              Icons.link,
+              size: AppDimensions.iconSizeL,
+              color: AppColors.primary,
             ),
-          ],
-          const SizedBox(height: AppDimensions.paddingXL),
-          Row(
-            children: <Widget>[
-              const Expanded(child: Divider(color: AppColors.divider)),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingM),
-                child: Text(AppStrings.or, style: AppTextStyles.bodySmall),
+            const SizedBox(height: AppDimensions.paddingS),
+            Text(AppStrings.joiningSession, style: AppTextStyles.screenHeader),
+            const SizedBox(height: AppDimensions.paddingXL),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(AppStrings.createSession, style: AppTextStyles.bodyMedium),
+            ),
+            const SizedBox(height: 12),
+            AppButton(
+              text: AppStrings.createPair,
+              icon: Icons.link,
+              onPressed: _createCouple,
+              isLoading: provider.isLoading,
+            ),
+            if (inviteCode != null) ...<Widget>[
+              const SizedBox(height: AppDimensions.paddingM),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(AppDimensions.paddingM),
+                decoration: BoxDecoration(
+                  color: AppColors.chipBg,
+                  borderRadius: BorderRadius.circular(AppDimensions.radiusM),
+                ),
+                child: Column(
+                  children: <Widget>[
+                    Text(AppStrings.yourInviteCode, style: AppTextStyles.bodyMedium),
+                    const SizedBox(height: AppDimensions.paddingS),
+                    Text(
+                      inviteCode,
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.sectionHeader,
+                    ),
+                    const SizedBox(height: AppDimensions.paddingS),
+                    TextButton.icon(
+                      onPressed: () => _copyInviteCode(inviteCode),
+                      icon: const Icon(Icons.copy, color: AppColors.primary),
+                      label: const Text(AppStrings.copyCode),
+                    ),
+                    Text(
+                      AppStrings.shareCode,
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.bodySmall,
+                    ),
+                  ],
+                ),
               ),
-              const Expanded(child: Divider(color: AppColors.divider)),
             ],
-          ),
-          const SizedBox(height: AppDimensions.paddingXL),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(AppStrings.joinExisting, style: AppTextStyles.bodyMedium),
-          ),
-          const SizedBox(height: 12),
-          AppTextField(
-            hint: AppStrings.inviteCode,
-            controller: _codeController,
-          ),
-          const SizedBox(height: AppDimensions.paddingM),
-          AppButton(
-            text: AppStrings.connectToSession,
-            onPressed: _joinCouple,
-            isLoading: provider.isLoading,
-          ),
-          if (provider.error != null) ...<Widget>[
-            const SizedBox(height: AppDimensions.paddingM),
-            Text(
-              provider.error!,
-              style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
-              textAlign: TextAlign.center,
+            const SizedBox(height: AppDimensions.paddingXL),
+            Row(
+              children: <Widget>[
+                const Expanded(child: Divider(color: AppColors.divider)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingM),
+                  child: Text(AppStrings.or, style: AppTextStyles.bodySmall),
+                ),
+                const Expanded(child: Divider(color: AppColors.divider)),
+              ],
             ),
+            const SizedBox(height: AppDimensions.paddingXL),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(AppStrings.joinExisting, style: AppTextStyles.bodyMedium),
+            ),
+            const SizedBox(height: 12),
+            AppTextField(
+              hint: AppStrings.inviteCode,
+              controller: _codeController,
+              validator: Validators.inviteCode,
+            ),
+            const SizedBox(height: AppDimensions.paddingM),
+            AppButton(
+              text: AppStrings.connectToSession,
+              onPressed: _joinCouple,
+              isLoading: provider.isLoading,
+            ),
+            if (provider.error != null) ...<Widget>[
+              const SizedBox(height: AppDimensions.paddingM),
+              Text(
+                provider.error!,
+                style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
+                textAlign: TextAlign.center,
+              ),
+            ],
+            const SizedBox(height: AppDimensions.paddingL),
           ],
-          const SizedBox(height: AppDimensions.paddingL),
-        ],
+        ),
       ),
     );
   }

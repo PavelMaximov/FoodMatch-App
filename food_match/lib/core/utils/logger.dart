@@ -5,7 +5,13 @@ class AppLogger {
     if (kDebugMode) {
       print('🌐 $method $url');
       if (statusCode != null) print('   ↳ Status: $statusCode');
-      if (body != null && body.length < 500) print('   ↳ Body: $body');
+      if (body != null && body.length < 500) {
+        final String maskedBody = body.replaceAll(
+          RegExp(r'eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+'),
+          '[JWT_MASKED]',
+        );
+        print('   ↳ Body: $maskedBody');
+      }
     }
   }
 
