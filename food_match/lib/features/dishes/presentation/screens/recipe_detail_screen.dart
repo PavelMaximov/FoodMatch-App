@@ -12,6 +12,7 @@ import '../../../../data/models/recipe.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
 import '../../logic/recipe_provider.dart';
+import '../../../../core/constants/app_strings.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
   const RecipeDetailScreen({required this.dishId, this.dish, super.key});
@@ -76,7 +77,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
               Expanded(
                 child: Center(
                   child: Text(
-                    'Recipe not available for this dish',
+                    AppStrings.recipeNotAvailable,
                     style: AppTextStyles.bodyLarge,
                   ),
                 ),
@@ -109,14 +110,14 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    widget.dish?.description ?? 'Recipe details',
+                    widget.dish?.description ?? AppStrings.cooking,
                     maxLines: 4,
                     overflow: TextOverflow.ellipsis,
                     style: AppTextStyles.bodyMedium,
                   ),
                   const SizedBox(height: AppDimensions.paddingM),
                   Text(
-                    'Ingredients',
+                    AppStrings.ingredients,
                     style: GoogleFonts.pacifico(
                       fontSize: 24,
                       color: AppColors.textPrimary,
@@ -127,7 +128,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                     children: <Widget>[
                       const Icon(Icons.people, size: 16, color: AppColors.textSecondary),
                       const SizedBox(width: 4),
-                      Text('2 servings', style: AppTextStyles.bodySmall),
+                      Text('2 ${AppStrings.servings}', style: AppTextStyles.bodySmall),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -146,7 +147,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                   ),
                   const SizedBox(height: 24),
                   Text(
-                    'Cooking',
+                    AppStrings.cooking,
                     style: GoogleFonts.pacifico(
                       fontSize: 24,
                       color: AppColors.textPrimary,

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/constants/app_strings.dart';
+
 class ErrorState extends StatelessWidget {
   const ErrorState({
     required this.message,
@@ -30,7 +32,7 @@ class ErrorState extends StatelessWidget {
               ElevatedButton.icon(
                 onPressed: onRetry,
                 icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
+                label: const Text(AppStrings.retry),
               ),
             ],
           ],

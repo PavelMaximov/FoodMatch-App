@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../shared/widgets/placeholder_screen.dart';
+import '../../../../core/constants/app_strings.dart';
 
 class ForgotPasswordScreen extends StatelessWidget {
   const ForgotPasswordScreen({super.key});
@@ -8,8 +9,8 @@ class ForgotPasswordScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const PlaceholderScreen(
-      title: 'Forgot Password',
-      description: 'MVP placeholder for password recovery.',
+      title: AppStrings.resetPasswordTitle,
+      description: AppStrings.resetPasswordDesc,
     );
   }
 }

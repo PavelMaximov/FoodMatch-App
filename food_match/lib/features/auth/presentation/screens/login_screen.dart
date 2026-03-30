@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/utils/snackbar_utils.dart';
 import '../../logic/auth_provider.dart';
+import '../../../../core/constants/app_strings.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -58,7 +59,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'FoodMatch',
+                  AppStrings.appName,
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
@@ -67,12 +68,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   decoration: const InputDecoration(
-                    labelText: 'Email',
+                    labelText: AppStrings.email,
                     prefixIcon: Icon(Icons.email_outlined),
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Enter email';
+                      return AppStrings.enterEmail;
                     }
                     return null;
                   },
@@ -82,12 +83,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   controller: _passwordController,
                   obscureText: true,
                   decoration: const InputDecoration(
-                    labelText: 'Password',
+                    labelText: AppStrings.password,
                     prefixIcon: Icon(Icons.lock_outline),
                   ),
                   validator: (value) {
                     if (value == null || value.length < 6) {
-                      return 'Minimum 6 characters';
+                      return AppStrings.minimumSixChars;
                     }
                     return null;
                   },
@@ -96,7 +97,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 CheckboxListTile(
                   value: _rememberMe,
                   onChanged: (value) => setState(() => _rememberMe = value ?? true),
-                  title: const Text('Remember me'),
+                  title: const Text(AppStrings.rememberMe),
                   controlAffinity: ListTileControlAffinity.leading,
                   contentPadding: EdgeInsets.zero,
                 ),
@@ -111,17 +112,17 @@ class _LoginScreenState extends State<LoginScreen> {
                             height: 20,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('Log in'),
+                        : const Text(AppStrings.login),
                   ),
                 ),
                 const SizedBox(height: 16),
                 TextButton(
                   onPressed: () => context.push('/forgot-password'),
-                  child: const Text('Forgot password?'),
+                  child: const Text(AppStrings.forgotPassword),
                 ),
                 TextButton(
                   onPressed: () => context.go('/register'),
-                  child: const Text('No account? Sign up'),
+                  child: const Text(AppStrings.noAccountSignUp),
                 ),
               ],
             ),

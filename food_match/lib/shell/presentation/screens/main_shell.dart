@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/constants/app_strings.dart';
+
 import '../../../core/theme/app_colors.dart';
 import '../../../features/auth/logic/auth_provider.dart';
 import '../../../features/couple/logic/couple_provider.dart';
@@ -63,7 +65,7 @@ class _MainShellState extends State<MainShell> {
         indicatorColor: Colors.transparent,
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         destinations: <NavigationDestination>[
-          _destination(icon: Icons.restaurant, label: 'Swipes'),
+          _destination(icon: Icons.restaurant, label: AppStrings.swipes),
           NavigationDestination(
             icon: _unselectedMatchIcon(matchCount),
             selectedIcon: _selectedIcon(
@@ -80,10 +82,10 @@ class _MainShellState extends State<MainShell> {
                 ],
               ),
             ),
-            label: 'Matches',
+            label: AppStrings.matches,
           ),
-          _destination(icon: Icons.add_circle, label: 'Add dishes'),
-          _destination(icon: Icons.person, label: 'Profile'),
+          _destination(icon: Icons.add_circle, label: AppStrings.addDishes),
+          _destination(icon: Icons.person, label: AppStrings.profile),
         ],
       ),
     );

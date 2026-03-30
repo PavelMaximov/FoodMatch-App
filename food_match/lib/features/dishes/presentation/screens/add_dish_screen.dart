@@ -17,6 +17,7 @@ import '../../../../data/repositories/upload_repository.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_text_field.dart';
+import '../../../../core/constants/app_strings.dart';
 
 class AddDishScreen extends StatefulWidget {
   const AddDishScreen({super.key});
@@ -81,7 +82,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
       _imageUrlController.text = url;
     } catch (_) {
       if (!mounted) return;
-      SnackBarUtils.showError(context, 'Unable to upload image');
+      SnackBarUtils.showError(context, AppStrings.unableToUploadImage);
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -110,11 +111,11 @@ class _AddDishScreenState extends State<AddDishScreen> {
 
       await _loadMyDishes();
       if (mounted) {
-        SnackBarUtils.showSuccess(context, 'Dish added!');
+        SnackBarUtils.showSuccess(context, AppStrings.dishAdded);
       }
     } catch (_) {
       if (mounted) {
-        SnackBarUtils.showError(context, 'Failed to add dish');
+        SnackBarUtils.showError(context, AppStrings.failedToAddDish);
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -139,7 +140,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
                     const Icon(Icons.add_circle, color: AppColors.primary),
                     const SizedBox(width: AppDimensions.paddingS),
                     Text(
-                      'Add your dish',
+                      AppStrings.addYourDish,
                       style: GoogleFonts.pacifico(
                         fontSize: 28,
                         color: AppColors.textPrimary,
@@ -149,34 +150,34 @@ class _AddDishScreenState extends State<AddDishScreen> {
                 ),
                 const SizedBox(height: AppDimensions.paddingS),
                 Text(
-                  'Your ideas are automatically added to the deck and are available to both participants.',
+                  AppStrings.addDishDesc,
                   textAlign: TextAlign.center,
                   style: AppTextStyles.bodyMedium,
                 ),
                 const SizedBox(height: AppDimensions.paddingL),
                 AppTextField(
-                  hint: 'Name of the dish',
+                  hint: AppStrings.nameOfDish,
                   controller: _titleController,
                   required: true,
                   validator: (String? value) =>
-                      (value == null || value.trim().isEmpty) ? 'Required field' : null,
+                      (value == null || value.trim().isEmpty) ? AppStrings.requiredField : null,
                 ),
                 const SizedBox(height: 12),
                 AppTextField(
-                  hint: 'Kitchen / style',
+                  hint: AppStrings.kitchenStyle,
                   controller: _cuisineController,
                   required: true,
                   validator: (String? value) =>
-                      (value == null || value.trim().isEmpty) ? 'Required field' : null,
+                      (value == null || value.trim().isEmpty) ? AppStrings.requiredField : null,
                 ),
                 const SizedBox(height: 12),
                 AppTextField(
-                  hint: 'Description',
+                  hint: AppStrings.description,
                   controller: _descriptionController,
                   required: true,
                   maxLines: 4,
                   validator: (String? value) =>
-                      (value == null || value.trim().isEmpty) ? 'Required field' : null,
+                      (value == null || value.trim().isEmpty) ? AppStrings.requiredField : null,
                 ),
                 const SizedBox(height: 12),
                 InkWell(
@@ -187,7 +188,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
                       const Icon(Icons.attach_file, color: AppColors.primary),
                       const SizedBox(width: 4),
                       Text(
-                        'Attach image',
+                        AppStrings.attachImage,
                         style: AppTextStyles.bodyMedium.copyWith(
                           decoration: TextDecoration.underline,
                         ),
@@ -206,14 +207,14 @@ class _AddDishScreenState extends State<AddDishScreen> {
                       fit: BoxFit.cover,
                       errorWidget: (_, __, ___) => const SizedBox(
                         height: 160,
-                        child: Center(child: Text('Preview unavailable')),
+                        child: Center(child: Text(AppStrings.previewUnavailable)),
                       ),
                     ),
                   ),
                 ],
                 const SizedBox(height: AppDimensions.paddingL),
                 AppButton(
-                  text: 'Save to deck',
+                  text: AppStrings.saveToDeck,
                   icon: Icons.add_circle,
                   onPressed: _submit,
                   isLoading: _isSubmitting,
@@ -222,7 +223,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
                 const Divider(color: AppColors.divider),
                 const SizedBox(height: AppDimensions.paddingM),
                 Text(
-                  'Dishes you have added',
+                  AppStrings.dishesYouAdded,
                   textAlign: TextAlign.center,
                   style: AppTextStyles.bodyMedium,
                 ),
@@ -236,7 +237,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
                   Padding(
                     padding: const EdgeInsets.only(bottom: AppDimensions.paddingL),
                     child: Text(
-                      "You haven't added any dishes yet",
+                      AppStrings.noDishesAdded,
                       textAlign: TextAlign.center,
                       style: AppTextStyles.bodyMedium,
                     ),
@@ -298,11 +299,11 @@ class _MyDishCard extends StatelessWidget {
                     children: <Widget>[
                       const Icon(Icons.access_time, size: 14, color: AppColors.textSecondary),
                       const SizedBox(width: 4),
-                      Text('15 min.', style: AppTextStyles.bodySmall),
+                      Text('15 ${AppStrings.minutes}', style: AppTextStyles.bodySmall),
                       const SizedBox(width: 16),
                       const Icon(Icons.people, size: 14, color: AppColors.textSecondary),
                       const SizedBox(width: 4),
-                      Text('2 servings', style: AppTextStyles.bodySmall),
+                      Text('2 ${AppStrings.servings}', style: AppTextStyles.bodySmall),
                     ],
                   ),
                 ],

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../core/constants/app_strings.dart';
 import '../../../data/models/dish.dart';
 import '../../../data/repositories/swipe_repository.dart';
 import '../../../data/services/api_service.dart';
@@ -40,6 +41,6 @@ class MatchProvider extends ChangeNotifier {
     if (e is ApiException) {
       return e.message;
     }
-    return 'Unexpected error occurred';
+    return AppStrings.unexpectedError;
   }
 }

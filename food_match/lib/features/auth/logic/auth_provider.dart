@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../../../core/constants/app_strings.dart';
 import '../../../data/models/user.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../data/services/api_service.dart';
@@ -119,6 +120,6 @@ class AuthProvider extends ChangeNotifier {
     if (e is ApiException) {
       return e.message;
     }
-    return 'Unexpected error occurred';
+    return AppStrings.unexpectedError;
   }
 }

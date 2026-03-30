@@ -9,6 +9,7 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../../logic/couple_provider.dart';
+import '../../../../core/constants/app_strings.dart';
 
 class ConnectCoupleScreen extends StatefulWidget {
   final bool isBottomSheet;
@@ -67,7 +68,7 @@ class _ConnectCoupleScreenState extends State<ConnectCoupleScreen> {
 
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(content: Text('Code copied!')));
+      ..showSnackBar(const SnackBar(content: Text(AppStrings.codeCopied)));
   }
 
   Widget _buildContent(CoupleProvider provider) {
@@ -85,15 +86,15 @@ class _ConnectCoupleScreenState extends State<ConnectCoupleScreen> {
             color: AppColors.primary,
           ),
           const SizedBox(height: AppDimensions.paddingS),
-          Text('Joining a session', style: AppTextStyles.screenHeader),
+          Text(AppStrings.joiningSession, style: AppTextStyles.screenHeader),
           const SizedBox(height: AppDimensions.paddingXL),
           Align(
             alignment: Alignment.centerLeft,
-            child: Text('Create your own session', style: AppTextStyles.bodyMedium),
+            child: Text(AppStrings.createSession, style: AppTextStyles.bodyMedium),
           ),
           const SizedBox(height: 12),
           AppButton(
-            text: 'Create a pair',
+            text: AppStrings.createPair,
             icon: Icons.link,
             onPressed: _createCouple,
             isLoading: provider.isLoading,
@@ -109,7 +110,7 @@ class _ConnectCoupleScreenState extends State<ConnectCoupleScreen> {
               ),
               child: Column(
                 children: <Widget>[
-                  Text('Your invite code:', style: AppTextStyles.bodyMedium),
+                  Text(AppStrings.yourInviteCode, style: AppTextStyles.bodyMedium),
                   const SizedBox(height: AppDimensions.paddingS),
                   Text(
                     inviteCode,
@@ -120,10 +121,10 @@ class _ConnectCoupleScreenState extends State<ConnectCoupleScreen> {
                   TextButton.icon(
                     onPressed: () => _copyInviteCode(inviteCode),
                     icon: const Icon(Icons.copy, color: AppColors.primary),
-                    label: const Text('Copy code'),
+                    label: const Text(AppStrings.copyCode),
                   ),
                   Text(
-                    'Share this code with your partner',
+                    AppStrings.shareCode,
                     textAlign: TextAlign.center,
                     style: AppTextStyles.bodySmall,
                   ),
@@ -137,7 +138,7 @@ class _ConnectCoupleScreenState extends State<ConnectCoupleScreen> {
               const Expanded(child: Divider(color: AppColors.divider)),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingM),
-                child: Text('or', style: AppTextStyles.bodySmall),
+                child: Text(AppStrings.or, style: AppTextStyles.bodySmall),
               ),
               const Expanded(child: Divider(color: AppColors.divider)),
             ],
@@ -145,16 +146,16 @@ class _ConnectCoupleScreenState extends State<ConnectCoupleScreen> {
           const SizedBox(height: AppDimensions.paddingXL),
           Align(
             alignment: Alignment.centerLeft,
-            child: Text('Join an existing session', style: AppTextStyles.bodyMedium),
+            child: Text(AppStrings.joinExisting, style: AppTextStyles.bodyMedium),
           ),
           const SizedBox(height: 12),
           AppTextField(
-            hint: 'Invite code',
+            hint: AppStrings.inviteCode,
             controller: _codeController,
           ),
           const SizedBox(height: AppDimensions.paddingM),
           AppButton(
-            text: 'Connect to session',
+            text: AppStrings.connectToSession,
             onPressed: _joinCouple,
             isLoading: provider.isLoading,
           ),
