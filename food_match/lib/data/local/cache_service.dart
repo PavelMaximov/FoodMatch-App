@@ -1,79 +1,127 @@
 import 'dart:convert';
 
-import 'package:hive/hive.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/utils/logger.dart';
 import '../models/dish.dart';
-import '../models/recipe.dart';
-import '../models/recipe_step.dart';
-import 'cached_dish.dart';
-import 'pending_swipe.dart';
 
 class CacheService {
   static const Duration _cacheExpiry = Duration(hours: 24);
 
-  Box<CachedDish> get _dishBox => Hive.box<CachedDish>('dishes');
-  Box<PendingSwipe> get _swipeBox => Hive.box<PendingSwipe>('pending_swipes');
-  Box<dynamic> get _appCache => Hive.box<dynamic>('app_cache');
+  static const String _dishesKey = 'cached_dishes';
+  static const String _dishesCachedAtKey = 'dishes_cached_at';
+  static const String _matchesKey = 'cached_matches';
+  static const String _matchesCachedAtKey = 'matches_cached_at';
+  static const String _pendingSwipesKey = 'pending_swipes';
+  static const String _userDisplayNameKey = 'user_displayName';
+  static const String _userEmailKey = 'user_email';
+  static const String _userCoupleIdKey = 'user_coupleId';
 
   Future<void> cacheDishes(List<Dish> dishes) async {
-    await _dishBox.clear();
-    for (final Dish dish in dishes) {
-      await _dishBox.put(dish.id, _dishToCache(dish));
-    }
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final List<Map<String, dynamic>> jsonList =
+        dishes.map((Dish d) => d.toJson()).toList();
+    await prefs.setString(_dishesKey, jsonEncode(jsonList));
+    await prefs.setString(_dishesCachedAtKey, DateTime.now().toIso8601String());
     AppLogger.info('CacheService: cached ${dishes.length} dishes');
   }
 
-  List<Dish> getCachedDishes() {
-    final List<CachedDish> cached = _dishBox.values.toList();
+  Future<List<Dish>> getCachedDishes() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? jsonStr = prefs.getString(_dishesKey);
+    final String? cachedAt = prefs.getString(_dishesCachedAtKey);
 
-    if (cached.isNotEmpty) {
-      final DateTime oldestAllowed = DateTime.now().subtract(_cacheExpiry);
-      if (cached.first.cachedAt.isBefore(oldestAllowed)) {
-        AppLogger.info('CacheService: dish cache expired');
-        return <Dish>[];
-      }
+    if (jsonStr == null || cachedAt == null) {
+      return <Dish>[];
     }
 
-    AppLogger.info('CacheService: returning ${cached.length} cached dishes');
-    return cached.map(_cacheToDish).toList();
+    final Duration age = DateTime.now().difference(DateTime.parse(cachedAt));
+    if (age > _cacheExpiry) {
+      AppLogger.info('CacheService: dish cache expired');
+      return <Dish>[];
+    }
+
+    try {
+      final List<dynamic> list = jsonDecode(jsonStr) as List<dynamic>;
+      final List<Dish> dishes = list
+          .map((dynamic j) => Dish.fromJson(j as Map<String, dynamic>))
+          .toList();
+      AppLogger.info('CacheService: returning ${dishes.length} cached dishes');
+      return dishes;
+    } catch (e) {
+      AppLogger.error('CacheService: failed to parse cached dishes', e);
+      return <Dish>[];
+    }
   }
 
-  bool get hasCachedDishes => _dishBox.isNotEmpty;
+  Future<bool> hasCachedDishes() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.containsKey(_dishesKey);
+  }
 
   Future<void> queueSwipe(String dishId, String action) async {
-    await _swipeBox.add(
-      PendingSwipe(
-        dishId: dishId,
-        action: action,
-        createdAt: DateTime.now(),
-      ),
-    );
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? existing = prefs.getString(_pendingSwipesKey);
+    final List<Map<String, dynamic>> swipes = <Map<String, dynamic>>[];
+
+    if (existing != null) {
+      final List<dynamic> decoded = jsonDecode(existing) as List<dynamic>;
+      swipes.addAll(
+        decoded.map(
+          (dynamic e) => Map<String, dynamic>.from(e as Map<dynamic, dynamic>),
+        ),
+      );
+    }
+
+    swipes.add(<String, dynamic>{
+      'dishId': dishId,
+      'action': action,
+      'createdAt': DateTime.now().toIso8601String(),
+    });
+
+    await prefs.setString(_pendingSwipesKey, jsonEncode(swipes));
     AppLogger.info('CacheService: queued swipe $action on $dishId');
   }
 
-  List<PendingSwipe> getPendingSwipes() => _swipeBox.values.toList();
+  Future<List<Map<String, dynamic>>> getPendingSwipes() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? jsonStr = prefs.getString(_pendingSwipesKey);
+    if (jsonStr == null) {
+      return <Map<String, dynamic>>[];
+    }
+
+    final List<dynamic> decoded = jsonDecode(jsonStr) as List<dynamic>;
+    return decoded
+        .map(
+          (dynamic e) => Map<String, dynamic>.from(e as Map<dynamic, dynamic>),
+        )
+        .toList();
+  }
 
   Future<void> clearPendingSwipes() async {
-    await _swipeBox.clear();
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_pendingSwipesKey);
     AppLogger.info('CacheService: cleared pending swipes');
   }
 
-  Future<void> removePendingSwipe(int index) => _swipeBox.deleteAt(index);
-
-  int get pendingSwipeCount => _swipeBox.length;
+  Future<int> get pendingSwipeCount async {
+    final List<Map<String, dynamic>> swipes = await getPendingSwipes();
+    return swipes.length;
+  }
 
   Future<void> cacheMatches(List<Dish> matches) async {
-    final List<Map<String, dynamic>> json =
-        matches.map((Dish dish) => dish.toJson()).toList();
-    await _appCache.put('matches', jsonEncode(json));
-    await _appCache.put('matches_cached_at', DateTime.now().toIso8601String());
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final List<Map<String, dynamic>> jsonList =
+        matches.map((Dish d) => d.toJson()).toList();
+    await prefs.setString(_matchesKey, jsonEncode(jsonList));
+    await prefs.setString(_matchesCachedAtKey, DateTime.now().toIso8601String());
     AppLogger.info('CacheService: cached ${matches.length} matches');
   }
 
-  List<Dish> getCachedMatches() {
-    final String? jsonStr = _appCache.get('matches') as String?;
-    final String? cachedAt = _appCache.get('matches_cached_at') as String?;
+  Future<List<Dish>> getCachedMatches() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? jsonStr = prefs.getString(_matchesKey);
+    final String? cachedAt = prefs.getString(_matchesCachedAtKey);
 
     if (jsonStr == null || cachedAt == null) {
       return <Dish>[];
@@ -90,7 +138,7 @@ class CacheService {
           .map((dynamic j) => Dish.fromJson(j as Map<String, dynamic>))
           .toList();
     } catch (e) {
-      AppLogger.error('CacheService: failed to parse cached matches', e);
+      AppLogger.error('CacheService: failed to parse matches', e);
       return <Dish>[];
     }
   }
@@ -100,89 +148,36 @@ class CacheService {
     required String email,
     String? coupleId,
   }) async {
-    await _appCache.put('user_displayName', displayName);
-    await _appCache.put('user_email', email);
-    await _appCache.put('user_coupleId', coupleId);
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_userDisplayNameKey, displayName);
+    await prefs.setString(_userEmailKey, email);
+    if (coupleId != null) {
+      await prefs.setString(_userCoupleIdKey, coupleId);
+    } else {
+      await prefs.remove(_userCoupleIdKey);
+    }
   }
 
-  String? get cachedDisplayName => _appCache.get('user_displayName') as String?;
+  Future<String?> get cachedDisplayName async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_userDisplayNameKey);
+  }
 
-  String? get cachedEmail => _appCache.get('user_email') as String?;
+  Future<String?> get cachedEmail async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_userEmailKey);
+  }
 
   Future<void> clearAll() async {
-    await _dishBox.clear();
-    await _swipeBox.clear();
-    await _appCache.clear();
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_dishesKey);
+    await prefs.remove(_dishesCachedAtKey);
+    await prefs.remove(_matchesKey);
+    await prefs.remove(_matchesCachedAtKey);
+    await prefs.remove(_pendingSwipesKey);
+    await prefs.remove(_userDisplayNameKey);
+    await prefs.remove(_userEmailKey);
+    await prefs.remove(_userCoupleIdKey);
     AppLogger.info('CacheService: cleared all cache');
-  }
-
-  CachedDish _dishToCache(Dish dish) {
-    String? ingredientsJson;
-    String? stepsJson;
-
-    if (dish.recipe != null) {
-      ingredientsJson = jsonEncode(dish.recipe!.ingredients);
-      stepsJson = jsonEncode(
-        dish.recipe!.steps
-            .map(
-              (RecipeStep step) => <String, String>{
-                'title': step.title,
-                'text': step.text,
-              },
-            )
-            .toList(),
-      );
-    }
-
-    return CachedDish(
-      id: dish.id,
-      title: dish.title,
-      description: dish.description,
-      imageUrl: dish.imageUrl,
-      cuisine: dish.cuisine,
-      tags: dish.tags,
-      source: dish.source,
-      externalId: dish.externalId,
-      createdBy: dish.createdBy,
-      recipeIngredientsJson: ingredientsJson,
-      recipeStepsJson: stepsJson,
-      cachedAt: DateTime.now(),
-    );
-  }
-
-  Dish _cacheToDish(CachedDish cached) {
-    Recipe? recipe;
-    if (cached.recipeIngredientsJson != null) {
-      final List<String> ingredients =
-          (jsonDecode(cached.recipeIngredientsJson!) as List<dynamic>)
-              .cast<String>();
-
-      List<RecipeStep> steps = <RecipeStep>[];
-      if (cached.recipeStepsJson != null) {
-        steps = (jsonDecode(cached.recipeStepsJson!) as List<dynamic>)
-            .map(
-              (dynamic s) => RecipeStep(
-                title: (s as Map<String, dynamic>)['title'] as String? ?? '',
-                text: s['text'] as String? ?? '',
-              ),
-            )
-            .toList();
-      }
-
-      recipe = Recipe(ingredients: ingredients, steps: steps);
-    }
-
-    return Dish(
-      id: cached.id,
-      title: cached.title,
-      description: cached.description,
-      imageUrl: cached.imageUrl,
-      cuisine: cached.cuisine,
-      tags: cached.tags,
-      source: cached.source,
-      externalId: cached.externalId,
-      createdBy: cached.createdBy ?? '',
-      recipe: recipe,
-    );
   }
 }

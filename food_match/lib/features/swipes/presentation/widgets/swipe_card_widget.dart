@@ -82,7 +82,7 @@ class SwipeCardWidget extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.85),
+                    color: Colors.white.withValues(alpha: 0.85),
                     borderRadius: BorderRadius.circular(AppDimensions.radiusXL),
                   ),
                   child: Text(
@@ -109,7 +109,7 @@ class SwipeCardWidget extends StatelessWidget {
                   end: Alignment.bottomCenter,
                   colors: <Color>[
                     Colors.transparent,
-                    Colors.black.withOpacity(0.8),
+                    Colors.black.withValues(alpha: 0.8),
                   ],
                 ),
               ),
@@ -141,7 +141,7 @@ class SwipeCardWidget extends StatelessWidget {
                       height: 32,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.white.withOpacity(0.3),
+                        color: Colors.white.withValues(alpha: 0.3),
                       ),
                       child: const Icon(
                         Icons.info_outline,
@@ -156,7 +156,7 @@ class SwipeCardWidget extends StatelessWidget {
                   dish.description,
                   style: GoogleFonts.nunito(
                     fontSize: 14,
-                    color: Colors.white.withOpacity(0.85),
+                    color: Colors.white.withValues(alpha: 0.85),
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -182,7 +182,7 @@ class SwipeCardWidget extends StatelessWidget {
               children: <Widget>[
                 _buildCircleButton(
                   size: 44,
-                  bgColor: Colors.white.withOpacity(0.15),
+                  bgColor: Colors.white.withValues(alpha: 0.15),
                   icon: Icons.chevron_left,
                   iconColor: Colors.white,
                   onTap: onBack,
@@ -203,7 +203,7 @@ class SwipeCardWidget extends StatelessWidget {
                 ),
                 _buildCircleButton(
                   size: 44,
-                  bgColor: Colors.white.withOpacity(0.15),
+                  bgColor: Colors.white.withValues(alpha: 0.15),
                   icon: Icons.refresh,
                   iconColor: Colors.white,
                   onTap: onRefresh,
@@ -220,9 +220,9 @@ class SwipeCardWidget extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
+        color: Colors.white.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(AppDimensions.radiusXL),
-        border: Border.all(color: Colors.white.withOpacity(0.4)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
       ),
       child: Text(
         text,
@@ -252,7 +252,7 @@ class SwipeCardWidget extends StatelessWidget {
           color: bgColor,
           boxShadow: <BoxShadow>[
             BoxShadow(
-              color: Colors.black.withOpacity(0.15),
+              color: Colors.black.withValues(alpha: 0.15),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),

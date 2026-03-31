@@ -58,14 +58,14 @@ class _NetworkStatusBarState extends State<NetworkStatusBar> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
       color: AppColors.textSecondary,
-      child: Row(
+      child: const Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
-          const Icon(Icons.wifi_off, size: 16, color: Colors.white),
-          const SizedBox(width: 8),
+          Icon(Icons.wifi_off, size: 16, color: Colors.white),
+          SizedBox(width: 8),
           Text(
             AppStrings.noInternet,
-            style: const TextStyle(color: Colors.white, fontSize: 12),
+            style: TextStyle(color: Colors.white, fontSize: 12),
           ),
         ],
       ),

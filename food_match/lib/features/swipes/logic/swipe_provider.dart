@@ -4,7 +4,6 @@ import '../../../core/constants/app_strings.dart';
 import '../../../core/utils/logger.dart';
 import '../../../data/local/cache_service.dart';
 import '../../../data/models/dish.dart';
-import '../../../data/local/pending_swipe.dart';
 import '../../../data/repositories/dish_repository.dart';
 import '../../../data/repositories/swipe_repository.dart';
 import '../../../data/services/mealdb_service.dart';
@@ -54,7 +53,7 @@ class SwipeProvider extends ChangeNotifier {
       } catch (e2) {
         AppLogger.error('SwipeProvider: MealDB failed', e2);
 
-        deck = _cacheService.getCachedDishes();
+        deck = await _cacheService.getCachedDishes();
         if (deck.isNotEmpty) {
           AppLogger.info('SwipeProvider: loaded ${deck.length} from cache');
         } else {
@@ -69,7 +68,7 @@ class SwipeProvider extends ChangeNotifier {
         deck = mealDbDishes.map((meal) => meal.toDish()).toList();
         await _cacheService.cacheDishes(deck);
       } catch (_) {
-        deck = _cacheService.getCachedDishes();
+        deck = await _cacheService.getCachedDishes();
         if (deck.isEmpty) {
           error = AppStrings.noDishesAvailable;
         }
@@ -112,7 +111,7 @@ class SwipeProvider extends ChangeNotifier {
   }
 
   Future<void> syncPendingSwipes() async {
-    final List<PendingSwipe> pending = _cacheService.getPendingSwipes();
+    final List<Map<String, dynamic>> pending = await _cacheService.getPendingSwipes();
     if (pending.isEmpty) {
       return;
     }
@@ -123,8 +122,8 @@ class SwipeProvider extends ChangeNotifier {
     for (int i = 0; i < pending.length; i++) {
       try {
         await _swipeRepository.sendSwipe(
-          dishId: pending[i].dishId,
-          action: pending[i].action,
+          dishId: pending[i]['dishId'] as String,
+          action: pending[i]['action'] as String,
         );
         synced++;
       } catch (e) {
@@ -142,5 +141,4 @@ class SwipeProvider extends ChangeNotifier {
   Future<dynamic> like() => swipe('like');
 
   Future<dynamic> dislike() => swipe('dislike');
-
 }

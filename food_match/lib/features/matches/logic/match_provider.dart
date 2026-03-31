@@ -33,7 +33,7 @@ class MatchProvider extends ChangeNotifier {
       await _cacheService.cacheMatches(matches);
       AppLogger.info('MatchProvider: loaded ${matches.length} matches');
     } catch (e) {
-      matches = _cacheService.getCachedMatches();
+      matches = await _cacheService.getCachedMatches();
       if (matches.isEmpty) {
         error = _mapError(e);
       } else {

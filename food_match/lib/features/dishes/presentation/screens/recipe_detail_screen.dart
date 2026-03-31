@@ -241,7 +241,7 @@ class _ImageHeader extends StatelessWidget {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.center,
-                colors: <Color>[Colors.black.withOpacity(0.45), Colors.transparent],
+                colors: <Color>[Colors.black.withValues(alpha: 0.45), Colors.transparent],
               ),
             ),
           ),
