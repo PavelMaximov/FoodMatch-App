@@ -3,12 +3,13 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/constants/app_strings.dart';
-
 import '../../../core/theme/app_colors.dart';
 import '../../../features/auth/logic/auth_provider.dart';
 import '../../../features/couple/logic/couple_provider.dart';
 import '../../../features/couple/presentation/screens/connect_couple_screen.dart';
 import '../../../features/matches/logic/match_provider.dart';
+import '../../../features/swipes/logic/swipe_provider.dart';
+import '../../../shared/widgets/network_status_bar.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({required this.navigationShell, super.key});
@@ -19,10 +20,11 @@ class MainShell extends StatefulWidget {
   State<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
+class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final AuthProvider auth = context.read<AuthProvider>();
       if (!auth.isAuthenticated) return;
@@ -41,6 +43,19 @@ class _MainShellState extends State<MainShell> {
     });
   }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      context.read<SwipeProvider>().syncPendingSwipes();
+    }
+  }
+
   void _onTap(int index) {
     if (index == 1) {
       context.read<MatchProvider>().loadMatches();
@@ -57,7 +72,12 @@ class _MainShellState extends State<MainShell> {
     final int matchCount = context.watch<MatchProvider>().matchCount;
 
     return Scaffold(
-      body: widget.navigationShell,
+      body: Column(
+        children: <Widget>[
+          const NetworkStatusBar(),
+          Expanded(child: widget.navigationShell),
+        ],
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: widget.navigationShell.currentIndex,
         onDestinationSelected: _onTap,

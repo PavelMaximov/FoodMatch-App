@@ -37,7 +37,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (BuildContext context) {
-        return FractionallySizedBox(
+        return const FractionallySizedBox(
           heightFactor: 0.92,
           child: ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),

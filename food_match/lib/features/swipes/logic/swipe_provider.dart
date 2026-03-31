@@ -2,10 +2,10 @@ import 'package:flutter/foundation.dart';
 
 import '../../../core/constants/app_strings.dart';
 import '../../../core/utils/logger.dart';
+import '../../../data/local/cache_service.dart';
 import '../../../data/models/dish.dart';
 import '../../../data/repositories/dish_repository.dart';
 import '../../../data/repositories/swipe_repository.dart';
-import '../../../data/services/api_service.dart';
 import '../../../data/services/mealdb_service.dart';
 
 class SwipeProvider extends ChangeNotifier {
@@ -13,13 +13,16 @@ class SwipeProvider extends ChangeNotifier {
     required DishRepository dishRepository,
     required SwipeRepository swipeRepository,
     MealDbService? mealDbService,
+    CacheService? cacheService,
   })  : _dishRepository = dishRepository,
         _swipeRepository = swipeRepository,
-        _mealDbService = mealDbService ?? MealDbService();
+        _mealDbService = mealDbService ?? MealDbService(),
+        _cacheService = cacheService ?? CacheService();
 
   final DishRepository _dishRepository;
   final SwipeRepository _swipeRepository;
   final MealDbService _mealDbService;
+  final CacheService _cacheService;
 
   List<Dish> deck = <Dish>[];
   int currentIndex = 0;
@@ -37,27 +40,38 @@ class SwipeProvider extends ChangeNotifier {
 
     try {
       deck = await _dishRepository.getDishes(cuisine: cuisine);
-      AppLogger.info('SwipeProvider: loaded ${deck.length} dishes from backend');
+      AppLogger.info('SwipeProvider: loaded ${deck.length} from backend');
+      await _cacheService.cacheDishes(deck);
     } catch (e) {
-      AppLogger.error('SwipeProvider: backend failed, falling back to MealDB', e);
+      AppLogger.error('SwipeProvider: backend failed', e);
+
       try {
         final mealDbDishes = await _mealDbService.getRandomMeals(count: 20);
         deck = mealDbDishes.map((meal) => meal.toDish()).toList();
-        AppLogger.info('SwipeProvider: loaded ${deck.length} dishes from MealDB');
-      } catch (mealDbError) {
-        error = AppStrings.failedToLoadDishes;
-        AppLogger.error('SwipeProvider: MealDB also failed', mealDbError);
+        AppLogger.info('SwipeProvider: loaded ${deck.length} from MealDB');
+        await _cacheService.cacheDishes(deck);
+      } catch (e2) {
+        AppLogger.error('SwipeProvider: MealDB failed', e2);
+
+        deck = await _cacheService.getCachedDishes();
+        if (deck.isNotEmpty) {
+          AppLogger.info('SwipeProvider: loaded ${deck.length} from cache');
+        } else {
+          error = AppStrings.failedToLoadDishes;
+        }
       }
     }
 
     if (deck.isEmpty && error == null) {
-      AppLogger.info('SwipeProvider: backend returned 0 dishes, trying MealDB');
       try {
         final mealDbDishes = await _mealDbService.getRandomMeals(count: 20);
         deck = mealDbDishes.map((meal) => meal.toDish()).toList();
-        AppLogger.info('SwipeProvider: loaded ${deck.length} dishes from MealDB');
-      } catch (e) {
-        error = AppStrings.noDishesAvailable;
+        await _cacheService.cacheDishes(deck);
+      } catch (_) {
+        deck = await _cacheService.getCachedDishes();
+        if (deck.isEmpty) {
+          error = AppStrings.noDishesAvailable;
+        }
       }
     }
 
@@ -67,7 +81,7 @@ class SwipeProvider extends ChangeNotifier {
   }
 
   Future<dynamic> swipe(String action) async {
-    final dish = currentDish;
+    final Dish? dish = currentDish;
     if (dish == null) {
       return null;
     }
@@ -79,12 +93,8 @@ class SwipeProvider extends ChangeNotifier {
       return <String, dynamic>{'matched': false, 'source': 'mealdb-local'};
     }
 
-    isLoading = true;
-    error = null;
-    notifyListeners();
-
     try {
-      final result = await _swipeRepository.sendSwipe(
+      final dynamic result = await _swipeRepository.sendSwipe(
         dishId: dish.id,
         action: action,
       );
@@ -92,22 +102,43 @@ class SwipeProvider extends ChangeNotifier {
       notifyListeners();
       return result;
     } catch (e) {
-      error = _mapError(e);
-      return null;
-    } finally {
-      isLoading = false;
+      AppLogger.info('SwipeProvider: queueing swipe offline');
+      await _cacheService.queueSwipe(dish.id, action);
+      currentIndex++;
       notifyListeners();
+      return null;
+    }
+  }
+
+  Future<void> syncPendingSwipes() async {
+    final List<Map<String, dynamic>> pending = await _cacheService.getPendingSwipes();
+    if (pending.isEmpty) {
+      return;
+    }
+
+    AppLogger.info('SwipeProvider: syncing ${pending.length} pending swipes');
+    int synced = 0;
+
+    for (int i = 0; i < pending.length; i++) {
+      try {
+        await _swipeRepository.sendSwipe(
+          dishId: pending[i]['dishId'] as String,
+          action: pending[i]['action'] as String,
+        );
+        synced++;
+      } catch (e) {
+        AppLogger.error('SwipeProvider: sync failed for swipe $i', e);
+        break;
+      }
+    }
+
+    if (synced > 0) {
+      await _cacheService.clearPendingSwipes();
+      AppLogger.info('SwipeProvider: synced $synced swipes');
     }
   }
 
   Future<dynamic> like() => swipe('like');
 
   Future<dynamic> dislike() => swipe('dislike');
-
-  String _mapError(Object e) {
-    if (e is ApiException) {
-      return e.message;
-    }
-    return AppStrings.unexpectedError;
-  }
 }
