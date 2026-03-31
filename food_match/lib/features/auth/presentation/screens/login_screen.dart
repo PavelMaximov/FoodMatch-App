@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../core/utils/snackbar_utils.dart';
-import '../../logic/auth_provider.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/utils/snackbar_utils.dart';
+import '../../../../core/utils/validators.dart';
+import '../../logic/auth_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -14,9 +15,9 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
   bool _rememberMe = true;
 
   @override
@@ -29,7 +30,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final auth = context.read<AuthProvider>();
+    final AuthProvider auth = context.read<AuthProvider>();
     await auth.login(_emailController.text.trim(), _passwordController.text);
 
     if (!mounted) return;
@@ -40,7 +41,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
+    final AuthProvider auth = context.watch<AuthProvider>();
 
     return Scaffold(
       body: SafeArea(
@@ -71,12 +72,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     labelText: AppStrings.email,
                     prefixIcon: Icon(Icons.email_outlined),
                   ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return AppStrings.enterEmail;
-                    }
-                    return null;
-                  },
+                  validator: Validators.email,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
@@ -86,17 +82,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     labelText: AppStrings.password,
                     prefixIcon: Icon(Icons.lock_outline),
                   ),
-                  validator: (value) {
-                    if (value == null || value.length < 6) {
-                      return AppStrings.minimumSixChars;
-                    }
-                    return null;
-                  },
+                  validator: Validators.password,
                 ),
                 const SizedBox(height: 12),
                 CheckboxListTile(
                   value: _rememberMe,
-                  onChanged: (value) => setState(() => _rememberMe = value ?? true),
+                  onChanged: (bool? value) => setState(() => _rememberMe = value ?? true),
                   title: const Text(AppStrings.rememberMe),
                   controlAffinity: ListTileControlAffinity.leading,
                   contentPadding: EdgeInsets.zero,

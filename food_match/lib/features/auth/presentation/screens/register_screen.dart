@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../core/utils/snackbar_utils.dart';
-import '../../logic/auth_provider.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/utils/snackbar_utils.dart';
+import '../../../../core/utils/validators.dart';
+import '../../logic/auth_provider.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -14,10 +15,10 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
 
   @override
   void dispose() {
@@ -30,7 +31,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final auth = context.read<AuthProvider>();
+    final AuthProvider auth = context.read<AuthProvider>();
     await auth.register(
       _emailController.text.trim(),
       _passwordController.text,
@@ -45,7 +46,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
+    final AuthProvider auth = context.watch<AuthProvider>();
 
     return Scaffold(
       body: SafeArea(
@@ -69,12 +70,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     labelText: AppStrings.name,
                     prefixIcon: Icon(Icons.person_outline),
                   ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return AppStrings.enterName;
-                    }
-                    return null;
-                  },
+                  validator: Validators.displayName,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
@@ -84,12 +80,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     labelText: AppStrings.email,
                     prefixIcon: Icon(Icons.email_outlined),
                   ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return AppStrings.enterEmail;
-                    }
-                    return null;
-                  },
+                  validator: Validators.email,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
@@ -99,12 +90,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     labelText: AppStrings.password,
                     prefixIcon: Icon(Icons.lock_outline),
                   ),
-                  validator: (value) {
-                    if (value == null || value.length < 6) {
-                      return AppStrings.minimumSixChars;
-                    }
-                    return null;
-                  },
+                  validator: Validators.password,
                 ),
                 const SizedBox(height: 16),
                 SizedBox(
