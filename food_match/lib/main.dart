@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 
 import 'app.dart';
+import 'data/local/cache_service.dart';
+import 'data/local/cached_dish.dart';
+import 'data/local/pending_swipe.dart';
 import 'data/repositories/auth_repository.dart';
 import 'data/repositories/couple_repository.dart';
 import 'data/repositories/dish_repository.dart';
@@ -17,19 +21,28 @@ import 'features/dishes/logic/recipe_provider.dart';
 import 'features/matches/logic/match_provider.dart';
 import 'features/swipes/logic/swipe_provider.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  const secureStorage = FlutterSecureStorage();
-  final apiService = ApiService(secureStorage: secureStorage);
+  await Hive.initFlutter();
+  Hive.registerAdapter(CachedDishAdapter());
+  Hive.registerAdapter(PendingSwipeAdapter());
 
-  final authRepo = AuthRepository(apiService);
-  final coupleRepo = CoupleRepository(apiService);
-  final dishRepo = DishRepository(apiService);
-  final swipeRepo = SwipeRepository(apiService);
-  final recipeRepo = RecipeRepository(apiService);
-  final uploadRepo = UploadRepository(apiService);
-  final mealDbService = MealDbService();
+  await Hive.openBox<CachedDish>('dishes');
+  await Hive.openBox<PendingSwipe>('pending_swipes');
+  await Hive.openBox<dynamic>('app_cache');
+
+  const FlutterSecureStorage secureStorage = FlutterSecureStorage();
+  final ApiService apiService = ApiService(secureStorage: secureStorage);
+
+  final AuthRepository authRepo = AuthRepository(apiService);
+  final CoupleRepository coupleRepo = CoupleRepository(apiService);
+  final DishRepository dishRepo = DishRepository(apiService);
+  final SwipeRepository swipeRepo = SwipeRepository(apiService);
+  final RecipeRepository recipeRepo = RecipeRepository(apiService);
+  final UploadRepository uploadRepo = UploadRepository(apiService);
+  final MealDbService mealDbService = MealDbService();
+  final CacheService cacheService = CacheService();
 
   runApp(
     MultiProvider(
@@ -41,6 +54,7 @@ void main() {
             repository: authRepo,
             secureStorage: secureStorage,
             apiService: apiService,
+            cacheService: cacheService,
           ),
         ),
         ChangeNotifierProvider<CoupleProvider>(
@@ -51,10 +65,14 @@ void main() {
             dishRepository: dishRepo,
             swipeRepository: swipeRepo,
             mealDbService: mealDbService,
+            cacheService: cacheService,
           ),
         ),
         ChangeNotifierProvider<MatchProvider>(
-          create: (_) => MatchProvider(swipeRepository: swipeRepo),
+          create: (_) => MatchProvider(
+            swipeRepository: swipeRepo,
+            cacheService: cacheService,
+          ),
         ),
         ChangeNotifierProvider<RecipeProvider>(
           create: (_) => RecipeProvider(repository: recipeRepo),

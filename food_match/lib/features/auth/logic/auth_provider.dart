@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../../core/constants/app_strings.dart';
 import '../../../core/utils/logger.dart';
+import '../../../data/local/cache_service.dart';
 import '../../../data/models/user.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../data/services/api_service.dart';
@@ -14,13 +15,16 @@ class AuthProvider extends ChangeNotifier {
     required AuthRepository repository,
     required FlutterSecureStorage secureStorage,
     required ApiService apiService,
+    CacheService? cacheService,
   })  : _repository = repository,
         _secureStorage = secureStorage,
-        _apiService = apiService;
+        _apiService = apiService,
+        _cacheService = cacheService ?? CacheService();
 
   final AuthRepository _repository;
   final FlutterSecureStorage _secureStorage;
   final ApiService _apiService;
+  final CacheService _cacheService;
 
   User? currentUser;
   String? token;
@@ -40,6 +44,7 @@ class AuthProvider extends ChangeNotifier {
       _apiService.setToken(response.token);
       currentUser = response.user ?? await _repository.getMe();
       await _secureStorage.write(key: 'foodmatch_token', value: response.token);
+      await _cacheUserDataIfAvailable();
     } catch (e) {
       error = _mapError(e);
     } finally {
@@ -59,6 +64,7 @@ class AuthProvider extends ChangeNotifier {
       _apiService.setToken(response.token);
       currentUser = response.user ?? await _repository.getMe();
       await _secureStorage.write(key: 'foodmatch_token', value: response.token);
+      await _cacheUserDataIfAvailable();
     } catch (e) {
       error = _mapError(e);
     } finally {
@@ -90,6 +96,7 @@ class AuthProvider extends ChangeNotifier {
 
       token = loadedToken;
       currentUser = await _repository.getMe();
+      await _cacheUserDataIfAvailable();
     } on ApiException catch (e) {
       if (e.statusCode == 401) {
         AppLogger.info('Token invalid (401), logging out');
@@ -106,9 +113,6 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  /// Check if the stored token is expired.
-  /// JWT format: header.payload.signature.
-  /// Payload contains "exp" field (Unix timestamp).
   bool _isTokenExpired(String token) {
     try {
       final List<String> parts = token.split('.');
@@ -150,12 +154,25 @@ class AuthProvider extends ChangeNotifier {
       token = null;
       currentUser = null;
       _apiService.setToken(null);
+      await _cacheService.clearAll();
     } catch (e) {
       error = _mapError(e);
     } finally {
       isLoading = false;
       notifyListeners();
     }
+  }
+
+  Future<void> _cacheUserDataIfAvailable() async {
+    if (currentUser == null) {
+      return;
+    }
+
+    await _cacheService.cacheUserData(
+      displayName: currentUser!.displayName,
+      email: currentUser!.email,
+      coupleId: currentUser!.coupleId,
+    );
   }
 
   void clearError() {
