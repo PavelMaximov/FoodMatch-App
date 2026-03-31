@@ -28,10 +28,14 @@ class SwipeProvider extends ChangeNotifier {
   int currentIndex = 0;
   bool isLoading = false;
   String? error;
+  Dish? _lastSwipedDish;
+  int? _lastSwipedIndex;
 
   Dish? get currentDish =>
       deck.isNotEmpty && currentIndex < deck.length ? deck[currentIndex] : null;
   bool get isDeckEmpty => currentIndex >= deck.length;
+  Dish? get lastSwipedDish => _lastSwipedDish;
+  bool get canUndo => _lastSwipedDish != null && _lastSwipedIndex != null;
 
   Future<void> loadDeck({String? cuisine}) async {
     isLoading = true;
@@ -76,6 +80,8 @@ class SwipeProvider extends ChangeNotifier {
     }
 
     currentIndex = 0;
+    _lastSwipedDish = null;
+    _lastSwipedIndex = null;
     isLoading = false;
     notifyListeners();
   }
@@ -85,6 +91,9 @@ class SwipeProvider extends ChangeNotifier {
     if (dish == null) {
       return null;
     }
+
+    _lastSwipedDish = dish;
+    _lastSwipedIndex = currentIndex;
 
     if (dish.source == 'mealdb') {
       currentIndex++;
@@ -108,6 +117,18 @@ class SwipeProvider extends ChangeNotifier {
       notifyListeners();
       return null;
     }
+  }
+
+  void undo() {
+    if (!canUndo) {
+      return;
+    }
+
+    currentIndex = _lastSwipedIndex!;
+    _lastSwipedDish = null;
+    _lastSwipedIndex = null;
+    AppLogger.info('SwipeProvider: undo swipe, back to index $currentIndex');
+    notifyListeners();
   }
 
   Future<void> syncPendingSwipes() async {
