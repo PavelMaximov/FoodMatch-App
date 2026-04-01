@@ -50,8 +50,15 @@ class SwipeProvider extends ChangeNotifier {
       AppLogger.error('SwipeProvider: backend failed', e);
 
       try {
-        final mealDbDishes = await _mealDbService.getRandomMeals(count: 20);
-        deck = mealDbDishes.map((meal) => meal.toDish()).toList();
+        final List<Dish> mealDbDeck;
+        if (cuisine != null && cuisine.isNotEmpty) {
+          final mealDbDishes = await _mealDbService.getMealsByArea(cuisine);
+          mealDbDeck = mealDbDishes.map((meal) => meal.toDish()).toList();
+        } else {
+          final mealDbDishes = await _mealDbService.getRandomMeals(count: 20);
+          mealDbDeck = mealDbDishes.map((meal) => meal.toDish()).toList();
+        }
+        deck = mealDbDeck;
         AppLogger.info('SwipeProvider: loaded ${deck.length} from MealDB');
         await _cacheService.cacheDishes(deck);
       } catch (e2) {
@@ -68,8 +75,15 @@ class SwipeProvider extends ChangeNotifier {
 
     if (deck.isEmpty && error == null) {
       try {
-        final mealDbDishes = await _mealDbService.getRandomMeals(count: 20);
-        deck = mealDbDishes.map((meal) => meal.toDish()).toList();
+        final List<Dish> mealDbDeck;
+        if (cuisine != null && cuisine.isNotEmpty) {
+          final mealDbDishes = await _mealDbService.getMealsByArea(cuisine);
+          mealDbDeck = mealDbDishes.map((meal) => meal.toDish()).toList();
+        } else {
+          final mealDbDishes = await _mealDbService.getRandomMeals(count: 20);
+          mealDbDeck = mealDbDishes.map((meal) => meal.toDish()).toList();
+        }
+        deck = mealDbDeck;
         await _cacheService.cacheDishes(deck);
       } catch (_) {
         deck = await _cacheService.getCachedDishes();
