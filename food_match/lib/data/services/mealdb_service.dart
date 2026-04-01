@@ -112,18 +112,21 @@ class MealDbService {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         final mealsList = data['meals'] as List<dynamic>?;
         if (mealsList != null) {
-          final List<MealDbDish> fullMeals = <MealDbDish>[];
+          final List<String> ids = mealsList
+              .take(20)
+              .map((dynamic meal) => (meal as Map<String, dynamic>)['idMeal'] as String?)
+              .where((String? id) => id != null)
+              .cast<String>()
+              .toList();
 
-          for (final dynamic meal in mealsList.take(20)) {
-            final id = (meal as Map<String, dynamic>)['idMeal'] as String?;
-            if (id != null) {
-              final MealDbDish? fullMeal = await getMealById(id);
-              if (fullMeal != null) {
-                fullMeals.add(fullMeal);
-              }
-            }
-            await Future.delayed(const Duration(milliseconds: 100));
-          }
+          final List<Future<MealDbDish?>> futures =
+              ids.map((String id) => getMealById(id)).toList();
+          final List<MealDbDish?> results = await Future.wait(futures);
+
+          final List<MealDbDish> fullMeals = results
+              .where((MealDbDish? meal) => meal != null)
+              .cast<MealDbDish>()
+              .toList();
 
           AppLogger.info('MealDB: fetched ${fullMeals.length} $area meals with details');
           return fullMeals;

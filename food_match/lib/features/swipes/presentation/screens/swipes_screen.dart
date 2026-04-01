@@ -60,6 +60,10 @@ class _SwipesScreenState extends State<SwipesScreen> {
   Future<void> _showFilterSheet(BuildContext context) async {
     await showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.6,
+      ),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(AppDimensions.radiusL),
@@ -203,9 +207,10 @@ class _FilterSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      child: Column(
+    return SingleChildScrollView(
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
@@ -239,7 +244,8 @@ class _FilterSheet extends StatelessWidget {
             }).toList(),
           ),
           const SizedBox(height: 24),
-        ],
+          ],
+        ),
       ),
     );
   }
