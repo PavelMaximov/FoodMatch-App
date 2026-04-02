@@ -1,6 +1,6 @@
 class AppStrings {
   // App
-  static const String appName = 'FoodMatch';
+  static const String appName = 'Foodmatch';
   static const String appTagline =
       'Choose a user, swap dishes one by one, and find '
       'flavor matches. You can add your own ideas and '
@@ -27,6 +27,10 @@ class AppStrings {
   static const String requestResetLink = 'Request reset link';
   static const String resetLinkSent = 'Reset link sent!';
   static const String uploadPhoto = 'Upload photo';
+
+  static const String googleSignInComingSoon = 'Google sign-in coming soon';
+  static const String appleSignInComingSoon = 'Apple sign-in coming soon';
+  static const String photoUploadComingSoon = 'Photo upload coming soon';
 
   static const String enterEmail = 'Enter email';
   static const String enterName = 'Enter name';
