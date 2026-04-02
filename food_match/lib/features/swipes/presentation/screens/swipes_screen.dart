@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_card_swiper/flutter_card_swiper.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_dimensions.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
-import '../../../couple/logic/couple_provider.dart';
 import '../../../couple/presentation/screens/connect_couple_screen.dart';
 import '../../../matches/logic/match_provider.dart';
 import '../../logic/swipe_provider.dart';
 import '../widgets/swipe_card_widget.dart';
-import '../../../../core/constants/app_strings.dart';
 
 class SwipesScreen extends StatefulWidget {
   const SwipesScreen({super.key});
@@ -22,6 +23,8 @@ class SwipesScreen extends StatefulWidget {
 }
 
 class _SwipesScreenState extends State<SwipesScreen> {
+  final CardSwiperController _swiperController = CardSwiperController();
+
   @override
   void initState() {
     super.initState();
@@ -29,6 +32,12 @@ class _SwipesScreenState extends State<SwipesScreen> {
       context.read<SwipeProvider>().loadDeck();
       context.read<MatchProvider>().loadMatches();
     });
+  }
+
+  @override
+  void dispose() {
+    _swiperController.dispose();
+    super.dispose();
   }
 
   Future<void> _openConnectSessionBottomSheet() async {
@@ -40,26 +49,56 @@ class _SwipesScreenState extends State<SwipesScreen> {
         return const FractionallySizedBox(
           heightFactor: 0.92,
           child: ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            child: const ConnectCoupleScreen(isBottomSheet: true),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            child: ConnectCoupleScreen(isBottomSheet: true),
           ),
         );
       },
     );
   }
 
-  Future<void> _manualSwipe(bool like) async {
+  Future<void> _showFilterSheet(BuildContext context) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.6,
+      ),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppDimensions.radiusL),
+        ),
+      ),
+      builder: (_) => _FilterSheet(
+        onCuisineSelected: (String? cuisine) {
+          Navigator.pop(context);
+          context.read<SwipeProvider>().loadDeck(cuisine: cuisine);
+        },
+      ),
+    );
+  }
+
+  void _handleSwipe(CardSwiperDirection direction) {
     final SwipeProvider swipeProvider = context.read<SwipeProvider>();
     final swipedDish = swipeProvider.currentDish;
-    final result = like ? await swipeProvider.like() : await swipeProvider.dislike();
 
-    if (!mounted) {
+    Future<dynamic> swipeAction;
+    if (direction == CardSwiperDirection.right) {
+      swipeAction = swipeProvider.like();
+    } else if (direction == CardSwiperDirection.left) {
+      swipeAction = swipeProvider.dislike();
+    } else {
       return;
     }
 
-    if (result is Map<String, dynamic> && result['isMatch'] == true && swipedDish != null) {
-      context.push('/match-overlay', extra: swipedDish);
-    }
+    swipeAction.then((dynamic result) {
+      if (!mounted) {
+        return;
+      }
+      if (result is Map<String, dynamic> && result['isMatch'] == true && swipedDish != null) {
+        context.push('/match-overlay', extra: swipedDish);
+      }
+    });
   }
 
   @override
@@ -67,8 +106,8 @@ class _SwipesScreenState extends State<SwipesScreen> {
     return Scaffold(
       backgroundColor: AppColors.scaffoldBg,
       body: SafeArea(
-        child: Consumer2<SwipeProvider, CoupleProvider>(
-          builder: (BuildContext context, SwipeProvider provider, CoupleProvider coupleProvider, _) {
+        child: Consumer<SwipeProvider>(
+          builder: (BuildContext context, SwipeProvider provider, _) {
             if (provider.isLoading && provider.deck.isEmpty) {
               return const Padding(
                 padding: EdgeInsets.all(8),
@@ -94,8 +133,9 @@ class _SwipesScreenState extends State<SwipesScreen> {
             }
 
             return Padding(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
               child: CardSwiper(
+                controller: _swiperController,
                 key: ValueKey<int>(provider.currentIndex),
                 cardsCount: provider.deck.length - provider.currentIndex,
                 numberOfCardsDisplayed: 2,
@@ -103,25 +143,108 @@ class _SwipesScreenState extends State<SwipesScreen> {
                   final dish = provider.deck[provider.currentIndex + index];
                   return SwipeCardWidget(
                     dish: dish,
-                    onLike: provider.isLoading ? null : () => _manualSwipe(true),
-                    onDislike: provider.isLoading ? null : () => _manualSwipe(false),
-                    onBack: null,
+                    onLike: provider.isLoading
+                        ? null
+                        : () => _swiperController.swipe(CardSwiperDirection.right),
+                    onDislike: provider.isLoading
+                        ? null
+                        : () => _swiperController.swipe(CardSwiperDirection.left),
+                    onBack: provider.canUndo ? provider.undo : null,
                     onRefresh: provider.isLoading ? null : provider.loadDeck,
                     onConnectSession: _openConnectSessionBottomSheet,
-                    connectedCount: coupleProvider.currentCouple?.members.length ?? 0,
+                    onFilter: () => _showFilterSheet(context),
                   );
                 },
                 onSwipe: (int previousIndex, int? currentIndex, CardSwiperDirection direction) {
-                  if (direction == CardSwiperDirection.right) {
-                    provider.like();
-                  } else if (direction == CardSwiperDirection.left) {
-                    provider.dislike();
-                  }
+                  _handleSwipe(direction);
                   return true;
                 },
               ),
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+class _FilterSheet extends StatelessWidget {
+  const _FilterSheet({required this.onCuisineSelected});
+
+  final Function(String?) onCuisineSelected;
+
+  static const List<String> cuisines = <String>[
+    'All',
+    'American',
+    'British',
+    'Canadian',
+    'Chinese',
+    'Croatian',
+    'Dutch',
+    'Egyptian',
+    'Filipino',
+    'French',
+    'Greek',
+    'Indian',
+    'Irish',
+    'Italian',
+    'Jamaican',
+    'Japanese',
+    'Kenyan',
+    'Malaysian',
+    'Mexican',
+    'Moroccan',
+    'Polish',
+    'Portuguese',
+    'Russian',
+    'Spanish',
+    'Thai',
+    'Tunisian',
+    'Turkish',
+    'Ukrainian',
+    'Vietnamese',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            'Filter by cuisine',
+            style: GoogleFonts.pacifico(fontSize: 24),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: cuisines.map((String c) {
+              return GestureDetector(
+                onTap: () => onCuisineSelected(c == 'All' ? null : c),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.chipBg,
+                    borderRadius: BorderRadius.circular(AppDimensions.radiusXL),
+                    border: Border.all(color: AppColors.divider),
+                  ),
+                  child: Text(
+                    c,
+                    style: GoogleFonts.nunito(
+                      fontSize: 14,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 24),
+          ],
         ),
       ),
     );

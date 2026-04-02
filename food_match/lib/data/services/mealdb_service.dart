@@ -103,7 +103,6 @@ class MealDbService {
   /// Fetch meals by cuisine/area
   Future<List<MealDbDish>> getMealsByArea(String area) async {
     try {
-      // filter.php returns limited data, need to lookup each
       final uri = Uri.parse('$_baseUrl/filter.php?a=$area');
       final response = await _client.get(uri).timeout(
         const Duration(seconds: 10),
@@ -113,14 +112,24 @@ class MealDbService {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         final mealsList = data['meals'] as List<dynamic>?;
         if (mealsList != null) {
-          return mealsList
-              .map(
-                (meal) => MealDbDish.fromFilterJson(
-                  meal as Map<String, dynamic>,
-                  area,
-                ),
-              )
+          final List<String> ids = mealsList
+              .take(20)
+              .map((dynamic meal) => (meal as Map<String, dynamic>)['idMeal'] as String?)
+              .where((String? id) => id != null)
+              .cast<String>()
               .toList();
+
+          final List<Future<MealDbDish?>> futures =
+              ids.map((String id) => getMealById(id)).toList();
+          final List<MealDbDish?> results = await Future.wait(futures);
+
+          final List<MealDbDish> fullMeals = results
+              .where((MealDbDish? meal) => meal != null)
+              .cast<MealDbDish>()
+              .toList();
+
+          AppLogger.info('MealDB: fetched ${fullMeals.length} $area meals with details');
+          return fullMeals;
         }
       }
     } catch (e) {

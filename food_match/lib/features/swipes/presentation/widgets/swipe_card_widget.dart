@@ -2,13 +2,13 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/utils/image_utils.dart';
 import '../../../../data/models/dish.dart';
-import '../../../../core/constants/app_strings.dart';
 
-class SwipeCardWidget extends StatelessWidget {
+class SwipeCardWidget extends StatefulWidget {
   const SwipeCardWidget({
     required this.dish,
     this.onLike,
@@ -16,7 +16,7 @@ class SwipeCardWidget extends StatelessWidget {
     this.onBack,
     this.onRefresh,
     this.onConnectSession,
-    this.connectedCount = 0,
+    this.onFilter,
     super.key,
   });
 
@@ -26,7 +26,14 @@ class SwipeCardWidget extends StatelessWidget {
   final VoidCallback? onBack;
   final VoidCallback? onRefresh;
   final VoidCallback? onConnectSession;
-  final int connectedCount;
+  final VoidCallback? onFilter;
+
+  @override
+  State<SwipeCardWidget> createState() => _SwipeCardWidgetState();
+}
+
+class _SwipeCardWidgetState extends State<SwipeCardWidget> {
+  bool _isExpanded = false;
 
   @override
   Widget build(BuildContext context) {
@@ -36,9 +43,9 @@ class SwipeCardWidget extends StatelessWidget {
         fit: StackFit.expand,
         children: <Widget>[
           Hero(
-            tag: 'dish-image-${dish.id}',
+            tag: 'dish-image-${widget.dish.id}',
             child: CachedNetworkImage(
-              imageUrl: ImageUtils.getImageUrl(dish.imageUrl),
+              imageUrl: ImageUtils.getImageUrl(widget.dish.imageUrl),
               fit: BoxFit.cover,
               width: double.infinity,
               height: double.infinity,
@@ -62,7 +69,7 @@ class SwipeCardWidget extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: <Widget>[
                 GestureDetector(
-                  onTap: onConnectSession,
+                  onTap: widget.onConnectSession,
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
@@ -79,18 +86,28 @@ class SwipeCardWidget extends StatelessWidget {
                     ),
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.85),
-                    borderRadius: BorderRadius.circular(AppDimensions.radiusXL),
-                  ),
-                  child: Text(
-                    '${AppStrings.connected} $connectedCount/2',
-                    style: GoogleFonts.nunito(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
+                GestureDetector(
+                  onTap: widget.onFilter,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      borderRadius: BorderRadius.circular(AppDimensions.radiusXL),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        const Icon(Icons.tune, size: 16, color: AppColors.textPrimary),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Filter',
+                          style: GoogleFonts.nunito(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -101,15 +118,17 @@ class SwipeCardWidget extends StatelessWidget {
             bottom: 0,
             left: 0,
             right: 0,
-            child: Container(
-              height: 280,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              height: _isExpanded ? 450 : 280,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: <Color>[
                     Colors.transparent,
-                    Colors.black.withValues(alpha: 0.8),
+                    Colors.black.withValues(alpha: 0.85),
                   ],
                 ),
               ),
@@ -119,58 +138,102 @@ class SwipeCardWidget extends StatelessWidget {
             bottom: 100,
             left: 20,
             right: 20,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Row(
+            child: AnimatedCrossFade(
+              duration: const Duration(milliseconds: 300),
+              crossFadeState:
+                  _isExpanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+              firstChild: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: Text(
+                          widget.dish.title,
+                          style: GoogleFonts.nunito(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      _buildInfoButton(),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    widget.dish.description,
+                    style: GoogleFonts.nunito(
+                      fontSize: 14,
+                      color: Colors.white.withValues(alpha: 0.85),
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+                  _buildTags(),
+                ],
+              ),
+              secondChild: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Expanded(
-                      child: Text(
-                        dish.title,
+                    Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: Text(
+                            widget.dish.title,
+                            style: GoogleFonts.nunito(
+                              fontSize: 28,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                        _buildInfoButton(),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      widget.dish.description,
+                      style: GoogleFonts.nunito(
+                        fontSize: 14,
+                        color: Colors.white.withValues(alpha: 0.9),
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    if (widget.dish.recipe != null &&
+                        widget.dish.recipe!.ingredients.isNotEmpty) ...<Widget>[
+                      Text(
+                        'Ingredients',
                         style: GoogleFonts.nunito(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
                           color: Colors.white,
                         ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white.withValues(alpha: 0.3),
+                      const SizedBox(height: 4),
+                      ...widget.dish.recipe!.ingredients.take(8).map(
+                        (String ing) => Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: Text(
+                            '• $ing',
+                            style: GoogleFonts.nunito(
+                              fontSize: 13,
+                              color: Colors.white.withValues(alpha: 0.85),
+                            ),
+                          ),
+                        ),
                       ),
-                      child: const Icon(
-                        Icons.info_outline,
-                        color: Colors.white,
-                        size: 18,
-                      ),
-                    ),
+                      const SizedBox(height: 8),
+                    ],
+                    _buildTags(),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  dish.description,
-                  style: GoogleFonts.nunito(
-                    fontSize: 14,
-                    color: Colors.white.withValues(alpha: 0.85),
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 4,
-                  children: <Widget>[
-                    if (dish.cuisine.isNotEmpty) _buildTag(dish.cuisine),
-                    ...dish.tags.take(3).map(_buildTag),
-                  ],
-                ),
-              ],
+              ),
             ),
           ),
           Positioned(
@@ -185,34 +248,65 @@ class SwipeCardWidget extends StatelessWidget {
                   bgColor: Colors.white.withValues(alpha: 0.15),
                   icon: Icons.chevron_left,
                   iconColor: Colors.white,
-                  onTap: onBack,
+                  onTap: widget.onBack,
                 ),
                 _buildCircleButton(
                   size: 56,
                   bgColor: Colors.white,
                   icon: Icons.close,
                   iconColor: AppColors.textPrimary,
-                  onTap: onDislike,
+                  onTap: widget.onDislike,
                 ),
                 _buildCircleButton(
                   size: 64,
                   bgColor: AppColors.primary,
                   icon: Icons.restaurant,
                   iconColor: Colors.white,
-                  onTap: onLike,
+                  onTap: widget.onLike,
                 ),
                 _buildCircleButton(
                   size: 44,
                   bgColor: Colors.white.withValues(alpha: 0.15),
                   icon: Icons.refresh,
                   iconColor: Colors.white,
-                  onTap: onRefresh,
+                  onTap: widget.onRefresh,
                 ),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildInfoButton() {
+    return GestureDetector(
+      onTap: () => setState(() => _isExpanded = !_isExpanded),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: _isExpanded ? AppColors.primary : Colors.white.withValues(alpha: 0.3),
+        ),
+        child: Icon(
+          _isExpanded ? Icons.close : Icons.info_outline,
+          color: Colors.white,
+          size: 18,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTags() {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 4,
+      children: <Widget>[
+        if (widget.dish.cuisine.isNotEmpty) _buildTag(widget.dish.cuisine),
+        ...widget.dish.tags.take(3).map(_buildTag),
+      ],
     );
   }
 
