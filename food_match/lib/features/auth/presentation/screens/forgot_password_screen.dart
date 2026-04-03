@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/snackbar_utils.dart';
 import '../../../../core/utils/validators.dart';
+import '../../../../shared/widgets/app_button.dart';
+import '../../../../shared/widgets/app_logo_header.dart';
+import '../../../../shared/widgets/app_text_field.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -22,40 +28,68 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 
   void _submit() {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
     SnackBarUtils.showSuccess(context, AppStrings.resetLinkSent);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text(AppStrings.resetPasswordTitle)),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              const Text(AppStrings.resetPasswordDesc),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  labelText: AppStrings.email,
-                  prefixIcon: Icon(Icons.email_outlined),
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: <Widget>[
+                const SizedBox(height: 40),
+                const AppLogoHeader(showSubtitle: false),
+                Text(
+                  AppStrings.resetPasswordTitle,
+                  style: GoogleFonts.pacifico(
+                    fontSize: 28,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
-                validator: Validators.email,
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _submit,
-                child: const Text(AppStrings.requestResetLink),
-              ),
-            ],
+                const SizedBox(height: 12),
+                Text(
+                  AppStrings.resetPasswordDesc,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.nunito(
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                AppTextField(
+                  hint: AppStrings.email,
+                  required: true,
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  validator: Validators.email,
+                ),
+                const SizedBox(height: 24),
+                AppButton(
+                  text: AppStrings.requestResetLink,
+                  onPressed: _submit,
+                ),
+                const SizedBox(height: 20),
+                GestureDetector(
+                  onTap: () => context.pop(),
+                  child: Text(
+                    AppStrings.backToLogin,
+                    style: GoogleFonts.nunito(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 32),
+              ],
+            ),
           ),
         ),
       ),
