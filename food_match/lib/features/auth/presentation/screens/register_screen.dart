@@ -119,8 +119,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
+          color: AppColors.textPrimary,
           borderRadius: BorderRadius.circular(AppDimensions.radiusButton),
-          border: Border.all(color: AppColors.divider),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -129,7 +129,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               text,
               style: GoogleFonts.nunito(
                 fontSize: 14,
-                color: AppColors.textPrimary,
+                color: Colors.white,
               ),
             ),
             const SizedBox(width: 4),

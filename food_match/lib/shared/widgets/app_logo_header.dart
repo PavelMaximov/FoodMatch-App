@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants/app_strings.dart';
@@ -14,13 +13,10 @@ class AppLogoHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: <Widget>[
-        SvgPicture.asset(
-          'assets/media/logofmblack1.svg',
-          height: 80,
-          colorFilter: const ColorFilter.mode(
-            AppColors.textPrimary,
-            BlendMode.srcIn,
-          ),
+        const Icon(
+          Icons.restaurant_menu,
+          size: 64,
+          color: AppColors.textPrimary,
         ),
         const SizedBox(height: 4),
         Text(
