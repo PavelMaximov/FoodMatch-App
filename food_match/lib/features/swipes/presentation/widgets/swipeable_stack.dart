@@ -90,23 +90,26 @@ class _SwipeableStackState extends State<SwipeableStack>
     return progress.clamp(0.0, 1.0);
   }
 
-  void _onPanStart(DragStartDetails details) {
+  void _onHorizontalDragStart(DragStartDetails details) {
     if (_animController.isAnimating) {
       return;
     }
     setState(() => _isDragging = true);
   }
 
-  void _onPanUpdate(DragUpdateDetails details) {
+  void _onHorizontalDragUpdate(DragUpdateDetails details) {
     if (!_isDragging || _animController.isAnimating) {
       return;
     }
     setState(() {
-      _dragOffset += details.delta;
+      _dragOffset = Offset(
+        _dragOffset.dx + details.delta.dx,
+        0,
+      );
     });
   }
 
-  void _onPanEnd(DragEndDetails details) {
+  void _onHorizontalDragEnd(DragEndDetails details) {
     if (!_isDragging) {
       return;
     }
@@ -114,10 +117,11 @@ class _SwipeableStackState extends State<SwipeableStack>
 
     final double screenWidth = MediaQuery.of(context).size.width;
     final double threshold = screenWidth * 0.3;
+    final double velocity = details.primaryVelocity ?? 0;
 
-    if (_dragOffset.dx.abs() > threshold) {
+    if (_dragOffset.dx.abs() > threshold || velocity.abs() > 800) {
       final SwipeDirection direction =
-          _dragOffset.dx > 0 ? SwipeDirection.right : SwipeDirection.left;
+          (_dragOffset.dx > 0 || velocity > 0) ? SwipeDirection.right : SwipeDirection.left;
       _animateSwipe(direction);
     } else {
       _animateSnapBack();
@@ -132,11 +136,10 @@ class _SwipeableStackState extends State<SwipeableStack>
     final double screenWidth = MediaQuery.of(context).size.width;
     final double targetX =
         direction == SwipeDirection.right ? screenWidth * 1.5 : -screenWidth * 1.5;
-    final double targetY = _dragOffset.dy - 120;
 
     _swipeAnimation = Tween<Offset>(
       begin: _dragOffset,
-      end: Offset(targetX, targetY),
+      end: Offset(targetX, 0),
     ).animate(
       CurvedAnimation(
         parent: _animController,
@@ -179,7 +182,7 @@ class _SwipeableStackState extends State<SwipeableStack>
     ).animate(
       CurvedAnimation(
         parent: _animController,
-        curve: Curves.easeOut,
+        curve: Curves.elasticOut,
       ),
     );
 
@@ -227,9 +230,9 @@ class _SwipeableStackState extends State<SwipeableStack>
           ),
         Positioned.fill(
           child: GestureDetector(
-            onPanStart: _onPanStart,
-            onPanUpdate: _onPanUpdate,
-            onPanEnd: _onPanEnd,
+            onHorizontalDragStart: _onHorizontalDragStart,
+            onHorizontalDragUpdate: _onHorizontalDragUpdate,
+            onHorizontalDragEnd: _onHorizontalDragEnd,
             child: AnimatedBuilder(
               animation: _animController,
               builder: (BuildContext context, Widget? child) {
