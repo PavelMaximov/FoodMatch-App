@@ -2,7 +2,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/utils/image_utils.dart';
@@ -15,8 +14,6 @@ class SwipeCardWidget extends StatefulWidget {
     this.onDislike,
     this.onBack,
     this.onRefresh,
-    this.onConnectSession,
-    this.onFilter,
     super.key,
   });
 
@@ -25,8 +22,6 @@ class SwipeCardWidget extends StatefulWidget {
   final VoidCallback? onDislike;
   final VoidCallback? onBack;
   final VoidCallback? onRefresh;
-  final VoidCallback? onConnectSession;
-  final VoidCallback? onFilter;
 
   @override
   State<SwipeCardWidget> createState() => _SwipeCardWidgetState();
@@ -59,59 +54,6 @@ class _SwipeCardWidgetState extends State<SwipeCardWidget> {
                 color: Colors.grey.shade200,
                 child: const Icon(Icons.broken_image, size: 64),
               ),
-            ),
-          ),
-          Positioned(
-            top: 12,
-            left: 12,
-            right: 12,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: <Widget>[
-                GestureDetector(
-                  onTap: widget.onConnectSession,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(AppDimensions.radiusXL),
-                    ),
-                    child: Text(
-                      AppStrings.connectSession,
-                      style: GoogleFonts.nunito(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-                GestureDetector(
-                  onTap: widget.onFilter,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.85),
-                      borderRadius: BorderRadius.circular(AppDimensions.radiusXL),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        const Icon(Icons.tune, size: 16, color: AppColors.textPrimary),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Filter',
-                          style: GoogleFonts.nunito(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
             ),
           ),
           Positioned(

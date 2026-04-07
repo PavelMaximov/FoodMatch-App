@@ -34,7 +34,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
     });
   }
 
-  Future<void> _openConnectSessionBottomSheet() async {
+  Future<void> _showConnectSheet(BuildContext context) async {
     await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -102,56 +102,121 @@ class _SwipesScreenState extends State<SwipesScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: Consumer<SwipeProvider>(
-          builder: (BuildContext context, SwipeProvider provider, _) {
-            if (provider.isLoading && provider.deck.isEmpty) {
-              return const Padding(
-                padding: EdgeInsets.all(8),
-                child: ShimmerCard(),
-              );
-            }
-
-            if (provider.error != null && provider.deck.isEmpty) {
-              return ErrorState(
-                message: provider.error!,
-                onRetry: provider.loadDeck,
-              );
-            }
-
-            if (provider.isDeckEmpty) {
-              return EmptyState(
-                icon: Icons.restaurant,
-                title: AppStrings.noMoreDishes,
-                subtitle: AppStrings.refreshToLoad,
-                buttonText: AppStrings.refresh,
-                onButtonPressed: provider.loadDeck,
-              );
-            }
-
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-              child: SwipeableStack(
-                controller: _swiperController,
-                key: ValueKey<int>(provider.currentIndex),
-                itemCount: provider.deck.length - provider.currentIndex,
-                cardBuilder: (BuildContext context, int index) {
-                  final dish = provider.deck[provider.currentIndex + index];
-                  return SwipeCardWidget(
-                    dish: dish,
-                    onLike: provider.isLoading ? null : _swiperController.swipeRight,
-                    onDislike: provider.isLoading ? null : _swiperController.swipeLeft,
-                    onBack: provider.canUndo ? provider.undo : null,
-                    onRefresh: provider.isLoading ? null : provider.loadDeck,
-                    onConnectSession: _openConnectSessionBottomSheet,
-                    onFilter: () => _showFilterSheet(context),
-                  );
-                },
-                onSwipe: (int index, SwipeDirection direction) {
-                  _handleSwipe(direction);
-                },
+        child: Column(
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.only(
+                top: 30,
+                bottom: 17,
+                left: 16,
+                right: 16,
               ),
-            );
-          },
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: <Widget>[
+                  GestureDetector(
+                    onTap: () => _showConnectSheet(context),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF5B1C),
+                        borderRadius: BorderRadius.circular(AppDimensions.radiusXL),
+                      ),
+                      child: Text(
+                        'Connect session',
+                        style: GoogleFonts.nunito(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => _showFilterSheet(context),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFDCD6D3),
+                        borderRadius: BorderRadius.circular(AppDimensions.radiusXL),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          const Icon(
+                            Icons.tune,
+                            size: 16,
+                            color: Color(0xFF1A1A1A),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Filter',
+                            style: GoogleFonts.nunito(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF1A1A1A),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(
+                  left: 7,
+                  right: 7,
+                  bottom: 13,
+                ),
+                child: Consumer<SwipeProvider>(
+                  builder: (BuildContext context, SwipeProvider provider, _) {
+                    if (provider.isLoading) {
+                      return const ShimmerCard();
+                    }
+
+                    if (provider.error != null) {
+                      return ErrorState(
+                        message: provider.error!,
+                        onRetry: provider.loadDeck,
+                      );
+                    }
+
+                    if (provider.isDeckEmpty) {
+                      return EmptyState(
+                        icon: Icons.restaurant,
+                        title: AppStrings.noMoreDishes,
+                        subtitle: AppStrings.refreshToLoad,
+                        buttonText: AppStrings.refresh,
+                        onButtonPressed: provider.loadDeck,
+                      );
+                    }
+
+                    return SwipeableStack(
+                      controller: _swiperController,
+                      key: ValueKey<int>(provider.currentIndex),
+                      itemCount: provider.deck.length - provider.currentIndex,
+                      cardBuilder: (BuildContext context, int index) {
+                        final dish = provider.deck[provider.currentIndex + index];
+                        return SwipeCardWidget(
+                          dish: dish,
+                          onLike: provider.isLoading ? null : _swiperController.swipeRight,
+                          onDislike: provider.isLoading ? null : _swiperController.swipeLeft,
+                          onBack: provider.canUndo ? provider.undo : null,
+                          onRefresh: provider.isLoading ? null : provider.loadDeck,
+                        );
+                      },
+                      onSwipe: (int index, SwipeDirection direction) {
+                        _handleSwipe(direction);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
