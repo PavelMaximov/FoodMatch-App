@@ -100,7 +100,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.scaffoldBg,
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Consumer<SwipeProvider>(
           builder: (BuildContext context, SwipeProvider provider, _) {

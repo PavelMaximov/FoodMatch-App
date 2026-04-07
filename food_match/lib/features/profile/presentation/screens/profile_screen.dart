@@ -23,7 +23,7 @@ class ProfileScreen extends StatelessWidget {
     final String displayName = user?.displayName.isNotEmpty == true ? user!.displayName : AppStrings.yourPartner;
 
     return Scaffold(
-      backgroundColor: AppColors.scaffoldBg,
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingL),

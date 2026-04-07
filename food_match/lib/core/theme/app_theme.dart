@@ -16,7 +16,7 @@ class AppTheme {
         surface: AppColors.surface,
         error: AppColors.error,
       ),
-      scaffoldBackgroundColor: AppColors.scaffoldBg,
+      scaffoldBackgroundColor: AppColors.background,
       dividerColor: AppColors.divider,
       cardColor: AppColors.surface,
       inputDecorationTheme: InputDecorationTheme(

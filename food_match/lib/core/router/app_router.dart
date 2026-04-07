@@ -12,6 +12,7 @@ import '../../features/dishes/presentation/screens/recipe_detail_screen.dart';
 import '../../features/matches/presentation/screens/match_overlay_screen.dart';
 import '../../features/matches/presentation/screens/matches_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
+import '../../features/recipes/presentation/screens/recipes_screen.dart';
 import '../../features/swipes/presentation/screens/swipes_screen.dart';
 import '../../shell/presentation/screens/main_shell.dart';
 
@@ -21,8 +22,8 @@ class AppRouter {
           initialLocation: '/login',
           refreshListenable: authProvider,
           redirect: (BuildContext context, GoRouterState state) {
-            final isLoggedIn = authProvider.isAuthenticated;
-            final isAuthRoute = state.matchedLocation == '/login' ||
+            final bool isLoggedIn = authProvider.isAuthenticated;
+            final bool isAuthRoute = state.matchedLocation == '/login' ||
                 state.matchedLocation == '/register' ||
                 state.matchedLocation == '/forgot-password';
 
@@ -47,11 +48,10 @@ class AppRouter {
             ),
             GoRoute(
               path: '/recipe-detail/:dishId',
-              builder: (BuildContext context, GoRouterState state) =>
-                  RecipeDetailScreen(
-                    dishId: state.pathParameters['dishId'] ?? 'unknown',
-                    dish: state.extra is Dish ? state.extra! as Dish : null,
-                  ),
+              builder: (BuildContext context, GoRouterState state) => RecipeDetailScreen(
+                dishId: state.pathParameters['dishId'] ?? 'unknown',
+                dish: state.extra is Dish ? state.extra! as Dish : null,
+              ),
             ),
             GoRoute(
               path: '/match-overlay',
@@ -60,18 +60,26 @@ class AppRouter {
               ),
             ),
             StatefulShellRoute.indexedStack(
-              builder: (BuildContext context, GoRouterState state,
-                      StatefulNavigationShell navigationShell) =>
+              builder: (
+                BuildContext context,
+                GoRouterState state,
+                StatefulNavigationShell navigationShell,
+              ) =>
                   MainShell(navigationShell: navigationShell),
               branches: <StatefulShellBranch>[
                 StatefulShellBranch(
                   routes: <RouteBase>[
-                    GoRoute(path: '/swipes', builder: (_, __) => const SwipesScreen()),
+                    GoRoute(path: '/recipes', builder: (_, __) => const RecipesScreen()),
                   ],
                 ),
                 StatefulShellBranch(
                   routes: <RouteBase>[
                     GoRoute(path: '/matches', builder: (_, __) => const MatchesScreen()),
+                  ],
+                ),
+                StatefulShellBranch(
+                  routes: <RouteBase>[
+                    GoRoute(path: '/swipes', builder: (_, __) => const SwipesScreen()),
                   ],
                 ),
                 StatefulShellBranch(

@@ -44,7 +44,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
     );
 
     return Scaffold(
-      backgroundColor: AppColors.scaffoldBg,
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingL),
