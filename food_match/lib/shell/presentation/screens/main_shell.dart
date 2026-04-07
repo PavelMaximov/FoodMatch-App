@@ -22,11 +22,11 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   static const List<_NavItem> _navItems = <_NavItem>[
-    _NavItem(icon: Icons.grid_view_rounded, label: 'Recipes'),
+    _NavItem(icon: Icons.restaurant_menu, label: 'Recipes'),
     _NavItem(icon: Icons.favorite, label: 'Matches'),
-    _NavItem(icon: Icons.swap_horiz, label: 'Swipes'),
-    _NavItem(icon: Icons.add_circle_outline, label: 'Add dishes'),
-    _NavItem(icon: Icons.person_outline, label: 'Profile'),
+    _NavItem(icon: Icons.swipe, label: 'Swipes'),
+    _NavItem(icon: Icons.add_circle, label: 'Add dishes'),
+    _NavItem(icon: Icons.person, label: 'Profile'),
   ];
 
   @override
@@ -88,7 +88,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
         ],
       ),
       bottomNavigationBar: BottomAppBar(
-        color: Colors.white,
+        color: const Color(0xFFFFFBF9),
         elevation: 8,
         child: SizedBox(
           height: 64,
@@ -135,7 +135,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
                                   color: AppColors.navBadgeBg,
                                   shape: BoxShape.circle,
                                   border: Border.all(
-                                    color: Colors.white,
+                                    color: const Color(0xFFFFFBF9),
                                     width: 1.5,
                                   ),
                                 ),
