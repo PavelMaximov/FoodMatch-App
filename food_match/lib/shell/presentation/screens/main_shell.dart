@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../features/auth/logic/auth_provider.dart';
 import '../../../features/couple/logic/couple_provider.dart';
@@ -21,6 +21,14 @@ class MainShell extends StatefulWidget {
 }
 
 class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
+  static const List<_NavItem> _navItems = <_NavItem>[
+    _NavItem(icon: Icons.grid_view_rounded, label: 'Recipes'),
+    _NavItem(icon: Icons.favorite, label: 'Matches'),
+    _NavItem(icon: Icons.swap_horiz, label: 'Swipes'),
+    _NavItem(icon: Icons.add_circle_outline, label: 'Add dishes'),
+    _NavItem(icon: Icons.person_outline, label: 'Profile'),
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -56,7 +64,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     }
   }
 
-  void _onTap(int index) {
+  void _onTabTap(int index) {
     if (index == 1) {
       context.read<MatchProvider>().loadMatches();
     }
@@ -70,6 +78,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final int matchCount = context.watch<MatchProvider>().matchCount;
+    final int currentIndex = widget.navigationShell.currentIndex;
 
     return Scaffold(
       body: Column(
@@ -78,90 +87,99 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
           Expanded(child: widget.navigationShell),
         ],
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: widget.navigationShell.currentIndex,
-        onDestinationSelected: _onTap,
-        backgroundColor: Colors.white,
-        indicatorColor: Colors.transparent,
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        destinations: <NavigationDestination>[
-          _destination(icon: Icons.restaurant, label: AppStrings.swipes),
-          NavigationDestination(
-            icon: _unselectedMatchIcon(matchCount),
-            selectedIcon: _selectedIcon(
-              Stack(
-                clipBehavior: Clip.none,
-                children: <Widget>[
-                  const Icon(Icons.favorite, color: Colors.white),
-                  if (matchCount > 0)
-                    Positioned(
-                      right: -8,
-                      top: -8,
-                      child: _badge(matchCount),
-                    ),
-                ],
-              ),
-            ),
-            label: AppStrings.matches,
+      bottomNavigationBar: BottomAppBar(
+        color: Colors.white,
+        elevation: 8,
+        child: SizedBox(
+          height: 64,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: List<Widget>.generate(_navItems.length, (int index) {
+              final bool isActive = currentIndex == index;
+              final _NavItem item = _navItems[index];
+
+              return GestureDetector(
+                onTap: () => _onTabTap(index),
+                behavior: HitTestBehavior.opaque,
+                child: SizedBox(
+                  width: 64,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: <Widget>[
+                      Stack(
+                        clipBehavior: Clip.none,
+                        children: <Widget>[
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            width: 40,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: isActive
+                                  ? AppColors.navActiveIndicator
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              item.icon,
+                              size: 22,
+                              color: isActive ? AppColors.navActiveIcon : AppColors.navIcon,
+                            ),
+                          ),
+                          if (index == 1 && matchCount > 0)
+                            Positioned(
+                              top: -4,
+                              right: -4,
+                              child: Container(
+                                padding: const EdgeInsets.all(3),
+                                decoration: BoxDecoration(
+                                  color: AppColors.navBadgeBg,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 1.5,
+                                  ),
+                                ),
+                                constraints: const BoxConstraints(
+                                  minWidth: 18,
+                                  minHeight: 18,
+                                ),
+                                child: Text(
+                                  matchCount > 99 ? '99+' : matchCount.toString(),
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.nunito(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.navBadgeText,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        item.label,
+                        style: GoogleFonts.nunito(
+                          fontSize: 10,
+                          fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
+                          color: AppColors.navText,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
           ),
-          _destination(icon: Icons.add_circle, label: AppStrings.addDishes),
-          _destination(icon: Icons.person, label: AppStrings.profile),
-        ],
-      ),
-    );
-  }
-
-  NavigationDestination _destination({required IconData icon, required String label}) {
-    return NavigationDestination(
-      icon: Icon(icon, color: AppColors.navInactive),
-      selectedIcon: _selectedIcon(Icon(icon, color: Colors.white)),
-      label: label,
-    );
-  }
-
-  Widget _selectedIcon(Widget child) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: child,
-    );
-  }
-
-  Widget _unselectedMatchIcon(int matchCount) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: <Widget>[
-        const Icon(Icons.favorite, color: AppColors.navInactive),
-        if (matchCount > 0)
-          Positioned(
-            right: -8,
-            top: -8,
-            child: _badge(matchCount),
-          ),
-      ],
-    );
-  }
-
-  Widget _badge(int matchCount) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-      decoration: BoxDecoration(
-        color: Colors.red,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      constraints: const BoxConstraints(minWidth: 18),
-      child: Text(
-        '$matchCount',
-        textAlign: TextAlign.center,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
         ),
       ),
     );
   }
+}
+
+class _NavItem {
+  final IconData icon;
+  final String label;
+
+  const _NavItem({required this.icon, required this.label});
 }
