@@ -6,7 +6,7 @@ import '../../features/auth/logic/auth_provider.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
-import '../../features/couple/presentation/screens/connect_couple_screen.dart';
+import '../../features/couple/presentation/widgets/connect_session_sheet.dart';
 import '../../features/dishes/presentation/screens/add_dish_screen.dart';
 import '../../features/dishes/presentation/screens/recipe_detail_screen.dart';
 import '../../features/matches/presentation/screens/match_overlay_screen.dart';
@@ -44,7 +44,10 @@ class AppRouter {
             ),
             GoRoute(
               path: '/connect-couple',
-              builder: (_, __) => const ConnectCoupleScreen(),
+              builder: (_, __) => const Scaffold(
+                backgroundColor: Colors.transparent,
+                body: SafeArea(child: ConnectSessionSheet()),
+              ),
             ),
             GoRoute(
               path: '/recipe-detail/:dishId',

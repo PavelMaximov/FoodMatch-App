@@ -88,6 +88,10 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
                     text: '+ Create session',
                     isLoading: coupleProvider.isLoading,
                     onPressed: () async {
+                      if (coupleProvider.isLoading || coupleProvider.hasCouple) {
+                        return;
+                      }
+
                       await coupleProvider.createCouple();
                       if (coupleProvider.currentCouple != null && mounted) {
                         setState(() => _sessionExpanded = true);

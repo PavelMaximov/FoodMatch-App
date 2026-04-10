@@ -37,6 +37,10 @@ class CoupleProvider extends ChangeNotifier {
   }
 
   Future<void> createCouple() async {
+    if (isLoading || currentCouple != null) {
+      return;
+    }
+
     isLoading = true;
     error = null;
     notifyListeners();

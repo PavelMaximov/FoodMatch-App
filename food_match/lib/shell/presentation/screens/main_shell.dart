@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../features/auth/logic/auth_provider.dart';
 import '../../../features/couple/logic/couple_provider.dart';
-import '../../../features/couple/presentation/screens/connect_couple_screen.dart';
+import '../../../features/couple/presentation/widgets/connect_session_sheet.dart';
 import '../../../features/matches/logic/match_provider.dart';
 import '../../../features/swipes/logic/swipe_provider.dart';
 import '../../../shared/widgets/network_status_bar.dart';
@@ -43,9 +43,15 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
       if (!couple.hasCouple && mounted) {
         await showModalBottomSheet<void>(
           context: context,
+          isScrollControlled: true,
           isDismissible: false,
           enableDrag: false,
-          builder: (_) => const ConnectCoupleScreen(),
+          backgroundColor: Colors.transparent,
+          barrierColor: Colors.black.withValues(alpha: 0.5),
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          builder: (_) => const ConnectSessionSheet(),
         );
       }
     });
