@@ -47,6 +47,20 @@ class CoupleProvider extends ChangeNotifier {
 
     try {
       currentCouple = await _repository.create();
+    } on ApiException catch (e) {
+      final bool isAlreadyInCouple = e.statusCode == 400 &&
+          e.message.toLowerCase().contains('already in couple');
+
+      if (isAlreadyInCouple) {
+        try {
+          currentCouple = await _repository.getMyCouple();
+          error = null;
+        } catch (loadError) {
+          error = _mapError(loadError);
+        }
+      } else {
+        error = _mapError(e);
+      }
     } catch (e) {
       error = _mapError(e);
     } finally {

@@ -20,6 +20,23 @@ class ConnectSessionSheet extends StatefulWidget {
 class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
   final TextEditingController _codeController = TextEditingController();
   bool _sessionExpanded = false;
+  bool _hasAttemptedHydration = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _hasAttemptedHydration) {
+        return;
+      }
+
+      final CoupleProvider coupleProvider = context.read<CoupleProvider>();
+      if (!coupleProvider.hasCouple && !coupleProvider.isLoading) {
+        _hasAttemptedHydration = true;
+        coupleProvider.loadCouple();
+      }
+    });
+  }
 
   @override
   void dispose() {
