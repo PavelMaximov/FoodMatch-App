@@ -39,7 +39,12 @@ class _ConnectCoupleScreenState extends State<ConnectCoupleScreen> {
   }
 
   Future<void> _createCouple() async {
-    await context.read<CoupleProvider>().createCouple();
+    final CoupleProvider provider = context.read<CoupleProvider>();
+    if (provider.isLoading || provider.hasCouple) {
+      return;
+    }
+
+    await provider.createCouple();
   }
 
   Future<void> _joinCouple() async {

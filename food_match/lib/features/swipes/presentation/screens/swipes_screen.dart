@@ -9,7 +9,7 @@ import '../../../../core/theme/app_dimensions.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
-import '../../../couple/presentation/screens/connect_couple_screen.dart';
+import '../../../couple/presentation/widgets/connect_session_sheet.dart';
 import '../../../matches/logic/match_provider.dart';
 import '../../logic/swipe_provider.dart';
 import '../widgets/swipe_card_widget.dart';
@@ -34,20 +34,16 @@ class _SwipesScreenState extends State<SwipesScreen> {
     });
   }
 
-  Future<void> _showConnectSheet(BuildContext context) async {
-    await showModalBottomSheet<bool>(
+  void _showConnectSheet(BuildContext context) {
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (BuildContext context) {
-        return const FractionallySizedBox(
-          heightFactor: 0.92,
-          child: ClipRRect(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            child: ConnectCoupleScreen(isBottomSheet: true),
-          ),
-        );
-      },
+      barrierColor: Colors.black.withValues(alpha: 0.5),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => const ConnectSessionSheet(),
     );
   }
 

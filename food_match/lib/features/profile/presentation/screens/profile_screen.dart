@@ -10,6 +10,7 @@ import '../../../../core/utils/snackbar_utils.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../couple/logic/couple_provider.dart';
+import '../../../couple/presentation/widgets/connect_session_sheet.dart';
 import '../../../../core/constants/app_strings.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -128,7 +129,16 @@ class ProfileScreen extends StatelessWidget {
             else
               AppButton(
                 text: AppStrings.connectToSessionBtn,
-                onPressed: () => context.push('/connect-couple'),
+                onPressed: () => showModalBottomSheet<void>(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  barrierColor: Colors.black.withValues(alpha: 0.5),
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                  ),
+                  builder: (_) => const ConnectSessionSheet(),
+                ),
               ),
             const SizedBox(height: AppDimensions.paddingL),
             AppButton(
