@@ -30,12 +30,13 @@ export class SwipeService {
     );
 
     const matchCreated = direction === 'like' ? await this.tryCreateMatch(session.id, dish.id) : false;
+    const publicDishId = this.toPublicDishId(dish);
 
     return {
       id: swipe.id,
       userId,
       coupleId: session.id,
-      dishId: dish.id,
+      dishId: publicDishId,
       direction: swipe.direction,
       matchCreated
     };
@@ -102,6 +103,18 @@ export class SwipeService {
       }
     }
 
-    return DishModel.findOne({ sourceType: 'mealdb', sourceId: dishId });
+    return DishModel.findOne({ sourceId: dishId });
+  }
+
+  private toPublicDishId(dish: { id?: string; _id?: Types.ObjectId; sourceId?: string }) {
+    if (typeof dish.sourceId === 'string' && dish.sourceId.length > 0) {
+      return dish.sourceId;
+    }
+
+    if (typeof dish.id === 'string' && dish.id.length > 0) {
+      return dish.id;
+    }
+
+    return dish._id?.toString() ?? '';
   }
 }
