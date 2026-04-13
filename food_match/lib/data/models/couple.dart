@@ -1,8 +1,3 @@
-import 'package:json_annotation/json_annotation.dart';
-
-part 'couple.g.dart';
-
-@JsonSerializable()
 class Couple {
   const Couple({
     required this.id,
@@ -10,12 +5,49 @@ class Couple {
     required this.members,
   });
 
-  @JsonKey(name: '_id')
   final String id;
   final String inviteCode;
   final List<String> members;
 
-  factory Couple.fromJson(Map<String, dynamic> json) => _$CoupleFromJson(json);
+  factory Couple.fromJson(Map<String, dynamic> json) {
+    final dynamic idRaw = json['_id'] ?? json['id'];
+    final List<String> parsedMembers = (json['members'] as List<dynamic>? ?? <dynamic>[])
+        .map(_parseMemberId)
+        .whereType<String>()
+        .toList();
 
-  Map<String, dynamic> toJson() => _$CoupleToJson(this);
+    return Couple(
+      id: idRaw?.toString() ?? '',
+      inviteCode: json['inviteCode']?.toString() ?? '',
+      members: parsedMembers,
+    );
+  }
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        '_id': id,
+        'inviteCode': inviteCode,
+        'members': members,
+      };
+
+  static String? _parseMemberId(dynamic rawMember) {
+    if (rawMember == null) {
+      return null;
+    }
+
+    if (rawMember is String) {
+      return rawMember;
+    }
+
+    if (rawMember is Map<String, dynamic>) {
+      final dynamic idRaw = rawMember['_id'] ?? rawMember['id'];
+      return idRaw?.toString();
+    }
+
+    if (rawMember is Map) {
+      final dynamic idRaw = rawMember['_id'] ?? rawMember['id'];
+      return idRaw?.toString();
+    }
+
+    return rawMember.toString();
+  }
 }

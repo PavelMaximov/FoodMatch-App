@@ -12,4 +12,17 @@ void main() {
     expect(model.id, 'c1');
     expect(model.members.length, 2);
   });
+
+  test('Couple.fromJson parses populated member objects', () {
+    final model = Couple.fromJson({
+      '_id': 'c1',
+      'inviteCode': 'ABC123',
+      'members': [
+        {'_id': 'u1', 'displayName': 'Alex'},
+        {'id': 'u2', 'displayName': 'Sam'},
+      ],
+    });
+
+    expect(model.members, <String>['u1', 'u2']);
+  });
 }

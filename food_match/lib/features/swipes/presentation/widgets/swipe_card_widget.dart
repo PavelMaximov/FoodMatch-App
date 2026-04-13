@@ -147,30 +147,6 @@ class _SwipeCardWidgetState extends State<SwipeCardWidget> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    if (widget.dish.ingredients.isNotEmpty) ...<Widget>[
-                      Text(
-                        'Ingredients',
-                        style: GoogleFonts.nunito(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      ...widget.dish.ingredients.take(8).map(
-                        (String ing) => Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 2),
-                          child: Text(
-                            '• $ing',
-                            style: GoogleFonts.nunito(
-                              fontSize: 13,
-                              color: Colors.white.withValues(alpha: 0.85),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                    ],
                     _buildTags(),
                   ],
                 ),
