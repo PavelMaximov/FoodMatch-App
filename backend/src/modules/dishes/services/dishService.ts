@@ -76,18 +76,27 @@ export class DishService {
   private toDto(dish: any) {
     return {
       id: dish.id,
-      sourceType: dish.sourceType,
-      sourceId: dish.sourceId ?? null,
-      title: dish.title,
-      description: dish.description ?? null,
-      imageUrl: dish.imageUrl ?? null,
-      tags: dish.tags,
-      cuisine: dish.cuisine ?? null,
-      ingredients: dish.ingredients,
-      steps: dish.steps,
-      cookingTime: dish.cookingTime ?? null,
-      servings: dish.servings ?? null,
-      createdAt: dish.createdAt
+      name: dish.name ?? '',
+      description: dish.description ?? '',
+      imageUrl: dish.imageUrl ?? '',
+      cuisine: dish.cuisine ?? '',
+      type: dish.type ?? '',
+      mood: Array.isArray(dish.mood) ? dish.mood : [],
+      diet: Array.isArray(dish.diet) ? dish.diet : [],
+      ingredients: Array.isArray(dish.ingredients) ? dish.ingredients : [],
+      cookTime: typeof dish.cookTime === 'number' ? dish.cookTime : 0,
+      calories: dish.calories ?? '',
+      effort: dish.effort ?? '',
+      source: Array.isArray(dish.source) && dish.source.length > 0 ? dish.source : [dish.sourceType ?? 'mealdb'],
+      servings: dish.servings ?? '',
+      season: Array.isArray(dish.season) ? dish.season : [],
+      popular: typeof dish.popular === 'boolean' ? dish.popular : false,
+      steps: Array.isArray(dish.steps)
+        ? dish.steps.map((step: any, index: number) => ({
+            step: typeof step.step === 'number' ? step.step : index + 1,
+            text: typeof step.text === 'string' ? step.text : String(step ?? '')
+          }))
+        : []
     };
   }
 }

@@ -1,14 +1,28 @@
 export interface NormalizedDishPayload {
   sourceType: 'mealdb';
   sourceId: string;
-  title: string;
-  description?: string;
-  imageUrl?: string;
-  tags: string[];
-  cuisine?: string;
+  name: string;
+  description: string;
+  imageUrl: string;
+  cuisine: string;
+  type: string;
+  mood: string[];
+  diet: string[];
   ingredients: string[];
-  steps: string[];
+  cookTime: number;
+  calories: string;
+  effort: string;
+  source: string[];
+  servings: string;
+  season: string[];
+  popular: boolean;
+  steps: Array<{ step: number; text: string }>;
   rawSourceData: Record<string, unknown>;
+}
+
+function parseCookTime(strYoutube: string | null | undefined): number {
+  if (!strYoutube) return 0;
+  return 30;
 }
 
 export function adaptMealDbMeal(meal: Record<string, string | null>): NormalizedDishPayload {
@@ -22,19 +36,32 @@ export function adaptMealDbMeal(meal: Record<string, string | null>): Normalized
     }
   }
 
-  const instructions = meal.strInstructions?.split(/\r?\n|\./).map((step) => step.trim()).filter(Boolean) ?? [];
-  const tags = meal.strTags ? meal.strTags.split(',').map((tag) => tag.trim()).filter(Boolean) : [];
+  const stepTexts = meal.strInstructions
+    ?.split(/\r?\n|\./)
+    .map((step) => step.trim())
+    .filter(Boolean) ?? [];
+
+  const steps = stepTexts.map((text, index) => ({ step: index + 1, text }));
 
   return {
     sourceType: 'mealdb',
     sourceId: meal.idMeal ?? '',
-    title: meal.strMeal ?? 'Untitled dish',
-    description: meal.strCategory ?? undefined,
-    imageUrl: meal.strMealThumb ?? undefined,
-    tags,
-    cuisine: meal.strArea ?? undefined,
+    name: meal.strMeal?.trim() || 'Unknown dish',
+    description: meal.strInstructions?.trim() || meal.strCategory?.trim() || '',
+    imageUrl: meal.strMealThumb?.trim() || '',
+    cuisine: meal.strArea?.trim() || '',
+    type: meal.strCategory?.trim() || '',
+    mood: [],
+    diet: [],
     ingredients,
-    steps: instructions,
+    cookTime: parseCookTime(meal.strYoutube),
+    calories: '',
+    effort: '',
+    source: ['mealdb'],
+    servings: '',
+    season: [],
+    popular: false,
+    steps,
     rawSourceData: meal
   };
 }

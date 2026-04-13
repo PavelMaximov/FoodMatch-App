@@ -1,36 +1,63 @@
 import { Document, Schema, Types, model } from 'mongoose';
 
+export interface DishStep {
+  step: number;
+  text: string;
+}
+
 export interface DishDocument extends Document {
   sourceType: 'mealdb' | 'custom';
   sourceId?: string;
-  title: string;
-  description?: string;
-  imageUrl?: string;
-  tags: string[];
-  cuisine?: string;
+  name: string;
+  description: string;
+  imageUrl: string;
+  cuisine: string;
+  type: string;
+  mood: string[];
+  diet: string[];
   ingredients: string[];
-  steps: string[];
-  cookingTime?: number;
-  servings?: number;
+  cookTime: number;
+  calories: string;
+  effort: string;
+  source: string[];
+  servings: string;
+  season: string[];
+  popular: boolean;
+  steps: DishStep[];
   rawSourceData?: Record<string, unknown>;
   createdBy?: Types.ObjectId | null;
   createdAt: Date;
   updatedAt: Date;
 }
 
+const dishStepSchema = new Schema<DishStep>(
+  {
+    step: { type: Number, required: true },
+    text: { type: String, required: true }
+  },
+  { _id: false }
+);
+
 const dishSchema = new Schema<DishDocument>(
   {
     sourceType: { type: String, enum: ['mealdb', 'custom'], required: true },
     sourceId: { type: String, index: true },
-    title: { type: String, required: true, trim: true },
-    description: { type: String },
-    imageUrl: { type: String },
-    tags: { type: [String], default: [] },
-    cuisine: { type: String },
+    name: { type: String, required: true, trim: true },
+    description: { type: String, default: '' },
+    imageUrl: { type: String, default: '' },
+    cuisine: { type: String, default: '' },
+    type: { type: String, default: '' },
+    mood: { type: [String], default: [] },
+    diet: { type: [String], default: [] },
     ingredients: { type: [String], default: [] },
-    steps: { type: [String], default: [] },
-    cookingTime: { type: Number },
-    servings: { type: Number },
+    cookTime: { type: Number, default: 0 },
+    calories: { type: String, default: '' },
+    effort: { type: String, default: '' },
+    source: { type: [String], default: [] },
+    servings: { type: String, default: '' },
+    season: { type: [String], default: [] },
+    popular: { type: Boolean, default: false },
+    steps: { type: [dishStepSchema], default: [] },
     rawSourceData: { type: Schema.Types.Mixed },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', default: null }
   },
