@@ -2,26 +2,33 @@ import 'package:flutter/foundation.dart';
 
 import '../../../core/constants/app_strings.dart';
 import '../../../data/models/dish.dart';
-import '../../../data/models/recipe.dart';
-import '../../../data/repositories/recipe_repository.dart';
+import '../../../data/repositories/dish_repository.dart';
 import '../../../data/services/api_service.dart';
 
 class RecipeProvider extends ChangeNotifier {
-  RecipeProvider({required RecipeRepository repository}) : _repository = repository;
+  RecipeProvider({required DishRepository repository}) : _repository = repository;
 
-  final RecipeRepository _repository;
+  final DishRepository _repository;
 
-  Recipe? currentRecipe;
+  Dish? currentDish;
   bool isLoading = false;
   String? error;
 
-  Future<void> loadRecipe(String dishId) async {
+  Future<void> loadRecipeForDish({required String dishId, Dish? dish}) async {
+    if (dish != null) {
+      currentDish = dish;
+      error = null;
+      isLoading = false;
+      notifyListeners();
+      return;
+    }
+
     isLoading = true;
     error = null;
     notifyListeners();
 
     try {
-      currentRecipe = await _repository.getRecipe(dishId);
+      currentDish = await _repository.getDishById(dishId);
     } catch (e) {
       error = _mapError(e);
     } finally {
@@ -30,20 +37,8 @@ class RecipeProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> loadRecipeForDish({required String dishId, Dish? dish}) async {
-    if (dish?.recipe != null) {
-      currentRecipe = dish!.recipe;
-      error = null;
-      isLoading = false;
-      notifyListeners();
-      return;
-    }
-
-    await loadRecipe(dishId);
-  }
-
   void clearRecipe() {
-    currentRecipe = null;
+    currentDish = null;
     notifyListeners();
   }
 

@@ -7,11 +7,9 @@ import 'data/local/cache_service.dart';
 import 'data/repositories/auth_repository.dart';
 import 'data/repositories/couple_repository.dart';
 import 'data/repositories/dish_repository.dart';
-import 'data/repositories/recipe_repository.dart';
 import 'data/repositories/swipe_repository.dart';
 import 'data/repositories/upload_repository.dart';
 import 'data/services/api_service.dart';
-import 'data/services/mealdb_service.dart';
 import 'features/auth/logic/auth_provider.dart';
 import 'features/couple/logic/couple_provider.dart';
 import 'features/dishes/logic/recipe_provider.dart';
@@ -27,9 +25,7 @@ Future<void> main() async {
   final CoupleRepository coupleRepo = CoupleRepository(apiService);
   final DishRepository dishRepo = DishRepository(apiService);
   final SwipeRepository swipeRepo = SwipeRepository(apiService);
-  final RecipeRepository recipeRepo = RecipeRepository(apiService);
   final UploadRepository uploadRepo = UploadRepository(apiService);
-  final MealDbService mealDbService = MealDbService();
   final CacheService cacheService = CacheService();
 
   runApp(
@@ -52,7 +48,6 @@ Future<void> main() async {
           create: (_) => SwipeProvider(
             dishRepository: dishRepo,
             swipeRepository: swipeRepo,
-            mealDbService: mealDbService,
             cacheService: cacheService,
           ),
         ),
@@ -63,7 +58,7 @@ Future<void> main() async {
           ),
         ),
         ChangeNotifierProvider<RecipeProvider>(
-          create: (_) => RecipeProvider(repository: recipeRepo),
+          create: (_) => RecipeProvider(repository: dishRepo),
         ),
       ],
       child: const FoodMatchApp(),

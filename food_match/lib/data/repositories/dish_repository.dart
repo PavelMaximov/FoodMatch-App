@@ -1,5 +1,4 @@
 import '../../core/constants/api_constants.dart';
-import '../../core/utils/logger.dart';
 import '../models/dish.dart';
 import '../services/api_service.dart';
 
@@ -11,7 +10,7 @@ class DishRepository {
   Future<List<Dish>> getDishes({String? cuisine}) async {
     final endpoint = cuisine == null
         ? ApiConstants.dishes
-        : '${ApiConstants.dishes}?cuisine=${Uri.encodeQueryComponent(cuisine)}';
+        : '${ApiConstants.dishes}?q=${Uri.encodeQueryComponent(cuisine)}';
     final data = await _apiService.get(endpoint);
     final List<dynamic> list = data is Map<String, dynamic>
         ? (data['dishes'] as List<dynamic>? ?? <dynamic>[])
@@ -22,6 +21,17 @@ class DishRepository {
         .toList();
   }
 
+  Future<Dish> getDishById(String dishId) async {
+    final data = await _apiService.get('${ApiConstants.dishes}/$dishId');
+    if (data is Map<String, dynamic>) {
+      final dynamic raw = data['dish'] ?? data;
+      if (raw is Map<String, dynamic>) {
+        return Dish.fromJson(raw);
+      }
+    }
+    throw const FormatException('Unexpected dish response format.');
+  }
+
   Future<Dish> createDish({
     required String title,
     required String description,
@@ -30,25 +40,20 @@ class DishRepository {
     required List<String> tags,
   }) async {
     final data = await _apiService.post(ApiConstants.dishes, {
-      'title': title,
+      'name': title,
       'description': description,
       'imageUrl': imageUrl,
       'cuisine': cuisine,
-      'tags': tags,
+      'mood': tags,
     });
-    final dishJson = _extractMap(data, fallbackKey: 'dish');
-    return Dish.fromJson(dishJson);
-  }
 
-  Map<String, dynamic> _extractMap(dynamic data, {required String fallbackKey}) {
     if (data is Map<String, dynamic>) {
-      final raw = data[fallbackKey];
+      final dynamic raw = data['dish'] ?? data;
       if (raw is Map<String, dynamic>) {
-        return raw;
+        return Dish.fromJson(raw);
       }
-      AppLogger.info('Response data: $data');
-      return data;
     }
-    throw const FormatException('Unexpected dish response format.');
+
+    throw const FormatException('Unexpected create dish response format.');
   }
 }

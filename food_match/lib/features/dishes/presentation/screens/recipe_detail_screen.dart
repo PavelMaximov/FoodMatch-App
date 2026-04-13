@@ -8,7 +8,6 @@ import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/image_utils.dart';
 import '../../../../data/models/dish.dart';
-import '../../../../data/models/recipe.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
 import '../../logic/recipe_provider.dart';
@@ -39,7 +38,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final RecipeProvider recipeProvider = context.watch<RecipeProvider>();
-    final Recipe? recipe = recipeProvider.currentRecipe;
+    final Dish? dish = recipeProvider.currentDish;
 
     if (recipeProvider.isLoading) {
       return const Scaffold(
@@ -66,7 +65,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       );
     }
 
-    if (recipe == null) {
+    if (dish == null) {
       return Scaffold(
         backgroundColor: AppColors.background,
         body: SafeArea(
@@ -92,7 +91,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       backgroundColor: AppColors.background,
       body: CustomScrollView(
         slivers: <Widget>[
-          SliverToBoxAdapter(child: _ImageHeader(dish: widget.dish, dishId: widget.dishId)),
+          SliverToBoxAdapter(child: _ImageHeader(dish: dish, dishId: dish.id)),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingL),
@@ -101,7 +100,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                 children: <Widget>[
                   const SizedBox(height: AppDimensions.paddingM),
                   Text(
-                    widget.dish?.title ?? 'Dish ${widget.dishId}',
+                    dish.name.isNotEmpty ? dish.name : 'Dish ${widget.dishId}',
                     style: GoogleFonts.nunito(
                       fontSize: 28,
                       fontWeight: FontWeight.w700,
@@ -110,7 +109,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    widget.dish?.description ?? AppStrings.cooking,
+                    dish.description.isNotEmpty ? dish.description : AppStrings.cooking,
                     maxLines: 4,
                     overflow: TextOverflow.ellipsis,
                     style: AppTextStyles.bodyMedium,
@@ -128,11 +127,18 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                     children: <Widget>[
                       const Icon(Icons.people, size: 16, color: AppColors.textSecondary),
                       const SizedBox(width: 4),
-                      Text('2 ${AppStrings.servings}', style: AppTextStyles.bodySmall),
+                      Text(
+                        '${dish.servings.isEmpty ? '2' : dish.servings} ${AppStrings.servings}',
+                        style: AppTextStyles.bodySmall,
+                      ),
+                      const SizedBox(width: 16),
+                      const Icon(Icons.access_time, size: 16, color: AppColors.textSecondary),
+                      const SizedBox(width: 4),
+                      Text('${dish.cookTime} ${AppStrings.minutes}', style: AppTextStyles.bodySmall),
                     ],
                   ),
                   const SizedBox(height: 12),
-                  ...recipe.ingredients.map(
+                  ...dish.ingredients.map(
                     (String ingredient) => Padding(
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       child: Column(
@@ -154,7 +160,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                     ),
                   ),
                   const SizedBox(height: AppDimensions.paddingM),
-                  ...recipe.steps.asMap().entries.map(
+                  ...dish.steps.asMap().entries.map(
                     (entry) => Padding(
                       padding: const EdgeInsets.only(bottom: AppDimensions.paddingM),
                       child: Row(
@@ -164,7 +170,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                             radius: 14,
                             backgroundColor: AppColors.primary,
                             child: Text(
-                              '${entry.key + 1}',
+                              '${entry.value.step > 0 ? entry.value.step : entry.key + 1}',
                               style: GoogleFonts.nunito(
                                 color: Colors.white,
                                 fontSize: 14,
@@ -174,21 +180,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: <Widget>[
-                                Text(
-                                  entry.value.title,
-                                  style: GoogleFonts.nunito(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(entry.value.text, style: AppTextStyles.bodyMedium),
-                              ],
-                            ),
+                            child: Text(entry.value.text, style: AppTextStyles.bodyMedium),
                           ),
                         ],
                       ),
@@ -208,7 +200,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 class _ImageHeader extends StatelessWidget {
   const _ImageHeader({required this.dish, required this.dishId});
 
-  final Dish? dish;
+  final Dish dish;
   final String dishId;
 
   @override
@@ -218,22 +210,17 @@ class _ImageHeader extends StatelessWidget {
         SizedBox(
           height: 300,
           width: double.infinity,
-          child: dish != null
-              ? Hero(
-                  tag: 'dish-image-$dishId',
-                  child: CachedNetworkImage(
-                    imageUrl: ImageUtils.getImageUrl(dish!.imageUrl),
-                    fit: BoxFit.cover,
-                    errorWidget: (_, __, ___) => Container(
-                      color: Colors.black12,
-                      child: const Icon(Icons.restaurant_menu, size: 72),
-                    ),
-                  ),
-                )
-              : Container(
-                  color: Colors.black12,
-                  child: const Icon(Icons.restaurant_menu, size: 72),
-                ),
+          child: Hero(
+            tag: 'dish-image-$dishId',
+            child: CachedNetworkImage(
+              imageUrl: ImageUtils.getImageUrl(dish.imageUrl),
+              fit: BoxFit.cover,
+              errorWidget: (_, __, ___) => Container(
+                color: Colors.black12,
+                child: const Icon(Icons.restaurant_menu, size: 72),
+              ),
+            ),
+          ),
         ),
         Positioned.fill(
           child: DecoratedBox(
@@ -252,17 +239,6 @@ class _ImageHeader extends StatelessWidget {
           child: _IconCircleButton(
             icon: Icons.arrow_back,
             onTap: () => Navigator.of(context).pop(),
-          ),
-        ),
-        Positioned(
-          top: 52,
-          right: AppDimensions.paddingM,
-          child: Row(
-            children: const <Widget>[
-              _IconCircleButton(icon: Icons.bookmark_border),
-              SizedBox(width: 8),
-              _IconCircleButton(icon: Icons.more_horiz),
-            ],
           ),
         ),
       ],

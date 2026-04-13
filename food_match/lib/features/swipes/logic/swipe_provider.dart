@@ -6,23 +6,22 @@ import '../../../data/local/cache_service.dart';
 import '../../../data/models/dish.dart';
 import '../../../data/repositories/dish_repository.dart';
 import '../../../data/repositories/swipe_repository.dart';
-import '../../../data/services/mealdb_service.dart';
 
 class SwipeProvider extends ChangeNotifier {
   SwipeProvider({
     required DishRepository dishRepository,
     required SwipeRepository swipeRepository,
-    MealDbService? mealDbService,
     CacheService? cacheService,
   })  : _dishRepository = dishRepository,
         _swipeRepository = swipeRepository,
-        _mealDbService = mealDbService ?? MealDbService(),
         _cacheService = cacheService ?? CacheService();
 
   final DishRepository _dishRepository;
   final SwipeRepository _swipeRepository;
-  final MealDbService _mealDbService;
   final CacheService _cacheService;
+
+  final Set<String> _sentSwipeDishIds = <String>{};
+  bool _isSendingSwipe = false;
 
   List<Dish> deck = <Dish>[];
   int currentIndex = 0;
@@ -48,88 +47,55 @@ class SwipeProvider extends ChangeNotifier {
       await _cacheService.cacheDishes(deck);
     } catch (e) {
       AppLogger.error('SwipeProvider: backend failed', e);
-
-      try {
-        final List<Dish> mealDbDeck;
-        if (cuisine != null && cuisine.isNotEmpty) {
-          final mealDbDishes = await _mealDbService.getMealsByArea(cuisine);
-          mealDbDeck = mealDbDishes.map((meal) => meal.toDish()).toList();
-        } else {
-          final mealDbDishes = await _mealDbService.getRandomMeals(count: 20);
-          mealDbDeck = mealDbDishes.map((meal) => meal.toDish()).toList();
-        }
-        deck = mealDbDeck;
-        AppLogger.info('SwipeProvider: loaded ${deck.length} from MealDB');
-        await _cacheService.cacheDishes(deck);
-      } catch (e2) {
-        AppLogger.error('SwipeProvider: MealDB failed', e2);
-
-        deck = await _cacheService.getCachedDishes();
-        if (deck.isNotEmpty) {
-          AppLogger.info('SwipeProvider: loaded ${deck.length} from cache');
-        } else {
-          error = AppStrings.failedToLoadDishes;
-        }
+      deck = await _cacheService.getCachedDishes();
+      if (deck.isNotEmpty) {
+        AppLogger.info('SwipeProvider: loaded ${deck.length} from cache');
+      } else {
+        error = AppStrings.failedToLoadDishes;
       }
     }
 
     if (deck.isEmpty && error == null) {
-      try {
-        final List<Dish> mealDbDeck;
-        if (cuisine != null && cuisine.isNotEmpty) {
-          final mealDbDishes = await _mealDbService.getMealsByArea(cuisine);
-          mealDbDeck = mealDbDishes.map((meal) => meal.toDish()).toList();
-        } else {
-          final mealDbDishes = await _mealDbService.getRandomMeals(count: 20);
-          mealDbDeck = mealDbDishes.map((meal) => meal.toDish()).toList();
-        }
-        deck = mealDbDeck;
-        await _cacheService.cacheDishes(deck);
-      } catch (_) {
-        deck = await _cacheService.getCachedDishes();
-        if (deck.isEmpty) {
-          error = AppStrings.noDishesAvailable;
-        }
-      }
+      error = AppStrings.noDishesAvailable;
     }
 
     currentIndex = 0;
     _lastSwipedDish = null;
     _lastSwipedIndex = null;
+    _sentSwipeDishIds.clear();
+    _isSendingSwipe = false;
     isLoading = false;
     notifyListeners();
   }
 
-  Future<dynamic> swipe(String action) async {
+  Future<dynamic> swipe(String direction) async {
     final Dish? dish = currentDish;
-    if (dish == null) {
+    if (dish == null || _isSendingSwipe || _sentSwipeDishIds.contains(dish.id)) {
       return null;
     }
 
+    _isSendingSwipe = true;
     _lastSwipedDish = dish;
     _lastSwipedIndex = currentIndex;
-
-    if (dish.source == 'mealdb') {
-      currentIndex++;
-      notifyListeners();
-      AppLogger.info('SwipeProvider: local swipe for MealDB dish ${dish.id} ($action)');
-      return <String, dynamic>{'matched': false, 'source': 'mealdb-local'};
-    }
 
     try {
       final dynamic result = await _swipeRepository.sendSwipe(
         dishId: dish.id,
-        action: action,
+        direction: direction,
       );
+      _sentSwipeDishIds.add(dish.id);
       currentIndex++;
       notifyListeners();
       return result;
     } catch (e) {
       AppLogger.info('SwipeProvider: queueing swipe offline');
-      await _cacheService.queueSwipe(dish.id, action);
+      await _cacheService.queueSwipe(dish.id, direction);
+      _sentSwipeDishIds.add(dish.id);
       currentIndex++;
       notifyListeners();
       return null;
+    } finally {
+      _isSendingSwipe = false;
     }
   }
 
@@ -139,6 +105,9 @@ class SwipeProvider extends ChangeNotifier {
     }
 
     currentIndex = _lastSwipedIndex!;
+    if (_lastSwipedDish != null) {
+      _sentSwipeDishIds.remove(_lastSwipedDish!.id);
+    }
     _lastSwipedDish = null;
     _lastSwipedIndex = null;
     AppLogger.info('SwipeProvider: undo swipe, back to index $currentIndex');
@@ -158,7 +127,7 @@ class SwipeProvider extends ChangeNotifier {
       try {
         await _swipeRepository.sendSwipe(
           dishId: pending[i]['dishId'] as String,
-          action: pending[i]['action'] as String,
+          direction: pending[i]['action'] as String,
         );
         synced++;
       } catch (e) {
