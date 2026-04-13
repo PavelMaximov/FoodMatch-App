@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../core/constants/app_strings.dart';
 import '../../../core/utils/logger.dart';
+import '../../../data/services/api_service.dart';
 import '../../../data/local/cache_service.dart';
 import '../../../data/models/dish.dart';
 import '../../../data/repositories/dish_repository.dart';
@@ -88,10 +89,17 @@ class SwipeProvider extends ChangeNotifier {
       notifyListeners();
       return result;
     } catch (e) {
-      AppLogger.info('SwipeProvider: queueing swipe offline');
-      await _cacheService.queueSwipe(dish.id, direction);
-      _sentSwipeDishIds.add(dish.id);
-      currentIndex++;
+      if (_shouldQueueOffline(e)) {
+        AppLogger.info('SwipeProvider: queueing swipe offline');
+        await _cacheService.queueSwipe(dish.id, direction);
+        _sentSwipeDishIds.add(dish.id);
+        currentIndex++;
+        notifyListeners();
+        return null;
+      }
+
+      AppLogger.error('SwipeProvider: swipe rejected', e);
+      error = e.toString();
       notifyListeners();
       return null;
     } finally {
@@ -145,4 +153,13 @@ class SwipeProvider extends ChangeNotifier {
   Future<dynamic> like() => swipe('like');
 
   Future<dynamic> dislike() => swipe('dislike');
+
+  bool _shouldQueueOffline(Object error) {
+    if (error is! ApiException) {
+      return false;
+    }
+
+    final int? statusCode = error.statusCode;
+    return statusCode == null || statusCode >= 500;
+  }
 }

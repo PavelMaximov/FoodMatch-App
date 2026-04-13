@@ -12,7 +12,7 @@ export class SwipeService {
       throw new AppError('User has no active session', 409);
     }
 
-    const dish = await DishModel.findById(dishId);
+    const dish = await this.findDishForSwipe(dishId);
     if (!dish) {
       throw new AppError('Dish not found', 404);
     }
@@ -92,5 +92,16 @@ export class SwipeService {
     );
 
     return true;
+  }
+
+  private async findDishForSwipe(dishId: string) {
+    if (Types.ObjectId.isValid(dishId)) {
+      const dishByObjectId = await DishModel.findById(dishId);
+      if (dishByObjectId) {
+        return dishByObjectId;
+      }
+    }
+
+    return DishModel.findOne({ sourceType: 'mealdb', sourceId: dishId });
   }
 }
