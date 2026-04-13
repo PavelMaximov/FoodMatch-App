@@ -10,26 +10,31 @@ class CoupleRepository {
 
   Future<Couple> create() async {
     final data = await _apiService.post(ApiConstants.coupleCreate, {});
-    return Couple.fromJson(_extractMap(data, fallbackKey: 'couple'));
+    return Couple.fromJson(_extractSessionMap(data));
   }
 
   Future<Couple> join(String inviteCode) async {
     final data = await _apiService.post(ApiConstants.coupleJoin, {
       'inviteCode': inviteCode,
     });
-    return Couple.fromJson(_extractMap(data, fallbackKey: 'couple'));
+    return Couple.fromJson(_extractSessionMap(data));
   }
 
-  Future<Couple> getMyCouple() async {
+  Future<Couple?> getMyCouple() async {
     final data = await _apiService.get(ApiConstants.coupleMe);
     if (data is Map<String, dynamic>) {
-      final couple = data['couple'];
-      if (couple is Map<String, dynamic>) {
-        return Couple.fromJson(couple);
+      final dynamic session = data['session'] ?? data['couple'];
+      if (session == null) {
+        return null;
+      }
+
+      if (session is Map<String, dynamic>) {
+        return Couple.fromJson(session);
       }
     }
-    AppLogger.info('Response data: $data');
-    return Couple.fromJson(_extractMap(data, fallbackKey: 'couple'));
+
+    AppLogger.info('Unexpected couple/me response data: $data');
+    return Couple.fromJson(_extractSessionMap(data));
   }
 
   Future<void> reset() async {
@@ -40,9 +45,9 @@ class CoupleRepository {
     await _apiService.post(ApiConstants.coupleLeave, {});
   }
 
-  Map<String, dynamic> _extractMap(dynamic data, {required String fallbackKey}) {
+  Map<String, dynamic> _extractSessionMap(dynamic data) {
     if (data is Map<String, dynamic>) {
-      final raw = data[fallbackKey];
+      final dynamic raw = data['session'] ?? data['couple'];
       if (raw is Map<String, dynamic>) {
         return raw;
       }

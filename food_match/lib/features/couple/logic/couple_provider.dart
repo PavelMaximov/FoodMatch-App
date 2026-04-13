@@ -48,8 +48,10 @@ class CoupleProvider extends ChangeNotifier {
     try {
       currentCouple = await _repository.create();
     } on ApiException catch (e) {
-      final bool isAlreadyInCouple = e.statusCode == 400 &&
-          e.message.toLowerCase().contains('already in couple');
+      final String normalized = e.message.toLowerCase();
+      final bool isAlreadyInCouple = e.statusCode == 409 &&
+          (normalized.contains('already has an active session') ||
+              normalized.contains('already in couple'));
 
       if (isAlreadyInCouple) {
         try {
