@@ -4,7 +4,6 @@ import 'package:http/http.dart' as http;
 
 import '../../core/utils/logger.dart';
 import '../models/dish.dart';
-import '../models/recipe.dart';
 import '../models/recipe_step.dart';
 
 class MealDbService {
@@ -210,19 +209,23 @@ class MealDbDish {
   Dish toDish() {
     return Dish(
       id: id,
-      title: title,
+      name: title,
       description:
           description.length > 200 ? '${description.substring(0, 200)}...' : description,
       imageUrl: imageUrl,
       cuisine: cuisine,
-      tags: tags,
-      source: 'mealdb',
-      externalId: id,
-      createdBy: '',
-      recipe: Recipe(
-        ingredients: ingredients,
-        steps: _parseSteps(instructions),
-      ),
+      type: '',
+      mood: tags,
+      diet: const <String>[],
+      ingredients: ingredients,
+      cookTime: 0,
+      calories: '',
+      effort: '',
+      source: const <String>['mealdb'],
+      servings: '',
+      season: const <String>[],
+      popular: false,
+      steps: _parseSteps(instructions),
     );
   }
 
@@ -241,7 +244,7 @@ class MealDbDish {
         .entries
         .map(
           (entry) => RecipeStep(
-            title: 'Step ${entry.key + 1}',
+            step: entry.key + 1,
             text: entry.value.trim(),
           ),
         )

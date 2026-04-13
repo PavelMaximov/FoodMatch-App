@@ -14,7 +14,6 @@ import '../../../../core/utils/snackbar_utils.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../data/repositories/dish_repository.dart';
 import '../../../../data/repositories/upload_repository.dart';
-import '../../../auth/logic/auth_provider.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../../../../core/constants/app_strings.dart';
@@ -59,9 +58,8 @@ class _AddDishScreenState extends State<AddDishScreen> {
     setState(() => _isLoadingMyDishes = true);
     try {
       final DishRepository dishRepository = context.read<DishRepository>();
-      final String? currentUserId = context.read<AuthProvider>().currentUser?.id;
       final List<Dish> dishes = await dishRepository.getDishes();
-      _myDishes = dishes.where((Dish dish) => dish.createdBy == currentUserId).toList();
+      _myDishes = dishes;
     } catch (_) {
       _myDishes = <Dish>[];
     } finally {
@@ -284,7 +282,7 @@ class _MyDishCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text(dish.title, style: AppTextStyles.cardTitle.copyWith(fontSize: 16)),
+                  Text(dish.name, style: AppTextStyles.cardTitle.copyWith(fontSize: 16)),
                   const SizedBox(height: 4),
                   Text(
                     dish.description,
@@ -297,11 +295,11 @@ class _MyDishCard extends StatelessWidget {
                     children: <Widget>[
                       const Icon(Icons.access_time, size: 14, color: AppColors.textSecondary),
                       const SizedBox(width: 4),
-                      Text('15 ${AppStrings.minutes}', style: AppTextStyles.bodySmall),
+                      Text('${dish.cookTime} ${AppStrings.minutes}', style: AppTextStyles.bodySmall),
                       const SizedBox(width: 16),
                       const Icon(Icons.people, size: 14, color: AppColors.textSecondary),
                       const SizedBox(width: 4),
-                      Text('2 ${AppStrings.servings}', style: AppTextStyles.bodySmall),
+                      Text('${dish.servings.isEmpty ? '2' : dish.servings} ${AppStrings.servings}', style: AppTextStyles.bodySmall),
                     ],
                   ),
                 ],

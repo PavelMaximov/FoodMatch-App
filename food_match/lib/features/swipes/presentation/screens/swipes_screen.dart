@@ -86,7 +86,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
         return;
       }
       if (result is Map<String, dynamic> &&
-          result['isMatch'] == true &&
+          result['swipe']?['matchCreated'] == true &&
           swipedDish != null) {
         context.push('/match-overlay', extra: swipedDish);
       }

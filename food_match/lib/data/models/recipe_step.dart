@@ -4,9 +4,9 @@ part 'recipe_step.g.dart';
 
 @JsonSerializable()
 class RecipeStep {
-  const RecipeStep({required this.title, required this.text});
+  const RecipeStep({required this.step, required this.text});
 
-  final String title;
+  final int step;
   final String text;
 
   factory RecipeStep.fromJson(Map<String, dynamic> json) =>

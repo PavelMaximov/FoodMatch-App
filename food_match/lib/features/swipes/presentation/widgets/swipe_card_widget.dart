@@ -91,7 +91,7 @@ class _SwipeCardWidgetState extends State<SwipeCardWidget> {
                     children: <Widget>[
                       Expanded(
                         child: Text(
-                          widget.dish.title,
+                          widget.dish.name,
                           style: GoogleFonts.nunito(
                             fontSize: 28,
                             fontWeight: FontWeight.w800,
@@ -126,7 +126,7 @@ class _SwipeCardWidgetState extends State<SwipeCardWidget> {
                       children: <Widget>[
                         Expanded(
                           child: Text(
-                            widget.dish.title,
+                            widget.dish.name,
                             style: GoogleFonts.nunito(
                               fontSize: 28,
                               fontWeight: FontWeight.w800,
@@ -147,8 +147,7 @@ class _SwipeCardWidgetState extends State<SwipeCardWidget> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    if (widget.dish.recipe != null &&
-                        widget.dish.recipe!.ingredients.isNotEmpty) ...<Widget>[
+                    if (widget.dish.ingredients.isNotEmpty) ...<Widget>[
                       Text(
                         'Ingredients',
                         style: GoogleFonts.nunito(
@@ -158,7 +157,7 @@ class _SwipeCardWidgetState extends State<SwipeCardWidget> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      ...widget.dish.recipe!.ingredients.take(8).map(
+                      ...widget.dish.ingredients.take(8).map(
                         (String ing) => Padding(
                           padding: const EdgeInsets.symmetric(vertical: 2),
                           child: Text(
@@ -247,7 +246,7 @@ class _SwipeCardWidgetState extends State<SwipeCardWidget> {
       runSpacing: 4,
       children: <Widget>[
         if (widget.dish.cuisine.isNotEmpty) _buildTag(widget.dish.cuisine),
-        ...widget.dish.tags.take(3).map(_buildTag),
+        ...widget.dish.mood.take(3).map(_buildTag),
       ],
     );
   }

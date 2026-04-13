@@ -9,10 +9,10 @@ class SwipeRepository {
 
   final ApiService _apiService;
 
-  Future<dynamic> sendSwipe({required String dishId, required String action}) async {
+  Future<dynamic> sendSwipe({required String dishId, required String direction}) async {
     return _apiService.post(ApiConstants.swipes, {
       'dishId': dishId,
-      'action': action,
+      'direction': direction,
     });
   }
 
@@ -28,9 +28,14 @@ class SwipeRepository {
         ? (data['matches'] as List<dynamic>? ?? <dynamic>[])
         : <dynamic>[];
 
-    return list
-        .map((item) => Dish.fromJson(Map<String, dynamic>.from(item as Map)))
-        .toList();
+    return list.map((dynamic item) {
+      final Map<String, dynamic> matchJson = Map<String, dynamic>.from(item as Map);
+      final dynamic dish = matchJson['dish'];
+      if (dish is Map<String, dynamic>) {
+        return Dish.fromJson(dish);
+      }
+      return Dish.fromJson(matchJson);
+    }).toList();
   }
 
   Map<String, dynamic> _extractMap(dynamic data, {required String fallbackKey}) {

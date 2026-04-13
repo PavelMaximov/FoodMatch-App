@@ -135,7 +135,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
                             Text(
-                              dish.title,
+                              dish.name,
                               style: GoogleFonts.nunito(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
@@ -154,11 +154,11 @@ class _MatchesScreenState extends State<MatchesScreen> {
                               children: <Widget>[
                                 const Icon(Icons.access_time, size: 14, color: AppColors.textSecondary),
                                 const SizedBox(width: 4),
-                                Text('15 ${AppStrings.minutes}', style: AppTextStyles.bodySmall),
+                                Text('${dish.cookTime} ${AppStrings.minutes}', style: AppTextStyles.bodySmall),
                                 const SizedBox(width: AppDimensions.paddingM),
                                 const Icon(Icons.people, size: 14, color: AppColors.textSecondary),
                                 const SizedBox(width: 4),
-                                Text('2 ${AppStrings.servings}', style: AppTextStyles.bodySmall),
+                                Text('${dish.servings.isEmpty ? '2' : dish.servings} ${AppStrings.servings}', style: AppTextStyles.bodySmall),
                               ],
                             ),
                           ],
