@@ -34,7 +34,7 @@ export class DishService {
       }
     }
 
-    const localBySourceId = await DishModel.findOne({ sourceType: 'mealdb', sourceId: id });
+    const localBySourceId = await DishModel.findOne({ sourceId: id });
     if (localBySourceId) {
       return this.toDto(localBySourceId);
     }
@@ -74,8 +74,10 @@ export class DishService {
   }
 
   private toDto(dish: any) {
+    const publicId = typeof dish.sourceId === 'string' && dish.sourceId.length > 0 ? dish.sourceId : dish.id;
+
     return {
-      id: dish.id,
+      id: publicId,
       name: dish.name ?? '',
       description: dish.description ?? '',
       imageUrl: dish.imageUrl ?? '',

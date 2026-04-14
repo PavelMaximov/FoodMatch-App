@@ -6,6 +6,9 @@ const swipeService = new SwipeService();
 
 export class SwipeController {
   async create(req: AuthRequest, res: Response) {
+    if (process.env.DEBUG_SWIPE_PIPELINE === '1') {
+      console.log('[debug][swipeController.create] userId=%s body=%o', req.userId, req.body);
+    }
     const { dishId, direction } = req.body;
     const swipe = await swipeService.createSwipe(req.userId!, dishId, direction);
     res.status(201).json({ swipe });
