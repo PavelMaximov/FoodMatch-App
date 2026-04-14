@@ -8,10 +8,9 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "lint": "tsc --noEmit",
-    "seed:mealdb": "ts-node src/scripts/seedMealDb.ts"
+    "cleanup:mealdb": "ts-node src/scripts/cleanupMealDbDishes.ts"
   },
   "dependencies": {
-    "axios": "^1.8.4",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",

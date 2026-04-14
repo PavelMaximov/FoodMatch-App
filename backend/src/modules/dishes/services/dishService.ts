@@ -1,8 +1,6 @@
-import { Types } from 'mongoose';
+import { FilterQuery, Types } from 'mongoose';
 import { AppError } from '../../../core/errors/AppError';
-import { adaptMealDbMeal } from '../adapters/mealDbAdapter';
-import { mealDbClient } from '../clients/mealDbClient';
-import { DishModel } from '../models/Dish';
+import { DishDocument, DishModel } from '../models/Dish';
 
 export class DishService {
   async listDishes(query?: string) {
@@ -10,67 +8,54 @@ export class DishService {
       return this.searchDishes(query.trim());
     }
 
-    const cached = await DishModel.find({ sourceType: 'mealdb' }).sort({ updatedAt: -1 }).limit(20);
-    if (cached.length > 0) {
-      return cached.map((dish) => this.toDto(dish));
-    }
-
-    const meals = await mealDbClient.searchByName('chicken');
-    const dishes = await Promise.all(meals.slice(0, 20).map((meal) => this.upsertMealDbDish(meal)));
+    const dishes = await DishModel.find({}).sort({ updatedAt: -1 }).limit(20);
     return dishes.map((dish) => this.toDto(dish));
   }
 
   async searchDishes(query: string) {
-    const meals = await mealDbClient.searchByName(query);
-    const dishes = await Promise.all(meals.map((meal) => this.upsertMealDbDish(meal)));
+    const normalizedQuery = query.trim();
+    if (!normalizedQuery) {
+      return [];
+    }
+
+    const queryRegex = new RegExp(this.escapeRegex(normalizedQuery), 'i');
+    const filter: FilterQuery<DishDocument> = {
+      $or: [{ name: queryRegex }, { description: queryRegex }, { cuisine: queryRegex }, { type: queryRegex }, { ingredients: queryRegex }]
+    };
+
+    const dishes = await DishModel.find(filter).sort({ updatedAt: -1 }).limit(20);
     return dishes.map((dish) => this.toDto(dish));
   }
 
   async getDishById(id: string) {
-    if (Types.ObjectId.isValid(id)) {
-      const localDish = await DishModel.findById(id);
+    const normalizedId = id.trim();
+
+    if (Types.ObjectId.isValid(normalizedId)) {
+      const localDish = await DishModel.findById(normalizedId);
       if (localDish) {
         return this.toDto(localDish);
       }
     }
 
-    const localBySourceId = await DishModel.findOne({ sourceId: id });
+    const localBySourceId = await DishModel.findOne({ sourceId: normalizedId });
     if (localBySourceId) {
       return this.toDto(localBySourceId);
     }
 
-    const meal = await mealDbClient.getById(id);
-    if (!meal) {
-      throw new AppError('Dish not found', 404);
-    }
-
-    const dish = await this.upsertMealDbDish(meal);
-    return this.toDto(dish);
+    throw new AppError('Dish not found', 404);
   }
 
   async getRandomDish() {
-    const meal = await mealDbClient.getRandom();
-    if (!meal) {
-      throw new AppError('Unable to fetch random dish', 502);
+    const randomDish = await DishModel.aggregate([{ $sample: { size: 1 } }]);
+    if (randomDish.length === 0) {
+      throw new AppError('Dish not found', 404);
     }
 
-    const dish = await this.upsertMealDbDish(meal);
-    return this.toDto(dish);
+    return this.toDto(randomDish[0]);
   }
 
-  private async upsertMealDbDish(meal: Record<string, string | null>) {
-    const normalized = adaptMealDbMeal(meal);
-
-    return DishModel.findOneAndUpdate(
-      { sourceType: 'mealdb', sourceId: normalized.sourceId },
-      {
-        $set: {
-          ...normalized,
-          createdBy: null
-        }
-      },
-      { upsert: true, new: true }
-    );
+  private escapeRegex(value: string) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
   private toDto(dish: any) {
@@ -89,7 +74,7 @@ export class DishService {
       cookTime: typeof dish.cookTime === 'number' ? dish.cookTime : 0,
       calories: dish.calories ?? '',
       effort: dish.effort ?? '',
-      source: Array.isArray(dish.source) && dish.source.length > 0 ? dish.source : [dish.sourceType ?? 'mealdb'],
+      source: Array.isArray(dish.source) && dish.source.length > 0 ? dish.source : [dish.sourceType ?? 'custom'],
       servings: dish.servings ?? '',
       season: Array.isArray(dish.season) ? dish.season : [],
       popular: typeof dish.popular === 'boolean' ? dish.popular : false,
