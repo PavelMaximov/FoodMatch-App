@@ -7,6 +7,14 @@ import { SwipeModel } from '../models/Swipe';
 
 export class SwipeService {
   async createSwipe(userId: string, dishId: string, direction: 'like' | 'dislike') {
+    if (process.env.DEBUG_SWIPE_PIPELINE === '1') {
+      console.log('[debug][swipeService.createSwipe] userId=%s dishId=%s direction=%s', userId, dishId, direction);
+    }
+
+    if (!Types.ObjectId.isValid(userId)) {
+      throw new AppError('Invalid token user id', 401);
+    }
+
     const session = await CoupleSessionModel.findOne({ members: new Types.ObjectId(userId), status: 'active' });
     if (!session) {
       throw new AppError('User has no active session', 409);
@@ -96,14 +104,24 @@ export class SwipeService {
   }
 
   private async findDishForSwipe(dishId: string) {
-    if (Types.ObjectId.isValid(dishId)) {
-      const dishByObjectId = await DishModel.findById(dishId);
+    const normalizedDishId = dishId.trim();
+
+    if (Types.ObjectId.isValid(normalizedDishId)) {
+      if (process.env.DEBUG_SWIPE_PIPELINE === '1') {
+        console.log('[debug][swipeService.findDishForSwipe] lookup by _id=%s', normalizedDishId);
+      }
+
+      const dishByObjectId = await DishModel.findById(normalizedDishId);
       if (dishByObjectId) {
         return dishByObjectId;
       }
     }
 
-    return DishModel.findOne({ sourceId: dishId });
+    if (process.env.DEBUG_SWIPE_PIPELINE === '1') {
+      console.log('[debug][swipeService.findDishForSwipe] lookup by sourceId=%s', normalizedDishId);
+    }
+
+    return DishModel.findOne({ sourceId: normalizedDishId });
   }
 
   private toPublicDishId(dish: { id?: string; _id?: Types.ObjectId; sourceId?: string }) {
