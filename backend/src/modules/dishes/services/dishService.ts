@@ -123,16 +123,18 @@ export class DishService {
 
   async listMyCustomDishes(userId: string) {
     const activeSession = await this.getActiveSessionForUser(userId);
-    if (!activeSession) {
-      return [];
-    }
 
-    const dishes = await DishModel.find({
+    const filter: FilterQuery<DishDocument> = {
       sourceType: 'custom',
       createdBy: new Types.ObjectId(userId),
-      coupleId: activeSession._id,
       status: 'active'
-    }).sort({ createdAt: -1 });
+    };
+
+    if (activeSession) {
+      filter.coupleId = activeSession._id;
+    }
+
+    const dishes = await DishModel.find(filter).sort({ createdAt: -1 });
 
     return dishes.map((dish) => this.toDto(dish));
   }
@@ -161,13 +163,26 @@ export class DishService {
   private async buildVisibilityFilter(userId: string): Promise<FilterQuery<DishDocument>> {
     const activeSession = await this.getActiveSessionForUser(userId);
 
+    const globalDishesFilter: FilterQuery<DishDocument> = {
+      sourceType: { $ne: 'custom' }
+    };
+
     if (!activeSession) {
-      return { $or: [{ sourceType: 'mealdb' }, { sourceType: 'custom', createdBy: new Types.ObjectId(userId), status: 'active' }] };
+      return {
+        $or: [
+          globalDishesFilter,
+          {
+            sourceType: 'custom',
+            createdBy: new Types.ObjectId(userId),
+            status: 'active'
+          }
+        ]
+      };
     }
 
     return {
       $or: [
-        { sourceType: 'mealdb' },
+        globalDishesFilter,
         {
           sourceType: 'custom',
           coupleId: activeSession._id,
