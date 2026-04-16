@@ -21,6 +21,17 @@ class DishRepository {
         .toList();
   }
 
+  Future<List<Dish>> getMyCustomDishes() async {
+    final data = await _apiService.get(ApiConstants.dishesMy);
+    final List<dynamic> list = data is Map<String, dynamic>
+        ? (data['dishes'] as List<dynamic>? ?? <dynamic>[])
+        : <dynamic>[];
+
+    return list
+        .map((item) => Dish.fromJson(Map<String, dynamic>.from(item as Map)))
+        .toList();
+  }
+
   Future<Dish> getDishById(String dishId) async {
     final data = await _apiService.get('${ApiConstants.dishes}/$dishId');
     if (data is Map<String, dynamic>) {
@@ -32,19 +43,33 @@ class DishRepository {
     throw const FormatException('Unexpected dish response format.');
   }
 
-  Future<Dish> createDish({
+  Future<Dish> createCustomDish({
     required String title,
-    required String description,
-    required String imageUrl,
     required String cuisine,
-    required List<String> tags,
+    required String mood,
+    required List<Map<String, String>> ingredients,
+    required int cookTime,
+    required int servings,
+    required List<String> instructions,
+    required String imageUrl,
   }) async {
-    final data = await _apiService.post(ApiConstants.dishes, {
+    final data = await _apiService.post(ApiConstants.dishesCustom, {
       'name': title,
-      'description': description,
-      'imageUrl': imageUrl,
       'cuisine': cuisine,
-      'mood': tags,
+      'mood': mood,
+      'ingredients': ingredients,
+      'cookTime': cookTime,
+      'servings': servings.toString(),
+      'steps': instructions
+          .asMap()
+          .entries
+          .where((entry) => entry.value.trim().isNotEmpty)
+          .map((entry) => <String, dynamic>{
+                'step': entry.key + 1,
+                'text': entry.value.trim(),
+              })
+          .toList(),
+      'imageUrl': imageUrl,
     });
 
     if (data is Map<String, dynamic>) {
@@ -55,5 +80,9 @@ class DishRepository {
     }
 
     throw const FormatException('Unexpected create dish response format.');
+  }
+
+  Future<void> deleteMyDish(String dishId) async {
+    await _apiService.delete('${ApiConstants.dishes}/$dishId');
   }
 }
