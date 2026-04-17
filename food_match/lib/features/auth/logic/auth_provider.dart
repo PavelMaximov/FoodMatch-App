@@ -144,6 +144,19 @@ class AuthProvider extends ChangeNotifier {
   @visibleForTesting
   bool isTokenExpiredForTest(String inputToken) => _isTokenExpired(inputToken);
 
+  Future<void> refreshCurrentUser() async {
+    if (token == null || token!.isEmpty) return;
+
+    try {
+      currentUser = await _repository.getMe();
+      await _cacheUserDataIfAvailable();
+      notifyListeners();
+    } catch (e) {
+      error = _mapError(e);
+      notifyListeners();
+    }
+  }
+
   Future<void> logout() async {
     isLoading = true;
     error = null;

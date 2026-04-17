@@ -89,7 +89,6 @@ class ApiService {
     }
   }
 
-
   Future<dynamic> delete(String endpoint) async {
     final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint');
     try {
@@ -107,6 +106,39 @@ class ApiService {
     } catch (e) {
       AppLogger.error('DELETE request failed', e);
       rethrow;
+    }
+  }
+
+  Future<void> putToAbsoluteUrl({
+    required String url,
+    required List<int> bytes,
+    required String contentType,
+    Map<String, String>? extraHeaders,
+  }) async {
+    final uri = Uri.parse(url);
+    try {
+      AppLogger.api('PUT', uri.toString(), body: 'binary(${bytes.length})');
+      final response = await _requestWithRetry(() {
+        return _client.put(
+          uri,
+          headers: {
+            'Content-Type': contentType,
+            ...?extraHeaders,
+          },
+          body: bytes,
+        );
+      });
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw ApiException(
+          'Upload failed with status ${response.statusCode}',
+          statusCode: response.statusCode,
+        );
+      }
+    } on TimeoutException {
+      throw const ApiException(AppStrings.requestTimeout);
+    } on SocketException {
+      throw const ApiException(AppStrings.noInternet);
     }
   }
 

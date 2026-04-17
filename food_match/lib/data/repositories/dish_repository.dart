@@ -64,6 +64,9 @@ class DishRepository {
     required int servings,
     required List<String> instructions,
     required String imageUrl,
+    String? imageKey,
+    String? imageMimeType,
+    int? imageSize,
   }) async {
     final data = await _apiService.post(ApiConstants.dishesCustom, {
       'name': title,
@@ -82,6 +85,9 @@ class DishRepository {
               })
           .toList(),
       'imageUrl': imageUrl,
+      'imageKey': imageKey,
+      'imageMimeType': imageMimeType,
+      'imageSize': imageSize,
     });
 
     if (data is Map<String, dynamic>) {

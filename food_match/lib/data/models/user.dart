@@ -8,6 +8,7 @@ class User {
     required this.id,
     required this.email,
     required this.displayName,
+    this.avatarUrl,
     this.coupleId,
   });
 
@@ -15,6 +16,7 @@ class User {
   final String id;
   final String email;
   final String displayName;
+  final String? avatarUrl;
   @JsonKey(name: 'coupleId')
   final String? coupleId;
 

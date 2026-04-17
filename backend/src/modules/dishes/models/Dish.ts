@@ -17,6 +17,9 @@ export interface DishDocument extends Document {
   name: string;
   description: string;
   imageUrl: string;
+  imageKey?: string;
+  imageMimeType?: string;
+  imageSize?: number;
   cuisine: string;
   type: string;
   mood: string[];
@@ -63,6 +66,9 @@ const dishSchema = new Schema<DishDocument>(
     name: { type: String, required: true, trim: true },
     description: { type: String, default: '' },
     imageUrl: { type: String, default: '' },
+    imageKey: { type: String },
+    imageMimeType: { type: String },
+    imageSize: { type: Number },
     cuisine: { type: String, default: '' },
     type: { type: String, default: '' },
     mood: { type: [String], default: [] },

@@ -45,7 +45,10 @@ export class DishController {
       cookTime: Number(req.body?.cookTime ?? 0),
       servings: String(req.body?.servings ?? ''),
       steps: Array.isArray(req.body?.steps) ? req.body.steps : [],
-      imageUrl: req.body?.imageUrl ? String(req.body.imageUrl) : ''
+      imageUrl: req.body?.imageUrl ? String(req.body.imageUrl) : '',
+      imageKey: req.body?.imageKey ? String(req.body.imageKey) : undefined,
+      imageMimeType: req.body?.imageMimeType ? String(req.body.imageMimeType) : undefined,
+      imageSize: req.body?.imageSize ? Number(req.body.imageSize) : undefined
     });
 
     res.status(201).json({ dish });

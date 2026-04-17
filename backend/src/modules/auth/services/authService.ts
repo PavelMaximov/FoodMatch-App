@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { env } from '../../../config/env';
 import { AppError } from '../../../core/errors/AppError';
+import { uploadService } from '../../uploads/services/uploadService';
 import { UserDocument, UserModel } from '../../users/models/User';
 
 export class AuthService {
@@ -15,7 +16,7 @@ export class AuthService {
     const user = await UserModel.create({ email, passwordHash, displayName });
     const token = this.signToken(user.id);
 
-    return { token, user: this.toPublicUser(user) };
+    return { token, user: await this.toPublicUser(user) };
   }
 
   async login(email: string, password: string) {
@@ -30,7 +31,7 @@ export class AuthService {
     }
 
     const token = this.signToken(user.id);
-    return { token, user: this.toPublicUser(user) };
+    return { token, user: await this.toPublicUser(user) };
   }
 
   async me(userId: string) {
@@ -46,12 +47,12 @@ export class AuthService {
     return jwt.sign({ userId }, env.JWT_SECRET, { expiresIn: env.JWT_EXPIRES_IN as any });
   }
 
-  private toPublicUser(user: UserDocument) {
+  private async toPublicUser(user: UserDocument) {
     return {
       id: user.id,
       email: user.email,
       displayName: user.displayName,
-      avatarUrl: user.avatarUrl ?? null,
+      avatarUrl: user.avatarKey ? await uploadService.resolveReadUrl(user.avatarKey) : user.avatarUrl ?? null,
       isActive: user.isActive,
       createdAt: user.createdAt
     };

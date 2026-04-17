@@ -5,6 +5,10 @@ export interface UserDocument extends Document {
   passwordHash: string;
   displayName: string;
   avatarUrl?: string;
+  avatarKey?: string;
+  avatarMimeType?: string;
+  avatarSize?: number;
+  avatarUpdatedAt?: Date;
   authProvider?: 'local';
   isActive: boolean;
   createdAt: Date;
@@ -17,6 +21,10 @@ const userSchema = new Schema<UserDocument>(
     passwordHash: { type: String, required: true },
     displayName: { type: String, required: true, trim: true },
     avatarUrl: { type: String },
+    avatarKey: { type: String },
+    avatarMimeType: { type: String },
+    avatarSize: { type: Number },
+    avatarUpdatedAt: { type: Date },
     authProvider: { type: String, default: 'local' },
     isActive: { type: Boolean, default: true }
   },

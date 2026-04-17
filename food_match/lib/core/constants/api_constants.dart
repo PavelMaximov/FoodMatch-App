@@ -19,6 +19,9 @@ class ApiConstants {
   static const String swipeStats = '/api/swipes/me/stats';
   static const String swipeMatches = '/api/swipes/matches';
   static const String recipes = '/api/recipes';
-  static const String uploads = '/api/uploads';
+  static const String uploadsAvatarUrl = '/api/uploads/avatar-url';
+  static const String uploadsDishImageUrl = '/api/uploads/dish-image-url';
+  static const String usersAvatarConfirm = '/api/users/avatar/confirm';
+  static const String usersAvatar = '/api/users/avatar';
   static const String ingredientsSearch = '/api/ingredients/search';
 }

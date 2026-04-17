@@ -41,6 +41,10 @@ class _AddDishScreenState extends State<AddDishScreen> {
   String? _selectedMood;
   int _selectedServings = 2;
   String _imageUrl = '';
+  File? _selectedImageFile;
+  String? _imageKey;
+  String? _imageMimeType;
+  int? _imageSize;
   final List<_IngredientInput> _ingredients = <_IngredientInput>[];
   final List<String> _steps = <String>[];
 
@@ -136,8 +140,19 @@ class _AddDishScreenState extends State<AddDishScreen> {
     setState(() => _isSubmitting = true);
     try {
       final UploadRepository uploadRepository = context.read<UploadRepository>();
-      final String url = await uploadRepository.uploadImage(File(image.path));
-      _imageUrl = url;
+      final File imageFile = File(image.path);
+      final preparation = await uploadRepository.prepareDishImageUpload(imageFile);
+      await uploadRepository.uploadFileToSignedUrl(
+        uploadUrl: preparation.uploadUrl,
+        mimeType: preparation.mimeType,
+        file: imageFile,
+        headers: preparation.headers,
+      );
+      _selectedImageFile = imageFile;
+      _imageKey = preparation.objectKey;
+      _imageMimeType = preparation.mimeType;
+      _imageSize = preparation.sizeBytes;
+      _imageUrl = '';
     } catch (_) {
       if (!mounted) return;
       SnackBarUtils.showError(context, AppStrings.unableToUploadImage);
@@ -197,6 +212,9 @@ class _AddDishScreenState extends State<AddDishScreen> {
         servings: _selectedServings,
         instructions: _steps,
         imageUrl: _imageUrl,
+        imageKey: _imageKey,
+        imageMimeType: _imageMimeType,
+        imageSize: _imageSize,
       );
 
       _formKey.currentState?.reset();
@@ -210,6 +228,10 @@ class _AddDishScreenState extends State<AddDishScreen> {
         _ingredients.clear();
         _steps.clear();
         _imageUrl = '';
+        _selectedImageFile = null;
+        _imageKey = null;
+        _imageMimeType = null;
+        _imageSize = null;
       });
 
       await _loadMyDishes();
@@ -470,16 +492,23 @@ class _AddDishScreenState extends State<AddDishScreen> {
                     ),
                   ),
                 ),
-                if (_imageUrl.isNotEmpty) ...<Widget>[
+                if (_selectedImageFile != null || _imageUrl.isNotEmpty) ...<Widget>[
                   const SizedBox(height: 12),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: CachedNetworkImage(
-                      imageUrl: ImageUtils.getImageUrl(_imageUrl),
-                      height: 120,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
+                    child: _selectedImageFile != null
+                        ? Image.file(
+                            _selectedImageFile!,
+                            height: 120,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                          )
+                        : CachedNetworkImage(
+                            imageUrl: ImageUtils.getImageUrl(_imageUrl),
+                            height: 120,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                          ),
                   ),
                 ],
                 const SizedBox(height: 20),

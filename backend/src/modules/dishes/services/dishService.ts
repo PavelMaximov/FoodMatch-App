@@ -1,6 +1,7 @@
 import { FilterQuery, Types } from 'mongoose';
 import { AppError } from '../../../core/errors/AppError';
 import { CoupleSessionModel } from '../../couples/models/CoupleSession';
+import { uploadService } from '../../uploads/services/uploadService';
 import { DishDocument, DishModel } from '../models/Dish';
 
 interface CreateCustomDishInput {
@@ -12,6 +13,9 @@ interface CreateCustomDishInput {
   servings: string;
   steps: Array<{ step: number; text: string }>;
   imageUrl?: string;
+  imageKey?: string;
+  imageMimeType?: string;
+  imageSize?: number;
 }
 
 export class DishService {
@@ -22,7 +26,7 @@ export class DishService {
 
     const visibilityFilter = await this.buildVisibilityFilter(userId);
     const dishes = await DishModel.find(visibilityFilter).sort({ updatedAt: -1 }).limit(50);
-    return dishes.map((dish) => this.toDto(dish));
+    return Promise.all(dishes.map((dish) => this.toDto(dish)));
   }
 
   async searchDishes(userId: string, query: string) {
@@ -41,7 +45,7 @@ export class DishService {
     };
 
     const dishes = await DishModel.find(filter).sort({ updatedAt: -1 }).limit(50);
-    return dishes.map((dish) => this.toDto(dish));
+    return Promise.all(dishes.map((dish) => this.toDto(dish)));
   }
 
   async getDishById(userId: string, id: string) {
@@ -88,11 +92,22 @@ export class DishService {
       }))
       .filter((ingredient) => ingredient.name.length > 0);
 
+    const normalizedImage = input.imageKey
+      ? uploadService.validateAndNormalizeDishMeta(userId, {
+          key: input.imageKey,
+          mimeType: input.imageMimeType ?? '',
+          sizeBytes: Number(input.imageSize ?? 0)
+        })
+      : null;
+
     const dish = await DishModel.create({
       sourceType: 'custom',
       name: input.name.trim(),
       description: '',
-      imageUrl: (input.imageUrl ?? '').trim(),
+      imageUrl: normalizedImage ? '' : (input.imageUrl ?? '').trim(),
+      imageKey: normalizedImage?.key,
+      imageMimeType: normalizedImage?.mimeType,
+      imageSize: normalizedImage?.sizeBytes,
       cuisine: input.cuisine.trim(),
       type: '',
       mood: [input.mood.trim()],
@@ -136,7 +151,7 @@ export class DishService {
 
     const dishes = await DishModel.find(filter).sort({ createdAt: -1 });
 
-    return dishes.map((dish) => this.toDto(dish));
+    return Promise.all(dishes.map((dish) => this.toDto(dish)));
   }
 
   async deleteMyCustomDish(userId: string, dishId: string) {
@@ -155,6 +170,7 @@ export class DishService {
     }
 
     await DishModel.deleteOne({ _id: candidate._id });
+    await uploadService.deleteByKey(candidate.imageKey);
 
     return { id: candidate.id, deleted: true };
   }
@@ -218,14 +234,15 @@ export class DishService {
     return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
-  private toDto(dish: any) {
+  private async toDto(dish: any) {
     const publicId = typeof dish.sourceId === 'string' && dish.sourceId.length > 0 ? dish.sourceId : dish.id;
+    const signedImageUrl = dish.imageKey ? await uploadService.resolveReadUrl(dish.imageKey) : '';
 
     return {
       id: publicId,
       name: dish.name ?? '',
       description: dish.description ?? '',
-      imageUrl: dish.imageUrl ?? '',
+      imageUrl: signedImageUrl || dish.imageUrl || '',
       cuisine: dish.cuisine ?? '',
       type: dish.type ?? '',
       mood: Array.isArray(dish.mood) ? dish.mood : [],
