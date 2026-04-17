@@ -83,7 +83,15 @@ export class UploadService {
       return '';
     }
 
-    return objectStorage.createSignedReadUrl(key);
+    console.log('[upload][read-url] start key=%s', key);
+    try {
+      const signedUrl = await objectStorage.createSignedReadUrl(key);
+      console.log('[upload][read-url] success key=%s', key);
+      return signedUrl;
+    } catch (error) {
+      console.warn('[upload][read-url] failed key=%s reason=%s', key, (error as Error)?.message ?? 'unknown');
+      throw error;
+    }
   }
 
   async deleteByKey(key?: string | null) {
