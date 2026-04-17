@@ -4,6 +4,7 @@ import coupleRoutes from '../modules/couples/routes/coupleRoutes';
 import dishRoutes from '../modules/dishes/routes/dishRoutes';
 import swipeRoutes from '../modules/swipes/routes/swipeRoutes';
 import matchRoutes from '../modules/matches/routes/matchRoutes';
+import ingredientRoutes from '../modules/ingredients/routes/ingredientRoutes';
 
 const router = Router();
 
@@ -16,5 +17,6 @@ router.use('/couples', coupleRoutes);
 router.use('/dishes', dishRoutes);
 router.use('/swipes', swipeRoutes);
 router.use('/matches', matchRoutes);
+router.use('/ingredients', ingredientRoutes);
 
 export default router;

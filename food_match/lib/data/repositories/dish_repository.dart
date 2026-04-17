@@ -32,6 +32,18 @@ class DishRepository {
         .toList();
   }
 
+
+  Future<List<String>> searchIngredients(String query) async {
+    final String endpoint =
+        '${ApiConstants.ingredientsSearch}?q=${Uri.encodeQueryComponent(query)}';
+    final data = await _apiService.get(endpoint);
+    final List<dynamic> list = data is Map<String, dynamic>
+        ? (data['ingredients'] as List<dynamic>? ?? <dynamic>[])
+        : <dynamic>[];
+
+    return list.map((item) => item.toString()).toList();
+  }
+
   Future<Dish> getDishById(String dishId) async {
     final data = await _apiService.get('${ApiConstants.dishes}/$dishId');
     if (data is Map<String, dynamic>) {

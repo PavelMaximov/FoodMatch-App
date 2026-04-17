@@ -20,4 +20,5 @@ class ApiConstants {
   static const String swipeMatches = '/api/swipes/matches';
   static const String recipes = '/api/recipes';
   static const String uploads = '/api/uploads';
+  static const String ingredientsSearch = '/api/ingredients/search';
 }

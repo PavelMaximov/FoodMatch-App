@@ -142,22 +142,21 @@ export class DishService {
   async deleteMyCustomDish(userId: string, dishId: string) {
     const normalizedId = dishId.trim();
 
-    const dish = Types.ObjectId.isValid(normalizedId)
+    const candidate = Types.ObjectId.isValid(normalizedId)
       ? await DishModel.findById(normalizedId)
       : await DishModel.findOne({ sourceId: normalizedId });
 
-    if (!dish || dish.sourceType !== 'custom' || dish.status !== 'active') {
+    if (!candidate || candidate.sourceType !== 'custom' || candidate.status !== 'active') {
       throw new AppError('Dish not found', 404);
     }
 
-    if (!dish.createdBy || dish.createdBy.toString() !== userId) {
+    if (!candidate.createdBy || candidate.createdBy.toString() !== userId) {
       throw new AppError('You can delete only your own dishes', 403);
     }
 
-    dish.status = 'deleted';
-    await dish.save();
+    await DishModel.deleteOne({ _id: candidate._id });
 
-    return { id: dish.id, deleted: true };
+    return { id: candidate.id, deleted: true };
   }
 
   private async buildVisibilityFilter(userId: string): Promise<FilterQuery<DishDocument>> {

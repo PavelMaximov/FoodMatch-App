@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -53,27 +54,21 @@ class _AddDishScreenState extends State<AddDishScreen> {
   ];
 
   static const List<String> _measureUnits = <String>[
+    'piece',
+    'as needed',
     'g',
     'kg',
     'ml',
     'l',
-    'tsp',
-    'tbsp',
+    'teaspoon',
+    'tablespoon',
+    'to taste',
     'cup',
-    'pcs'
-  ];
-
-  static const List<String> _ingredientSuggestions = <String>[
-    'Tomato',
-    'Onion',
-    'Garlic',
-    'Chicken',
-    'Beef',
-    'Rice',
-    'Cheese',
-    'Olive oil',
-    'Salt',
-    'Black pepper'
+    'pinch',
+    'slice',
+    'clove',
+    'oz',
+    'lb',
   ];
 
   static const List<String> _cuisines = <String>[
@@ -125,6 +120,14 @@ class _AddDishScreenState extends State<AddDishScreen> {
     }
   }
 
+  Future<List<String>> _searchIngredients(String query) async {
+    try {
+      return await context.read<DishRepository>().searchIngredients(query);
+    } catch (_) {
+      return <String>[];
+    }
+  }
+
   Future<void> _pickImage() async {
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
@@ -143,7 +146,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
     }
   }
 
-  Future<void> _openAddIngredientSheet() async {
+  Future<void> _openIngredientSheet({int? index}) async {
     final _IngredientInput? ingredient = await showModalBottomSheet<_IngredientInput>(
       context: context,
       backgroundColor: Colors.white,
@@ -151,12 +154,20 @@ class _AddDishScreenState extends State<AddDishScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       isScrollControlled: true,
-      builder: (_) => const _AddIngredientSheet(),
+      builder: (_) => _AddIngredientSheet(
+        searchIngredients: _searchIngredients,
+        units: _measureUnits,
+        initialIngredient: index == null ? null : _ingredients[index],
+      ),
     );
 
     if (ingredient == null) return;
     setState(() {
-      _ingredients.add(ingredient);
+      if (index == null) {
+        _ingredients.add(ingredient);
+      } else {
+        _ingredients[index] = ingredient;
+      }
     });
   }
 
@@ -251,12 +262,16 @@ class _AddDishScreenState extends State<AddDishScreen> {
                 const SizedBox(height: AppDimensions.paddingS),
                 Text(
                   AppStrings.addYourDish,
-                  style: GoogleFonts.pacifico(fontSize: 58, color: AppColors.textPrimary, height: 0.9),
+                  style: GoogleFonts.pacifico(
+                    fontSize: 38,
+                    color: AppColors.textPrimary,
+                    height: 0.95,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 Text(
                   AppStrings.addDishDesc,
-                  style: AppTextStyles.bodyMedium.copyWith(fontSize: 31/2),
+                  style: AppTextStyles.bodyMedium.copyWith(fontSize: 15.5),
                 ),
                 const SizedBox(height: AppDimensions.paddingL),
                 _RequiredLabel(text: 'Enter title of your dish'),
@@ -327,21 +342,46 @@ class _AddDishScreenState extends State<AddDishScreen> {
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: _ingredients
-                        .map(
-                          (ingredient) => Chip(
-                            backgroundColor: AppColors.chipBg,
-                            label: Text(
+                    children: _ingredients.asMap().entries.map((entry) {
+                      final int index = entry.key;
+                      final _IngredientInput ingredient = entry.value;
+
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(color: const Color(0xFFBFB7B2)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            Text(
                               '${ingredient.name} ${ingredient.quantity} ${ingredient.unit}'.trim(),
                               style: AppTextStyles.bodySmall,
                             ),
-                          ),
-                        )
-                        .toList(),
+                            const SizedBox(width: 6),
+                            GestureDetector(
+                              onTap: () => _openIngredientSheet(index: index),
+                              child: const Icon(Icons.edit_outlined, size: 16, color: AppColors.textSecondary),
+                            ),
+                            const SizedBox(width: 4),
+                            GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _ingredients.removeAt(index);
+                                });
+                              },
+                              child: const Icon(Icons.close, size: 16, color: AppColors.textSecondary),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
                   ),
                 const SizedBox(height: 8),
                 GestureDetector(
-                  onTap: _openAddIngredientSheet,
+                  onTap: () => _openIngredientSheet(),
                   child: Text(
                     '+ Add ingredients',
                     style: AppTextStyles.bodyLarge.copyWith(
@@ -361,7 +401,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
                     Expanded(
                       child: _AppInput(
                         controller: _stepInputController,
-                        hint: '+ Add 1 step',
+                        hint: '+ Add a cooking step',
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -381,9 +421,29 @@ class _AddDishScreenState extends State<AddDishScreen> {
                 if (_steps.isNotEmpty) ...<Widget>[
                   const SizedBox(height: 8),
                   ..._steps.asMap().entries.map(
-                        (entry) => Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: Text('${entry.key + 1}. ${entry.value}', style: AppTextStyles.bodyMedium),
+                        (entry) => Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFD6CDC8)),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text('${entry.key + 1}. ', style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w700)),
+                              Expanded(child: Text(entry.value, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary))),
+                              GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    _steps.removeAt(entry.key);
+                                  });
+                                },
+                                child: const Icon(Icons.delete_outline, color: AppColors.textSecondary, size: 18),
+                              )
+                            ],
+                          ),
                         ),
                       )
                 ],
@@ -511,12 +571,14 @@ class _AppInput extends StatelessWidget {
     required this.hint,
     this.keyboardType,
     this.validator,
+    this.onChanged,
   });
 
   final TextEditingController controller;
   final String hint;
   final TextInputType? keyboardType;
   final String? Function(String?)? validator;
+  final ValueChanged<String>? onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -524,6 +586,7 @@ class _AppInput extends StatelessWidget {
       controller: controller,
       keyboardType: keyboardType,
       validator: validator,
+      onChanged: onChanged,
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: AppTextStyles.bodyLarge.copyWith(color: AppColors.textHint),
@@ -640,7 +703,15 @@ class _IngredientInput {
 }
 
 class _AddIngredientSheet extends StatefulWidget {
-  const _AddIngredientSheet();
+  const _AddIngredientSheet({
+    required this.searchIngredients,
+    required this.units,
+    this.initialIngredient,
+  });
+
+  final Future<List<String>> Function(String query) searchIngredients;
+  final List<String> units;
+  final _IngredientInput? initialIngredient;
 
   @override
   State<_AddIngredientSheet> createState() => _AddIngredientSheetState();
@@ -651,22 +722,54 @@ class _AddIngredientSheetState extends State<_AddIngredientSheet> {
   final TextEditingController _quantityController = TextEditingController();
 
   String? _unit;
+  String? _selectedIngredient;
+  List<String> _results = <String>[];
+  bool _isSearching = false;
+  Timer? _debounce;
+
+  @override
+  void initState() {
+    super.initState();
+
+    final _IngredientInput? initial = widget.initialIngredient;
+    if (initial != null) {
+      _searchController.text = initial.name;
+      _selectedIngredient = initial.name;
+      _quantityController.text = initial.quantity;
+      _unit = initial.unit.isEmpty ? null : initial.unit;
+    }
+  }
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchController.dispose();
     _quantityController.dispose();
     super.dispose();
   }
 
+  Future<void> _onSearchChanged(String value) async {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 250), () async {
+      if (!mounted) return;
+
+      setState(() {
+        _isSearching = true;
+      });
+
+      final List<String> searchResults = await widget.searchIngredients(value);
+      if (!mounted) return;
+
+      setState(() {
+        _results = searchResults;
+        _isSearching = false;
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final double bottomInset = MediaQuery.of(context).viewInsets.bottom;
-    final String search = _searchController.text.trim().toLowerCase();
-    final List<String> filtered = _AddDishScreenState._ingredientSuggestions
-        .where((item) => item.toLowerCase().contains(search))
-        .take(6)
-        .toList();
 
     return Padding(
       padding: EdgeInsets.only(left: 24, right: 24, top: 22, bottom: bottomInset + 22),
@@ -676,7 +779,10 @@ class _AddIngredientSheetState extends State<_AddIngredientSheet> {
         children: <Widget>[
           Row(
             children: <Widget>[
-              Text('Add ingredient', style: AppTextStyles.cardTitle.copyWith(fontSize: 38 / 2)),
+              Text(
+                widget.initialIngredient == null ? 'Add ingredient' : 'Edit ingredient',
+                style: AppTextStyles.cardTitle.copyWith(fontSize: 19),
+              ),
               const Spacer(),
               IconButton(
                 onPressed: () => Navigator.of(context).pop(),
@@ -687,28 +793,35 @@ class _AddIngredientSheetState extends State<_AddIngredientSheet> {
           _AppInput(
             controller: _searchController,
             hint: 'Search ingredient',
+            onChanged: _onSearchChanged,
           ),
-          if (filtered.isNotEmpty) ...<Widget>[
-            const SizedBox(height: 8),
-            SizedBox(
-              height: 120,
-              child: ListView.builder(
-                itemCount: filtered.length,
-                itemBuilder: (BuildContext context, int index) {
-                  return ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(filtered[index], style: AppTextStyles.bodyMedium),
-                    onTap: () {
-                      setState(() {
-                        _searchController.text = filtered[index];
-                      });
-                    },
-                  );
-                },
-              ),
-            )
-          ],
+          const SizedBox(height: 6),
+          SizedBox(
+            height: _isSearching ? 32 : (_results.isNotEmpty ? 120 : 0),
+            child: _isSearching
+                ? const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)))
+                : (_results.isEmpty
+                    ? const SizedBox.shrink()
+                    : ListView.builder(
+                        itemCount: _results.length,
+                        itemBuilder: (BuildContext context, int index) {
+                          final String result = _results[index];
+                          return ListTile(
+                            dense: true,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                            visualDensity: VisualDensity.compact,
+                            title: Text(result, style: AppTextStyles.bodyMedium),
+                            onTap: () {
+                              setState(() {
+                                _selectedIngredient = result;
+                                _searchController.text = result;
+                                _results = <String>[];
+                              });
+                            },
+                          );
+                        },
+                      )),
+          ),
           const SizedBox(height: 12),
           Row(
             children: <Widget>[
@@ -724,7 +837,7 @@ class _AddIngredientSheetState extends State<_AddIngredientSheet> {
                 child: _AppSelect<String>(
                   value: _unit,
                   hint: 'Measure',
-                  items: _AddDishScreenState._measureUnits,
+                  items: widget.units,
                   onChanged: (String? value) => setState(() => _unit = value),
                 ),
               ),
@@ -736,9 +849,9 @@ class _AddIngredientSheetState extends State<_AddIngredientSheet> {
             child: SizedBox(
               width: 148,
               child: AppButton(
-                text: 'Add  +',
+                text: widget.initialIngredient == null ? 'Add  +' : 'Update',
                 onPressed: () {
-                  final String ingredientName = _searchController.text.trim();
+                  final String ingredientName = (_selectedIngredient ?? _searchController.text).trim();
                   if (ingredientName.isEmpty) return;
 
                   Navigator.of(context).pop(
@@ -815,7 +928,7 @@ class _MyDishCard extends StatelessWidget {
                           Expanded(
                             child: Text(
                               dish.name,
-                              style: AppTextStyles.cardTitle.copyWith(fontSize: 34 / 2),
+                              style: AppTextStyles.cardTitle.copyWith(fontSize: 17),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -849,11 +962,17 @@ class _MyDishCard extends StatelessWidget {
                         children: <Widget>[
                           const Icon(Icons.access_time, size: 16, color: AppColors.textSecondary),
                           const SizedBox(width: 4),
-                          Text('${dish.cookTime} min.', style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w700)),
+                          Text(
+                            '${dish.cookTime} min.',
+                            style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w700),
+                          ),
                           const SizedBox(width: 12),
                           const Icon(Icons.groups_2_outlined, size: 16, color: AppColors.textSecondary),
                           const SizedBox(width: 4),
-                          Text('${dish.servings.isEmpty ? '2' : dish.servings} servings', style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w700)),
+                          Text(
+                            '${dish.servings.isEmpty ? '2' : dish.servings} servings',
+                            style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w700),
+                          ),
                         ],
                       )
                     ],
