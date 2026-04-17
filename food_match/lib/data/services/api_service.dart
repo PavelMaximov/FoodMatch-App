@@ -89,6 +89,27 @@ class ApiService {
     }
   }
 
+
+  Future<dynamic> delete(String endpoint) async {
+    final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint');
+    try {
+      await _throttle();
+      AppLogger.api('DELETE', uri.toString());
+      final response = await _requestWithRetry(
+        () => _client.delete(uri, headers: _getHeaders()),
+      );
+      AppLogger.api('DELETE', uri.toString(), statusCode: response.statusCode, body: response.body);
+      return _handleResponse(response);
+    } on TimeoutException {
+      throw const ApiException(AppStrings.requestTimeout);
+    } on SocketException {
+      throw const ApiException(AppStrings.noInternet);
+    } catch (e) {
+      AppLogger.error('DELETE request failed', e);
+      rethrow;
+    }
+  }
+
   Future<dynamic> postMultipart(String endpoint, File file) async {
     final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint');
     try {

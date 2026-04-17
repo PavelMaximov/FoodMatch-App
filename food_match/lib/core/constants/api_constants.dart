@@ -13,9 +13,12 @@ class ApiConstants {
   static const String coupleReset = '/api/couples/reset';
   static const String coupleLeave = '/api/couples/leave';
   static const String dishes = '/api/dishes';
+  static const String dishesCustom = '/api/dishes/custom';
+  static const String dishesMy = '/api/dishes/my';
   static const String swipes = '/api/swipes';
   static const String swipeStats = '/api/swipes/me/stats';
   static const String swipeMatches = '/api/swipes/matches';
   static const String recipes = '/api/recipes';
   static const String uploads = '/api/uploads';
+  static const String ingredientsSearch = '/api/ingredients/search';
 }
