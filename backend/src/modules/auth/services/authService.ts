@@ -7,6 +7,15 @@ import { UserDocument, UserModel } from '../../users/models/User';
 
 const AVATAR_URL_TIMEOUT_MS = 1200;
 
+interface AuthPublicUser {
+  _id: string;
+  id: string;
+  email: string;
+  displayName: string;
+  avatarUrl: string | null;
+  coupleId: string | null;
+}
+
 export class AuthService {
   async register(email: string, password: string, displayName: string) {
     console.log('[auth][service] register:start email=%s', email ?? '');
@@ -64,7 +73,7 @@ export class AuthService {
     return jwt.sign({ userId }, env.JWT_SECRET, { expiresIn: env.JWT_EXPIRES_IN as any });
   }
 
-  private async toPublicUser(user: UserDocument) {
+  private async toPublicUser(user: UserDocument): Promise<AuthPublicUser> {
     console.log('[auth][dto] map-user:start userId=%s hasAvatarKey=%s', user.id, Boolean(user.avatarKey));
     const avatarUrl = await this.resolveAvatarUrlSafe(user);
     console.log('[auth][dto] map-user:done userId=%s avatarUrlPresent=%s', user.id, Boolean(avatarUrl));
@@ -75,9 +84,7 @@ export class AuthService {
       email: user.email,
       displayName: user.displayName,
       avatarUrl,
-      coupleId: null,
-      isActive: user.isActive,
-      createdAt: user.createdAt
+      coupleId: null
     };
   }
 
