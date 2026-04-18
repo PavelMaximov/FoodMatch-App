@@ -16,6 +16,8 @@ class MatchProvider extends ChangeNotifier {
 
   final SwipeRepository _swipeRepository;
   final CacheService _cacheService;
+  String? _activeCoupleId;
+  int _sessionStateVersion = 0;
 
   List<Dish> matches = <Dish>[];
   bool isLoading = false;
@@ -24,16 +26,24 @@ class MatchProvider extends ChangeNotifier {
   int get matchCount => matches.length;
 
   Future<void> loadMatches() async {
+    if (_activeCoupleId == null || _activeCoupleId!.isEmpty) {
+      matches = <Dish>[];
+      error = null;
+      isLoading = false;
+      notifyListeners();
+      return;
+    }
+
     isLoading = true;
     error = null;
     notifyListeners();
 
     try {
       matches = await _swipeRepository.getMatches();
-      await _cacheService.cacheMatches(matches);
+      await _cacheService.cacheMatches(matches, coupleId: _activeCoupleId);
       AppLogger.info('MatchProvider: loaded ${matches.length} matches');
     } catch (e) {
-      matches = await _cacheService.getCachedMatches();
+      matches = await _cacheService.getCachedMatches(coupleId: _activeCoupleId);
       if (matches.isEmpty) {
         error = _mapError(e);
       } else {
@@ -45,8 +55,30 @@ class MatchProvider extends ChangeNotifier {
     }
   }
 
+  void setActiveCouple(String? coupleId, {int? sessionStateVersion}) {
+    final String? normalized = coupleId?.trim().isEmpty == true ? null : coupleId?.trim();
+    final int nextVersion = sessionStateVersion ?? _sessionStateVersion;
+    if (normalized == _activeCoupleId && nextVersion == _sessionStateVersion) {
+      return;
+    }
+
+    _activeCoupleId = normalized;
+    _sessionStateVersion = nextVersion;
+    matches = <Dish>[];
+    error = null;
+    isLoading = false;
+    notifyListeners();
+    _cacheService.clearCachedMatches();
+
+    if (_activeCoupleId != null) {
+      loadMatches();
+    }
+  }
+
   void clearMatches() {
     matches = <Dish>[];
+    error = null;
+    _cacheService.clearCachedMatches();
     notifyListeners();
   }
 

@@ -6,15 +6,16 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimensions.dart';
-import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/image_utils.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
+import '../../../../data/models/dish.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../couple/logic/couple_provider.dart';
 import '../../logic/match_provider.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../data/models/couple.dart';
 
 class MatchesScreen extends StatefulWidget {
   const MatchesScreen({super.key});
@@ -27,9 +28,10 @@ class _MatchesScreenState extends State<MatchesScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await context.read<CoupleProvider>().loadCouple();
+      if (!mounted) return;
       context.read<MatchProvider>().loadMatches();
-      context.read<CoupleProvider>().loadCouple();
     });
   }
 
@@ -37,11 +39,13 @@ class _MatchesScreenState extends State<MatchesScreen> {
   Widget build(BuildContext context) {
     final MatchProvider matchProvider = context.watch<MatchProvider>();
     final CoupleProvider coupleProvider = context.watch<CoupleProvider>();
-    final String? currentUserName = context.watch<AuthProvider>().currentUser?.displayName;
-    final String partnerName = _resolvePartnerName(
-      members: coupleProvider.currentCouple?.members,
-      currentUserName: currentUserName,
+    final String? currentUserId = context.watch<AuthProvider>().currentUser?.id;
+    final CoupleMemberProfile? partner = _resolvePartner(
+      members: coupleProvider.currentCouple?.memberProfiles,
+      currentUserId: currentUserId,
     );
+    final String partnerName = _resolvePartnerName(partner);
+    final String? partnerAvatarUrl = partner?.avatarUrl;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -52,7 +56,10 @@ class _MatchesScreenState extends State<MatchesScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               const SizedBox(height: AppDimensions.paddingS),
-              _Header(partnerName: partnerName),
+              _Header(
+                partnerName: partnerName,
+                partnerAvatarUrl: partnerAvatarUrl,
+              ),
               const SizedBox(height: AppDimensions.paddingL),
               Expanded(child: _buildBody(matchProvider)),
             ],
@@ -106,84 +113,86 @@ class _MatchesScreenState extends State<MatchesScreen> {
           final dish = matchProvider.matches[index];
           return Padding(
             padding: const EdgeInsets.only(bottom: AppDimensions.paddingS),
-            child: Card(
-              elevation: 2,
-              shadowColor: AppColors.cardShadow,
-              color: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppDimensions.radiusM),
-              ),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(AppDimensions.radiusM),
-                onTap: () => context.push('/recipe-detail/${dish.id}', extra: dish),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      const Padding(
-                        padding: EdgeInsets.only(top: 2),
-                        child: Icon(
-                          Icons.check_box_outline_blank,
-                          size: 20,
-                          color: AppColors.divider,
-                        ),
-                      ),
-                      const SizedBox(width: AppDimensions.paddingS),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(
-                              dish.name,
-                              style: GoogleFonts.nunito(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              dish.description,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: AppTextStyles.bodyMedium,
-                            ),
-                            const SizedBox(height: AppDimensions.paddingS),
-                            Row(
-                              children: <Widget>[
-                                const Icon(Icons.access_time, size: 14, color: AppColors.textSecondary),
-                                const SizedBox(width: 4),
-                                Text('${dish.cookTime} ${AppStrings.minutes}', style: AppTextStyles.bodySmall),
-                                const SizedBox(width: AppDimensions.paddingM),
-                                const Icon(Icons.people, size: 14, color: AppColors.textSecondary),
-                                const SizedBox(width: 4),
-                                Text('${dish.servings.isEmpty ? '2' : dish.servings} ${AppStrings.servings}', style: AppTextStyles.bodySmall),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: AppDimensions.paddingS),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(AppDimensions.radiusS),
-                        child: CachedNetworkImage(
-                          imageUrl: ImageUtils.getImageUrl(dish.imageUrl),
-                          width: 80,
-                          height: 80,
-                          fit: BoxFit.cover,
-                          errorWidget: (_, __, ___) => const ColoredBox(
-                            color: Colors.black12,
-                            child: SizedBox(
-                              width: 80,
-                              height: 80,
-                              child: Icon(Icons.image_not_supported_outlined),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(24),
+              onTap: () => context.push('/recipe-detail/${dish.id}', extra: dish),
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: const Color(0xFFEDEBEA)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            dish.name.isEmpty ? 'Untitled dish' : dish.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.nunito(
+                              fontSize: 34 * 0.5,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.textPrimary,
                             ),
                           ),
-                        ),
+                          const SizedBox(height: 4),
+                          Text(
+                            dish.description.isEmpty ? 'No description available.' : dish.description,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.nunito(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textSecondary,
+                              height: 1.2,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 6,
+                            children: _buildChips(dish),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: <Widget>[
+                              const Icon(Icons.access_time, size: 16, color: AppColors.textSecondary),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${dish.cookTime <= 0 ? 0 : dish.cookTime} min.',
+                                style: GoogleFonts.nunito(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              const Icon(Icons.people_outline, size: 16, color: AppColors.textSecondary),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${dish.servings.isEmpty ? '2' : dish.servings} servings',
+                                style: GoogleFonts.nunito(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(width: 12),
+                    _MatchDishImage(
+                      imageUrl: dish.imageUrl,
+                      isBookmarked: dish.popular,
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -193,71 +202,205 @@ class _MatchesScreenState extends State<MatchesScreen> {
     );
   }
 
-  String _resolvePartnerName({List<String>? members, String? currentUserName}) {
-    if (members == null || members.isEmpty) {
-      return AppStrings.yourPartner;
+  List<Widget> _buildChips(Dish dish) {
+    final List<String> candidates = <String>[
+      dish.cuisine,
+      dish.type,
+    ].where((String value) => value.trim().isNotEmpty).toList();
+
+    if (candidates.isEmpty) {
+      candidates.add('Dish');
     }
 
-    for (final String member in members) {
-      if (member.isNotEmpty && member != currentUserName) {
+    return candidates.take(2).map(_TagChip.new).toList();
+  }
+
+  CoupleMemberProfile? _resolvePartner({
+    List<CoupleMemberProfile>? members,
+    String? currentUserId,
+  }) {
+    if (members == null || members.isEmpty || currentUserId == null || currentUserId.isEmpty) {
+      return null;
+    }
+
+    for (final CoupleMemberProfile member in members) {
+      if (member.id.isNotEmpty && member.id != currentUserId) {
         return member;
       }
     }
+    return null;
+  }
 
+  String _resolvePartnerName(CoupleMemberProfile? partner) {
+    final String? displayName = partner?.displayName?.trim();
+    if (displayName != null && displayName.isNotEmpty) {
+      return displayName;
+    }
     return AppStrings.yourPartner;
   }
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.partnerName});
+  const _Header({
+    required this.partnerName,
+    this.partnerAvatarUrl,
+  });
 
   final String partnerName;
+  final String? partnerAvatarUrl;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        RichText(
-          text: TextSpan(
-            children: <TextSpan>[
-              TextSpan(
-                text: '${AppStrings.matches} ',
-                style: GoogleFonts.pacifico(
-                  fontSize: 32,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              TextSpan(
-                text: AppStrings.matchesWith,
-                style: GoogleFonts.nunito(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w400,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ],
+        Text(
+          AppStrings.matches,
+          style: GoogleFonts.pacifico(
+            fontSize: 38,
+            color: AppColors.textPrimary,
           ),
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: 1),
         Row(
           children: <Widget>[
+            Text(
+              '${AppStrings.matchesWith} ',
+              style: GoogleFonts.nunito(
+                fontSize: 22,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textPrimary,
+              ),
+            ),
             Flexible(
               child: Text(
                 partnerName,
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.nunito(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 56 * 0.5,
+                  fontWeight: FontWeight.w600,
                   color: AppColors.textPrimary,
                 ),
               ),
             ),
             const SizedBox(width: 6),
-            const Icon(Icons.person, size: 20, color: AppColors.textSecondary),
+            _PartnerAvatar(
+              partnerName: partnerName,
+              avatarUrl: partnerAvatarUrl,
+            ),
           ],
         ),
       ],
+    );
+  }
+}
+
+class _PartnerAvatar extends StatelessWidget {
+  const _PartnerAvatar({
+    required this.partnerName,
+    this.avatarUrl,
+  });
+
+  final String partnerName;
+  final String? avatarUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final String initials = partnerName.trim().isEmpty ? '?' : partnerName.trim()[0].toUpperCase();
+    if (avatarUrl != null && avatarUrl!.trim().isNotEmpty) {
+      return ClipOval(
+        child: CachedNetworkImage(
+          imageUrl: ImageUtils.getImageUrl(avatarUrl),
+          width: 30,
+          height: 30,
+          fit: BoxFit.cover,
+          errorWidget: (_, __, ___) => _buildFallback(initials),
+        ),
+      );
+    }
+    return _buildFallback(initials);
+  }
+
+  Widget _buildFallback(String initials) {
+    return CircleAvatar(
+      radius: 15,
+      backgroundColor: const Color(0xFFE6DFDC),
+      child: Text(
+        initials,
+        style: GoogleFonts.nunito(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textSecondary,
+        ),
+      ),
+    );
+  }
+}
+
+class _MatchDishImage extends StatelessWidget {
+  const _MatchDishImage({
+    required this.imageUrl,
+    required this.isBookmarked,
+  });
+
+  final String imageUrl;
+  final bool isBookmarked;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: <Widget>[
+        ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: CachedNetworkImage(
+            imageUrl: ImageUtils.getImageUrl(imageUrl),
+            width: 120,
+            height: 120,
+            fit: BoxFit.cover,
+            errorWidget: (_, __, ___) => Container(
+              width: 120,
+              height: 120,
+              color: const Color(0xFFF1EFEE),
+              alignment: Alignment.center,
+              child: const Icon(Icons.image_not_supported_outlined, color: AppColors.textSecondary),
+            ),
+          ),
+        ),
+        Positioned(
+          top: 8,
+          right: 8,
+          child: Icon(
+            isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+            size: 18,
+            color: isBookmarked ? const Color(0xFFFF5D33) : Colors.white,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TagChip extends StatelessWidget {
+  const _TagChip(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFF858585), width: 1.5),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.nunito(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: const Color(0xFF666666),
+        ),
+      ),
     );
   }
 }

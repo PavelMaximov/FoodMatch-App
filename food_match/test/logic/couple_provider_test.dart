@@ -16,6 +16,10 @@ void main() {
     id: 'c1',
     inviteCode: 'ABC123',
     members: <String>['u1', 'u2'],
+    memberProfiles: <CoupleMemberProfile>[
+      CoupleMemberProfile(id: 'u1'),
+      CoupleMemberProfile(id: 'u2'),
+    ],
   );
 
   setUp(() {
