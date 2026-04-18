@@ -51,11 +51,23 @@ Future<void> main() async {
             cacheService: cacheService,
           ),
         ),
-        ChangeNotifierProvider<MatchProvider>(
+        ChangeNotifierProxyProvider<CoupleProvider, MatchProvider>(
           create: (_) => MatchProvider(
             swipeRepository: swipeRepo,
             cacheService: cacheService,
           ),
+          update: (_, CoupleProvider coupleProvider, MatchProvider? matchProvider) {
+            final MatchProvider provider = matchProvider ??
+                MatchProvider(
+                  swipeRepository: swipeRepo,
+                  cacheService: cacheService,
+                );
+            provider.setActiveCouple(
+              coupleProvider.currentCouple?.id,
+              sessionStateVersion: coupleProvider.sessionStateVersion,
+            );
+            return provider;
+          },
         ),
         ChangeNotifierProvider<RecipeProvider>(
           create: (_) => RecipeProvider(repository: dishRepo),
