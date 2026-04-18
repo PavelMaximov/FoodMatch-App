@@ -70,10 +70,12 @@ export class AuthService {
     console.log('[auth][dto] map-user:done userId=%s avatarUrlPresent=%s', user.id, Boolean(avatarUrl));
 
     return {
+      _id: user.id,
       id: user.id,
       email: user.email,
       displayName: user.displayName,
       avatarUrl,
+      coupleId: null,
       isActive: user.isActive,
       createdAt: user.createdAt
     };
