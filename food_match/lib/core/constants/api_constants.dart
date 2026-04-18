@@ -21,4 +21,5 @@ class ApiConstants {
   static const String recipes = '/api/recipes';
   static const String uploads = '/api/uploads';
   static const String ingredientsSearch = '/api/ingredients/search';
+  static const String usersSavedDishes = '/api/users/saved-dishes';
 }

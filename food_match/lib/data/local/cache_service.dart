@@ -12,6 +12,7 @@ class CacheService {
   static const String _dishesCachedAtKey = 'dishes_cached_at';
   static const String _matchesKey = 'cached_matches';
   static const String _matchesCachedAtKey = 'matches_cached_at';
+  static const String _matchesCoupleIdKey = 'matches_couple_id';
   static const String _pendingSwipesKey = 'pending_swipes';
   static const String _userDisplayNameKey = 'user_displayName';
   static const String _userEmailKey = 'user_email';
@@ -109,21 +110,32 @@ class CacheService {
     return swipes.length;
   }
 
-  Future<void> cacheMatches(List<Dish> matches) async {
+  Future<void> cacheMatches(List<Dish> matches, {String? coupleId}) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final List<Map<String, dynamic>> jsonList =
         matches.map((Dish d) => d.toJson()).toList();
     await prefs.setString(_matchesKey, jsonEncode(jsonList));
     await prefs.setString(_matchesCachedAtKey, DateTime.now().toIso8601String());
+    if (coupleId != null) {
+      await prefs.setString(_matchesCoupleIdKey, coupleId);
+    } else {
+      await prefs.remove(_matchesCoupleIdKey);
+    }
     AppLogger.info('CacheService: cached ${matches.length} matches');
   }
 
-  Future<List<Dish>> getCachedMatches() async {
+  Future<List<Dish>> getCachedMatches({String? coupleId}) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final String? jsonStr = prefs.getString(_matchesKey);
     final String? cachedAt = prefs.getString(_matchesCachedAtKey);
+    final String? cachedCoupleId = prefs.getString(_matchesCoupleIdKey);
 
     if (jsonStr == null || cachedAt == null) {
+      return <Dish>[];
+    }
+
+    if (coupleId != null && cachedCoupleId != null && coupleId != cachedCoupleId) {
+      AppLogger.info('CacheService: cached matches couple mismatch, ignoring');
       return <Dish>[];
     }
 
@@ -141,6 +153,14 @@ class CacheService {
       AppLogger.error('CacheService: failed to parse matches', e);
       return <Dish>[];
     }
+  }
+
+  Future<void> clearCachedMatches() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_matchesKey);
+    await prefs.remove(_matchesCachedAtKey);
+    await prefs.remove(_matchesCoupleIdKey);
+    AppLogger.info('CacheService: cleared cached matches');
   }
 
   Future<void> cacheUserData({
@@ -174,6 +194,7 @@ class CacheService {
     await prefs.remove(_dishesCachedAtKey);
     await prefs.remove(_matchesKey);
     await prefs.remove(_matchesCachedAtKey);
+    await prefs.remove(_matchesCoupleIdKey);
     await prefs.remove(_pendingSwipesKey);
     await prefs.remove(_userDisplayNameKey);
     await prefs.remove(_userEmailKey);

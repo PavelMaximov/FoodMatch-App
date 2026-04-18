@@ -13,9 +13,11 @@ class CoupleProvider extends ChangeNotifier {
   Couple? currentCouple;
   bool isLoading = false;
   String? error;
+  int _sessionStateVersion = 0;
 
   bool get hasCouple => currentCouple != null;
   String? get inviteCode => currentCouple?.inviteCode;
+  int get sessionStateVersion => _sessionStateVersion;
 
   Future<void> loadCouple() async {
     isLoading = true;
@@ -47,6 +49,7 @@ class CoupleProvider extends ChangeNotifier {
 
     try {
       currentCouple = await _repository.create();
+      _sessionStateVersion++;
     } on ApiException catch (e) {
       final String normalized = e.message.toLowerCase();
       final bool isAlreadyInCouple = e.statusCode == 409 &&
@@ -78,6 +81,7 @@ class CoupleProvider extends ChangeNotifier {
 
     try {
       currentCouple = await _repository.join(inviteCode);
+      _sessionStateVersion++;
     } catch (e) {
       error = _mapError(e);
     } finally {
@@ -93,6 +97,7 @@ class CoupleProvider extends ChangeNotifier {
 
     try {
       await _repository.reset();
+      _sessionStateVersion++;
       await loadCouple();
     } catch (e) {
       error = _mapError(e);
@@ -110,6 +115,7 @@ class CoupleProvider extends ChangeNotifier {
     try {
       await _repository.leave();
       currentCouple = null;
+      _sessionStateVersion++;
     } catch (e) {
       error = _mapError(e);
     } finally {

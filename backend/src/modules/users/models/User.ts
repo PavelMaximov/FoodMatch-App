@@ -1,4 +1,4 @@
-import { Schema, model, Document } from 'mongoose';
+import { Schema, model, Document, Types } from 'mongoose';
 
 export interface UserDocument extends Document {
   email: string;
@@ -6,6 +6,7 @@ export interface UserDocument extends Document {
   displayName: string;
   avatarUrl?: string;
   authProvider?: 'local';
+  savedDishes: Types.ObjectId[];
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -18,6 +19,7 @@ const userSchema = new Schema<UserDocument>(
     displayName: { type: String, required: true, trim: true },
     avatarUrl: { type: String },
     authProvider: { type: String, default: 'local' },
+    savedDishes: { type: [{ type: Schema.Types.ObjectId, ref: 'Dish' }], default: [] },
     isActive: { type: Boolean, default: true }
   },
   { timestamps: true }
