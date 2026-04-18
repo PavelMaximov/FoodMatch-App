@@ -159,28 +159,17 @@ class _MatchesScreenState extends State<MatchesScreen> {
                             children: _buildChips(dish),
                           ),
                           const SizedBox(height: 12),
-                          Row(
+                          Wrap(
+                            spacing: 14,
+                            runSpacing: 6,
                             children: <Widget>[
-                              const Icon(Icons.access_time, size: 16, color: AppColors.textSecondary),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${dish.cookTime <= 0 ? 0 : dish.cookTime} min.',
-                                style: GoogleFonts.nunito(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textSecondary,
-                                ),
+                              _MetaItem(
+                                icon: Icons.access_time,
+                                text: '${dish.cookTime <= 0 ? 0 : dish.cookTime} min.',
                               ),
-                              const SizedBox(width: 14),
-                              const Icon(Icons.people_outline, size: 16, color: AppColors.textSecondary),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${dish.servings.isEmpty ? '2' : dish.servings} servings',
-                                style: GoogleFonts.nunito(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textSecondary,
-                                ),
+                              _MetaItem(
+                                icon: Icons.people_outline,
+                                text: '${dish.servings.isEmpty ? '2' : dish.servings} servings',
                               ),
                             ],
                           ),
@@ -190,7 +179,8 @@ class _MatchesScreenState extends State<MatchesScreen> {
                     const SizedBox(width: 12),
                     _MatchDishImage(
                       imageUrl: dish.imageUrl,
-                      isBookmarked: dish.popular,
+                      isBookmarked: matchProvider.isDishSaved(dish.id),
+                      onBookmarkTap: () => context.read<MatchProvider>().toggleDishSaved(dish.id),
                     ),
                   ],
                 ),
@@ -341,10 +331,12 @@ class _MatchDishImage extends StatelessWidget {
   const _MatchDishImage({
     required this.imageUrl,
     required this.isBookmarked,
+    required this.onBookmarkTap,
   });
 
   final String imageUrl;
   final bool isBookmarked;
+  final VoidCallback onBookmarkTap;
 
   @override
   Widget build(BuildContext context) {
@@ -367,12 +359,23 @@ class _MatchDishImage extends StatelessWidget {
           ),
         ),
         Positioned(
-          top: 8,
-          right: 8,
-          child: Icon(
-            isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-            size: 18,
-            color: isBookmarked ? const Color(0xFFFF5D33) : Colors.white,
+          top: 6,
+          right: 6,
+          child: Material(
+            color: Colors.black.withValues(alpha: 0.25),
+            shape: const CircleBorder(),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: onBookmarkTap,
+              child: Padding(
+                padding: const EdgeInsets.all(6),
+                child: Icon(
+                  isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+                  size: 18,
+                  color: isBookmarked ? const Color(0xFFFF5D33) : Colors.white,
+                ),
+              ),
+            ),
           ),
         ),
       ],
@@ -401,6 +404,37 @@ class _TagChip extends StatelessWidget {
           color: const Color(0xFF666666),
         ),
       ),
+    );
+  }
+}
+
+class _MetaItem extends StatelessWidget {
+  const _MetaItem({
+    required this.icon,
+    required this.text,
+  });
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Icon(icon, size: 16, color: AppColors.textSecondary),
+        const SizedBox(width: 4),
+        Text(
+          text,
+          softWrap: true,
+          overflow: TextOverflow.visible,
+          style: GoogleFonts.nunito(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textSecondary,
+          ),
+        ),
+      ],
     );
   }
 }

@@ -97,4 +97,23 @@ class DishRepository {
   Future<void> deleteMyDish(String dishId) async {
     await _apiService.delete('${ApiConstants.dishes}/$dishId');
   }
+
+  Future<List<Dish>> getSavedDishes() async {
+    final data = await _apiService.get(ApiConstants.usersSavedDishes);
+    final List<dynamic> list = data is Map<String, dynamic>
+        ? (data['dishes'] as List<dynamic>? ?? <dynamic>[])
+        : <dynamic>[];
+
+    return list
+        .map((item) => Dish.fromJson(Map<String, dynamic>.from(item as Map)))
+        .toList();
+  }
+
+  Future<void> saveDish(String dishId) async {
+    await _apiService.post('${ApiConstants.usersSavedDishes}/$dishId', {});
+  }
+
+  Future<void> unsaveDish(String dishId) async {
+    await _apiService.delete('${ApiConstants.usersSavedDishes}/$dishId');
+  }
 }

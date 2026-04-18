@@ -54,12 +54,14 @@ Future<void> main() async {
         ChangeNotifierProxyProvider<CoupleProvider, MatchProvider>(
           create: (_) => MatchProvider(
             swipeRepository: swipeRepo,
+            dishRepository: dishRepo,
             cacheService: cacheService,
           ),
           update: (_, CoupleProvider coupleProvider, MatchProvider? matchProvider) {
             final MatchProvider provider = matchProvider ??
                 MatchProvider(
                   swipeRepository: swipeRepo,
+                  dishRepository: dishRepo,
                   cacheService: cacheService,
                 );
             provider.setActiveCouple(
