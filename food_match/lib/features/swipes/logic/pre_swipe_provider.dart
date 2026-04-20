@@ -39,6 +39,16 @@ class PreSwipeProvider extends ChangeNotifier {
 
   Future<UserProfile> loadProfile(String userId) => _profileService.getProfile(userId);
 
+  Future<List<String>> loadCuisineOptions() async {
+    final List<Dish> dishes = await _dishRepository.getDishes();
+    final Set<String> normalized = dishes
+        .map((Dish dish) => _normalizeCuisine(dish.cuisine))
+        .where((String cuisine) => cuisine.isNotEmpty)
+        .toSet();
+    final List<String> options = normalized.toList()..sort();
+    return <String>['Any', ...options];
+  }
+
   Future<PreparedPoolResult> skip(String userId) async {
     final List<Dish> all = await _dishRepository.getDishes();
     return PreparedPoolResult(
@@ -132,5 +142,18 @@ class PreSwipeProvider extends ChangeNotifier {
       relaxed: relaxed,
       config: config,
     );
+  }
+
+  String _normalizeCuisine(String value) {
+    final String trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return '';
+    }
+    final String lower = trimmed.toLowerCase().replaceAll('_', ' ');
+    return lower
+        .split(RegExp(r'\s+'))
+        .where((String token) => token.isNotEmpty)
+        .map((String token) => token[0].toUpperCase() + token.substring(1))
+        .join(' ');
   }
 }

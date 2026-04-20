@@ -14,11 +14,11 @@ import '../../../auth/logic/auth_provider.dart';
 import '../../../couple/logic/couple_provider.dart';
 import '../../../couple/presentation/widgets/connect_session_sheet.dart';
 import '../../../matches/logic/match_provider.dart';
-import '../../logic/swipe_provider.dart';
 import '../../logic/pre_swipe_provider.dart';
+import '../../logic/swipe_provider.dart';
 import '../widgets/swipe_card_widget.dart';
-import 'pre_swipe_filter_screen.dart';
 import '../widgets/swipeable_stack.dart';
+import 'pre_swipe_filter_screen.dart';
 
 class SwipesScreen extends StatefulWidget {
   const SwipesScreen({super.key});
@@ -29,6 +29,7 @@ class SwipesScreen extends StatefulWidget {
 
 class _SwipesScreenState extends State<SwipesScreen> {
   final SwipeableStackController _swiperController = SwipeableStackController();
+  bool _isOpeningPreSwipe = false;
 
   @override
   void initState() {
@@ -39,13 +40,18 @@ class _SwipesScreenState extends State<SwipesScreen> {
     });
   }
 
+  Future<void> _runPreSwipeFlow({bool fromHeaderAction = false}) async {
+    if (_isOpeningPreSwipe) {
+      return;
+    }
 
-  Future<void> _runPreSwipeFlow() async {
+    _isOpeningPreSwipe = true;
     final SwipeProvider swipeProvider = context.read<SwipeProvider>();
     final String? userId = context.read<AuthProvider>().currentUser?.id;
     swipeProvider.setActiveUser(userId);
 
-    if (swipeProvider.hasPreparedDeck) {
+    if (!fromHeaderAction && swipeProvider.hasPreparedDeck) {
+      _isOpeningPreSwipe = false;
       return;
     }
 
@@ -57,16 +63,21 @@ class _SwipesScreenState extends State<SwipesScreen> {
     );
 
     if (!mounted) {
+      _isOpeningPreSwipe = false;
       return;
     }
 
     if (result == null) {
-      await swipeProvider.loadDeck();
+      if (!swipeProvider.hasPreparedDeck) {
+        await swipeProvider.loadDeck();
+      }
+      _isOpeningPreSwipe = false;
       return;
     }
 
     if (result.dishes.isEmpty) {
       swipeProvider.applyPreparedDeck(<Dish>[]);
+      _isOpeningPreSwipe = false;
       return;
     }
 
@@ -77,6 +88,8 @@ class _SwipesScreenState extends State<SwipesScreen> {
         const SnackBar(content: Text('Waiting for partner choices. Using your current filters for now.')),
       );
     }
+
+    _isOpeningPreSwipe = false;
   }
 
   void _showConnectSheet(BuildContext context) {
@@ -91,7 +104,6 @@ class _SwipesScreenState extends State<SwipesScreen> {
       builder: (_) => const ConnectSessionSheet(),
     );
   }
-
 
   void _handleSwipe(SwipeDirection direction) {
     final SwipeProvider swipeProvider = context.read<SwipeProvider>();
@@ -153,7 +165,35 @@ class _SwipesScreenState extends State<SwipesScreen> {
                       ),
                     ),
                   ),
-
+                  GestureDetector(
+                    onTap: () => _runPreSwipeFlow(fromHeaderAction: true),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFDCD6D3),
+                        borderRadius: BorderRadius.circular(AppDimensions.radiusXL),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          const Icon(
+                            Icons.tune,
+                            size: 16,
+                            color: Color(0xFF1A1A1A),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Filter',
+                            style: GoogleFonts.nunito(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF1A1A1A),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -216,4 +256,3 @@ class _SwipesScreenState extends State<SwipesScreen> {
     );
   }
 }
-
