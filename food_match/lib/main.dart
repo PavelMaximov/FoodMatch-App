@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 
 import 'app.dart';
 import 'data/local/cache_service.dart';
+import 'data/local/user_profile_hive_service.dart';
 import 'data/repositories/auth_repository.dart';
 import 'data/repositories/couple_repository.dart';
 import 'data/repositories/dish_repository.dart';
@@ -14,10 +16,13 @@ import 'features/auth/logic/auth_provider.dart';
 import 'features/couple/logic/couple_provider.dart';
 import 'features/dishes/logic/recipe_provider.dart';
 import 'features/matches/logic/match_provider.dart';
+import 'features/swipes/logic/filter_scoring_service.dart';
+import 'features/swipes/logic/pre_swipe_provider.dart';
 import 'features/swipes/logic/swipe_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Hive.initFlutter();
   const FlutterSecureStorage secureStorage = FlutterSecureStorage();
   final ApiService apiService = ApiService(secureStorage: secureStorage);
 
@@ -27,12 +32,16 @@ Future<void> main() async {
   final SwipeRepository swipeRepo = SwipeRepository(apiService);
   final UploadRepository uploadRepo = UploadRepository(apiService);
   final CacheService cacheService = CacheService();
+  final UserProfileHiveService userProfileService = UserProfileHiveService();
+  await userProfileService.init();
 
   runApp(
     MultiProvider(
       providers: [
         Provider<DishRepository>.value(value: dishRepo),
         Provider<UploadRepository>.value(value: uploadRepo),
+        Provider<UserProfileHiveService>.value(value: userProfileService),
+        Provider<FilterScoringService>.value(value: const FilterScoringService()),
         ChangeNotifierProvider<AuthProvider>(
           create: (_) => AuthProvider(
             repository: authRepo,
@@ -44,12 +53,31 @@ Future<void> main() async {
         ChangeNotifierProvider<CoupleProvider>(
           create: (_) => CoupleProvider(repository: coupleRepo),
         ),
-        ChangeNotifierProvider<SwipeProvider>(
+        ChangeNotifierProvider<PreSwipeProvider>(
+          create: (BuildContext context) => PreSwipeProvider(
+            dishRepository: dishRepo,
+            profileService: userProfileService,
+            scoringService: context.read<FilterScoringService>(),
+          ),
+        ),
+        ChangeNotifierProxyProvider<AuthProvider, SwipeProvider>(
           create: (_) => SwipeProvider(
             dishRepository: dishRepo,
             swipeRepository: swipeRepo,
             cacheService: cacheService,
+            userProfileService: userProfileService,
           ),
+          update: (_, AuthProvider authProvider, SwipeProvider? swipeProvider) {
+            final SwipeProvider provider = swipeProvider ??
+                SwipeProvider(
+                  dishRepository: dishRepo,
+                  swipeRepository: swipeRepo,
+                  cacheService: cacheService,
+                  userProfileService: userProfileService,
+                );
+            provider.setActiveUser(authProvider.currentUser?.id);
+            return provider;
+          },
         ),
         ChangeNotifierProxyProvider<CoupleProvider, MatchProvider>(
           create: (_) => MatchProvider(
