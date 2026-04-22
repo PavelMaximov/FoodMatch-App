@@ -67,6 +67,7 @@ export class CoupleService {
     }
 
     session.status = 'closed';
+    session.filterState = undefined;
     await session.save();
     return { message: 'Session closed after member left' };
   }
@@ -79,8 +80,137 @@ export class CoupleService {
 
     await SwipeModel.deleteMany({ coupleId: session._id });
     await MatchModel.deleteMany({ coupleId: session._id });
+    session.filterState = undefined;
+    await session.save();
 
     return { message: 'Session swipes and matches reset', coupleId: session.id };
+  }
+
+  async getFilterState(userId: string) {
+    const session = await this.getMyActiveSession(userId);
+    if (!session) {
+      throw new AppError('No active session found', 404);
+    }
+
+    return this.buildFilterStateResponse(session);
+  }
+
+  async updateFilterState(
+    userId: string,
+    input: {
+      step: number;
+      cuisines: string[];
+      moods: string[];
+      blocked: string[];
+      diet: string[];
+      confirmed: boolean;
+    }
+  ) {
+    const session = await this.getMyActiveSession(userId);
+    if (!session) {
+      throw new AppError('No active session found', 404);
+    }
+
+    const me = new Types.ObjectId(userId);
+    const drafts = session.filterState?.drafts ?? [];
+    const now = new Date();
+    const foundIndex = drafts.findIndex((draft) => draft.userId.toString() === userId);
+    const nextDraft = {
+      userId: me,
+      cuisines: input.cuisines,
+      moods: input.moods,
+      blocked: input.blocked,
+      diet: input.diet,
+      confirmed: input.confirmed,
+      updatedAt: now
+    };
+
+    if (foundIndex >= 0) {
+      drafts[foundIndex] = nextDraft;
+    } else {
+      drafts.push(nextDraft);
+    }
+
+    session.filterState = {
+      step: input.step,
+      drafts,
+      updatedAt: now
+    };
+
+    await session.save();
+    return this.buildFilterStateResponse(session);
+  }
+
+  async clearFilterState(userId: string) {
+    const session = await this.getMyActiveSession(userId);
+    if (!session) {
+      throw new AppError('No active session found', 404);
+    }
+    session.filterState = undefined;
+    await session.save();
+    return { cleared: true };
+  }
+
+  private buildFilterStateResponse(session: any) {
+    const rawState = session.filterState;
+    const drafts = (rawState?.drafts ?? []).map((draft: any) => ({
+      userId: draft.userId.toString(),
+      cuisines: draft.cuisines ?? [],
+      moods: draft.moods ?? [],
+      blocked: draft.blocked ?? [],
+      diet: draft.diet ?? [],
+      confirmed: Boolean(draft.confirmed),
+      updatedAt: draft.updatedAt ?? new Date()
+    }));
+
+    return {
+      step: rawState?.step ?? 1,
+      drafts,
+      compatibility: this.calculateCompatibility(drafts),
+      updatedAt: rawState?.updatedAt ?? session.updatedAt
+    };
+  }
+
+  private calculateCompatibility(drafts: any[]) {
+    if (drafts.length < 2) {
+      return 0;
+    }
+    const [a, b] = drafts;
+
+    const cuisine = this.overlapScore(a.cuisines, b.cuisines);
+    const mood = this.overlapScore(a.moods, b.moods);
+    const blocked = this.blockedScore(a.blocked, b.blocked);
+    return Number((((cuisine + mood + blocked) / 3) * 100).toFixed(0));
+  }
+
+  private overlapScore(left: string[], right: string[]) {
+    if (left.length === 0 && right.length === 0) {
+      return 1;
+    }
+    if (left.length === 0 || right.length === 0) {
+      return 0.4;
+    }
+    if (left.includes('Any') || right.includes('Any')) {
+      return 0.9;
+    }
+    const leftSet = new Set(left);
+    const rightSet = new Set(right);
+    const union = new Set([...leftSet, ...rightSet]);
+    const intersectionCount = [...leftSet].filter((item) => rightSet.has(item)).length;
+    return union.size === 0 ? 1 : intersectionCount / union.size;
+  }
+
+  private blockedScore(left: string[], right: string[]) {
+    if (left.length === 0 && right.length === 0) {
+      return 1;
+    }
+    if (left.length === 0 || right.length === 0) {
+      return 0.6;
+    }
+    const leftSet = new Set(left);
+    const rightSet = new Set(right);
+    const conflict = [...leftSet].every((item) => rightSet.has(item));
+    return conflict ? 0.95 : 0.75;
   }
 
   private async generateUniqueInviteCode(): Promise<string> {

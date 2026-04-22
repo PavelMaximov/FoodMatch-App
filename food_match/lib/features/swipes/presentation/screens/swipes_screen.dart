@@ -30,14 +30,30 @@ class SwipesScreen extends StatefulWidget {
 class _SwipesScreenState extends State<SwipesScreen> {
   final SwipeableStackController _swiperController = SwipeableStackController();
   bool _isOpeningPreSwipe = false;
+  int _lastSessionStateVersion = -1;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _lastSessionStateVersion = context.read<CoupleProvider>().sessionStateVersion;
       _runPreSwipeFlow();
       context.read<MatchProvider>().loadMatches();
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final int currentVersion = context.watch<CoupleProvider>().sessionStateVersion;
+    if (_lastSessionStateVersion == -1) {
+      _lastSessionStateVersion = currentVersion;
+      return;
+    }
+    if (currentVersion != _lastSessionStateVersion) {
+      _lastSessionStateVersion = currentVersion;
+      context.read<SwipeProvider>().clearPreparedDeck();
+    }
   }
 
   Future<void> _runPreSwipeFlow({bool fromHeaderAction = false}) async {

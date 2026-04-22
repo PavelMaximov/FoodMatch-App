@@ -68,6 +68,18 @@ class SwipeProvider extends ChangeNotifier {
     _hasPreparedDeck = false;
   }
 
+  void clearPreparedDeck() {
+    deck = <Dish>[];
+    _seenDishIds = <String>{};
+    _hasPreparedDeck = false;
+    currentIndex = 0;
+    _lastSwipedDish = null;
+    _lastSwipedIndex = null;
+    _sentSwipeDishIds.clear();
+    error = null;
+    notifyListeners();
+  }
+
   Future<void> loadDeck({String? cuisine}) async {
     isLoading = true;
     error = null;

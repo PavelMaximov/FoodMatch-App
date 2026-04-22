@@ -23,6 +23,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
 
   int _step = 1;
   bool _loading = false;
+  bool _waitingForPartner = false;
 
   final Set<String> _cuisines = <String>{};
   final Set<String> _moods = <String>{};
@@ -60,10 +61,12 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final String? userId = context.read<AuthProvider>().currentUser?.id;
       if (userId != null) {
+        await context.read<CoupleProvider>().startFilterStatePolling();
         final profile = await context.read<PreSwipeProvider>().loadProfile(userId);
         if (mounted) {
           setState(() => _favoriteCuisines = profile.favoriteCuisines.toSet());
         }
+        await _pushDraftUpdate();
       }
 
       final List<String> cuisines = await context.read<PreSwipeProvider>().loadCuisineOptions();
@@ -72,6 +75,12 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       }
       setState(() => _cuisineOptions = cuisines);
     });
+  }
+
+  @override
+  void dispose() {
+    context.read<CoupleProvider>().stopFilterStatePolling();
+    super.dispose();
   }
 
   @override
@@ -101,11 +110,24 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
               const SizedBox(height: 10),
               Text(_subtitle, style: GoogleFonts.nunito(fontSize: 28)),
               const SizedBox(height: 24),
+              _buildCompatibilityCard(),
+              const SizedBox(height: 16),
               Expanded(child: _buildStepContent()),
               if (_loading)
                 const Padding(
                   padding: EdgeInsets.only(bottom: 8),
                   child: Text('Finding your perfect dinner...'),
+                ),
+              if (_waitingForPartner)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    children: <Widget>[
+                      SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                      SizedBox(width: 10),
+                      Text('Waiting for partner confirmation...'),
+                    ],
+                  ),
                 ),
               Row(
                 children: <Widget>[
@@ -175,12 +197,14 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         selected: _moods,
         onTap: (String value) {
           setState(() {
+            _waitingForPartner = false;
             if (_moods.contains(value)) {
               _moods.remove(value);
             } else if (_moods.length < 3) {
               _moods.add(value);
             }
           });
+          unawaited(_pushDraftUpdate());
         },
       );
     }
@@ -201,12 +225,14 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
             selected: _blocked,
             onTap: (String value) {
               setState(() {
+                _waitingForPartner = false;
                 if (_blocked.contains(value)) {
                   _blocked.remove(value);
                 } else {
                   _blocked.add(value);
                 }
               });
+              unawaited(_pushDraftUpdate());
             },
             useCrossForSelected: true,
           ),
@@ -266,6 +292,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
 
   void _toggleCuisine(String value) {
     setState(() {
+      _waitingForPartner = false;
       if (value == 'Any') {
         if (_cuisines.contains('Any')) {
           _cuisines.remove('Any');
@@ -284,10 +311,12 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         _cuisines.add(value);
       }
     });
+    unawaited(_pushDraftUpdate());
   }
 
   void _toggleDiet(String value) {
     setState(() {
+      _waitingForPartner = false;
       if (value == 'Any') {
         if (_diet.contains('Any')) {
           _diet.remove('Any');
@@ -305,6 +334,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         }
       }
     });
+    unawaited(_pushDraftUpdate());
   }
 
   Future<void> _next() async {
@@ -315,6 +345,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         );
         return;
       }
+      await _pushDraftUpdate();
       setState(() => _step++);
       return;
     }
@@ -325,7 +356,20 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       return;
     }
 
-    setState(() => _loading = true);
+    await _pushDraftUpdate(confirmed: true);
+    await context.read<CoupleProvider>().refreshFilterState();
+    if (!mounted) {
+      return;
+    }
+    if (!context.read<CoupleProvider>().isPartnerConfirmed(userId)) {
+      setState(() => _waitingForPartner = true);
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+      _waitingForPartner = false;
+    });
     final DateTime started = DateTime.now();
     final PreparedPoolResult result = await context.read<PreSwipeProvider>().prepare(
           userId: userId,
@@ -370,11 +414,77 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       return;
     }
 
+    await context.read<CoupleProvider>().clearRemoteFilterState();
     final PreparedPoolResult result = await context.read<PreSwipeProvider>().skip(userId);
     if (!mounted) {
       return;
     }
     Navigator.pop(context, result);
+  }
+
+  Future<void> _pushDraftUpdate({bool confirmed = false}) async {
+    final String? userId = context.read<AuthProvider>().currentUser?.id;
+    if (userId == null) {
+      return;
+    }
+    await context.read<CoupleProvider>().pushSessionDraft(
+          userId: userId,
+          step: _step,
+          cuisines: _cuisines.toList(),
+          moods: _moods.toList(),
+          blocked: _blocked.toList(),
+          diet: _diet.toList(),
+          confirmed: confirmed,
+        );
+  }
+
+  Widget _buildCompatibilityCard() {
+    final String? userId = context.read<AuthProvider>().currentUser?.id;
+    if (userId == null) {
+      return const SizedBox.shrink();
+    }
+    return Consumer<CoupleProvider>(
+      builder: (BuildContext context, CoupleProvider couple, _) {
+        final PartnerSessionChoices partner = couple.partnerChoicesFor(userId);
+        final int stepCompatibility = couple.stepCompatibility(step: _step, userId: userId);
+        final int overall = couple.overallCompatibility(userId: userId);
+        final List<String> partnerStepChoices = _step == 1
+            ? partner.cuisines
+            : _step == 2
+                ? partner.moods
+                : <String>[...partner.diet, ...partner.blocked];
+
+        return Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE4E4E4)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text('Compatibility: $stepCompatibility% (overall $overall%)'),
+              const SizedBox(height: 8),
+              LinearProgressIndicator(
+                value: stepCompatibility / 100,
+                minHeight: 8,
+                borderRadius: BorderRadius.circular(8),
+                backgroundColor: const Color(0xFFF1F1F1),
+                color: AppColors.primary,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                partnerStepChoices.isEmpty
+                    ? 'Partner has not selected this step yet.'
+                    : 'Partner picked: ${partnerStepChoices.join(', ')}',
+                style: GoogleFonts.nunito(fontSize: 14),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 }
 
