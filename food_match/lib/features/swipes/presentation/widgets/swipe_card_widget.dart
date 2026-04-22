@@ -14,6 +14,7 @@ class SwipeCardWidget extends StatefulWidget {
     this.onDislike,
     this.onBack,
     this.onRefresh,
+    this.showSeenBadge = false,
     super.key,
   });
 
@@ -22,6 +23,7 @@ class SwipeCardWidget extends StatefulWidget {
   final VoidCallback? onDislike;
   final VoidCallback? onBack;
   final VoidCallback? onRefresh;
+  final bool showSeenBadge;
 
   @override
   State<SwipeCardWidget> createState() => _SwipeCardWidgetState();
@@ -56,6 +58,27 @@ class _SwipeCardWidgetState extends State<SwipeCardWidget> {
               ),
             ),
           ),
+
+          if (widget.showSeenBadge)
+            Positioned(
+              top: 16,
+              right: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.55),
+                  borderRadius: BorderRadius.circular(AppDimensions.radiusXL),
+                ),
+                child: Text(
+                  'Seen before',
+                  style: GoogleFonts.nunito(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
           Positioned(
             bottom: 0,
             left: 0,

@@ -6,14 +6,19 @@ import 'package:provider/provider.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimensions.dart';
+import '../../../../data/models/dish.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
+import '../../../auth/logic/auth_provider.dart';
+import '../../../couple/logic/couple_provider.dart';
 import '../../../couple/presentation/widgets/connect_session_sheet.dart';
 import '../../../matches/logic/match_provider.dart';
+import '../../logic/pre_swipe_provider.dart';
 import '../../logic/swipe_provider.dart';
 import '../widgets/swipe_card_widget.dart';
 import '../widgets/swipeable_stack.dart';
+import 'pre_swipe_filter_screen.dart';
 
 class SwipesScreen extends StatefulWidget {
   const SwipesScreen({super.key});
@@ -24,14 +29,67 @@ class SwipesScreen extends StatefulWidget {
 
 class _SwipesScreenState extends State<SwipesScreen> {
   final SwipeableStackController _swiperController = SwipeableStackController();
+  bool _isOpeningPreSwipe = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<SwipeProvider>().loadDeck();
+      _runPreSwipeFlow();
       context.read<MatchProvider>().loadMatches();
     });
+  }
+
+  Future<void> _runPreSwipeFlow({bool fromHeaderAction = false}) async {
+    if (_isOpeningPreSwipe) {
+      return;
+    }
+
+    _isOpeningPreSwipe = true;
+    final SwipeProvider swipeProvider = context.read<SwipeProvider>();
+    final String? userId = context.read<AuthProvider>().currentUser?.id;
+    swipeProvider.setActiveUser(userId);
+
+    if (!fromHeaderAction && swipeProvider.hasPreparedDeck) {
+      _isOpeningPreSwipe = false;
+      return;
+    }
+
+    final PreparedPoolResult? result = await Navigator.of(context).push<PreparedPoolResult>(
+      MaterialPageRoute<PreparedPoolResult>(
+        fullscreenDialog: true,
+        builder: (_) => const PreSwipeFilterScreen(),
+      ),
+    );
+
+    if (!mounted) {
+      _isOpeningPreSwipe = false;
+      return;
+    }
+
+    if (result == null) {
+      if (!swipeProvider.hasPreparedDeck) {
+        await swipeProvider.loadDeck();
+      }
+      _isOpeningPreSwipe = false;
+      return;
+    }
+
+    if (result.dishes.isEmpty) {
+      swipeProvider.applyPreparedDeck(<Dish>[]);
+      _isOpeningPreSwipe = false;
+      return;
+    }
+
+    swipeProvider.applyPreparedDeck(result.dishes, seenDishIds: result.seenDishIds);
+
+    if (context.read<CoupleProvider>().partnerChoicesFor(userId ?? '').cuisines.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Waiting for partner choices. Using your current filters for now.')),
+      );
+    }
+
+    _isOpeningPreSwipe = false;
   }
 
   void _showConnectSheet(BuildContext context) {
@@ -44,27 +102,6 @@ class _SwipesScreenState extends State<SwipesScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (_) => const ConnectSessionSheet(),
-    );
-  }
-
-  Future<void> _showFilterSheet(BuildContext context) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.6,
-      ),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppDimensions.radiusL),
-        ),
-      ),
-      builder: (_) => _FilterSheet(
-        onCuisineSelected: (String? cuisine) {
-          Navigator.pop(context);
-          context.read<SwipeProvider>().loadDeck(cuisine: cuisine);
-        },
-      ),
     );
   }
 
@@ -129,7 +166,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
                     ),
                   ),
                   GestureDetector(
-                    onTap: () => _showFilterSheet(context),
+                    onTap: () => _runPreSwipeFlow(fromHeaderAction: true),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                       decoration: BoxDecoration(
@@ -202,6 +239,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
                           onDislike: provider.isLoading ? null : _swiperController.swipeLeft,
                           onBack: provider.canUndo ? provider.undo : null,
                           onRefresh: provider.isLoading ? null : provider.loadDeck,
+                          showSeenBadge: provider.isSeenDish(dish.id),
                         );
                       },
                       onSwipe: (int index, SwipeDirection direction) {
@@ -212,89 +250,6 @@ class _SwipesScreenState extends State<SwipesScreen> {
                 ),
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _FilterSheet extends StatelessWidget {
-  const _FilterSheet({required this.onCuisineSelected});
-
-  final Function(String?) onCuisineSelected;
-
-  static const List<String> cuisines = <String>[
-    'All',
-    'American',
-    'British',
-    'Canadian',
-    'Chinese',
-    'Croatian',
-    'Dutch',
-    'Egyptian',
-    'Filipino',
-    'French',
-    'Greek',
-    'Indian',
-    'Irish',
-    'Italian',
-    'Jamaican',
-    'Japanese',
-    'Kenyan',
-    'Malaysian',
-    'Mexican',
-    'Moroccan',
-    'Polish',
-    'Portuguese',
-    'Russian',
-    'Spanish',
-    'Thai',
-    'Tunisian',
-    'Turkish',
-    'Ukrainian',
-    'Vietnamese',
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Container(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text(
-              'Filter by cuisine',
-              style: GoogleFonts.pacifico(fontSize: 24),
-            ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: cuisines.map((String c) {
-                return GestureDetector(
-                  onTap: () => onCuisineSelected(c == 'All' ? null : c),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: AppColors.chipBg,
-                      borderRadius: BorderRadius.circular(AppDimensions.radiusXL),
-                      border: Border.all(color: AppColors.divider),
-                    ),
-                    child: Text(
-                      c,
-                      style: GoogleFonts.nunito(
-                        fontSize: 14,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 24),
           ],
         ),
       ),
