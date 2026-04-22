@@ -32,6 +32,9 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   Set<String> _favoriteCuisines = <String>{};
 
   List<String> _cuisineOptions = <String>['Any'];
+  late final AuthProvider _authProvider;
+  late final CoupleProvider _coupleProvider;
+  late final PreSwipeProvider _preSwipeProvider;
 
   static const List<String> _moodOptions = <String>[
     'Comfort',
@@ -58,18 +61,31 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   @override
   void initState() {
     super.initState();
+    _authProvider = context.read<AuthProvider>();
+    _coupleProvider = context.read<CoupleProvider>();
+    _preSwipeProvider = context.read<PreSwipeProvider>();
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final String? userId = context.read<AuthProvider>().currentUser?.id;
+      if (!mounted) {
+        return;
+      }
+      final String? userId = _authProvider.currentUser?.id;
       if (userId != null) {
-        await context.read<CoupleProvider>().startFilterStatePolling();
-        final profile = await context.read<PreSwipeProvider>().loadProfile(userId);
+        await _coupleProvider.startFilterStatePolling();
+        if (!mounted) {
+          return;
+        }
+        final profile = await _preSwipeProvider.loadProfile(userId);
         if (mounted) {
           setState(() => _favoriteCuisines = profile.favoriteCuisines.toSet());
         }
         await _pushDraftUpdate();
       }
 
-      final List<String> cuisines = await context.read<PreSwipeProvider>().loadCuisineOptions();
+      if (!mounted) {
+        return;
+      }
+      final List<String> cuisines = await _preSwipeProvider.loadCuisineOptions();
       if (!mounted) {
         return;
       }
@@ -79,7 +95,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
 
   @override
   void dispose() {
-    context.read<CoupleProvider>().stopFilterStatePolling();
+    _coupleProvider.stopFilterStatePolling();
     super.dispose();
   }
 
@@ -110,9 +126,10 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
               const SizedBox(height: 10),
               Text(_subtitle, style: GoogleFonts.nunito(fontSize: 28)),
               const SizedBox(height: 24),
-              _buildCompatibilityCard(),
-              const SizedBox(height: 16),
               Expanded(child: _buildStepContent()),
+              const SizedBox(height: 12),
+              _buildCompatibilityCard(),
+              const SizedBox(height: 8),
               if (_loading)
                 const Padding(
                   padding: EdgeInsets.only(bottom: 8),
@@ -350,30 +367,32 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       return;
     }
 
-    final String? userId = context.read<AuthProvider>().currentUser?.id;
+    final String? userId = _authProvider.currentUser?.id;
     if (userId == null) {
       Navigator.pop(context);
       return;
     }
 
     await _pushDraftUpdate(confirmed: true);
-    await context.read<CoupleProvider>().refreshFilterState();
+    await _coupleProvider.refreshFilterState();
     if (!mounted) {
       return;
     }
-    if (!context.read<CoupleProvider>().isPartnerConfirmed(userId)) {
+    if (!_coupleProvider.isPartnerConfirmed(userId)) {
       setState(() => _waitingForPartner = true);
       return;
     }
+
+    _coupleProvider.stopFilterStatePolling();
 
     setState(() {
       _loading = true;
       _waitingForPartner = false;
     });
     final DateTime started = DateTime.now();
-    final PreparedPoolResult result = await context.read<PreSwipeProvider>().prepare(
+    final PreparedPoolResult result = await _preSwipeProvider.prepare(
           userId: userId,
-          coupleProvider: context.read<CoupleProvider>(),
+          coupleProvider: _coupleProvider,
           cuisines: _cuisines.where((String e) => e != 'Any').toList(),
           moods: _moods.toList(),
           blocked: _blocked.toList(),
@@ -408,14 +427,15 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   }
 
   Future<void> _skip() async {
-    final String? userId = context.read<AuthProvider>().currentUser?.id;
+    final String? userId = _authProvider.currentUser?.id;
     if (userId == null) {
       Navigator.pop(context);
       return;
     }
 
-    await context.read<CoupleProvider>().clearRemoteFilterState();
-    final PreparedPoolResult result = await context.read<PreSwipeProvider>().skip(userId);
+    _coupleProvider.stopFilterStatePolling();
+    await _coupleProvider.clearRemoteFilterState();
+    final PreparedPoolResult result = await _preSwipeProvider.skip(userId);
     if (!mounted) {
       return;
     }
@@ -423,11 +443,14 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   }
 
   Future<void> _pushDraftUpdate({bool confirmed = false}) async {
-    final String? userId = context.read<AuthProvider>().currentUser?.id;
+    if (!mounted) {
+      return;
+    }
+    final String? userId = _authProvider.currentUser?.id;
     if (userId == null) {
       return;
     }
-    await context.read<CoupleProvider>().pushSessionDraft(
+    await _coupleProvider.pushSessionDraft(
           userId: userId,
           step: _step,
           cuisines: _cuisines.toList(),
@@ -439,7 +462,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   }
 
   Widget _buildCompatibilityCard() {
-    final String? userId = context.read<AuthProvider>().currentUser?.id;
+    final String? userId = _authProvider.currentUser?.id;
     if (userId == null) {
       return const SizedBox.shrink();
     }

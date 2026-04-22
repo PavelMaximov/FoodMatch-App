@@ -30,6 +30,7 @@ class CoupleProvider extends ChangeNotifier {
   bool isLoading = false;
   String? error;
   int _sessionStateVersion = 0;
+  String? _activeUserId;
   Timer? _pollTimer;
   SessionFilterState? _sessionFilterState;
   final Map<String, PartnerSessionChoices> _sessionChoicesByUser =
@@ -41,12 +42,26 @@ class CoupleProvider extends ChangeNotifier {
   SessionFilterState? get sessionFilterState => _sessionFilterState;
 
   Future<void> loadCouple() async {
+    if (_activeUserId == null) {
+      currentCouple = null;
+      _sessionFilterState = null;
+      _sessionChoicesByUser.clear();
+      _stopPolling();
+      notifyListeners();
+      return;
+    }
+
     isLoading = true;
     error = null;
     notifyListeners();
 
     try {
       currentCouple = await _repository.getMyCouple();
+      if (currentCouple == null) {
+        _sessionFilterState = null;
+        _sessionChoicesByUser.clear();
+        _stopPolling();
+      }
     } catch (e) {
       if (e is ApiException && e.statusCode == 404) {
         currentCouple = null;
@@ -70,6 +85,7 @@ class CoupleProvider extends ChangeNotifier {
 
     try {
       currentCouple = await _repository.create();
+      _stopPolling();
       _sessionStateVersion++;
       _sessionChoicesByUser.clear();
       _sessionFilterState = null;
@@ -104,6 +120,7 @@ class CoupleProvider extends ChangeNotifier {
 
     try {
       currentCouple = await _repository.join(inviteCode);
+      _stopPolling();
       _sessionStateVersion++;
       _sessionChoicesByUser.clear();
       _sessionFilterState = null;
@@ -122,6 +139,7 @@ class CoupleProvider extends ChangeNotifier {
 
     try {
       await _repository.reset();
+      _stopPolling();
       _sessionStateVersion++;
       _sessionChoicesByUser.clear();
       _sessionFilterState = null;
@@ -141,6 +159,7 @@ class CoupleProvider extends ChangeNotifier {
 
     try {
       await _repository.leave();
+      _stopPolling();
       currentCouple = null;
       _sessionStateVersion++;
       _sessionChoicesByUser.clear();
@@ -200,6 +219,10 @@ class CoupleProvider extends ChangeNotifier {
   }
 
   Future<void> startFilterStatePolling() async {
+    if (_activeUserId == null || currentCouple == null) {
+      _stopPolling();
+      return;
+    }
     _stopPolling();
     await refreshFilterState();
     _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) {
@@ -212,7 +235,8 @@ class CoupleProvider extends ChangeNotifier {
   }
 
   Future<void> refreshFilterState() async {
-    if (currentCouple == null) {
+    if (_activeUserId == null || currentCouple == null) {
+      _stopPolling();
       return;
     }
     try {
@@ -234,7 +258,7 @@ class CoupleProvider extends ChangeNotifier {
     required List<String> diet,
     required bool confirmed,
   }) async {
-    if (currentCouple == null || userId.isEmpty) {
+    if (_activeUserId == null || currentCouple == null || userId.isEmpty) {
       return;
     }
 
@@ -263,16 +287,31 @@ class CoupleProvider extends ChangeNotifier {
   }
 
   Future<void> clearRemoteFilterState() async {
-    if (currentCouple == null) {
-      return;
-    }
-    try {
-      await _repository.clearFilterState();
-    } catch (_) {
-      // no-op
+    if (currentCouple != null) {
+      try {
+        await _repository.clearFilterState();
+      } catch (_) {
+        // no-op
+      }
     }
     _sessionFilterState = null;
     _sessionChoicesByUser.clear();
+    _stopPolling();
+    notifyListeners();
+  }
+
+  void handleAuthChanged(String? userId) {
+    if (_activeUserId == userId) {
+      return;
+    }
+
+    _activeUserId = userId;
+    _stopPolling();
+    currentCouple = null;
+    _sessionFilterState = null;
+    _sessionChoicesByUser.clear();
+    _sessionStateVersion++;
+    error = null;
     notifyListeners();
   }
 

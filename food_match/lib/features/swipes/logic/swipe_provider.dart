@@ -48,7 +48,11 @@ class SwipeProvider extends ChangeNotifier {
   bool isSeenDish(String dishId) => _seenDishIds.contains(dishId);
 
   void setActiveUser(String? userId) {
+    if (_activeUserId == userId) {
+      return;
+    }
     _activeUserId = userId;
+    clearPreparedDeck();
   }
 
   void applyPreparedDeck(List<Dish> prepared, {Set<String> seenDishIds = const <String>{}}) {
