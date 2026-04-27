@@ -23,6 +23,10 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
 
   int _step = 1;
   bool _loading = false;
+  bool _initializingFilter = false;
+  bool _waitingForPartner = false;
+  bool _showIntro = true;
+  bool _hasStartedFilterFlow = false;
 
   final Set<String> _cuisines = <String>{};
   final Set<String> _moods = <String>{};
@@ -31,6 +35,9 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   Set<String> _favoriteCuisines = <String>{};
 
   List<String> _cuisineOptions = <String>['Any'];
+  late final AuthProvider _authProvider;
+  late final CoupleProvider _coupleProvider;
+  late final PreSwipeProvider _preSwipeProvider;
 
   static const List<String> _moodOptions = <String>[
     'Comfort',
@@ -57,25 +64,24 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final String? userId = context.read<AuthProvider>().currentUser?.id;
-      if (userId != null) {
-        final profile = await context.read<PreSwipeProvider>().loadProfile(userId);
-        if (mounted) {
-          setState(() => _favoriteCuisines = profile.favoriteCuisines.toSet());
-        }
-      }
+    _authProvider = context.read<AuthProvider>();
+    _coupleProvider = context.read<CoupleProvider>();
+    _preSwipeProvider = context.read<PreSwipeProvider>();
 
-      final List<String> cuisines = await context.read<PreSwipeProvider>().loadCuisineOptions();
-      if (!mounted) {
-        return;
-      }
-      setState(() => _cuisineOptions = cuisines);
-    });
+  }
+
+  @override
+  void dispose() {
+    _coupleProvider.stopFilterStatePolling();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_showIntro) {
+      return _buildIntroScreen();
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -102,10 +108,24 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
               Text(_subtitle, style: GoogleFonts.nunito(fontSize: 28)),
               const SizedBox(height: 24),
               Expanded(child: _buildStepContent()),
+              const SizedBox(height: 12),
+              _buildCompatibilityCard(),
+              const SizedBox(height: 8),
               if (_loading)
                 const Padding(
                   padding: EdgeInsets.only(bottom: 8),
                   child: Text('Finding your perfect dinner...'),
+                ),
+              if (_waitingForPartner)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    children: <Widget>[
+                      SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                      SizedBox(width: 10),
+                      Text('Waiting for partner confirmation...'),
+                    ],
+                  ),
                 ),
               Row(
                 children: <Widget>[
@@ -148,6 +168,87 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     );
   }
 
+  Widget _buildIntroScreen() {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Align(
+                alignment: Alignment.topRight,
+                child: IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close),
+                ),
+              ),
+              const Spacer(),
+              Center(
+                child: Container(
+                  width: 112,
+                  height: 112,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFEFE7),
+                    borderRadius: BorderRadius.circular(56),
+                  ),
+                  child: const Icon(Icons.restaurant_menu, size: 52, color: AppColors.primary),
+                ),
+              ),
+              const SizedBox(height: 32),
+              Text(
+                'Before you start swiping...',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.pacifico(
+                  fontSize: 38,
+                  color: const Color(0xFF1A1A1A),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'We have over 200 dishes in our database. Without filters, that\'s a lot of swiping. '
+                'Answer a few quick questions about your food preferences and we\'ll show you only the dishes '
+                'that match your taste — making it way easier to find something you and your partner both want.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.nunito(
+                  fontSize: 17,
+                  height: 1.45,
+                  color: const Color(0xFF3C3C3C),
+                ),
+              ),
+              const Spacer(),
+              ElevatedButton(
+                onPressed: _initializingFilter ? null : _enterFilterFlow,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(_buttonRadius),
+                  ),
+                ),
+                child: _initializingFilter
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : Text(
+                        'Customize my feed →',
+                        style: GoogleFonts.nunito(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   String get _title => _step == 1
       ? 'Cuisine'
       : _step == 2
@@ -161,6 +262,10 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
           : 'Any restrictions?';
 
   Widget _buildStepContent() {
+    if (_initializingFilter) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     if (_step == 1) {
       return _buildChipGrid(
         options: _cuisineOptions,
@@ -175,12 +280,14 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         selected: _moods,
         onTap: (String value) {
           setState(() {
+            _waitingForPartner = false;
             if (_moods.contains(value)) {
               _moods.remove(value);
             } else if (_moods.length < 3) {
               _moods.add(value);
             }
           });
+          unawaited(_pushDraftUpdate());
         },
       );
     }
@@ -201,18 +308,60 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
             selected: _blocked,
             onTap: (String value) {
               setState(() {
+                _waitingForPartner = false;
                 if (_blocked.contains(value)) {
                   _blocked.remove(value);
                 } else {
                   _blocked.add(value);
                 }
               });
+              unawaited(_pushDraftUpdate());
             },
             useCrossForSelected: true,
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _enterFilterFlow() async {
+    if (_hasStartedFilterFlow) {
+      setState(() => _showIntro = false);
+      return;
+    }
+
+    setState(() {
+      _showIntro = false;
+      _initializingFilter = true;
+    });
+
+    final String? userId = _authProvider.currentUser?.id;
+    if (userId != null) {
+      await _coupleProvider.startFilterStatePolling();
+      if (!mounted) {
+        return;
+      }
+      final profile = await _preSwipeProvider.loadProfile(userId);
+      if (!mounted) {
+        return;
+      }
+      setState(() => _favoriteCuisines = profile.favoriteCuisines.toSet());
+      await _pushDraftUpdate();
+    }
+
+    if (!mounted) {
+      return;
+    }
+    final List<String> cuisines = await _preSwipeProvider.loadCuisineOptions();
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _cuisineOptions = cuisines;
+      _initializingFilter = false;
+      _hasStartedFilterFlow = true;
+    });
   }
 
   Widget _buildChipGrid({
@@ -266,6 +415,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
 
   void _toggleCuisine(String value) {
     setState(() {
+      _waitingForPartner = false;
       if (value == 'Any') {
         if (_cuisines.contains('Any')) {
           _cuisines.remove('Any');
@@ -284,10 +434,12 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         _cuisines.add(value);
       }
     });
+    unawaited(_pushDraftUpdate());
   }
 
   void _toggleDiet(String value) {
     setState(() {
+      _waitingForPartner = false;
       if (value == 'Any') {
         if (_diet.contains('Any')) {
           _diet.remove('Any');
@@ -305,6 +457,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         }
       }
     });
+    unawaited(_pushDraftUpdate());
   }
 
   Future<void> _next() async {
@@ -315,21 +468,37 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         );
         return;
       }
+      await _pushDraftUpdate();
       setState(() => _step++);
       return;
     }
 
-    final String? userId = context.read<AuthProvider>().currentUser?.id;
+    final String? userId = _authProvider.currentUser?.id;
     if (userId == null) {
       Navigator.pop(context);
       return;
     }
 
-    setState(() => _loading = true);
+    await _pushDraftUpdate(confirmed: true);
+    await _coupleProvider.refreshFilterState();
+    if (!mounted) {
+      return;
+    }
+    if (!_coupleProvider.isPartnerConfirmed(userId)) {
+      setState(() => _waitingForPartner = true);
+      return;
+    }
+
+    _coupleProvider.stopFilterStatePolling();
+
+    setState(() {
+      _loading = true;
+      _waitingForPartner = false;
+    });
     final DateTime started = DateTime.now();
-    final PreparedPoolResult result = await context.read<PreSwipeProvider>().prepare(
+    final PreparedPoolResult result = await _preSwipeProvider.prepare(
           userId: userId,
-          coupleProvider: context.read<CoupleProvider>(),
+          coupleProvider: _coupleProvider,
           cuisines: _cuisines.where((String e) => e != 'Any').toList(),
           moods: _moods.toList(),
           blocked: _blocked.toList(),
@@ -364,17 +533,87 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   }
 
   Future<void> _skip() async {
-    final String? userId = context.read<AuthProvider>().currentUser?.id;
+    final String? userId = _authProvider.currentUser?.id;
     if (userId == null) {
       Navigator.pop(context);
       return;
     }
 
-    final PreparedPoolResult result = await context.read<PreSwipeProvider>().skip(userId);
+    _coupleProvider.stopFilterStatePolling();
+    await _coupleProvider.clearRemoteFilterState();
+    final PreparedPoolResult result = await _preSwipeProvider.skip(userId);
     if (!mounted) {
       return;
     }
     Navigator.pop(context, result);
+  }
+
+  Future<void> _pushDraftUpdate({bool confirmed = false}) async {
+    if (!mounted) {
+      return;
+    }
+    final String? userId = _authProvider.currentUser?.id;
+    if (userId == null) {
+      return;
+    }
+    await _coupleProvider.pushSessionDraft(
+          userId: userId,
+          step: _step,
+          cuisines: _cuisines.toList(),
+          moods: _moods.toList(),
+          blocked: _blocked.toList(),
+          diet: _diet.toList(),
+          confirmed: confirmed,
+        );
+  }
+
+  Widget _buildCompatibilityCard() {
+    final String? userId = _authProvider.currentUser?.id;
+    if (userId == null) {
+      return const SizedBox.shrink();
+    }
+    return Consumer<CoupleProvider>(
+      builder: (BuildContext context, CoupleProvider couple, _) {
+        final PartnerSessionChoices partner = couple.partnerChoicesFor(userId);
+        final int stepCompatibility = couple.stepCompatibility(step: _step, userId: userId);
+        final int overall = couple.overallCompatibility(userId: userId);
+        final List<String> partnerStepChoices = _step == 1
+            ? partner.cuisines
+            : _step == 2
+                ? partner.moods
+                : <String>[...partner.diet, ...partner.blocked];
+
+        return Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE4E4E4)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text('Compatibility: $stepCompatibility% (overall $overall%)'),
+              const SizedBox(height: 8),
+              LinearProgressIndicator(
+                value: stepCompatibility / 100,
+                minHeight: 8,
+                borderRadius: BorderRadius.circular(8),
+                backgroundColor: const Color(0xFFF1F1F1),
+                color: AppColors.primary,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                partnerStepChoices.isEmpty
+                    ? 'Partner has not selected this step yet.'
+                    : 'Partner picked: ${partnerStepChoices.join(', ')}',
+                style: GoogleFonts.nunito(fontSize: 14),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 }
 

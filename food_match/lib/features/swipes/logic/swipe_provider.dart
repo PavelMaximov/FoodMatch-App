@@ -48,7 +48,11 @@ class SwipeProvider extends ChangeNotifier {
   bool isSeenDish(String dishId) => _seenDishIds.contains(dishId);
 
   void setActiveUser(String? userId) {
+    if (_activeUserId == userId) {
+      return;
+    }
     _activeUserId = userId;
+    clearPreparedDeck();
   }
 
   void applyPreparedDeck(List<Dish> prepared, {Set<String> seenDishIds = const <String>{}}) {
@@ -66,6 +70,18 @@ class SwipeProvider extends ChangeNotifier {
 
   void clearPreparedDeckFlag() {
     _hasPreparedDeck = false;
+  }
+
+  void clearPreparedDeck() {
+    deck = <Dish>[];
+    _seenDishIds = <String>{};
+    _hasPreparedDeck = false;
+    currentIndex = 0;
+    _lastSwipedDish = null;
+    _lastSwipedIndex = null;
+    _sentSwipeDishIds.clear();
+    error = null;
+    notifyListeners();
   }
 
   Future<void> loadDeck({String? cuisine}) async {

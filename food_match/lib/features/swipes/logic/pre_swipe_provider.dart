@@ -76,12 +76,14 @@ class PreSwipeProvider extends ChangeNotifier {
       blocked: blocked,
     );
 
-    coupleProvider.setMySessionChoices(
+    await coupleProvider.pushSessionDraft(
       userId,
+      step: 3,
       cuisines: cuisines,
       moods: moods,
       blocked: blocked,
       diet: diet,
+      confirmed: true,
     );
 
     final PartnerSessionChoices partner = coupleProvider.partnerChoicesFor(userId);

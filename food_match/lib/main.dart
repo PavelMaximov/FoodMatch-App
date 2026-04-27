@@ -50,8 +50,13 @@ Future<void> main() async {
             cacheService: cacheService,
           ),
         ),
-        ChangeNotifierProvider<CoupleProvider>(
+        ChangeNotifierProxyProvider<AuthProvider, CoupleProvider>(
           create: (_) => CoupleProvider(repository: coupleRepo),
+          update: (_, AuthProvider authProvider, CoupleProvider? coupleProvider) {
+            final CoupleProvider provider = coupleProvider ?? CoupleProvider(repository: coupleRepo);
+            provider.handleAuthChanged(authProvider.currentUser?.id);
+            return provider;
+          },
         ),
         ChangeNotifierProvider<PreSwipeProvider>(
           create: (BuildContext context) => PreSwipeProvider(
