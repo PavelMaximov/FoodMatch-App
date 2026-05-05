@@ -66,6 +66,7 @@ class FilterScoringService {
   }
 
   List<Dish> applyHardFilters(List<Dish> source, FilterConfig config) {
+    final Set<String> normalizedCuisines = config.cuisines.map(_normalizeTag).where((e) => e.isNotEmpty).toSet();
     return source.where((Dish dish) {
       if (config.diet.isNotEmpty && !config.diet.every(dish.diet.contains)) {
         return false;
@@ -75,7 +76,7 @@ class FilterScoringService {
       if (blockedHit) {
         return false;
       }
-      if (config.cuisines.isNotEmpty && !config.cuisines.contains(dish.cuisine)) {
+      if (normalizedCuisines.isNotEmpty && !normalizedCuisines.contains(_normalizeTag(dish.cuisine))) {
         return false;
       }
       return true;
@@ -204,4 +205,6 @@ class FilterScoringService {
     }
     return 'winter';
   }
+
+  String _normalizeTag(String value) => value.trim().toLowerCase().replaceAll('_', ' ');
 }

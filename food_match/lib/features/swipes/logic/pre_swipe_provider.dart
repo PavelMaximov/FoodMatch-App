@@ -159,18 +159,11 @@ class PreSwipeProvider extends ChangeNotifier {
     final Map<String, PreSwipeChipState> result = <String, PreSwipeChipState>{};
     for (final String option in options) {
       if (option == 'Any') {
-        result[option] = PreSwipeChipState(count: _cachedDishes.length, enabled: _cachedDishes.length >= 3);
+        result[option] = PreSwipeChipState(count: _cachedDishes.length, enabled: _cachedDishes.isNotEmpty);
         continue;
       }
-      final Set<String> next = Set<String>.from(selected);
-      if (next.contains(option)) {
-        next.remove(option);
-      } else {
-        next.remove('Any');
-        next.add(option);
-      }
-      final int count = _cachedDishes.where((d) => next.isEmpty || next.contains(d.cuisine)).length;
-      result[option] = PreSwipeChipState(count: count, enabled: count >= 3);
+      final int count = _cachedDishes.where((d) => _normalizeCuisine(d.cuisine) == option).length;
+      result[option] = PreSwipeChipState(count: count, enabled: count > 0);
     }
     return result;
   }
@@ -180,13 +173,13 @@ class PreSwipeProvider extends ChangeNotifier {
     required Set<String> selectedCuisines,
   }) {
     final List<Dish> pool = _cachedDishes
-        .where((d) => selectedCuisines.isEmpty || selectedCuisines.contains('Any') || selectedCuisines.contains(d.cuisine))
+        .where((d) => selectedCuisines.isEmpty || selectedCuisines.contains(_normalizeCuisine(d.cuisine)))
         .toList();
     return <String, PreSwipeChipState>{
       for (final String mood in moods)
         mood: PreSwipeChipState(
           count: pool.where((d) => d.mood.contains(mood)).length,
-          enabled: pool.where((d) => d.mood.contains(mood)).length >= 3,
+          enabled: true,
         ),
     };
   }
@@ -202,7 +195,7 @@ class PreSwipeProvider extends ChangeNotifier {
           !selectedDiet.where((e) => e != 'Any').every(dish.diet.contains)) {
         return false;
       }
-      if (selectedCuisines.isNotEmpty && !selectedCuisines.contains('Any') && !selectedCuisines.contains(dish.cuisine)) {
+      if (selectedCuisines.isNotEmpty && !selectedCuisines.contains(_normalizeCuisine(dish.cuisine))) {
         return false;
       }
       return true;
@@ -213,12 +206,41 @@ class PreSwipeProvider extends ChangeNotifier {
       final Set<String> next = Set<String>.from(selectedBlocked);
       next.contains(ex) ? next.remove(ex) : next.add(ex);
       final int count = pool.where((Dish dish) {
-        final Set<String> ingredients = dish.ingredients.map((e) => e.toLowerCase()).toSet();
-        return !next.any((b) => ingredients.contains(b.toLowerCase()));
+        return !next.any((b) => _dishMatchesExclusion(dish, b));
       }).length;
-      result[ex] = PreSwipeChipState(count: count, enabled: count >= 3);
+      result[ex] = PreSwipeChipState(count: count, enabled: count > 0);
     }
     return result;
+  }
+
+  bool _dishMatchesExclusion(Dish dish, String exclusion) {
+    final String key = exclusion.trim().toLowerCase();
+    final String type = dish.type.toLowerCase();
+    final String name = dish.name.toLowerCase();
+    final Set<String> ingredients = dish.ingredients.map((e) => e.toLowerCase()).toSet();
+    final List<String> corpus = <String>[type, name, ...ingredients];
+    bool hasAny(List<String> needles) => corpus.any((value) => needles.any(value.contains));
+
+    switch (key) {
+      case 'meat':
+        return hasAny(<String>['beef', 'chicken', 'pork', 'lamb', 'turkey', 'bacon', 'ham']);
+      case 'fish':
+        return hasAny(<String>['fish', 'salmon', 'tuna', 'shrimp', 'prawn', 'cod']);
+      case 'dairy':
+        return hasAny(<String>['milk', 'cheese', 'butter', 'cream', 'yogurt']);
+      case 'eggs':
+        return hasAny(<String>['egg']);
+      case 'pork':
+        return hasAny(<String>['pork', 'bacon', 'ham']);
+      case 'gluten':
+        return hasAny(<String>['wheat', 'bread', 'pasta', 'flour', 'noodle', 'gluten']);
+      case 'nuts':
+        return hasAny(<String>['nut', 'almond', 'peanut', 'cashew', 'walnut', 'pistachio']);
+      case 'spicy':
+        return hasAny(<String>['spicy', 'chili', 'chilli', 'jalapeno', 'pepper']);
+      default:
+        return ingredients.contains(key);
+    }
   }
 
   String _normalizeCuisine(String value) {

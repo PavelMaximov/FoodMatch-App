@@ -167,6 +167,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         selected: _cuisines,
         onTap: _toggleCuisine,
         counts: context.read<PreSwipeProvider>().cuisineCounts(options: _cuisineOptions, selected: _cuisines),
+        anySelected: _cuisines.isEmpty,
       );
     }
 
@@ -232,15 +233,16 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     required void Function(String) onTap,
     Map<String, PreSwipeChipState> counts = const <String, PreSwipeChipState>{},
     bool useCrossForSelected = false,
+    bool anySelected = false,
   }) {
     return Wrap(
       spacing: 10,
       runSpacing: 10,
       children: options.map((String option) {
-        final bool isSelected = selected.contains(option);
+        final bool isSelected = option == 'Any' ? anySelected : selected.contains(option);
         final bool highlighted = options == _cuisineOptions && !_cuisines.contains(option) && _favoriteCuisines.contains(option);
         final PreSwipeChipState? chipState = counts[option];
-        final bool enabled = chipState?.enabled ?? true;
+        final bool enabled = option == 'Any' ? true : (chipState?.enabled ?? true);
 
         return ChoiceChip(
           label: Row(
@@ -283,17 +285,10 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   void _toggleCuisine(String value) {
     setState(() {
       if (value == 'Any') {
-        if (_cuisines.contains('Any')) {
-          _cuisines.remove('Any');
-        } else {
-          _cuisines
-            ..clear()
-            ..add('Any');
-        }
+        _cuisines.clear();
         return;
       }
 
-      _cuisines.remove('Any');
       if (_cuisines.contains(value)) {
         _cuisines.remove(value);
       } else if (_cuisines.length < 3) {
