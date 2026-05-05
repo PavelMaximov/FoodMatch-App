@@ -21,6 +21,10 @@ class DishRepository {
         .toList();
   }
 
+  Future<List<Dish>> getCatalogDishes() async {
+    return getDishes();
+  }
+
   Future<List<Dish>> getMyCustomDishes() async {
     final data = await _apiService.get(ApiConstants.dishesMy);
     final List<dynamic> list = data is Map<String, dynamic>

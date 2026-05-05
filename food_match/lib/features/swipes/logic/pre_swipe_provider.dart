@@ -33,6 +33,13 @@ class PreSwipeChipState {
   final bool enabled;
 }
 
+class FilterOption {
+  const FilterOption({required this.label, required this.value});
+
+  final String label;
+  final String value;
+}
+
 class PreSwipeProvider extends ChangeNotifier {
   PreSwipeProvider({
     required DishRepository dishRepository,
@@ -49,19 +56,22 @@ class PreSwipeProvider extends ChangeNotifier {
 
   Future<UserProfile> loadProfile(String userId) => _profileService.getProfile(userId);
 
-  Future<List<String>> loadCuisineOptions() async {
-    _cachedDishes = await _dishRepository.getDishes();
+  Future<List<FilterOption>> loadCuisineOptions() async {
+    _cachedDishes = await _dishRepository.getCatalogDishes();
     final List<Dish> dishes = _cachedDishes;
     final Set<String> normalized = dishes
         .map((Dish dish) => _normalizeCuisine(dish.cuisine))
         .where((String cuisine) => cuisine.isNotEmpty)
         .toSet();
     final List<String> options = normalized.toList()..sort();
-    return <String>['Any', ...options];
+    return <FilterOption>[
+      const FilterOption(label: 'Any', value: ''),
+      ...options.map((e) => FilterOption(label: e, value: _canonical(e))),
+    ];
   }
 
   Future<PreparedPoolResult> skip(String userId) async {
-    final List<Dish> all = await _dishRepository.getDishes();
+    final List<Dish> all = await _dishRepository.getCatalogDishes();
     return PreparedPoolResult(
       dishes: _scoringService.fallbackPopular(all),
       seenDishIds: <String>{},
@@ -111,7 +121,7 @@ class PreSwipeProvider extends ChangeNotifier {
       partnerDiet: partner.diet,
     );
 
-    final List<Dish> all = await _dishRepository.getDishes();
+    final List<Dish> all = await _dishRepository.getCatalogDishes();
     final Set<String> myCuisineSet = cuisines.toSet();
     final Set<String> partnerCuisineSet = partner.cuisines.toSet();
     final bool usedCuisineUnionFallback = myCuisineSet.isNotEmpty &&
@@ -155,66 +165,66 @@ class PreSwipeProvider extends ChangeNotifier {
     );
   }
 
-  Map<String, PreSwipeChipState> cuisineCounts({required List<String> options, required Set<String> selected}) {
+  Map<String, PreSwipeChipState> cuisineCounts({required List<FilterOption> options, required Set<String> selected}) {
     final Map<String, PreSwipeChipState> result = <String, PreSwipeChipState>{};
-    for (final String option in options) {
-      if (option == 'Any') {
-        result[option] = PreSwipeChipState(count: _cachedDishes.length, enabled: _cachedDishes.isNotEmpty);
+    for (final FilterOption option in options) {
+      if (option.value.isEmpty) {
+        result[option.value] = PreSwipeChipState(count: _cachedDishes.length, enabled: _cachedDishes.isNotEmpty);
         continue;
       }
-      final int count = _cachedDishes.where((d) => _normalizeCuisine(d.cuisine) == option).length;
-      result[option] = PreSwipeChipState(count: count, enabled: count > 0);
+      final int count = _cachedDishes.where((d) => _canonical(d.cuisine) == option.value).length;
+      result[option.value] = PreSwipeChipState(count: count, enabled: count > 0);
     }
     return result;
   }
 
   Map<String, PreSwipeChipState> moodCounts({
-    required List<String> moods,
+    required List<FilterOption> moods,
     required Set<String> selectedCuisines,
   }) {
     final List<Dish> pool = _cachedDishes
         .where((d) => selectedCuisines.isEmpty || selectedCuisines.contains(_normalizeCuisine(d.cuisine)))
         .toList();
     return <String, PreSwipeChipState>{
-      for (final String mood in moods)
-        mood: PreSwipeChipState(
-          count: pool.where((d) => d.mood.contains(mood)).length,
+      for (final FilterOption mood in moods)
+        mood.value: PreSwipeChipState(
+          count: pool.where((d) => d.mood.map(_canonical).contains(mood.value)).length,
           enabled: true,
         ),
     };
   }
 
   Map<String, PreSwipeChipState> exclusionCounts({
-    required List<String> exclusions,
+    required List<FilterOption> exclusions,
     required Set<String> selectedCuisines,
     required Set<String> selectedBlocked,
     required Set<String> selectedDiet,
   }) {
     final List<Dish> pool = _cachedDishes.where((Dish dish) {
       if (selectedDiet.where((e) => e != 'Any').isNotEmpty &&
-          !selectedDiet.where((e) => e != 'Any').every(dish.diet.contains)) {
+          !selectedDiet.every((e) => dish.diet.map(_canonical).contains(e))) {
         return false;
       }
-      if (selectedCuisines.isNotEmpty && !selectedCuisines.contains(_normalizeCuisine(dish.cuisine))) {
+      if (selectedCuisines.isNotEmpty && !selectedCuisines.contains(_canonical(dish.cuisine))) {
         return false;
       }
       return true;
     }).toList();
 
     final Map<String, PreSwipeChipState> result = <String, PreSwipeChipState>{};
-    for (final String ex in exclusions) {
+    for (final FilterOption ex in exclusions) {
       final Set<String> next = Set<String>.from(selectedBlocked);
-      next.contains(ex) ? next.remove(ex) : next.add(ex);
+      next.contains(ex.value) ? next.remove(ex.value) : next.add(ex.value);
       final int count = pool.where((Dish dish) {
         return !next.any((b) => _dishMatchesExclusion(dish, b));
       }).length;
-      result[ex] = PreSwipeChipState(count: count, enabled: count > 0);
+      result[ex.value] = PreSwipeChipState(count: count, enabled: count > 0);
     }
     return result;
   }
 
   bool _dishMatchesExclusion(Dish dish, String exclusion) {
-    final String key = exclusion.trim().toLowerCase();
+    final String key = _canonical(exclusion);
     final String type = dish.type.toLowerCase();
     final String name = dish.name.toLowerCase();
     final Set<String> ingredients = dish.ingredients.map((e) => e.toLowerCase()).toSet();
@@ -255,4 +265,6 @@ class PreSwipeProvider extends ChangeNotifier {
         .map((String token) => token[0].toUpperCase() + token.substring(1))
         .join(' ');
   }
+
+  String _canonical(String value) => value.trim().toLowerCase().replaceAll('_', ' ');
 }

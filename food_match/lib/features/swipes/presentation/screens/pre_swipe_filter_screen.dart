@@ -30,29 +30,34 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   final Set<String> _diet = <String>{};
   Set<String> _favoriteCuisines = <String>{};
 
-  List<String> _cuisineOptions = <String>['Any'];
+  List<FilterOption> _cuisineOptions = const <FilterOption>[FilterOption(label: 'Any', value: '')];
 
-  static const List<String> _moodOptions = <String>[
-    'Comfort',
-    'Healthy',
-    'Exotic',
-    'Indulgent',
-    'Quick',
-    'Light',
+  static const List<FilterOption> _moodOptions = <FilterOption>[
+    FilterOption(label: 'Comfort', value: 'comfort'),
+    FilterOption(label: 'Healthy', value: 'healthy'),
+    FilterOption(label: 'Exotic', value: 'exotic'),
+    FilterOption(label: 'Indulgent', value: 'indulgent'),
+    FilterOption(label: 'Quick', value: 'quick'),
+    FilterOption(label: 'Light', value: 'light'),
   ];
 
-  static const List<String> _exceptionOptions = <String>[
-    'Meat',
-    'Fish',
-    'Dairy',
-    'Eggs',
-    'Pork',
-    'Gluten',
-    'Nuts',
-    'Spicy',
+  static const List<FilterOption> _exceptionOptions = <FilterOption>[
+    FilterOption(label: 'Meat', value: 'meat'),
+    FilterOption(label: 'Fish', value: 'fish'),
+    FilterOption(label: 'Dairy', value: 'dairy'),
+    FilterOption(label: 'Eggs', value: 'eggs'),
+    FilterOption(label: 'Pork', value: 'pork'),
+    FilterOption(label: 'Gluten', value: 'gluten'),
+    FilterOption(label: 'Nuts', value: 'nuts'),
+    FilterOption(label: 'Spicy', value: 'spicy'),
   ];
 
-  static const List<String> _dietOptions = <String>['Any', 'Vegetarian', 'Vegan', 'Halal'];
+  static const List<FilterOption> _dietOptions = <FilterOption>[
+    FilterOption(label: 'Any', value: ''),
+    FilterOption(label: 'Vegetarian', value: 'vegetarian'),
+    FilterOption(label: 'Vegan', value: 'vegan'),
+    FilterOption(label: 'Halal', value: 'halal'),
+  ];
 
   @override
   void initState() {
@@ -66,7 +71,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         }
       }
 
-      final List<String> cuisines = await context.read<PreSwipeProvider>().loadCuisineOptions();
+      final List<FilterOption> cuisines = await context.read<PreSwipeProvider>().loadCuisineOptions();
       if (!mounted) {
         return;
       }
@@ -228,7 +233,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   }
 
   Widget _buildChipGrid({
-    required List<String> options,
+    required List<FilterOption> options,
     required Set<String> selected,
     required void Function(String) onTap,
     Map<String, PreSwipeChipState> counts = const <String, PreSwipeChipState>{},
@@ -238,11 +243,11 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     return Wrap(
       spacing: 10,
       runSpacing: 10,
-      children: options.map((String option) {
-        final bool isSelected = option == 'Any' ? anySelected : selected.contains(option);
-        final bool highlighted = options == _cuisineOptions && !_cuisines.contains(option) && _favoriteCuisines.contains(option);
-        final PreSwipeChipState? chipState = counts[option];
-        final bool enabled = option == 'Any' ? true : (chipState?.enabled ?? true);
+      children: options.map((FilterOption option) {
+        final bool isSelected = option.value.isEmpty ? anySelected : selected.contains(option.value);
+        final bool highlighted = options == _cuisineOptions && !_cuisines.contains(option.value) && _favoriteCuisines.contains(option.label);
+        final PreSwipeChipState? chipState = counts[option.value];
+        final bool enabled = option.value.isEmpty ? true : (chipState?.enabled ?? true);
 
         return ChoiceChip(
           label: Row(
@@ -257,12 +262,12 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
                     color: AppColors.primary,
                   ),
                 ),
-              Text('${option}${chipState == null ? '' : ' (${chipState.count})'}', style: GoogleFonts.nunito(fontSize: _chipFontSize)),
+              Text('${option.label}${chipState == null ? '' : ' (${chipState.count})'}', style: GoogleFonts.nunito(fontSize: _chipFontSize)),
             ],
           ),
           selected: isSelected,
           showCheckmark: false,
-          onSelected: enabled ? (_) => onTap(option) : null,
+          onSelected: enabled ? (_) => onTap(option.value) : null,
           selectedColor: const Color(0xFFFFEFE7),
           backgroundColor: Colors.white,
           side: BorderSide(
@@ -284,7 +289,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
 
   void _toggleCuisine(String value) {
     setState(() {
-      if (value == 'Any') {
+      if (value.isEmpty) {
         _cuisines.clear();
         return;
       }
@@ -299,16 +304,9 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
 
   void _toggleDiet(String value) {
     setState(() {
-      if (value == 'Any') {
-        if (_diet.contains('Any')) {
-          _diet.remove('Any');
-        } else {
-          _diet
-            ..clear()
-            ..add('Any');
-        }
+      if (value.isEmpty) {
+        _diet.clear();
       } else {
-        _diet.remove('Any');
         if (_diet.contains(value)) {
           _diet.remove(value);
         } else {
@@ -335,10 +333,10 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     final PreparedPoolResult result = await context.read<PreSwipeProvider>().prepare(
           userId: userId,
           coupleProvider: context.read<CoupleProvider>(),
-          cuisines: _cuisines.where((String e) => e != 'Any').toList(),
+          cuisines: _cuisines.toList(),
           moods: _moods.toList(),
           blocked: _blocked.toList(),
-          diet: _diet.where((String e) => e != 'Any').toList(),
+          diet: _diet.toList(),
         );
 
     final int elapsed = DateTime.now().difference(started).inMilliseconds;
