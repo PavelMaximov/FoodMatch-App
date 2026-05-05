@@ -166,6 +166,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         options: _cuisineOptions,
         selected: _cuisines,
         onTap: _toggleCuisine,
+        counts: context.read<PreSwipeProvider>().cuisineCounts(options: _cuisineOptions, selected: _cuisines),
       );
     }
 
@@ -182,6 +183,10 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
             }
           });
         },
+        counts: context.read<PreSwipeProvider>().moodCounts(
+          moods: _moodOptions,
+          selectedCuisines: _cuisines,
+        ),
       );
     }
 
@@ -209,6 +214,12 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
               });
             },
             useCrossForSelected: true,
+            counts: context.read<PreSwipeProvider>().exclusionCounts(
+              exclusions: _exceptionOptions,
+              selectedCuisines: _cuisines,
+              selectedBlocked: _blocked,
+              selectedDiet: _diet,
+            ),
           ),
         ],
       ),
@@ -219,6 +230,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     required List<String> options,
     required Set<String> selected,
     required void Function(String) onTap,
+    Map<String, PreSwipeChipState> counts = const <String, PreSwipeChipState>{},
     bool useCrossForSelected = false,
   }) {
     return Wrap(
@@ -227,6 +239,8 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       children: options.map((String option) {
         final bool isSelected = selected.contains(option);
         final bool highlighted = options == _cuisineOptions && !_cuisines.contains(option) && _favoriteCuisines.contains(option);
+        final PreSwipeChipState? chipState = counts[option];
+        final bool enabled = chipState?.enabled ?? true;
 
         return ChoiceChip(
           label: Row(
@@ -241,18 +255,20 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
                     color: AppColors.primary,
                   ),
                 ),
-              Text(option, style: GoogleFonts.nunito(fontSize: _chipFontSize)),
+              Text('${option}${chipState == null ? '' : ' (${chipState.count})'}', style: GoogleFonts.nunito(fontSize: _chipFontSize)),
             ],
           ),
           selected: isSelected,
           showCheckmark: false,
-          onSelected: (_) => onTap(option),
+          onSelected: enabled ? (_) => onTap(option) : null,
           selectedColor: const Color(0xFFFFEFE7),
           backgroundColor: Colors.white,
           side: BorderSide(
             color: isSelected
                 ? AppColors.primary
-                : highlighted
+                : !enabled
+                    ? const Color(0xFFBDBDBD)
+                    : highlighted
                     ? const Color(0xFF4CAF50)
                     : const Color(0xFFD9D9D9),
           ),
@@ -309,12 +325,6 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
 
   Future<void> _next() async {
     if (_step < 3) {
-      if (_step == 2 && _moods.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please choose at least one mood')),
-        );
-        return;
-      }
       setState(() => _step++);
       return;
     }
@@ -347,10 +357,8 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     }
     setState(() => _loading = false);
 
-    if (result.relaxed) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Widened filter to find more options')),
-      );
+    for (final String message in result.messages) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     }
 
     if (result.dishes.isEmpty) {

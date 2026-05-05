@@ -14,6 +14,13 @@ class ScoredDish {
   final bool seenBefore;
 }
 
+class FilterFallbackResult {
+  const FilterFallbackResult({required this.dishes, required this.messages});
+
+  final List<Dish> dishes;
+  final List<String> messages;
+}
+
 class FilterScoringService {
   const FilterScoringService();
 
@@ -37,7 +44,8 @@ class FilterScoringService {
 
     List<String> cuisines;
     if (myCuisineSet.isNotEmpty && partnerCuisineSet.isNotEmpty) {
-      cuisines = myCuisineSet.intersection(partnerCuisineSet).toList();
+      final List<String> intersection = myCuisineSet.intersection(partnerCuisineSet).toList();
+      cuisines = intersection.isNotEmpty ? intersection : <String>{...myCuisineSet, ...partnerCuisineSet}.toList();
     } else if (myCuisineSet.isNotEmpty) {
       cuisines = myCuisineSet.toList();
     } else {
@@ -127,6 +135,51 @@ class FilterScoringService {
     final List<Dish> fallback = dishes.where((Dish dish) => dish.popular).toList()
       ..sort((Dish a, Dish b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
     return fallback.take(20).toList();
+  }
+
+  FilterFallbackResult applyFallbackCascade({
+    required List<Dish> all,
+    required FilterConfig config,
+  }) {
+    List<Dish> filtered = applyHardFilters(all, config);
+    final List<String> messages = <String>[];
+    if (filtered.length >= 5) {
+      return FilterFallbackResult(dishes: filtered, messages: messages);
+    }
+
+    // mood is scoring-only and already not hard-filtered; keep this user-facing nudge.
+    messages.add('Widened mood filter to find more options');
+
+    if (filtered.length < 5 && config.cuisines.isNotEmpty) {
+      filtered = applyHardFilters(
+        all,
+        FilterConfig(
+          cuisines: <String>[],
+          moods: config.moods,
+          blocked: config.blocked,
+          diet: config.diet,
+          maxCookTime: config.maxCookTime,
+        ),
+      );
+      messages.add('Added dishes from other cuisines');
+    }
+
+    if (filtered.length < 5 && config.blocked.isNotEmpty) {
+      filtered = all.where((Dish dish) {
+        if (config.diet.isNotEmpty && !config.diet.every(dish.diet.contains)) {
+          return false;
+        }
+        return true;
+      }).toList();
+      messages.add('Removed some restrictions to fill your deck');
+    }
+
+    if (filtered.length < 5) {
+      filtered = fallbackPopular(all);
+      messages.add('Showing popular dishes — filters were too narrow');
+    }
+
+    return FilterFallbackResult(dishes: filtered, messages: messages);
   }
 
   List<String> _resolveDiet(List<String> myDiet, List<String> partnerDiet) {
