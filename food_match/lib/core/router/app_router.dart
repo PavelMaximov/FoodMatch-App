@@ -11,7 +11,7 @@ import '../../features/dishes/presentation/screens/add_dish_screen.dart';
 import '../../features/dishes/presentation/screens/recipe_detail_screen.dart';
 import '../../features/matches/presentation/screens/match_overlay_screen.dart';
 import '../../features/matches/presentation/screens/matches_screen.dart';
-import '../../features/profile/presentation/screens/favorites_screen.dart';
+import '../../features/favorites/presentation/screens/favorites_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/recipes/presentation/screens/recipes_screen.dart';
 import '../../features/swipes/presentation/screens/swipes_screen.dart';
@@ -63,7 +63,6 @@ class AppRouter {
                 dish: state.extra is Dish ? state.extra! as Dish : null,
               ),
             ),
-            GoRoute(path: '/favorites', builder: (_, __) => const FavoritesScreen()),
             StatefulShellRoute.indexedStack(
               builder: (
                 BuildContext context,
@@ -75,6 +74,7 @@ class AppRouter {
                 StatefulShellBranch(
                   routes: <RouteBase>[
                     GoRoute(path: '/recipes', builder: (_, __) => const RecipesScreen()),
+                    GoRoute(path: '/favorites', builder: (_, __) => const FavoritesScreen()),
                   ],
                 ),
                 StatefulShellBranch(

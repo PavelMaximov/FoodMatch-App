@@ -106,86 +106,11 @@ class _RecipesScreenState extends State<RecipesScreen> {
     }
   }
 
-  void _openFavorites() {
-    final List<Dish> favorites = _allDishes
-        .where((Dish dish) => _savedDishIds.contains(dish.id))
-        .toList()
-      ..sort((Dish a, Dish b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
-
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.background,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (BuildContext context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-            child: Column(
-              children: <Widget>[
-                Container(
-                  width: 48,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: Colors.black12,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: <Widget>[
-                    Text(
-                      'Saved recipes',
-                      style: GoogleFonts.nunito(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      '${favorites.length}',
-                      style: GoogleFonts.nunito(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: favorites.isEmpty
-                      ? const EmptyState(
-                          icon: Icons.bookmark_border,
-                          title: 'No saved recipes yet',
-                          subtitle: 'Tap the bookmark icon on any recipe card',
-                        )
-                      : ListView.separated(
-                          itemCount: favorites.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 10),
-                          itemBuilder: (BuildContext context, int index) {
-                            final Dish dish = favorites[index];
-                            return _SavedDishTile(
-                              dish: dish,
-                              isSaved: true,
-                              onFavoriteTap: () => _toggleSaved(dish.id),
-                              onOpen: () {
-                                Navigator.of(context).pop();
-                                this.context.push('/recipe-detail/${dish.id}', extra: dish);
-                              },
-                            );
-                          },
-                        ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+  Future<void> _openFavorites() async {
+    await context.push('/favorites');
+    if (mounted) {
+      await _loadData();
+    }
   }
 
   void _openSearch() {
