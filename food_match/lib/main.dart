@@ -15,6 +15,7 @@ import 'data/services/api_service.dart';
 import 'features/auth/logic/auth_provider.dart';
 import 'features/couple/logic/couple_provider.dart';
 import 'features/dishes/logic/recipe_provider.dart';
+import 'features/favorites/logic/favorites_provider.dart';
 import 'features/matches/logic/match_provider.dart';
 import 'features/swipes/logic/filter_scoring_service.dart';
 import 'features/swipes/logic/pre_swipe_provider.dart';
@@ -79,17 +80,24 @@ Future<void> main() async {
             return provider;
           },
         ),
+        ChangeNotifierProxyProvider<AuthProvider, FavoritesProvider>(
+          create: (_) => FavoritesProvider(repository: dishRepo),
+          update: (_, AuthProvider authProvider, FavoritesProvider? favoritesProvider) {
+            final FavoritesProvider provider =
+                favoritesProvider ?? FavoritesProvider(repository: dishRepo);
+            provider.setActiveUser(authProvider.currentUser?.id);
+            return provider;
+          },
+        ),
         ChangeNotifierProxyProvider<CoupleProvider, MatchProvider>(
           create: (_) => MatchProvider(
             swipeRepository: swipeRepo,
-            dishRepository: dishRepo,
             cacheService: cacheService,
           ),
           update: (_, CoupleProvider coupleProvider, MatchProvider? matchProvider) {
             final MatchProvider provider = matchProvider ??
                 MatchProvider(
                   swipeRepository: swipeRepo,
-                  dishRepository: dishRepo,
                   cacheService: cacheService,
                 );
             provider.setActiveCouple(

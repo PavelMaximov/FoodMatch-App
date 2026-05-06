@@ -12,6 +12,7 @@ import '../../../../data/models/dish.dart';
 import '../../../../data/models/recipe_step.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
+import '../../../favorites/logic/favorites_provider.dart';
 import '../../logic/recipe_provider.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
@@ -35,12 +36,14 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             dishId: widget.dishId,
             dish: widget.dish,
           );
+      context.read<FavoritesProvider>().loadFavorites();
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final RecipeProvider recipeProvider = context.watch<RecipeProvider>();
+    final FavoritesProvider favoritesProvider = context.watch<FavoritesProvider>();
     final Dish? dish = recipeProvider.currentDish;
 
     if (recipeProvider.isLoading) {
@@ -98,9 +101,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             child: _ImageHeader(
               dish: dish,
               dishId: dish.id,
-              isFavorite: recipeProvider.isFavorite,
-              isFavoriteUpdating: recipeProvider.isFavoriteUpdating,
-              onFavoriteTap: () => context.read<RecipeProvider>().toggleFavoriteForCurrentDish(),
+              isFavorite: favoritesProvider.isFavorite(dish.id),
+              isFavoriteUpdating: favoritesProvider.isUpdating(dish.id),
+              onFavoriteTap: () => context.read<FavoritesProvider>().toggleFavorite(dish),
             ),
           ),
           SliverToBoxAdapter(

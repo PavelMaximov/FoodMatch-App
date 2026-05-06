@@ -13,6 +13,7 @@ import '../../../../shared/widgets/shimmer_card.dart';
 import '../../../../data/models/dish.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../couple/logic/couple_provider.dart';
+import '../../../favorites/logic/favorites_provider.dart';
 import '../../logic/match_provider.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../data/models/couple.dart';
@@ -32,6 +33,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
       await context.read<CoupleProvider>().loadCouple();
       if (!mounted) return;
       context.read<MatchProvider>().loadMatches();
+      context.read<FavoritesProvider>().loadFavorites();
     });
   }
 
@@ -39,6 +41,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
   Widget build(BuildContext context) {
     final MatchProvider matchProvider = context.watch<MatchProvider>();
     final CoupleProvider coupleProvider = context.watch<CoupleProvider>();
+    final FavoritesProvider favoritesProvider = context.watch<FavoritesProvider>();
     final String? currentUserId = context.watch<AuthProvider>().currentUser?.id;
     final CoupleMemberProfile? partner = _resolvePartner(
       members: coupleProvider.currentCouple?.memberProfiles,
@@ -61,7 +64,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
                 partnerAvatarUrl: partnerAvatarUrl,
               ),
               const SizedBox(height: AppDimensions.paddingL),
-              Expanded(child: _buildBody(matchProvider)),
+              Expanded(child: _buildBody(matchProvider, favoritesProvider)),
             ],
           ),
         ),
@@ -69,7 +72,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
     );
   }
 
-  Widget _buildBody(MatchProvider matchProvider) {
+  Widget _buildBody(MatchProvider matchProvider, FavoritesProvider favoritesProvider) {
     if (matchProvider.isLoading && matchProvider.matches.isEmpty) {
       return ListView.builder(
         itemCount: 4,
@@ -179,8 +182,8 @@ class _MatchesScreenState extends State<MatchesScreen> {
                     const SizedBox(width: 12),
                     _MatchDishImage(
                       imageUrl: dish.imageUrl,
-                      isBookmarked: matchProvider.isDishSaved(dish.id),
-                      onBookmarkTap: () => context.read<MatchProvider>().toggleDishSaved(dish.id),
+                      isBookmarked: favoritesProvider.isFavorite(dish.id),
+                      onBookmarkTap: () => context.read<FavoritesProvider>().toggleFavorite(dish),
                     ),
                   ],
                 ),

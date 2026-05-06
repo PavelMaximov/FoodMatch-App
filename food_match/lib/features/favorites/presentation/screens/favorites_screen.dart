@@ -7,10 +7,10 @@ import 'package:provider/provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/image_utils.dart';
 import '../../../../data/models/dish.dart';
-import '../../../../data/repositories/dish_repository.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
+import '../../logic/favorites_provider.dart';
 
 class FavoritesScreen extends StatefulWidget {
   const FavoritesScreen({super.key});
@@ -23,15 +23,11 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   static const Color _bookmarkColor = Color(0xFFFF5D33);
   static const Color _cardBorder = Color(0xFFEDE7E4);
 
-  List<Dish> _favorites = <Dish>[];
-  bool _isLoading = false;
-  String? _error;
   bool _isSearching = false;
   String _query = '';
   Set<String> _selectedCuisines = <String>{};
   Set<String> _selectedMoods = <String>{};
   Set<String> _selectedDiet = <String>{};
-  final Set<String> _removingDishIds = <String>{};
 
   bool get _hasActiveFilters =>
       _selectedCuisines.isNotEmpty || _selectedMoods.isNotEmpty || _selectedDiet.isNotEmpty;
@@ -43,48 +39,15 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   }
 
   Future<void> _loadFavorites() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-
-    try {
-      final List<Dish> savedDishes = await context.read<DishRepository>().getSavedDishes();
-      savedDishes.sort(
-        (Dish a, Dish b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
-      );
-      if (!mounted) return;
-      setState(() => _favorites = savedDishes);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _error = e.toString());
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
+    await context.read<FavoritesProvider>().loadFavorites(force: true);
   }
 
   Future<void> _removeFavorite(Dish dish) async {
-    if (dish.id.isEmpty || _removingDishIds.contains(dish.id)) {
-      return;
-    }
-
-    setState(() => _removingDishIds.add(dish.id));
-
-    try {
-      await context.read<DishRepository>().unsaveDish(dish.id);
-      if (!mounted) return;
-      setState(() => _favorites.removeWhere((Dish item) => item.id == dish.id));
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not remove favorite. Please try again.')),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _removingDishIds.remove(dish.id));
-      }
+    await context.read<FavoritesProvider>().toggleFavorite(dish);
+    if (!mounted) return;
+    final String? error = context.read<FavoritesProvider>().error;
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
     }
   }
 
@@ -98,6 +61,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   }
 
   Future<void> _openFilters() async {
+    final List<Dish> savedDishes = context.read<FavoritesProvider>().savedDishes;
     final _FavoriteFilterSelection? selection = await showModalBottomSheet<_FavoriteFilterSelection>(
       context: context,
       isScrollControlled: true,
@@ -106,9 +70,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (BuildContext context) => _FavoriteFilterSheet(
-        cuisines: _availableCuisines,
-        moods: _availableMoods,
-        diet: _availableDiet,
+        cuisines: _uniqueSorted(savedDishes.map((Dish dish) => dish.cuisine)),
+        moods: _uniqueSorted(savedDishes.expand((Dish dish) => dish.mood)),
+        diet: _uniqueSorted(savedDishes.expand((Dish dish) => dish.diet)),
         selectedCuisines: _selectedCuisines,
         selectedMoods: _selectedMoods,
         selectedDiet: _selectedDiet,
@@ -126,9 +90,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     });
   }
 
-  List<Dish> get _visibleFavorites {
+  List<Dish> _visibleFavorites(List<Dish> favorites) {
     final String query = _query.trim().toLowerCase();
-    return _favorites.where((Dish dish) {
+    return favorites.where((Dish dish) {
       if (query.isNotEmpty && !dish.name.toLowerCase().contains(query)) {
         return false;
       }
@@ -149,18 +113,6 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       return true;
     }).toList();
   }
-
-  List<String> get _availableCuisines => _uniqueSorted(
-        _favorites.map((Dish dish) => dish.cuisine),
-      );
-
-  List<String> get _availableMoods => _uniqueSorted(
-        _favorites.expand((Dish dish) => dish.mood),
-      );
-
-  List<String> get _availableDiet => _uniqueSorted(
-        _favorites.expand((Dish dish) => dish.diet),
-      );
 
   List<String> _uniqueSorted(Iterable<String> values) {
     final List<String> labels = values
@@ -187,6 +139,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final FavoritesProvider favoritesProvider = context.watch<FavoritesProvider>();
+    final List<Dish> visibleFavorites = _visibleFavorites(favoritesProvider.savedDishes);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -209,7 +164,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(23, 0, 23, 8),
                 child: _ResultSummary(
-                  count: _visibleFavorites.length,
+                  count: visibleFavorites.length,
                   onClear: () => setState(() {
                     _query = '';
                     _selectedCuisines = <String>{};
@@ -221,7 +176,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             Expanded(
               child: RefreshIndicator(
                 onRefresh: _loadFavorites,
-                child: _buildBody(),
+                child: _buildBody(favoritesProvider, visibleFavorites),
               ),
             ),
           ],
@@ -230,8 +185,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     );
   }
 
-  Widget _buildBody() {
-    if (_isLoading && _favorites.isEmpty) {
+  Widget _buildBody(FavoritesProvider favoritesProvider, List<Dish> visibleFavorites) {
+    if (favoritesProvider.isLoading && favoritesProvider.savedDishes.isEmpty) {
       return GridView.builder(
         padding: const EdgeInsets.fromLTRB(23, 28, 23, 24),
         physics: const AlwaysScrollableScrollPhysics(),
@@ -246,18 +201,18 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       );
     }
 
-    if (_error != null && _favorites.isEmpty) {
+    if (favoritesProvider.error != null && favoritesProvider.savedDishes.isEmpty) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         children: <Widget>[
           const SizedBox(height: 96),
-          ErrorState(message: _error!, onRetry: _loadFavorites),
+          ErrorState(message: favoritesProvider.error!, onRetry: _loadFavorites),
         ],
       );
     }
 
-    final List<Dish> dishes = _visibleFavorites;
-    if (_favorites.isEmpty) {
+    final List<Dish> dishes = visibleFavorites;
+    if (favoritesProvider.savedDishes.isEmpty) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         children: const <Widget>[
@@ -302,7 +257,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             final Dish dish = dishes[index];
             return _FavoriteDishCard(
               dish: dish,
-              isRemoving: _removingDishIds.contains(dish.id),
+              isRemoving: favoritesProvider.isUpdating(dish.id),
               onFavoriteTap: () => _removeFavorite(dish),
               onOpen: () => context.push('/recipe-detail/${dish.id}', extra: dish),
             );
