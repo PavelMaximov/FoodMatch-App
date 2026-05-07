@@ -37,7 +37,7 @@ export class SwipeService {
       { upsert: true, new: true }
     );
 
-    const matchCreated = direction === 'like' ? await this.tryCreateMatch(session.id, dish.id) : false;
+    const matchCreated = direction === 'like' ? await this.tryCreateMatch(session.id, dish._id.toString()) : false;
     const publicDishId = this.toPublicDishId(dish);
 
     return {
@@ -118,21 +118,36 @@ export class SwipeService {
     }
 
     if (process.env.DEBUG_SWIPE_PIPELINE === '1') {
+      console.log('[debug][swipeService.findDishForSwipe] lookup by id=%s', normalizedDishId);
+    }
+
+    const dishByPublicId = await DishModel.findOne({ id: normalizedDishId });
+    if (dishByPublicId) {
+      return dishByPublicId;
+    }
+
+    if (process.env.DEBUG_SWIPE_PIPELINE === '1') {
       console.log('[debug][swipeService.findDishForSwipe] lookup by sourceId=%s', normalizedDishId);
     }
 
     return DishModel.findOne({ sourceId: normalizedDishId });
   }
 
+  private toRawDish(dish: any) {
+    return typeof dish.toObject === 'function' ? dish.toObject({ virtuals: false }) : dish;
+  }
+
   private toPublicDishId(dish: { id?: string; _id?: Types.ObjectId; sourceId?: string }) {
-    if (typeof dish.sourceId === 'string' && dish.sourceId.length > 0) {
-      return dish.sourceId;
+    const rawDish = this.toRawDish(dish);
+
+    if (typeof rawDish.id === 'string' && rawDish.id.length > 0) {
+      return rawDish.id;
     }
 
-    if (typeof dish.id === 'string' && dish.id.length > 0) {
-      return dish.id;
+    if (typeof rawDish.sourceId === 'string' && rawDish.sourceId.length > 0) {
+      return rawDish.sourceId;
     }
 
-    return dish._id?.toString() ?? '';
+    return rawDish._id?.toString() ?? '';
   }
 }
