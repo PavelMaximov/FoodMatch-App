@@ -47,14 +47,7 @@ export class DishService {
   async getDishById(userId: string, id: string) {
     const normalizedId = id.trim();
 
-    let localDish: DishDocument | null = null;
-    if (Types.ObjectId.isValid(normalizedId)) {
-      localDish = await DishModel.findById(normalizedId);
-    }
-
-    if (!localDish) {
-      localDish = await DishModel.findOne({ sourceId: normalizedId });
-    }
+    const localDish = await this.findDishByPublicOrObjectId(normalizedId);
 
     if (!localDish) {
       throw new AppError('Dish not found', 404);
@@ -142,9 +135,7 @@ export class DishService {
   async deleteMyCustomDish(userId: string, dishId: string) {
     const normalizedId = dishId.trim();
 
-    const candidate = Types.ObjectId.isValid(normalizedId)
-      ? await DishModel.findById(normalizedId)
-      : await DishModel.findOne({ sourceId: normalizedId });
+    const candidate = await this.findDishByPublicOrObjectId(normalizedId);
 
     if (!candidate || candidate.sourceType !== 'custom' || candidate.status !== 'active') {
       throw new AppError('Dish not found', 404);
@@ -156,7 +147,29 @@ export class DishService {
 
     await DishModel.deleteOne({ _id: candidate._id });
 
-    return { id: candidate.id, deleted: true };
+    return { id: this.toPublicDishId(candidate), deleted: true };
+  }
+
+  private async findDishByPublicOrObjectId(dishId: string): Promise<DishDocument | null> {
+    if (!dishId) {
+      return null;
+    }
+
+    if (Types.ObjectId.isValid(dishId)) {
+      // Try to find by _id first
+      const dishByObjectId = await DishModel.findById(dishId);
+      if (dishByObjectId) {
+        return dishByObjectId;
+      }
+    }
+
+    // Search by sourceId (public ID)
+    const dishBySourceId = await DishModel.findOne({ sourceId: dishId });
+    if (dishBySourceId) {
+      return dishBySourceId;
+    }
+
+    return null;
   }
 
   private async buildVisibilityFilter(userId: string): Promise<FilterQuery<DishDocument>> {
@@ -219,31 +232,49 @@ export class DishService {
   }
 
   private toDto(dish: any) {
-    const publicId = typeof dish.sourceId === 'string' && dish.sourceId.length > 0 ? dish.sourceId : dish.id;
+    const rawDish = this.toRawDish(dish);
 
     return {
-      id: publicId,
-      name: dish.name ?? '',
-      description: dish.description ?? '',
-      imageUrl: dish.imageUrl ?? '',
-      cuisine: dish.cuisine ?? '',
-      type: dish.type ?? '',
-      mood: Array.isArray(dish.mood) ? dish.mood : [],
-      diet: Array.isArray(dish.diet) ? dish.diet : [],
-      ingredients: Array.isArray(dish.ingredients) ? dish.ingredients : [],
-      cookTime: typeof dish.cookTime === 'number' ? dish.cookTime : 0,
-      calories: dish.calories ?? '',
-      effort: dish.effort ?? '',
-      source: Array.isArray(dish.source) && dish.source.length > 0 ? dish.source : [dish.sourceType ?? 'custom'],
-      servings: dish.servings ?? '',
-      season: Array.isArray(dish.season) ? dish.season : [],
-      popular: typeof dish.popular === 'boolean' ? dish.popular : false,
-      steps: Array.isArray(dish.steps)
-        ? dish.steps.map((step: any, index: number) => ({
+      id: this.toPublicDishId(rawDish),
+      name: rawDish.name ?? '',
+      description: rawDish.description ?? '',
+      imageUrl: rawDish.imageUrl ?? '',
+      cuisine: rawDish.cuisine ?? '',
+      type: rawDish.type ?? '',
+      mood: Array.isArray(rawDish.mood) ? rawDish.mood : [],
+      diet: Array.isArray(rawDish.diet) ? rawDish.diet : [],
+      ingredients: Array.isArray(rawDish.ingredients) ? rawDish.ingredients : [],
+      cookTime: typeof rawDish.cookTime === 'number' ? rawDish.cookTime : 0,
+      calories: rawDish.calories ?? '',
+      effort: rawDish.effort ?? '',
+      source: Array.isArray(rawDish.source) && rawDish.source.length > 0 ? rawDish.source : [rawDish.sourceType ?? 'custom'],
+      servings: rawDish.servings ?? '',
+      season: Array.isArray(rawDish.season) ? rawDish.season : [],
+      popular: typeof rawDish.popular === 'boolean' ? rawDish.popular : false,
+      steps: Array.isArray(rawDish.steps)
+        ? rawDish.steps.map((step: any, index: number) => ({
             step: typeof step.step === 'number' ? step.step : index + 1,
             text: typeof step.text === 'string' ? step.text : String(step ?? '')
           }))
         : []
     };
+  }
+
+  private toRawDish(dish: any) {
+    return typeof dish.toObject === 'function' ? dish.toObject({ virtuals: true }) : dish;
+  }
+
+  private toPublicDishId(dish: any) {
+    const rawDish = this.toRawDish(dish);
+
+    if (typeof rawDish.id === 'string' && rawDish.id.length > 0) {
+      return rawDish.id;
+    }
+
+    if (typeof rawDish.sourceId === 'string' && rawDish.sourceId.length > 0) {
+      return rawDish.sourceId;
+    }
+
+    return rawDish._id?.toString() ?? '';
   }
 }

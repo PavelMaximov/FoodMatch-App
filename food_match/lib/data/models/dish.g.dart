@@ -3,7 +3,7 @@
 part of 'dish.dart';
 
 Dish _$DishFromJson(Map<String, dynamic> json) => Dish(
-      id: (json['id'] ?? json['_id']) as String? ?? '',
+      id: json['id'] as String? ?? '',
       name: json['name'] as String? ?? '',
       description: json['description'] as String? ?? '',
       imageUrl: json['imageUrl'] as String? ?? '',

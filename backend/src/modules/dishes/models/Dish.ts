@@ -14,6 +14,7 @@ export interface StructuredIngredient {
 export interface DishDocument extends Document {
   sourceType: 'mealdb' | 'custom';
   sourceId?: string;
+  id?: string; // Virtual field
   name: string;
   description: string;
   imageUrl: string;
@@ -87,5 +88,16 @@ const dishSchema = new Schema<DishDocument>(
 
 dishSchema.index({ sourceType: 1, sourceId: 1 }, { unique: true, partialFilterExpression: { sourceId: { $exists: true } } });
 dishSchema.index({ sourceType: 1, coupleId: 1, status: 1 });
+
+// Virtual field for public ID: prioritizes sourceId, falls back to _id
+dishSchema.virtual('id').get(function() {
+  if (this.sourceId) {
+    return this.sourceId;
+  }
+  return this._id?.toString() ?? '';
+});
+
+// Ensure virtuals are included in JSON output
+dishSchema.set('toJSON', { virtuals: true });
 
 export const DishModel = model<DishDocument>('Dish', dishSchema);

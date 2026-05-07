@@ -9,6 +9,7 @@ import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/utils/image_utils.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../data/repositories/dish_repository.dart';
+import '../../../favorites/logic/favorites_provider.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
@@ -22,7 +23,6 @@ class RecipesScreen extends StatefulWidget {
 
 class _RecipesScreenState extends State<RecipesScreen> {
   List<Dish> _allDishes = <Dish>[];
-  Set<String> _savedDishIds = <String>{};
   bool _isLoading = false;
   String? _error;
 
@@ -47,13 +47,12 @@ class _RecipesScreenState extends State<RecipesScreen> {
 
     try {
       final List<Dish> dishes = await repository.getDishes();
-      final List<Dish> saved = await repository.getSavedDishes();
+      await context.read<FavoritesProvider>().loadFavorites();
       if (!mounted) {
         return;
       }
       setState(() {
         _allDishes = dishes;
-        _savedDishIds = saved.map((Dish dish) => dish.id).where((String id) => id.isNotEmpty).toSet();
       });
     } catch (e) {
       if (!mounted) {
@@ -67,125 +66,24 @@ class _RecipesScreenState extends State<RecipesScreen> {
     }
   }
 
-  Future<void> _toggleSaved(String dishId) async {
-    if (dishId.isEmpty) {
+  Future<void> _toggleSaved(Dish dish) async {
+    await context.read<FavoritesProvider>().toggleFavorite(dish);
+    if (!mounted) {
       return;
     }
-
-    final DishRepository repository = context.read<DishRepository>();
-    final bool currentlySaved = _savedDishIds.contains(dishId);
-
-    setState(() {
-      if (currentlySaved) {
-        _savedDishIds.remove(dishId);
-      } else {
-        _savedDishIds.add(dishId);
-      }
-    });
-
-    try {
-      if (currentlySaved) {
-        await repository.unsaveDish(dishId);
-      } else {
-        await repository.saveDish(dishId);
-      }
-    } catch (_) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        if (currentlySaved) {
-          _savedDishIds.add(dishId);
-        } else {
-          _savedDishIds.remove(dishId);
-        }
-      });
+    final String? error = context.read<FavoritesProvider>().error;
+    if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not update favorites. Please try again.')),
+        SnackBar(content: Text(error)),
       );
     }
   }
 
-  void _openFavorites() {
-    final List<Dish> favorites = _allDishes
-        .where((Dish dish) => _savedDishIds.contains(dish.id))
-        .toList()
-      ..sort((Dish a, Dish b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
-
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.background,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (BuildContext context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-            child: Column(
-              children: <Widget>[
-                Container(
-                  width: 48,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: Colors.black12,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: <Widget>[
-                    Text(
-                      'Saved recipes',
-                      style: GoogleFonts.nunito(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      '${favorites.length}',
-                      style: GoogleFonts.nunito(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: favorites.isEmpty
-                      ? const EmptyState(
-                          icon: Icons.bookmark_border,
-                          title: 'No saved recipes yet',
-                          subtitle: 'Tap the bookmark icon on any recipe card',
-                        )
-                      : ListView.separated(
-                          itemCount: favorites.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 10),
-                          itemBuilder: (BuildContext context, int index) {
-                            final Dish dish = favorites[index];
-                            return _SavedDishTile(
-                              dish: dish,
-                              isSaved: true,
-                              onFavoriteTap: () => _toggleSaved(dish.id),
-                              onOpen: () {
-                                Navigator.of(context).pop();
-                                this.context.push('/recipe-detail/${dish.id}', extra: dish);
-                              },
-                            );
-                          },
-                        ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+  Future<void> _openFavorites() async {
+    await context.push('/favorites');
+    if (mounted) {
+      await _loadData();
+    }
   }
 
   void _openSearch() {
@@ -193,7 +91,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
       context: context,
       delegate: _RecipeSearchDelegate(
         dishes: _allDishes,
-        savedDishIds: _savedDishIds,
+        savedDishIds: context.read<FavoritesProvider>().savedDishIds,
         onFavoriteTap: _toggleSaved,
       ),
     ).then((Dish? selected) {
@@ -246,6 +144,8 @@ class _RecipesScreenState extends State<RecipesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final FavoritesProvider favoritesProvider = context.watch<FavoritesProvider>();
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -343,6 +243,8 @@ class _RecipesScreenState extends State<RecipesScreen> {
       ..sort((MapEntry<String, List<Dish>> a, MapEntry<String, List<Dish>> b) =>
           a.key.toLowerCase().compareTo(b.key.toLowerCase()));
 
+          final favoritesProvider = context.watch<FavoritesProvider>();
+
     return ListView.builder(
       padding: const EdgeInsets.only(bottom: 12),
       physics: const AlwaysScrollableScrollPhysics(),
@@ -354,7 +256,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
           child: _CuisineSection(
             title: section.key,
             dishes: section.value,
-            savedDishIds: _savedDishIds,
+            savedDishIds: favoritesProvider.savedDishIds,
             onFavoriteTap: _toggleSaved,
           ),
         );
@@ -451,7 +353,7 @@ class _CuisineSection extends StatelessWidget {
   final String title;
   final List<Dish> dishes;
   final Set<String> savedDishIds;
-  final ValueChanged<String> onFavoriteTap;
+  final Future<void> Function(Dish) onFavoriteTap;
 
   @override
   Widget build(BuildContext context) {
@@ -482,7 +384,7 @@ class _CuisineSection extends StatelessWidget {
               return _RecipeCard(
                 dish: dish,
                 isSaved: savedDishIds.contains(dish.id),
-                onFavoriteTap: () => onFavoriteTap(dish.id),
+                onFavoriteTap: () => onFavoriteTap(dish),
               );
             },
           ),
@@ -705,7 +607,7 @@ class _RecipeSearchDelegate extends SearchDelegate<Dish?> {
 
   final List<Dish> _dishes;
   final Set<String> _savedDishIds;
-  final ValueChanged<String> onFavoriteTap;
+  final Future<void> Function(Dish) onFavoriteTap;
 
   @override
   String get searchFieldLabel => 'Search dishes';
@@ -772,8 +674,13 @@ class _RecipeSearchDelegate extends SearchDelegate<Dish?> {
         return _SavedDishTile(
           dish: dish,
           isSaved: _savedDishIds.contains(dish.id),
-          onFavoriteTap: () {
-            onFavoriteTap(dish.id);
+          onFavoriteTap: () async {
+            await onFavoriteTap(dish);
+            if (_savedDishIds.contains(dish.id)) {
+              _savedDishIds.remove(dish.id);
+            } else {
+              _savedDishIds.add(dish.id);
+            }
           },
           onOpen: () => close(context, dish),
         );

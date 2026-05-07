@@ -87,15 +87,16 @@ class UserProfileHiveService {
     );
 
     if (nextSessionCount % 10 == 0 && weights.isNotEmpty) {
-      final List<String> topThree = weights.entries.toList()
-        ..sort((MapEntry<String, int> a, MapEntry<String, int> b) => b.value.compareTo(a.value));
-      next = next.copyWith(
-        favoriteCuisines: topThree
-            .where((MapEntry<String, int> e) => e.value > 0)
-            .take(3)
-            .map((MapEntry<String, int> e) => e.key)
-            .toList(),
-      );
+      final List<MapEntry<String, int>> sortedEntries = weights.entries
+    .where((e) => e.value > 0)
+    .toList()
+  ..sort((a, b) => b.value.compareTo(a.value));
+
+final List<String> topThree = sortedEntries
+    .take(3)
+    .map((e) => e.key)
+    .toList();
+      
     }
 
     await saveProfile(userId, next);
