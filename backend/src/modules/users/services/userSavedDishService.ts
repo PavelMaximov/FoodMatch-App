@@ -16,32 +16,46 @@ export class UserSavedDishService {
   }
 
   async addSavedDish(userId: string, dishId: string): Promise<void> {
-    this.validateObjectId(dishId);
-
-    const dish = await DishModel.findOne({ _id: new Types.ObjectId(dishId), status: 'active' });
+    const dish = await this.findActiveDishByPublicOrObjectId(dishId);
     if (!dish) {
       throw new AppError('Dish not found', 404);
     }
 
     await UserModel.updateOne(
       { _id: new Types.ObjectId(userId) },
-      { $addToSet: { savedDishes: new Types.ObjectId(dishId) } }
+      { $addToSet: { savedDishes: dish._id } }
     );
   }
 
   async removeSavedDish(userId: string, dishId: string): Promise<void> {
-    this.validateObjectId(dishId);
+    const dish = await this.findActiveDishByPublicOrObjectId(dishId);
+    if (!dish) {
+      throw new AppError('Dish not found', 404);
+    }
 
     await UserModel.updateOne(
       { _id: new Types.ObjectId(userId) },
-      { $pull: { savedDishes: new Types.ObjectId(dishId) } }
+      { $pull: { savedDishes: dish._id } }
     );
   }
 
-  private validateObjectId(id: string): void {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new AppError('Invalid dish id', 400);
+  private async findActiveDishByPublicOrObjectId(dishId: string): Promise<DishDocument | null> {
+    const normalizedDishId = dishId.trim();
+    if (!normalizedDishId) {
+      return null;
     }
+
+    if (Types.ObjectId.isValid(normalizedDishId)) {
+      const dishByObjectId = await DishModel.findOne({
+        _id: new Types.ObjectId(normalizedDishId),
+        status: 'active'
+      });
+      if (dishByObjectId) {
+        return dishByObjectId;
+      }
+    }
+
+    return DishModel.findOne({ sourceId: normalizedDishId, status: 'active' });
   }
 }
 
