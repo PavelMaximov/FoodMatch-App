@@ -243,6 +243,8 @@ class _RecipesScreenState extends State<RecipesScreen> {
       ..sort((MapEntry<String, List<Dish>> a, MapEntry<String, List<Dish>> b) =>
           a.key.toLowerCase().compareTo(b.key.toLowerCase()));
 
+          final favoritesProvider = context.watch<FavoritesProvider>();
+
     return ListView.builder(
       padding: const EdgeInsets.only(bottom: 12),
       physics: const AlwaysScrollableScrollPhysics(),
@@ -673,13 +675,12 @@ class _RecipeSearchDelegate extends SearchDelegate<Dish?> {
           dish: dish,
           isSaved: _savedDishIds.contains(dish.id),
           onFavoriteTap: () async {
+            await onFavoriteTap(dish);
             if (_savedDishIds.contains(dish.id)) {
               _savedDishIds.remove(dish.id);
             } else {
               _savedDishIds.add(dish.id);
             }
-            notifyListeners();
-            await onFavoriteTap(dish);
           },
           onOpen: () => close(context, dish),
         );

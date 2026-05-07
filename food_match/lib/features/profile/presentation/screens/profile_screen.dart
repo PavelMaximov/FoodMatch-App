@@ -647,13 +647,13 @@ class _ProfileSurface extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(ProfileScreen._cardRadius),
         border: Border.all(color: AppColors.divider.withValues(alpha: 0.95)),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: AppColors.cardShadow.withValues(alpha: 0.65),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        // boxShadow: <BoxShadow>[
+        //   BoxShadow(
+        //     color: AppColors.cardShadow.withValues(alpha: 0.65),
+        //     blurRadius: 10,
+        //     offset: const Offset(0, 2),
+        //   ),
+        // ],
       ),
       child: Padding(padding: padding, child: child),
     );

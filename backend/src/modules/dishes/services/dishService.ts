@@ -156,18 +156,20 @@ export class DishService {
     }
 
     if (Types.ObjectId.isValid(dishId)) {
+      // Try to find by _id first
       const dishByObjectId = await DishModel.findById(dishId);
       if (dishByObjectId) {
         return dishByObjectId;
       }
     }
 
-    const dishByPublicId = await DishModel.findOne({ id: dishId });
-    if (dishByPublicId) {
-      return dishByPublicId;
+    // Search by sourceId (public ID)
+    const dishBySourceId = await DishModel.findOne({ sourceId: dishId });
+    if (dishBySourceId) {
+      return dishBySourceId;
     }
 
-    return DishModel.findOne({ sourceId: dishId });
+    return null;
   }
 
   private async buildVisibilityFilter(userId: string): Promise<FilterQuery<DishDocument>> {
@@ -259,7 +261,7 @@ export class DishService {
   }
 
   private toRawDish(dish: any) {
-    return typeof dish.toObject === 'function' ? dish.toObject({ virtuals: false }) : dish;
+    return typeof dish.toObject === 'function' ? dish.toObject({ virtuals: true }) : dish;
   }
 
   private toPublicDishId(dish: any) {
