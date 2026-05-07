@@ -55,6 +55,11 @@ export class UserSavedDishService {
       }
     }
 
+    const dishByPublicId = await DishModel.findOne({ id: normalizedDishId, status: 'active' });
+    if (dishByPublicId) {
+      return dishByPublicId;
+    }
+
     return DishModel.findOne({ sourceId: normalizedDishId, status: 'active' });
   }
 }
