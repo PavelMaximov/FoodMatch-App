@@ -5,8 +5,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../data/models/dish.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../couple/logic/couple_provider.dart';
+import '../../logic/filter_scoring_service.dart';
 import '../../logic/pre_swipe_provider.dart';
 
 class PreSwipeFilterScreen extends StatefulWidget {
@@ -29,6 +31,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   final Set<String> _blocked = <String>{};
   final Set<String> _diet = <String>{};
   Set<String> _favoriteCuisines = <String>{};
+  List<Dish> _allDishes = <Dish>[];
 
   List<String> _cuisineOptions = <String>['Any'];
 
@@ -42,14 +45,11 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   ];
 
   static const List<String> _exceptionOptions = <String>[
-    'Meat',
-    'Fish',
-    'Dairy',
-    'Eggs',
-    'Pork',
-    'Gluten',
-    'Nuts',
-    'Spicy',
+    'no_meat',
+    'no_dairy',
+    'no_gluten',
+    'no_nuts',
+    'no_seafood',
   ];
 
   static const List<String> _dietOptions = <String>['Any', 'Vegetarian', 'Vegan', 'Halal'];
@@ -66,11 +66,16 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         }
       }
 
-      final List<String> cuisines = await context.read<PreSwipeProvider>().loadCuisineOptions();
+      final PreSwipeProvider preSwipeProvider = context.read<PreSwipeProvider>();
+      final List<Dish> dishes = await preSwipeProvider.loadDishes();
+      final List<String> cuisines = await preSwipeProvider.loadCuisineOptions();
       if (!mounted) {
         return;
       }
-      setState(() => _cuisineOptions = cuisines);
+      setState(() {
+        _allDishes = dishes;
+        _cuisineOptions = cuisines;
+      });
     });
   }
 
@@ -166,6 +171,8 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         options: _cuisineOptions,
         selected: _cuisines,
         onTap: _toggleCuisine,
+        chipStates: context.read<PreSwipeProvider>().buildCuisineChipStates(_cuisineOptions, _allDishes),
+        anyWhenEmpty: true,
       );
     }
 
@@ -182,6 +189,11 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
             }
           });
         },
+        chipStates: context.read<PreSwipeProvider>().buildMoodChipStates(
+              options: _moodOptions,
+              allDishes: _allDishes,
+              selectedCuisines: _cuisines.toList(),
+            ),
       );
     }
 
@@ -194,6 +206,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
             selected: _diet,
             onTap: _toggleDiet,
             useCrossForSelected: true,
+            anyWhenEmpty: true,
           ),
           const SizedBox(height: 16),
           _buildChipGrid(
@@ -209,6 +222,11 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
               });
             },
             useCrossForSelected: true,
+            chipStates: context.read<PreSwipeProvider>().buildExceptionChipStates(
+                  options: _exceptionOptions,
+                  allDishes: _allDishes,
+                  selectedCuisines: _cuisines.toList(),
+                ),
           ),
         ],
       ),
@@ -220,12 +238,17 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     required Set<String> selected,
     required void Function(String) onTap,
     bool useCrossForSelected = false,
+    bool anyWhenEmpty = false,
+    List<FilterChipState> chipStates = const <FilterChipState>[],
   }) {
     return Wrap(
       spacing: 10,
       runSpacing: 10,
       children: options.map((String option) {
-        final bool isSelected = selected.contains(option);
+        final FilterChipState? chipState = _chipStateFor(option, chipStates);
+        final bool isAny = option == 'Any';
+        final bool isSelected = anyWhenEmpty && isAny ? selected.isEmpty : selected.contains(option);
+        final bool isEnabled = chipState?.enabled ?? true;
         final bool highlighted = options == _cuisineOptions && !_cuisines.contains(option) && _favoriteCuisines.contains(option);
 
         return ChoiceChip(
@@ -241,13 +264,14 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
                     color: AppColors.primary,
                   ),
                 ),
-              Text(option, style: GoogleFonts.nunito(fontSize: _chipFontSize)),
+              Text(_chipLabel(option, chipState), style: GoogleFonts.nunito(fontSize: _chipFontSize)),
             ],
           ),
           selected: isSelected,
           showCheckmark: false,
-          onSelected: (_) => onTap(option),
+          onSelected: isEnabled ? (_) => onTap(option) : null,
           selectedColor: const Color(0xFFFFEFE7),
+          disabledColor: const Color(0xFFF2F2F2),
           backgroundColor: Colors.white,
           side: BorderSide(
             color: isSelected
@@ -264,20 +288,47 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     );
   }
 
+  FilterChipState? _chipStateFor(String option, List<FilterChipState> chipStates) {
+    for (final FilterChipState chipState in chipStates) {
+      if (chipState.value == option) {
+        return chipState;
+      }
+    }
+    return null;
+  }
+
+  String _chipLabel(String option, FilterChipState? chipState) {
+    final String label = _displayLabel(option);
+    if (chipState == null || option == 'Any') {
+      return label;
+    }
+    return '$label (${chipState.count})';
+  }
+
+  String _displayLabel(String value) {
+    switch (value) {
+      case 'no_meat':
+        return 'No meat';
+      case 'no_dairy':
+        return 'No dairy';
+      case 'no_gluten':
+        return 'No gluten';
+      case 'no_nuts':
+        return 'No nuts';
+      case 'no_seafood':
+        return 'No seafood';
+      default:
+        return value;
+    }
+  }
+
   void _toggleCuisine(String value) {
     setState(() {
       if (value == 'Any') {
-        if (_cuisines.contains('Any')) {
-          _cuisines.remove('Any');
-        } else {
-          _cuisines
-            ..clear()
-            ..add('Any');
-        }
+        _cuisines.clear();
         return;
       }
 
-      _cuisines.remove('Any');
       if (_cuisines.contains(value)) {
         _cuisines.remove(value);
       } else if (_cuisines.length < 3) {
@@ -289,32 +340,19 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   void _toggleDiet(String value) {
     setState(() {
       if (value == 'Any') {
-        if (_diet.contains('Any')) {
-          _diet.remove('Any');
-        } else {
-          _diet
-            ..clear()
-            ..add('Any');
-        }
+        _diet.clear();
+        return;
+      }
+      if (_diet.contains(value)) {
+        _diet.remove(value);
       } else {
-        _diet.remove('Any');
-        if (_diet.contains(value)) {
-          _diet.remove(value);
-        } else {
-          _diet.add(value);
-        }
+        _diet.add(value);
       }
     });
   }
 
   Future<void> _next() async {
     if (_step < 3) {
-      if (_step == 2 && _moods.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please choose at least one mood')),
-        );
-        return;
-      }
       setState(() => _step++);
       return;
     }
@@ -330,10 +368,10 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     final PreparedPoolResult result = await context.read<PreSwipeProvider>().prepare(
           userId: userId,
           coupleProvider: context.read<CoupleProvider>(),
-          cuisines: _cuisines.where((String e) => e != 'Any').toList(),
+          cuisines: _cuisines.toList(),
           moods: _moods.toList(),
           blocked: _blocked.toList(),
-          diet: _diet.where((String e) => e != 'Any').toList(),
+          diet: _diet.toList(),
         );
 
     final int elapsed = DateTime.now().difference(started).inMilliseconds;
@@ -347,9 +385,9 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     }
     setState(() => _loading = false);
 
-    if (result.relaxed) {
+    for (final String message in result.messages) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Widened filter to find more options')),
+        SnackBar(content: Text(message)),
       );
     }
 
