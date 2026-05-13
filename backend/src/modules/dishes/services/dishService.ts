@@ -15,13 +15,22 @@ interface CreateCustomDishInput {
 }
 
 export class DishService {
-  async listDishes(userId: string, query?: string) {
+  async listDishes(userId: string, query?: string, returnAll = false) {
     if (query?.trim()) {
       return this.searchDishes(userId, query.trim());
     }
 
     const visibilityFilter = await this.buildVisibilityFilter(userId);
-    const dishes = await DishModel.find(visibilityFilter).sort({ updatedAt: -1 }).limit(50);
+    const dishQuery = DishModel.find(visibilityFilter).sort({ updatedAt: -1 });
+
+    if (!returnAll) {
+      dishQuery.limit(50);
+    }
+
+    const dishes = await dishQuery;
+    console.log(
+      `[Dishes] listDishes limit=${returnAll ? 'all' : '50'} returned ${dishes.length} dishes`
+    );
     return dishes.map((dish) => this.toDto(dish));
   }
 

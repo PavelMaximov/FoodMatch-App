@@ -13,6 +13,7 @@ class ApiConstants {
   static const String coupleReset = '/api/couples/reset';
   static const String coupleLeave = '/api/couples/leave';
   static const String dishes = '/api/dishes';
+  static const String dishesCatalog = '/api/dishes?limit=all';
   static const String dishesCustom = '/api/dishes/custom';
   static const String dishesMy = '/api/dishes/my';
   static const String swipes = '/api/swipes';

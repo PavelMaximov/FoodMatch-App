@@ -41,20 +41,28 @@ class PreSwipeProvider extends ChangeNotifier {
 
   Future<UserProfile> loadProfile(String userId) => _profileService.getProfile(userId);
 
-  Future<List<Dish>> loadDishes() => _dishRepository.getDishes();
+  Future<List<Dish>> loadDishes() => _dishRepository.getCatalogDishes();
 
   Future<List<String>> loadCuisineOptions() async {
-    final List<Dish> dishes = await _dishRepository.getDishes();
+    final List<Dish> dishes = await _dishRepository.getCatalogDishes();
     final Set<String> normalized = dishes
         .map((Dish dish) => _normalizeCuisine(dish.cuisine))
         .where((String cuisine) => cuisine.isNotEmpty)
         .toSet();
+    final int cuisineCountTotal = _scoringService
+        .getCuisineChipCounts(dishes)
+        .values
+        .fold<int>(0, (int sum, int count) => sum + count);
+    debugPrint(
+      '[PreSwipeProvider] full catalog dishes=${dishes.length}, '
+      'cuisine chip count total=$cuisineCountTotal',
+    );
     final List<String> options = normalized.toList()..sort();
     return <String>['Any', ...options];
   }
 
   Future<PreparedPoolResult> skip(String userId) async {
-    final List<Dish> all = await _dishRepository.getDishes();
+    final List<Dish> all = await _dishRepository.getCatalogDishes();
     return PreparedPoolResult(
       dishes: _scoringService.fallbackPopular(all),
       seenDishIds: <String>{},
@@ -91,7 +99,8 @@ class PreSwipeProvider extends ChangeNotifier {
 
     final PartnerSessionChoices partner = coupleProvider.partnerChoicesFor(userId);
     final bool usePairCuisineLogic = partner.cuisines.isNotEmpty;
-    final List<String> effectivePartnerCuisines = usePairCuisineLogic ? partner.cuisines : const <String>[];
+    final List<String> effectivePartnerCuisines =
+        usePairCuisineLogic ? partner.cuisines : const <String>[];
     final List<String> messages = <String>[];
 
     if (_scoringService.shouldShowPairCuisineFallback(cuisines, effectivePartnerCuisines)) {
@@ -109,7 +118,8 @@ class PreSwipeProvider extends ChangeNotifier {
       partnerDiet: partner.diet,
     );
 
-    final List<Dish> all = await _dishRepository.getDishes();
+    final List<Dish> all = await _dishRepository.getCatalogDishes();
+    debugPrint('[PreSwipeProvider] prepare using full catalog dishes=${all.length}');
     final _DeckAttempt attempt = _buildFallbackDeck(
       all: all,
       config: config,
