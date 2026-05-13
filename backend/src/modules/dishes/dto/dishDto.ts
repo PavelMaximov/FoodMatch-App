@@ -113,12 +113,25 @@ function readStructuredIngredientNames(ingredients: any): string[] {
 }
 
 function readSteps(rawDish: any): Array<{ step: number; text: string }> {
-  const instructionSteps = normalizeSteps(rawDish.instructions);
+  const instructionSteps = normalizeInstructions(rawDish.instructions);
   if (instructionSteps.length > 0) {
     return instructionSteps;
   }
 
   return normalizeSteps(rawDish.steps);
+}
+
+function normalizeInstructions(instructions: any): Array<{ step: number; text: string }> {
+  if (!Array.isArray(instructions)) {
+    return [];
+  }
+
+  return instructions
+    .map((instruction) => ({
+      step: firstNumber(instruction?.position),
+      text: asString(instruction?.display_text).value
+    }))
+    .filter((step) => step.text.length > 0);
 }
 
 function normalizeSteps(rawSteps: any): Array<{ step: number; text: string }> {
