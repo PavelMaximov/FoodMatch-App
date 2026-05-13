@@ -1,4 +1,5 @@
 import { Types } from 'mongoose';
+import { toDishDto } from '../../dishes/dto/dishDto';
 import { MatchModel } from '../models/Match';
 
 export class MatchService {
@@ -9,7 +10,7 @@ export class MatchService {
       coupleId: match.coupleId,
       users: match.users,
       createdAt: match.createdAt,
-      dish: match.dishId
+      dish: toDishDto(match.dishId)
     }));
   }
 }

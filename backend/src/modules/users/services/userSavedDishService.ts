@@ -1,5 +1,6 @@
 import { Types } from 'mongoose';
 import { AppError } from '../../../core/errors/AppError';
+import { toDishDto, type DishDto } from '../../dishes/dto/dishDto';
 import { DishDocument, DishModel } from '../../dishes/models/Dish';
 import { UserModel } from '../models/User';
 
@@ -43,7 +44,7 @@ export class UserSavedDishService {
     );
   }
 
-  async listSavedDishes(userId: string): Promise<DishDocument[]> {
+  async listSavedDishes(userId: string): Promise<DishDto[]> {
     console.log('\n📂 [ListSavedDishes] Getting saved dishes for user:', userId);
     
     const user = await UserModel.findById(userId)
@@ -80,7 +81,7 @@ export class UserSavedDishService {
     const activeDishes = dishes.filter(d => d.status === 'active');
     console.log('📂 [ListSavedDishes] After filtering status=active:', activeDishes.length, 'dishes');
     
-    return activeDishes;
+    return activeDishes.map((dish) => toDishDto(dish));
   }
 
   private async findActiveDishByPublicOrObjectId(dishId: string): Promise<DishDocument | null> {
