@@ -77,11 +77,11 @@ export class UserSavedDishService {
       console.log(`   - _id: ${d._id}, status: "${d.status}", name: ${d.name}`);
     });
     
-    // Filter by active status
-    const activeDishes = dishes.filter(d => d.status === 'active');
-    console.log('📂 [ListSavedDishes] After filtering status=active:', activeDishes.length, 'dishes');
+    // Filter by statuses that are visible to clients.
+    const visibleDishes = dishes.filter(d => this.isVisibleDishStatus(d.status));
+    console.log('📂 [ListSavedDishes] After filtering status=approved/active:', visibleDishes.length, 'dishes');
     
-    return activeDishes.map((dish) => toDishDto(dish));
+    return visibleDishes.map((dish) => toDishDto(dish));
   }
 
   private async findActiveDishByPublicOrObjectId(dishId: string): Promise<DishDocument | null> {
@@ -93,47 +93,63 @@ export class UserSavedDishService {
       return null;
     }
 
-    // Try to find as ObjectId first
+    // Try to find as ObjectId first.
     if (Types.ObjectId.isValid(normalizedDishId)) {
-      console.log('🔎 [FindDish] Valid ObjectId format, searching...');
-      
-      // Check if dish exists at all
-      const dishExists = await DishModel.findById(normalizedDishId);
-      if (dishExists) {
+      console.log('🔎 [FindDish] Valid ObjectId format, searching by _id...');
+      const dishByObjectId = await DishModel.findOne({
+        _id: new Types.ObjectId(normalizedDishId),
+        status: { $in: ['approved', 'active'] }
+      });
+      if (dishByObjectId) {
         console.log('✅ [FindDish] Found dish by _id');
-        console.log('   _id:', dishExists._id.toString());
-        console.log('   status:', dishExists.status);
-        console.log('   sourceType:', dishExists.sourceType || 'NOT SET');
-        console.log('   name:', dishExists.name);
-        
-        // Check if status is active
-        if (dishExists.status === 'active') {
-          console.log('✅ [FindDish] Status is active, returning dish');
-          return dishExists;
-        } else {
-          console.log('⚠️  [FindDish] Status is not active:', dishExists.status);
-          return null;
-        }
-      } else {
-        console.log('❌ [FindDish] Not found by _id');
+        console.log('   _id:', dishByObjectId._id.toString());
+        console.log('   status:', dishByObjectId.status);
+        console.log('   public id:', dishByObjectId.id || 'NOT SET');
+        console.log('   sourceId:', dishByObjectId.sourceId || 'NOT SET');
+        console.log('   name:', dishByObjectId.name);
+        return dishByObjectId;
       }
+      console.log('❌ [FindDish] Not found by _id');
     } else {
       console.log('ℹ️  [FindDish] Not a valid ObjectId format');
     }
 
-    // Search by sourceId
-    console.log('🔎 [FindDish] Searching by sourceId:', normalizedDishId);
-    const dishBySourceId = await DishModel.findOne({ 
-      sourceId: normalizedDishId, 
-      status: 'active' 
+    // Search by dishes_v4 public id first.
+    console.log('🔎 [FindDish] Searching by public id:', normalizedDishId);
+    const dishByPublicId = await DishModel.findOne({
+      id: normalizedDishId,
+      status: { $in: ['approved', 'active'] }
+    });
+    if (dishByPublicId) {
+      console.log('✅ [FindDish] Found by public id');
+      console.log('   _id:', dishByPublicId._id.toString());
+      console.log('   status:', dishByPublicId.status);
+      console.log('   id:', dishByPublicId.id || 'NOT SET');
+      console.log('   name:', dishByPublicId.name);
+      return dishByPublicId;
+    }
+
+    // Search by legacy sourceId last.
+    console.log('🔎 [FindDish] Searching by legacy sourceId:', normalizedDishId);
+    const dishBySourceId = await DishModel.findOne({
+      sourceId: normalizedDishId,
+      status: { $in: ['approved', 'active'] }
     });
     if (dishBySourceId) {
-      console.log('✅ [FindDish] Found by sourceId');
+      console.log('✅ [FindDish] Found by legacy sourceId');
+      console.log('   _id:', dishBySourceId._id.toString());
+      console.log('   status:', dishBySourceId.status);
+      console.log('   sourceId:', dishBySourceId.sourceId || 'NOT SET');
+      console.log('   name:', dishBySourceId.name);
       return dishBySourceId;
     }
 
     console.log('❌ [FindDish] Dish not found\n');
     return null;
+  }
+
+  private isVisibleDishStatus(status: DishDocument['status']): boolean {
+    return status === 'approved' || status === 'active';
   }
 }
 
