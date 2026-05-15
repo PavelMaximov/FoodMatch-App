@@ -12,6 +12,7 @@ class UserProfile {
     required this.sessionBlocked,
     required this.cuisineWeights,
     required this.sessionCount,
+    required this.preferredEffort,
   });
 
   final List<String> favoriteCuisines;
@@ -24,6 +25,7 @@ class UserProfile {
   final List<String> sessionBlocked;
   final Map<String, int> cuisineWeights;
   final int sessionCount;
+  final String preferredEffort;
 
   factory UserProfile.empty() => const UserProfile(
         favoriteCuisines: <String>[],
@@ -36,6 +38,7 @@ class UserProfile {
         sessionBlocked: <String>[],
         cuisineWeights: <String, int>{},
         sessionCount: 0,
+        preferredEffort: '',
       );
 
   UserProfile copyWith({
@@ -49,6 +52,7 @@ class UserProfile {
     List<String>? sessionBlocked,
     Map<String, int>? cuisineWeights,
     int? sessionCount,
+    String? preferredEffort,
   }) {
     return UserProfile(
       favoriteCuisines: favoriteCuisines ?? this.favoriteCuisines,
@@ -61,6 +65,7 @@ class UserProfile {
       sessionBlocked: sessionBlocked ?? this.sessionBlocked,
       cuisineWeights: cuisineWeights ?? this.cuisineWeights,
       sessionCount: sessionCount ?? this.sessionCount,
+      preferredEffort: preferredEffort ?? this.preferredEffort,
     );
   }
 
@@ -75,6 +80,7 @@ class UserProfile {
         'sessionBlocked': sessionBlocked,
         'cuisineWeights': cuisineWeights,
         'sessionCount': sessionCount,
+        'preferredEffort': preferredEffort,
       };
 
   factory UserProfile.fromJson(Map<dynamic, dynamic> json) => UserProfile(
@@ -95,5 +101,6 @@ class UserProfile {
               .map((dynamic key, dynamic value) => MapEntry(key.toString(), (value as num).toInt())),
         ),
         sessionCount: (json['sessionCount'] as num?)?.toInt() ?? 0,
+        preferredEffort: json['preferredEffort']?.toString() ?? '',
       );
 }

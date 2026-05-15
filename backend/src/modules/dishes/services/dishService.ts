@@ -1,6 +1,7 @@
 import { FilterQuery, Types } from 'mongoose';
 import { AppError } from '../../../core/errors/AppError';
 import { CoupleSessionModel } from '../../couples/models/CoupleSession';
+import { toDishDto, toPublicDishId } from '../dto/dishDto';
 import { DishDocument, DishModel } from '../models/Dish';
 
 interface CreateCustomDishInput {
@@ -15,14 +16,23 @@ interface CreateCustomDishInput {
 }
 
 export class DishService {
-  async listDishes(userId: string, query?: string) {
+  async listDishes(userId: string, query?: string, returnAll = false) {
     if (query?.trim()) {
       return this.searchDishes(userId, query.trim());
     }
 
     const visibilityFilter = await this.buildVisibilityFilter(userId);
-    const dishes = await DishModel.find(visibilityFilter).sort({ updatedAt: -1 }).limit(50);
-    return dishes.map((dish) => this.toDto(dish));
+    const dishQuery = DishModel.find(visibilityFilter).sort({ updatedAt: -1 });
+
+    if (!returnAll) {
+      dishQuery.limit(50);
+    }
+
+    const dishes = await dishQuery;
+    console.log(
+      `[Dishes] listDishes limit=${returnAll ? 'all' : '50'} returned ${dishes.length} dishes`
+    );
+    return dishes.map((dish) => toDishDto(dish));
   }
 
   async searchDishes(userId: string, query: string) {
@@ -41,7 +51,7 @@ export class DishService {
     };
 
     const dishes = await DishModel.find(filter).sort({ updatedAt: -1 }).limit(50);
-    return dishes.map((dish) => this.toDto(dish));
+    return dishes.map((dish) => toDishDto(dish));
   }
 
   async getDishById(userId: string, id: string) {
@@ -54,7 +64,7 @@ export class DishService {
     }
 
     await this.assertCanAccessDish(userId, localDish);
-    return this.toDto(localDish);
+    return toDishDto(localDish);
   }
 
   async getRandomDish(userId: string) {
@@ -64,7 +74,7 @@ export class DishService {
       throw new AppError('Dish not found', 404);
     }
 
-    return this.toDto(randomDish[0]);
+    return toDishDto(randomDish[0]);
   }
 
   async createCustomDish(userId: string, input: CreateCustomDishInput) {
@@ -111,7 +121,7 @@ export class DishService {
       }
     });
 
-    return this.toDto(dish);
+    return toDishDto(dish);
   }
 
   async listMyCustomDishes(userId: string) {
@@ -129,7 +139,7 @@ export class DishService {
 
     const dishes = await DishModel.find(filter).sort({ createdAt: -1 });
 
-    return dishes.map((dish) => this.toDto(dish));
+    return dishes.map((dish) => toDishDto(dish));
   }
 
   async deleteMyCustomDish(userId: string, dishId: string) {
@@ -147,7 +157,7 @@ export class DishService {
 
     await DishModel.deleteOne({ _id: candidate._id });
 
-    return { id: this.toPublicDishId(candidate), deleted: true };
+    return { id: toPublicDishId(candidate), deleted: true };
   }
 
   private async findDishByPublicOrObjectId(dishId: string): Promise<DishDocument | null> {
@@ -231,50 +241,4 @@ export class DishService {
     return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
-  private toDto(dish: any) {
-    const rawDish = this.toRawDish(dish);
-
-    return {
-      id: this.toPublicDishId(rawDish),
-      name: rawDish.name ?? '',
-      description: rawDish.description ?? '',
-      imageUrl: rawDish.imageUrl ?? '',
-      cuisine: rawDish.cuisine ?? '',
-      type: rawDish.type ?? '',
-      mood: Array.isArray(rawDish.mood) ? rawDish.mood : [],
-      diet: Array.isArray(rawDish.diet) ? rawDish.diet : [],
-      ingredients: Array.isArray(rawDish.ingredients) ? rawDish.ingredients : [],
-      cookTime: typeof rawDish.cookTime === 'number' ? rawDish.cookTime : 0,
-      calories: rawDish.calories ?? '',
-      effort: rawDish.effort ?? '',
-      source: Array.isArray(rawDish.source) && rawDish.source.length > 0 ? rawDish.source : [rawDish.sourceType ?? 'custom'],
-      servings: rawDish.servings ?? '',
-      season: Array.isArray(rawDish.season) ? rawDish.season : [],
-      popular: typeof rawDish.popular === 'boolean' ? rawDish.popular : false,
-      steps: Array.isArray(rawDish.steps)
-        ? rawDish.steps.map((step: any, index: number) => ({
-            step: typeof step.step === 'number' ? step.step : index + 1,
-            text: typeof step.text === 'string' ? step.text : String(step ?? '')
-          }))
-        : []
-    };
-  }
-
-  private toRawDish(dish: any) {
-    return typeof dish.toObject === 'function' ? dish.toObject({ virtuals: true }) : dish;
-  }
-
-  private toPublicDishId(dish: any) {
-    const rawDish = this.toRawDish(dish);
-
-    if (typeof rawDish.id === 'string' && rawDish.id.length > 0) {
-      return rawDish.id;
-    }
-
-    if (typeof rawDish.sourceId === 'string' && rawDish.sourceId.length > 0) {
-      return rawDish.sourceId;
-    }
-
-    return rawDish._id?.toString() ?? '';
-  }
 }

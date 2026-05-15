@@ -14,6 +14,7 @@ class PreparedPoolResult {
     required this.seenDishIds,
     required this.usedFallback,
     required this.relaxed,
+    required this.messages,
     this.config,
   });
 
@@ -21,6 +22,7 @@ class PreparedPoolResult {
   final Set<String> seenDishIds;
   final bool usedFallback;
   final bool relaxed;
+  final List<String> messages;
   final FilterConfig? config;
 }
 
@@ -39,23 +41,34 @@ class PreSwipeProvider extends ChangeNotifier {
 
   Future<UserProfile> loadProfile(String userId) => _profileService.getProfile(userId);
 
+  Future<List<Dish>> loadDishes() => _dishRepository.getCatalogDishes();
+
   Future<List<String>> loadCuisineOptions() async {
-    final List<Dish> dishes = await _dishRepository.getDishes();
+    final List<Dish> dishes = await _dishRepository.getCatalogDishes();
     final Set<String> normalized = dishes
         .map((Dish dish) => _normalizeCuisine(dish.cuisine))
         .where((String cuisine) => cuisine.isNotEmpty)
         .toSet();
+    final int cuisineCountTotal = _scoringService
+        .getCuisineChipCounts(dishes)
+        .values
+        .fold<int>(0, (int sum, int count) => sum + count);
+    debugPrint(
+      '[PreSwipeProvider] full catalog dishes=${dishes.length}, '
+      'cuisine chip count total=$cuisineCountTotal',
+    );
     final List<String> options = normalized.toList()..sort();
     return <String>['Any', ...options];
   }
 
   Future<PreparedPoolResult> skip(String userId) async {
-    final List<Dish> all = await _dishRepository.getDishes();
+    final List<Dish> all = await _dishRepository.getCatalogDishes();
     return PreparedPoolResult(
       dishes: _scoringService.fallbackPopular(all),
       seenDishIds: <String>{},
       usedFallback: true,
       relaxed: false,
+      messages: const <String>[],
       config: null,
     );
   }
@@ -85,63 +98,154 @@ class PreSwipeProvider extends ChangeNotifier {
     );
 
     final PartnerSessionChoices partner = coupleProvider.partnerChoicesFor(userId);
+    final bool usePairCuisineLogic = partner.cuisines.isNotEmpty;
+    final List<String> effectivePartnerCuisines =
+        usePairCuisineLogic ? partner.cuisines : const <String>[];
+    final List<String> messages = <String>[];
+
+    if (_scoringService.shouldShowPairCuisineFallback(cuisines, effectivePartnerCuisines)) {
+      messages.add('No common cuisine — showing both preferences');
+    }
 
     final FilterConfig config = _scoringService.buildConfig(
       myCuisines: cuisines,
       myMoods: moods,
       myBlocked: blocked,
       myDiet: diet,
-      partnerCuisines: partner.cuisines,
+      partnerCuisines: effectivePartnerCuisines,
       partnerMoods: partner.moods,
       partnerBlocked: partner.blocked,
       partnerDiet: partner.diet,
     );
 
-    final List<Dish> all = await _dishRepository.getDishes();
-    List<Dish> filtered = _scoringService.applyHardFilters(all, config);
-
-    bool relaxed = false;
-    if (filtered.length < 5) {
-      relaxed = true;
-      filtered = _scoringService.applyHardFilters(
-        all,
-        FilterConfig(
-          cuisines: config.cuisines,
-          moods: <String>[],
-          blocked: config.blocked,
-          diet: config.diet,
-          maxCookTime: config.maxCookTime,
-        ),
-      );
-    }
-
-    if (filtered.isEmpty) {
-      return PreparedPoolResult(
-        dishes: <Dish>[],
-        seenDishIds: <String>{},
-        usedFallback: false,
-        relaxed: relaxed,
-        config: config,
-      );
-    }
-
-    final List<ScoredDish> scored = _scoringService.scoreDishes(
-      dishes: filtered,
+    final List<Dish> all = await _dishRepository.getCatalogDishes();
+    debugPrint('[PreSwipeProvider] prepare using full catalog dishes=${all.length}');
+    final _DeckAttempt attempt = _buildFallbackDeck(
+      all: all,
       config: config,
       profile: profile,
       now: DateTime.now(),
     );
-
-    final int cap = scored.length >= 30 ? 30 : (scored.length >= 15 ? scored.length : 15);
-    final List<ScoredDish> picked = scored.take(cap.clamp(0, scored.length)).toList();
+    messages.addAll(attempt.messages);
 
     return PreparedPoolResult(
-      dishes: picked.map((ScoredDish e) => e.dish).toList(),
-      seenDishIds: picked.where((ScoredDish e) => e.seenBefore).map((ScoredDish e) => e.dish.id).toSet(),
-      usedFallback: false,
-      relaxed: relaxed,
+      dishes: attempt.picked.map((ScoredDish e) => e.dish).toList(),
+      seenDishIds: attempt.picked.where((ScoredDish e) => e.seenBefore).map((ScoredDish e) => e.dish.id).toSet(),
+      usedFallback: attempt.usedPopularFallback,
+      relaxed: messages.isNotEmpty,
+      messages: messages,
       config: config,
     );
+  }
+
+  List<FilterChipState> buildCuisineChipStates(List<String> options, List<Dish> allDishes) {
+    return _scoringService.buildCuisineChipStates(options, allDishes);
+  }
+
+  List<FilterChipState> buildMoodChipStates({
+    required List<String> options,
+    required List<Dish> allDishes,
+    required List<String> selectedCuisines,
+  }) {
+    final List<Dish> cuisineBase = _scoringService.applyCuisineStep(
+      allDishes,
+      selectedCuisines: selectedCuisines,
+    );
+    return _scoringService.buildMoodChipStates(options, cuisineBase);
+  }
+
+  List<FilterChipState> buildExceptionChipStates({
+    required List<String> options,
+    required List<Dish> allDishes,
+    required List<String> selectedCuisines,
+  }) {
+    final List<Dish> cuisineBase = _scoringService.applyCuisineStep(
+      allDishes,
+      selectedCuisines: selectedCuisines,
+    );
+    return _scoringService.buildExceptionChipStates(options, cuisineBase);
+  }
+
+  _DeckAttempt _buildFallbackDeck({
+    required List<Dish> all,
+    required FilterConfig config,
+    required UserProfile profile,
+    required DateTime now,
+  }) {
+    final List<String> messages = <String>[];
+
+    List<Dish> pool = _scoringService.applyHardFilters(all, config);
+    List<ScoredDish> picked = _pickDeck(pool, config: config, profile: profile, now: now);
+    if (pool.length >= 5) {
+      return _DeckAttempt(picked: picked, messages: messages, usedPopularFallback: false);
+    }
+
+    final FilterConfig neutralMoodConfig = FilterConfig(
+      cuisines: config.cuisines,
+      moods: const <String>[],
+      blocked: config.blocked,
+      diet: config.diet,
+      maxCookTime: config.maxCookTime,
+    );
+    picked = _pickDeck(pool, config: neutralMoodConfig, profile: profile, now: now);
+    messages.add('Widened mood filter to find more options');
+    if (pool.length >= 5) {
+      return _DeckAttempt(picked: picked, messages: messages, usedPopularFallback: false);
+    }
+
+    final FilterConfig noCuisineConfig = FilterConfig(
+      cuisines: const <String>[],
+      moods: const <String>[],
+      blocked: config.blocked,
+      diet: config.diet,
+      maxCookTime: config.maxCookTime,
+    );
+    pool = _scoringService.applyHardFilters(all, noCuisineConfig);
+    picked = _pickDeck(pool, config: noCuisineConfig, profile: profile, now: now);
+    messages.add('Added dishes from other cuisines');
+    if (pool.length >= 5) {
+      return _DeckAttempt(picked: picked, messages: messages, usedPopularFallback: false);
+    }
+
+    final FilterConfig dietOnlyConfig = FilterConfig(
+      cuisines: const <String>[],
+      moods: const <String>[],
+      blocked: const <String>[],
+      diet: config.diet,
+      maxCookTime: config.maxCookTime,
+    );
+    pool = _scoringService.applyHardFilters(all, dietOnlyConfig);
+    picked = _pickDeck(pool, config: dietOnlyConfig, profile: profile, now: now);
+    messages.add('Removed some restrictions to fill your deck');
+    if (pool.length >= 5) {
+      return _DeckAttempt(picked: picked, messages: messages, usedPopularFallback: false);
+    }
+
+    final List<Dish> popular = _scoringService.fallbackPopular(all);
+    final List<ScoredDish> popularPicked = popular
+        .map((Dish dish) => ScoredDish(
+              dish: dish,
+              score: _scoringService.scoreDish(dish, dietOnlyConfig, profile, now),
+              seenBefore: profile.matchHistory.contains(dish.id),
+            ))
+        .toList();
+    messages.add('Showing popular dishes — filters were too narrow');
+    return _DeckAttempt(picked: popularPicked, messages: messages, usedPopularFallback: true);
+  }
+
+  List<ScoredDish> _pickDeck(
+    List<Dish> pool, {
+    required FilterConfig config,
+    required UserProfile profile,
+    required DateTime now,
+  }) {
+    final List<ScoredDish> scored = _scoringService.scoreDishes(
+      dishes: pool,
+      config: config,
+      profile: profile,
+      now: now,
+    );
+    return scored.take(30).toList();
   }
 
   String _normalizeCuisine(String value) {
@@ -156,4 +260,16 @@ class PreSwipeProvider extends ChangeNotifier {
         .map((String token) => token[0].toUpperCase() + token.substring(1))
         .join(' ');
   }
+}
+
+class _DeckAttempt {
+  const _DeckAttempt({
+    required this.picked,
+    required this.messages,
+    required this.usedPopularFallback,
+  });
+
+  final List<ScoredDish> picked;
+  final List<String> messages;
+  final bool usedPopularFallback;
 }

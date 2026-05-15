@@ -35,7 +35,7 @@ export interface DishDocument extends Document {
   createdBy?: Types.ObjectId | null;
   coupleId?: Types.ObjectId | null;
   structuredIngredients: StructuredIngredient[];
-  status: 'active' | 'deleted';
+  status: 'active' | 'approved' | 'deleted';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -81,7 +81,7 @@ const dishSchema = new Schema<DishDocument>(
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
     coupleId: { type: Schema.Types.ObjectId, ref: 'CoupleSession', default: null, index: true },
     structuredIngredients: { type: [structuredIngredientSchema], default: [] },
-    status: { type: String, enum: ['active', 'deleted'], default: 'active', index: true }
+    status: { type: String, enum: ['active', 'approved', 'deleted'], default: 'active', index: true }
   },
   { timestamps: true }
 );

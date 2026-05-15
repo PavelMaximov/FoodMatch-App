@@ -2,6 +2,31 @@
 
 part of 'dish.dart';
 
+DishIngredient _$DishIngredientFromJson(Map<String, dynamic> json) =>
+    DishIngredient(name: json['name'] as String? ?? '');
+
+Map<String, dynamic> _$DishIngredientToJson(DishIngredient instance) =>
+    <String, dynamic>{'name': instance.name};
+
+DishComponent _$DishComponentFromJson(Map<String, dynamic> json) => DishComponent(
+      ingredient: json['ingredient'] == null
+          ? const DishIngredient(name: '')
+          : DishIngredient.fromJson(json['ingredient'] as Map<String, dynamic>),
+    );
+
+Map<String, dynamic> _$DishComponentToJson(DishComponent instance) =>
+    <String, dynamic>{'ingredient': instance.ingredient};
+
+DishSection _$DishSectionFromJson(Map<String, dynamic> json) => DishSection(
+      components: (json['components'] as List<dynamic>?)
+              ?.map((e) => DishComponent.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          <DishComponent>[],
+    );
+
+Map<String, dynamic> _$DishSectionToJson(DishSection instance) =>
+    <String, dynamic>{'components': instance.components};
+
 Dish _$DishFromJson(Map<String, dynamic> json) => Dish(
       id: json['id'] as String? ?? '',
       name: json['name'] as String? ?? '',
@@ -24,6 +49,9 @@ Dish _$DishFromJson(Map<String, dynamic> json) => Dish(
               ?.map((e) => RecipeStep.fromJson(e as Map<String, dynamic>))
               .toList() ??
           <RecipeStep>[],
+      qualityScore: json['qualityScore'] as num? ?? 0,
+      tags: (json['tags'] as List<dynamic>?)?.map((e) => e as String).toList() ?? <String>[],
+      sections: _readDishSections(json),
     );
 
 Map<String, dynamic> _$DishToJson(Dish instance) => <String, dynamic>{
@@ -44,4 +72,32 @@ Map<String, dynamic> _$DishToJson(Dish instance) => <String, dynamic>{
       'season': instance.season,
       'popular': instance.popular,
       'steps': instance.steps,
+      'qualityScore': instance.qualityScore,
+      'tags': instance.tags,
+      'sections': instance.sections,
     };
+
+
+List<DishSection> _readDishSections(Map<String, dynamic> json) {
+  final dynamic rawSections = json['sections'];
+  if (rawSections is List) {
+    return rawSections
+        .whereType<Map>()
+        .map((Map section) => DishSection.fromJson(Map<String, dynamic>.from(section)))
+        .toList();
+  }
+
+  final dynamic structuredIngredients = json['structuredIngredients'];
+  if (structuredIngredients is List && structuredIngredients.isNotEmpty) {
+    final List<DishComponent> components = structuredIngredients.whereType<Map>().map((Map ingredient) {
+      final String name = ingredient['name']?.toString() ?? '';
+      return DishComponent(ingredient: DishIngredient(name: name));
+    }).where((DishComponent component) => component.ingredient.name.isNotEmpty).toList();
+
+    if (components.isNotEmpty) {
+      return <DishSection>[DishSection(components: components)];
+    }
+  }
+
+  return <DishSection>[];
+}

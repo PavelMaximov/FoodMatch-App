@@ -13,7 +13,11 @@ function queryToString(value: string | string[] | undefined): string {
 export class DishController {
   async list(req: AuthRequest, res: Response) {
     const userId = this.requireUserId(req);
-    const dishes = await dishService.listDishes(userId, queryToString(req.query.q as string | string[] | undefined));
+    const dishes = await dishService.listDishes(
+      userId,
+      queryToString(req.query.q as string | string[] | undefined),
+      queryToString(req.query.limit as string | string[] | undefined) === 'all'
+    );
     res.json({ dishes });
   }
 

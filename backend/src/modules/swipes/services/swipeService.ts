@@ -1,6 +1,7 @@
 import { Types } from 'mongoose';
 import { AppError } from '../../../core/errors/AppError';
 import { CoupleSessionModel } from '../../couples/models/CoupleSession';
+import { toDishDto, toPublicDishId } from '../../dishes/dto/dishDto';
 import { DishModel } from '../../dishes/models/Dish';
 import { MatchModel } from '../../matches/models/Match';
 import { SwipeModel } from '../models/Swipe';
@@ -38,7 +39,7 @@ export class SwipeService {
     );
 
     const matchCreated = direction === 'like' ? await this.tryCreateMatch(session.id, dish._id.toString()) : false;
-    const publicDishId = this.toPublicDishId(dish);
+    const publicDishId = toPublicDishId(dish);
 
     return {
       id: swipe.id,
@@ -59,7 +60,7 @@ export class SwipeService {
     const matches = await MatchModel.find({ coupleId: session._id }).populate('dishId');
     return matches.map((match) => ({
       id: match.id,
-      dish: match.dishId,
+      dish: toDishDto(match.dishId),
       users: match.users,
       createdAt: match.createdAt
     }));
@@ -79,7 +80,7 @@ export class SwipeService {
       id: swipe.id,
       direction: swipe.direction,
       createdAt: swipe.createdAt,
-      dish: swipe.dishId
+      dish: toDishDto(swipe.dishId)
     }));
   }
 
@@ -133,21 +134,4 @@ export class SwipeService {
     return DishModel.findOne({ sourceId: normalizedDishId });
   }
 
-  private toRawDish(dish: any) {
-    return typeof dish.toObject === 'function' ? dish.toObject({ virtuals: false }) : dish;
-  }
-
-  private toPublicDishId(dish: { id?: string; _id?: Types.ObjectId; sourceId?: string }) {
-    const rawDish = this.toRawDish(dish);
-
-    if (typeof rawDish.id === 'string' && rawDish.id.length > 0) {
-      return rawDish.id;
-    }
-
-    if (typeof rawDish.sourceId === 'string' && rawDish.sourceId.length > 0) {
-      return rawDish.sourceId;
-    }
-
-    return rawDish._id?.toString() ?? '';
-  }
 }

@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../../core/constants/api_constants.dart';
 import '../models/dish.dart';
 import '../services/api_service.dart';
@@ -21,6 +23,21 @@ class DishRepository {
         .toList();
   }
 
+  Future<List<Dish>> getCatalogDishes() async {
+    final data = await _apiService.get(ApiConstants.dishesCatalog);
+    final List<dynamic> list = data is Map<String, dynamic>
+        ? (data['dishes'] as List<dynamic>? ?? <dynamic>[])
+        : <dynamic>[];
+
+    final List<Dish> dishes = list
+        .map((item) => Dish.fromJson(Map<String, dynamic>.from(item as Map)))
+        .toList();
+    debugPrint(
+      '[DishRepository] getCatalogDishes loaded ${dishes.length} dishes',
+    );
+    return dishes;
+  }
+
   Future<List<Dish>> getMyCustomDishes() async {
     final data = await _apiService.get(ApiConstants.dishesMy);
     final List<dynamic> list = data is Map<String, dynamic>
@@ -31,7 +48,6 @@ class DishRepository {
         .map((item) => Dish.fromJson(Map<String, dynamic>.from(item as Map)))
         .toList();
   }
-
 
   Future<List<String>> searchIngredients(String query) async {
     final String endpoint =
