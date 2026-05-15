@@ -156,6 +156,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                 query: _query,
                 hasActiveFilters: _hasActiveFilters,
                 onQueryChanged: (String value) => setState(() => _query = value),
+                onBackTap: context.pop,
                 onSearchTap: _toggleSearch,
                 onFilterTap: _openFilters,
               ),
@@ -191,12 +192,12 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         padding: const EdgeInsets.fromLTRB(23, 28, 23, 24),
         physics: const AlwaysScrollableScrollPhysics(),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          mainAxisSpacing: 26,
-          crossAxisSpacing: 10,
-          childAspectRatio: 0.65,
+          crossAxisCount: 2,
+          mainAxisSpacing: 18,
+          crossAxisSpacing: 12,
+          childAspectRatio: 0.78,
         ),
-        itemCount: 9,
+        itemCount: 6,
         itemBuilder: (_, __) => const ShimmerCard(),
       );
     }
@@ -240,28 +241,23 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       );
     }
 
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        final int crossAxisCount = constraints.maxWidth >= 360 ? 3 : 2;
-        return GridView.builder(
-          padding: const EdgeInsets.fromLTRB(23, 28, 23, 24),
-          physics: const AlwaysScrollableScrollPhysics(),
-          itemCount: dishes.length,
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            mainAxisSpacing: 26,
-            crossAxisSpacing: 10,
-            childAspectRatio: 0.65,
-          ),
-          itemBuilder: (BuildContext context, int index) {
-            final Dish dish = dishes[index];
-            return _FavoriteDishCard(
-              dish: dish,
-              isRemoving: favoritesProvider.isUpdating(dish.id),
-              onFavoriteTap: () => _removeFavorite(dish),
-              onOpen: () => context.push('/recipe-detail/${dish.id}', extra: dish),
-            );
-          },
+    return GridView.builder(
+      padding: const EdgeInsets.fromLTRB(23, 28, 23, 24),
+      physics: const AlwaysScrollableScrollPhysics(),
+      itemCount: dishes.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisSpacing: 18,
+        crossAxisSpacing: 12,
+        childAspectRatio: 0.78,
+      ),
+      itemBuilder: (BuildContext context, int index) {
+        final Dish dish = dishes[index];
+        return _FavoriteDishCard(
+          dish: dish,
+          isRemoving: favoritesProvider.isUpdating(dish.id),
+          onFavoriteTap: () => _removeFavorite(dish),
+          onOpen: () => context.push('/recipe-detail/${dish.id}', extra: dish),
         );
       },
     );
@@ -274,6 +270,7 @@ class _FavoritesHeader extends StatelessWidget {
     required this.query,
     required this.hasActiveFilters,
     required this.onQueryChanged,
+    required this.onBackTap,
     required this.onSearchTap,
     required this.onFilterTap,
   });
@@ -282,6 +279,7 @@ class _FavoritesHeader extends StatelessWidget {
   final String query;
   final bool hasActiveFilters;
   final ValueChanged<String> onQueryChanged;
+  final VoidCallback onBackTap;
   final VoidCallback onSearchTap;
   final VoidCallback onFilterTap;
 
@@ -292,6 +290,13 @@ class _FavoritesHeader extends StatelessWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.only(top: 23, right: 12),
+              child: _HeaderIconButton(
+                icon: Icons.arrow_back,
+                onTap: onBackTap,
+              ),
+            ),
             Expanded(
               child: Text(
                 'Favorites',
@@ -436,7 +441,8 @@ class _FavoriteDishCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Expanded(
+          AspectRatio(
+            aspectRatio: 4 / 3,
             child: Stack(
               fit: StackFit.expand,
               children: <Widget>[
@@ -473,37 +479,39 @@ class _FavoriteDishCard extends StatelessWidget {
               ],
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(9, 8, 9, 9),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Text(
-                  dish.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.nunito(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                InkWell(
-                  onTap: onOpen,
-                  child: Text(
-                    'View recipe >',
+          SizedBox(
+            height: 62,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(9, 8, 9, 9),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    dish.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.nunito(
                       fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
                     ),
                   ),
-                ),
-              ],
+                  const Spacer(),
+                  InkWell(
+                    onTap: onOpen,
+                    child: Text(
+                      'View recipe >',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.nunito(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
