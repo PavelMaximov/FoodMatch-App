@@ -30,6 +30,7 @@ class SwipesScreen extends StatefulWidget {
 class _SwipesScreenState extends State<SwipesScreen> {
   final SwipeableStackController _swiperController = SwipeableStackController();
   bool _isOpeningPreSwipe = false;
+  bool _isCardActionInProgress = false;
 
   @override
   void initState() {
@@ -128,6 +129,54 @@ class _SwipesScreenState extends State<SwipesScreen> {
         context.push('/match-overlay', extra: swipedDish);
       }
     });
+  }
+
+  Future<void> _handleLike() async {
+    if (_isCardActionInProgress) {
+      return;
+    }
+    _isCardActionInProgress = true;
+    try {
+      _swiperController.swipeRight();
+    } finally {
+      _isCardActionInProgress = false;
+    }
+  }
+
+  Future<void> _handleDislike() async {
+    if (_isCardActionInProgress) {
+      return;
+    }
+    _isCardActionInProgress = true;
+    try {
+      _swiperController.swipeLeft();
+    } finally {
+      _isCardActionInProgress = false;
+    }
+  }
+
+  Future<void> _handleBack(SwipeProvider provider) async {
+    if (_isCardActionInProgress || !provider.canUndo) {
+      return;
+    }
+    _isCardActionInProgress = true;
+    try {
+      provider.undo();
+    } finally {
+      _isCardActionInProgress = false;
+    }
+  }
+
+  Future<void> _handleReload(SwipeProvider provider) async {
+    if (_isCardActionInProgress || provider.isLoading) {
+      return;
+    }
+    _isCardActionInProgress = true;
+    try {
+      await provider.loadDeck();
+    } finally {
+      _isCardActionInProgress = false;
+    }
   }
 
   @override
@@ -229,16 +278,20 @@ class _SwipesScreenState extends State<SwipesScreen> {
 
                     return SwipeableStack(
                       controller: _swiperController,
-                      key: ValueKey<int>(provider.currentIndex),
+                      key: ValueKey<int>(provider.deckVersion),
                       itemCount: provider.deck.length - provider.currentIndex,
                       cardBuilder: (BuildContext context, int index) {
                         final dish = provider.deck[provider.currentIndex + index];
                         return SwipeCardWidget(
                           dish: dish,
-                          onLike: provider.isLoading ? null : _swiperController.swipeRight,
-                          onDislike: provider.isLoading ? null : _swiperController.swipeLeft,
-                          onBack: provider.canUndo ? provider.undo : null,
-                          onRefresh: provider.isLoading ? null : provider.loadDeck,
+                          onLike: provider.isLoading || _isCardActionInProgress ? null : _handleLike,
+                          onDislike: provider.isLoading || _isCardActionInProgress ? null : _handleDislike,
+                          onBack: provider.canUndo && !_isCardActionInProgress
+                              ? () => _handleBack(provider)
+                              : null,
+                          onRefresh: provider.isLoading || _isCardActionInProgress
+                              ? null
+                              : () => _handleReload(provider),
                           showSeenBadge: provider.isSeenDish(dish.id),
                         );
                       },

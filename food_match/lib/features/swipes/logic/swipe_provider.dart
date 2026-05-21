@@ -29,6 +29,7 @@ class SwipeProvider extends ChangeNotifier {
   bool _isSendingSwipe = false;
   String? _activeUserId;
   bool _hasPreparedDeck = false;
+  int _deckVersion = 0;
 
   List<Dish> deck = <Dish>[];
   int currentIndex = 0;
@@ -44,6 +45,7 @@ class SwipeProvider extends ChangeNotifier {
   Dish? get lastSwipedDish => _lastSwipedDish;
   bool get canUndo => _lastSwipedDish != null && _lastSwipedIndex != null;
   bool get hasPreparedDeck => _hasPreparedDeck;
+  int get deckVersion => _deckVersion;
 
   bool isSeenDish(String dishId) => _seenDishIds.contains(dishId);
 
@@ -53,6 +55,7 @@ class SwipeProvider extends ChangeNotifier {
 
   void applyPreparedDeck(List<Dish> prepared, {Set<String> seenDishIds = const <String>{}}) {
     deck = prepared;
+    _deckVersion++;
     _seenDishIds = seenDishIds;
     _hasPreparedDeck = true;
     currentIndex = 0;
@@ -92,6 +95,7 @@ class SwipeProvider extends ChangeNotifier {
     }
 
     _seenDishIds = <String>{};
+    _deckVersion++;
     _hasPreparedDeck = false;
     currentIndex = 0;
     _lastSwipedDish = null;
