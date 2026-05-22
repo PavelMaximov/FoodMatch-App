@@ -23,6 +23,13 @@ class RecipesScreen extends StatefulWidget {
 
 enum MealTabType { breakfast, lunch, dinner, snack }
 
+bool matchesMealTab(Dish dish, MealTabType tab) {
+  final Set<String> tags = dish.tags.map((String e) => e.trim().toLowerCase()).toSet();
+  final String type = dish.type.trim().toLowerCase();
+  final String target = tab.name;
+  return tags.contains(target) || type == target;
+}
+
 class RecipeCategoryConfig {
   const RecipeCategoryConfig({
     required this.id,
@@ -62,10 +69,11 @@ class _RecipesScreenState extends State<RecipesScreen> {
 
     final DishRepository repository = context.read<DishRepository>();
     try {
-      final List<Dish> dishes = await repository.getDishes();
+      final List<Dish> dishes = await repository.getCatalogDishes();
       await context.read<FavoritesProvider>().loadFavorites();
       if (!mounted) return;
       setState(() => _allDishes = dishes);
+      debugPrint('[Recipes] loaded dishes=${dishes.length}');
       final List<List<String>> firstFiveTags =
           dishes.take(5).map((Dish dish) => dish.tags).toList();
       debugPrint('[Recipes] first5.tags=$firstFiveTags');
@@ -221,6 +229,9 @@ class _RecipesScreenState extends State<RecipesScreen> {
 
     final List<Dish> activePool = _buildActivePool(tab: null);
     final List<RecipeCategoryConfig> categories = _visibleCategories(activePool);
+    final int germanCount =
+        activePool.where((Dish d) => d.cuisine.trim().toLowerCase() == 'german').length;
+    debugPrint('[Recipes] German Favorites count=$germanCount');
     final List<Dish> preview = _previewRecipes(activePool);
 
     final Set<String> savedDishIds = context.watch<FavoritesProvider>().savedDishIds;
@@ -283,24 +294,9 @@ class _RecipesScreenState extends State<RecipesScreen> {
   List<Dish> _buildActivePool({required MealTabType? tab}) {
     final List<Dish> basePool = _filteredDishes;
     if (tab == null) return basePool;
-    final List<Dish> filtered = basePool.where((Dish dish) => _matchesMealTab(dish, tab)).toList();
+    final List<Dish> filtered = basePool.where((Dish dish) => matchesMealTab(dish, tab)).toList();
     debugPrint('[Recipes] mealTab=${tab.name} all=${basePool.length} filtered=${filtered.length}');
     return filtered;
-  }
-
-  bool _matchesMealTab(Dish dish, MealTabType tab) {
-    final Set<String> normalizedTags = dish.tags.map((String tag) => tag.trim().toLowerCase()).toSet();
-    final String type = dish.type.trim().toLowerCase();
-    switch (tab) {
-      case MealTabType.breakfast:
-        return normalizedTags.contains('breakfast') || type == 'breakfast';
-      case MealTabType.lunch:
-        return normalizedTags.contains('lunch');
-      case MealTabType.dinner:
-        return normalizedTags.contains('dinner');
-      case MealTabType.snack:
-        return normalizedTags.contains('snack') || type == 'snack';
-    }
   }
 
   void _openMealTabPage(MealTabType tab) {
@@ -784,7 +780,11 @@ class _RecipesMealTabResultPageState extends State<RecipesMealTabResultPage> {
         children: <Widget>[
           MealTabsBar(selected: _selectedTab, onSelected: (tab) => setState(() => _selectedTab = tab)),
           const SizedBox(height: 18),
-          if (visibleCategories.isNotEmpty) ...[
+          if (activePool.isEmpty) ...[
+            const EmptyState(icon: Icons.menu_book_outlined, title: 'No recipes found', subtitle: 'Try another meal tab or adjust filters.'),
+            const SizedBox(height: 16),
+          ] else ...[
+            if (visibleCategories.isNotEmpty) ...[
             Text('Popular Categories', style: GoogleFonts.nunito(fontSize: 22, fontWeight: FontWeight.w800)),
             const SizedBox(height: 10),
             PopularCategoriesGrid(
@@ -795,25 +795,22 @@ class _RecipesMealTabResultPageState extends State<RecipesMealTabResultPage> {
               },
             ),
             const SizedBox(height: 18),
-          ],
-          if (activePool.isEmpty) ...[
-            const EmptyState(icon: Icons.menu_book_outlined, title: 'No recipes found', subtitle: 'Try another meal tab or adjust filters.'),
-            const SizedBox(height: 16),
-          ],
-          Text('All Recipes', style: GoogleFonts.nunito(fontSize: 22, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 10),
-          SizedBox(
-            height: 270,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: preview.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 12),
-              itemBuilder: (_, i) {
-                final dish = preview[i];
-                return RecipeDishCard(dish: dish, isSaved: savedDishIds.contains(dish.id), onFavoriteTap: () => widget.onFavoriteTap(dish), layout: RecipeDishCardLayout.horizontal);
-              },
+            ],
+            Text('All Recipes', style: GoogleFonts.nunito(fontSize: 22, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 10),
+            SizedBox(
+              height: 270,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: preview.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                itemBuilder: (_, i) {
+                  final dish = preview[i];
+                  return RecipeDishCard(dish: dish, isSaved: savedDishIds.contains(dish.id), onFavoriteTap: () => widget.onFavoriteTap(dish), layout: RecipeDishCardLayout.horizontal);
+                },
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -821,18 +818,7 @@ class _RecipesMealTabResultPageState extends State<RecipesMealTabResultPage> {
 
   List<Dish> _buildActivePool() {
     final List<Dish> filtered = widget.allDishes.where((dish) {
-      final tags = dish.tags.map((e) => e.trim().toLowerCase()).toSet();
-      final type = dish.type.trim().toLowerCase();
-      switch (_selectedTab) {
-        case MealTabType.breakfast:
-          return tags.contains('breakfast') || type == 'breakfast';
-        case MealTabType.lunch:
-          return tags.contains('lunch');
-        case MealTabType.dinner:
-          return tags.contains('dinner');
-        case MealTabType.snack:
-          return tags.contains('snack') || type == 'snack';
-      }
+      return matchesMealTab(dish, _selectedTab);
     }).toList();
     debugPrint('[Recipes] mealTab=${_selectedTab.name} all=${widget.allDishes.length} filtered=${filtered.length}');
     return filtered;
