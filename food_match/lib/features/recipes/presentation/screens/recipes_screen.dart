@@ -66,6 +66,9 @@ class _RecipesScreenState extends State<RecipesScreen> {
       await context.read<FavoritesProvider>().loadFavorites();
       if (!mounted) return;
       setState(() => _allDishes = dishes);
+      final List<List<String>> firstFiveTags =
+          dishes.take(5).map((Dish dish) => dish.tags).toList();
+      debugPrint('[Recipes] first5.tags=$firstFiveTags');
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = e.toString());
@@ -304,7 +307,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => RecipesMealTabResultPage(
-          allDishes: _filteredDishes,
+          allDishes: _allDishes,
           initialTab: tab,
           onFavoriteTap: _toggleSaved,
           onSearchTap: _openSearch,
