@@ -726,8 +726,8 @@ class RecipeDishCard extends StatelessWidget {
               ),
             ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }
