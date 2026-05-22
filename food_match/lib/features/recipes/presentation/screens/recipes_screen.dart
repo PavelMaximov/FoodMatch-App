@@ -9,16 +9,32 @@ import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/utils/image_utils.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../data/repositories/dish_repository.dart';
-import '../../../favorites/logic/favorites_provider.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
+import '../../../favorites/logic/favorites_provider.dart';
 
 class RecipesScreen extends StatefulWidget {
   const RecipesScreen({super.key});
 
   @override
   State<RecipesScreen> createState() => _RecipesScreenState();
+}
+
+enum MealTabType { breakfast, lunch, dinner, snack }
+
+class RecipeCategoryConfig {
+  const RecipeCategoryConfig({
+    required this.id,
+    required this.title,
+    required this.assetName,
+    required this.filter,
+  });
+
+  final String id;
+  final String title;
+  final String assetName;
+  final bool Function(Dish dish) filter;
 }
 
 class _RecipesScreenState extends State<RecipesScreen> {
@@ -30,6 +46,8 @@ class _RecipesScreenState extends State<RecipesScreen> {
   final Set<String> _selectedMoods = <String>{};
   final Set<String> _selectedDiet = <String>{};
   final Set<String> _selectedTypes = <String>{};
+
+  MealTabType? _selectedMealTab;
 
   @override
   void initState() {
@@ -44,20 +62,13 @@ class _RecipesScreenState extends State<RecipesScreen> {
     });
 
     final DishRepository repository = context.read<DishRepository>();
-
     try {
       final List<Dish> dishes = await repository.getDishes();
       await context.read<FavoritesProvider>().loadFavorites();
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _allDishes = dishes;
-      });
+      if (!mounted) return;
+      setState(() => _allDishes = dishes);
     } catch (e) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       setState(() => _error = e.toString());
     } finally {
       if (mounted) {
@@ -68,14 +79,10 @@ class _RecipesScreenState extends State<RecipesScreen> {
 
   Future<void> _toggleSaved(Dish dish) async {
     await context.read<FavoritesProvider>().toggleFavorite(dish);
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
     final String? error = context.read<FavoritesProvider>().error;
     if (error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error)),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
     }
   }
 
@@ -95,9 +102,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
         onFavoriteTap: _toggleSaved,
       ),
     ).then((Dish? selected) {
-      if (selected == null || !mounted) {
-        return;
-      }
+      if (selected == null || !mounted) return;
       context.push('/recipe-detail/${selected.id}', extra: selected);
     });
   }
@@ -122,9 +127,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
       ),
     );
 
-    if (next == null || !mounted) {
-      return;
-    }
+    if (next == null || !mounted) return;
 
     setState(() {
       _selectedCuisines
@@ -144,8 +147,6 @@ class _RecipesScreenState extends State<RecipesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final FavoritesProvider favoritesProvider = context.watch<FavoritesProvider>();
-
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -212,20 +213,15 @@ class _RecipesScreenState extends State<RecipesScreen> {
     if (_error != null && _allDishes.isEmpty) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        children: <Widget>[
-          SizedBox(
-            height: 420,
-            child: ErrorState(
-              message: _error!,
-              onRetry: _loadData,
-            ),
-          ),
-        ],
+        children: <Widget>[SizedBox(height: 420, child: ErrorState(message: _error!, onRetry: _loadData))],
       );
     }
 
-    final Map<String, List<Dish>> grouped = _groupByCuisine(_filteredDishes);
-    if (grouped.isEmpty) {
+    final List<Dish> activePool = _buildActivePool();
+    final List<RecipeCategoryConfig> categories = _visibleCategories(activePool);
+    final List<Dish> preview = _previewRecipes(activePool);
+
+    if (activePool.isEmpty) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         children: const <Widget>[
@@ -239,28 +235,118 @@ class _RecipesScreenState extends State<RecipesScreen> {
       );
     }
 
-    final List<MapEntry<String, List<Dish>>> sections = grouped.entries.toList()
-      ..sort((MapEntry<String, List<Dish>> a, MapEntry<String, List<Dish>> b) =>
-          a.key.toLowerCase().compareTo(b.key.toLowerCase()));
+    final Set<String> savedDishIds = context.watch<FavoritesProvider>().savedDishIds;
 
-          final favoritesProvider = context.watch<FavoritesProvider>();
-
-    return ListView.builder(
-      padding: const EdgeInsets.only(bottom: 12),
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
       physics: const AlwaysScrollableScrollPhysics(),
-      itemCount: sections.length,
-      itemBuilder: (BuildContext context, int index) {
-        final MapEntry<String, List<Dish>> section = sections[index];
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 18),
-          child: _CuisineSection(
-            title: section.key,
-            dishes: section.value,
-            savedDishIds: favoritesProvider.savedDishIds,
-            onFavoriteTap: _toggleSaved,
+      children: <Widget>[
+        MealTabsBar(
+          selected: _selectedMealTab,
+          onSelected: (MealTabType tab) {
+            setState(() {
+              _selectedMealTab = _selectedMealTab == tab ? null : tab;
+            });
+          },
+        ),
+        const SizedBox(height: 18),
+        if (categories.isNotEmpty) ...<Widget>[
+          Text('Popular Categories', style: GoogleFonts.nunito(fontSize: 22, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 10),
+          PopularCategoriesGrid(categories: categories, onTap: _openCategory),
+          const SizedBox(height: 18),
+        ],
+        GestureDetector(
+          onTap: _openAllRecipes,
+          child: Row(
+            children: <Widget>[
+              Text('All Recipes', style: GoogleFonts.nunito(fontSize: 22, fontWeight: FontWeight.w800)),
+              const Text(' >', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            ],
           ),
-        );
-      },
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 270,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: preview.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (_, int index) {
+              final Dish dish = preview[index];
+              return RecipeDishCard(
+                dish: dish,
+                isSaved: savedDishIds.contains(dish.id),
+                onFavoriteTap: () => _toggleSaved(dish),
+                layout: RecipeDishCardLayout.horizontal,
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<Dish> _buildActivePool() {
+    final List<Dish> basePool = _filteredDishes;
+    if (_selectedMealTab == null) return basePool;
+    return basePool.where((Dish dish) => _matchesMealTab(dish, _selectedMealTab!)).toList();
+  }
+
+  bool _matchesMealTab(Dish dish, MealTabType tab) {
+    // NOTE: Flutter Dish model only exposes tags as List<String>; no typed {name,type} structure.
+    final Set<String> tags = dish.tags.map((String t) => t.trim().toLowerCase()).toSet();
+    return tags.contains(tab.name);
+  }
+
+  List<RecipeCategoryConfig> _visibleCategories(List<Dish> activePool) {
+    return _categoryConfigs.where((RecipeCategoryConfig c) => _categoryPool(c, activePool).isNotEmpty).toList();
+  }
+
+  List<Dish> _categoryPool(RecipeCategoryConfig category, List<Dish> activePool) {
+    return activePool.where(category.filter).toList();
+  }
+
+  List<Dish> _sortedRecipes(List<Dish> pool) {
+    final List<Dish> sorted = List<Dish>.from(pool);
+    sorted.sort((Dish a, Dish b) {
+      final int pop = (b.popular ? 1 : 0) - (a.popular ? 1 : 0);
+      if (pop != 0) return pop;
+      return b.qualityScore.compareTo(a.qualityScore);
+    });
+    return sorted;
+  }
+
+  List<Dish> _previewRecipes(List<Dish> pool) => _sortedRecipes(pool).take(10).toList();
+
+  void _openCategory(RecipeCategoryConfig category) {
+    final List<Dish> activePool = _buildActivePool();
+    final List<Dish> dishes = _sortedRecipes(_categoryPool(category, activePool));
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => RecipeResultsPage(
+          title: category.title,
+          dishes: dishes,
+          onFavoriteTap: _toggleSaved,
+          onSearchTap: _openSearch,
+          onFilterTap: _openFilters,
+        ),
+      ),
+    );
+  }
+
+  void _openAllRecipes() {
+    final List<Dish> dishes = _sortedRecipes(_buildActivePool());
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => RecipeResultsPage(
+          title: 'All Recipes',
+          dishes: dishes,
+          onFavoriteTap: _toggleSaved,
+          onSearchTap: _openSearch,
+          onFilterTap: _openFilters,
+        ),
+      ),
     );
   }
 
@@ -271,28 +357,83 @@ class _RecipesScreenState extends State<RecipesScreen> {
       final Set<String> mood = dish.mood.map(_normalizeLabel).where((String value) => value.isNotEmpty).toSet();
       final Set<String> diet = dish.diet.map(_normalizeLabel).where((String value) => value.isNotEmpty).toSet();
 
-      if (_selectedCuisines.isNotEmpty && !_selectedCuisines.contains(cuisine)) {
-        return false;
-      }
-      if (_selectedMoods.isNotEmpty && mood.intersection(_selectedMoods).isEmpty) {
-        return false;
-      }
-      if (_selectedDiet.isNotEmpty && diet.intersection(_selectedDiet).isEmpty) {
-        return false;
-      }
-      if (_selectedTypes.isNotEmpty && !_selectedTypes.contains(type)) {
-        return false;
-      }
+      if (_selectedCuisines.isNotEmpty && !_selectedCuisines.contains(cuisine)) return false;
+      if (_selectedMoods.isNotEmpty && mood.intersection(_selectedMoods).isEmpty) return false;
+      if (_selectedDiet.isNotEmpty && diet.intersection(_selectedDiet).isEmpty) return false;
+      if (_selectedTypes.isNotEmpty && !_selectedTypes.contains(type)) return false;
       return true;
-    }).toList()
-      ..sort((Dish a, Dish b) {
-        final int byName = a.name.toLowerCase().compareTo(b.name.toLowerCase());
-        if (byName != 0) {
-          return byName;
-        }
-        return a.id.compareTo(b.id);
-      });
+    }).toList();
   }
+
+  List<RecipeCategoryConfig> get _categoryConfigs => <RecipeCategoryConfig>[
+        RecipeCategoryConfig(
+          id: 'quick_easy',
+          title: 'Quick & Easy',
+          assetName: 'Quick & Easy.svg',
+          filter: (Dish d) => d.effort.trim().toLowerCase() == 'easy' && d.cookTime <= 30,
+        ),
+        RecipeCategoryConfig(
+          id: 'comfort_food',
+          title: 'Comfort Food',
+          assetName: 'Comfort Food.svg',
+          filter: (Dish d) => d.mood.map((e) => e.toLowerCase()).contains('comfort'),
+        ),
+        RecipeCategoryConfig(
+          id: 'healthy_choices',
+          title: 'Healthy Choices',
+          assetName: 'Healthy Choices.svg',
+          filter: (Dish d) {
+            final Set<String> mood = d.mood.map((e) => e.toLowerCase()).toSet();
+            final String calories = d.calories.trim().toLowerCase();
+            return mood.contains('healthy') || calories == 'low' || calories.contains('low');
+          },
+        ),
+        RecipeCategoryConfig(
+          id: 'party_snacks',
+          title: 'Party Snacks',
+          assetName: 'Party Snacks.svg',
+          filter: (Dish d) => d.type.toLowerCase() == 'snack' && d.mood.map((e) => e.toLowerCase()).contains('festive'),
+        ),
+        RecipeCategoryConfig(
+          id: 'under_30',
+          title: 'Under 30 Minutes',
+          assetName: 'Under 30 Minutes.svg',
+          filter: (Dish d) => d.cookTime < 30,
+        ),
+        RecipeCategoryConfig(
+          id: 'five_ingredients',
+          title: '5 Ingredients',
+          assetName: '5 Ingredients.svg',
+          filter: (Dish d) {
+            if (d.sections.isNotEmpty) return d.sections.first.components.length <= 5;
+            return d.ingredients.length <= 5;
+          },
+        ),
+        RecipeCategoryConfig(id: 'popular', title: 'Most Popular', assetName: 'Most Popular.svg', filter: (Dish d) => d.popular),
+        RecipeCategoryConfig(
+          id: 'vegetarian',
+          title: 'Vegetarian',
+          assetName: 'Vegetarian.svg',
+          filter: (Dish d) => d.diet.map((e) => e.toLowerCase()).contains('vegetarian'),
+        ),
+        RecipeCategoryConfig(id: 'soups', title: 'Soups', assetName: 'Soups.svg', filter: (Dish d) => d.type.toLowerCase() == 'soup'),
+        RecipeCategoryConfig(id: 'desserts', title: 'Desserts', assetName: 'Desserts.svg', filter: (Dish d) => d.type.toLowerCase() == 'dessert'),
+        RecipeCategoryConfig(
+          id: 'german',
+          title: 'German Favourites',
+          assetName: 'German Favourites.svg',
+          filter: (Dish d) => d.cuisine.toLowerCase() == 'german',
+        ),
+        RecipeCategoryConfig(
+          id: 'asian',
+          title: 'Asian Flavours',
+          assetName: 'Asian Flavours.svg',
+          filter: (Dish d) {
+            final String cuisine = d.cuisine.toLowerCase();
+            return cuisine == 'asian' || cuisine == 'japanese';
+          },
+        ),
+      ];
 
   List<String> get _availableCuisines => _collectOptions((Dish dish) => <String>[dish.cuisine]);
   List<String> get _availableMoods => _collectOptions((Dish dish) => dish.mood);
@@ -304,35 +445,16 @@ class _RecipesScreenState extends State<RecipesScreen> {
     for (final Dish dish in _allDishes) {
       for (final String raw in extractor(dish)) {
         final String normalized = _normalizeLabel(raw);
-        if (normalized.isNotEmpty) {
-          values.add(normalized);
-        }
+        if (normalized.isNotEmpty) values.add(normalized);
       }
     }
-    final List<String> sorted = values.toList()..sort((String a, String b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    final List<String> sorted = values.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
     return sorted;
-  }
-
-  Map<String, List<Dish>> _groupByCuisine(List<Dish> dishes) {
-    final Map<String, List<Dish>> grouped = <String, List<Dish>>{};
-    for (final Dish dish in dishes) {
-      final String cuisine = _normalizeLabel(dish.cuisine);
-      final String key = cuisine.isEmpty ? 'Other' : cuisine;
-      grouped.putIfAbsent(key, () => <Dish>[]).add(dish);
-    }
-
-    for (final List<Dish> group in grouped.values) {
-      group.sort((Dish a, Dish b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
-    }
-
-    return grouped;
   }
 
   String _normalizeLabel(String value) {
     final String trimmed = value.trim();
-    if (trimmed.isEmpty) {
-      return '';
-    }
+    if (trimmed.isEmpty) return '';
     final String lower = trimmed.toLowerCase().replaceAll('_', ' ');
     return lower
         .split(RegExp(r'\s+'))
@@ -342,73 +464,138 @@ class _RecipesScreenState extends State<RecipesScreen> {
   }
 }
 
-class _CuisineSection extends StatelessWidget {
-  const _CuisineSection({
-    required this.title,
-    required this.dishes,
-    required this.savedDishIds,
-    required this.onFavoriteTap,
-  });
+class MealTabsBar extends StatelessWidget {
+  const MealTabsBar({super.key, required this.selected, required this.onSelected});
 
-  final String title;
-  final List<Dish> dishes;
-  final Set<String> savedDishIds;
-  final Future<void> Function(Dish) onFavoriteTap;
+  final MealTabType? selected;
+  final ValueChanged<MealTabType> onSelected;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Text(
-            title,
-            style: GoogleFonts.nunito(
-              fontSize: 24,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
+    return SizedBox(
+      height: 46,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: MealTabType.values.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (_, int index) {
+          final MealTabType tab = MealTabType.values[index];
+          final bool isActive = selected == tab;
+          return GestureDetector(
+            onTap: () => onSelected(tab),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: isActive ? AppColors.primary : const Color(0xFFE2DBD8), width: 1.6),
+              ),
+              child: Row(
+                children: <Widget>[
+                  Icon(_iconForTab(tab), size: 18, color: AppColors.textPrimary),
+                  const SizedBox(width: 6),
+                  Text(_labelForTab(tab), style: GoogleFonts.nunito(fontSize: 14, fontWeight: FontWeight.w700)),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  String _labelForTab(MealTabType tab) {
+    switch (tab) {
+      case MealTabType.breakfast:
+        return 'Breakfast';
+      case MealTabType.lunch:
+        return 'Lunch';
+      case MealTabType.dinner:
+        return 'Dinner';
+      case MealTabType.snack:
+        return 'Snack';
+    }
+  }
+
+  IconData _iconForTab(MealTabType tab) {
+    switch (tab) {
+      case MealTabType.breakfast:
+        return Icons.free_breakfast;
+      case MealTabType.lunch:
+        return Icons.lunch_dining;
+      case MealTabType.dinner:
+        return Icons.dinner_dining;
+      case MealTabType.snack:
+        return Icons.cookie;
+    }
+  }
+}
+
+class PopularCategoriesGrid extends StatelessWidget {
+  const PopularCategoriesGrid({super.key, required this.categories, required this.onTap});
+
+  final List<RecipeCategoryConfig> categories;
+  final ValueChanged<RecipeCategoryConfig> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: categories.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 1.75,
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 10,
+      ),
+      itemBuilder: (_, int index) {
+        final RecipeCategoryConfig category = categories[index];
+        return GestureDetector(
+          onTap: () => onTap(category),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              gradient: const LinearGradient(colors: <Color>[Color(0xFFF08741), Color(0xFFE45D30)]),
+            ),
+            padding: const EdgeInsets.all(12),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                category.title,
+                style: GoogleFonts.nunito(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800),
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 10),
-        SizedBox(
-          height: 248,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: dishes.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
-            itemBuilder: (BuildContext context, int index) {
-              final Dish dish = dishes[index];
-              return _RecipeCard(
-                dish: dish,
-                isSaved: savedDishIds.contains(dish.id),
-                onFavoriteTap: () => onFavoriteTap(dish),
-              );
-            },
-          ),
-        ),
-      ],
+        );
+      },
     );
   }
 }
 
-class _RecipeCard extends StatelessWidget {
-  const _RecipeCard({
+enum RecipeDishCardLayout { horizontal, grid }
+
+class RecipeDishCard extends StatelessWidget {
+  const RecipeDishCard({
+    super.key,
     required this.dish,
     required this.isSaved,
     required this.onFavoriteTap,
+    required this.layout,
   });
 
   final Dish dish;
   final bool isSaved;
   final VoidCallback onFavoriteTap;
+  final RecipeDishCardLayout layout;
 
   @override
   Widget build(BuildContext context) {
+    final bool isGrid = layout == RecipeDishCardLayout.grid;
+    final double cardWidth = isGrid ? double.infinity : 178;
+
     return SizedBox(
-      width: 178,
+      width: cardWidth,
       child: Card(
         elevation: 0,
         color: AppColors.surface,
@@ -424,9 +611,8 @@ class _RecipeCard extends StatelessWidget {
             children: <Widget>[
               Stack(
                 children: <Widget>[
-                  SizedBox(
-                    height: 128,
-                    width: double.infinity,
+                  AspectRatio(
+                    aspectRatio: 1,
                     child: CachedNetworkImage(
                       imageUrl: ImageUtils.getImageUrl(dish.imageUrl),
                       fit: BoxFit.cover,
@@ -438,7 +624,7 @@ class _RecipeCard extends StatelessWidget {
                   ),
                   Positioned(
                     top: 8,
-                    left: 8,
+                    right: 8,
                     child: Material(
                       color: Colors.black.withValues(alpha: 0.28),
                       shape: const CircleBorder(),
@@ -464,31 +650,37 @@ class _RecipeCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      SizedBox(
-                        height: 22,
-                        child: Text(
-                          dish.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.nunito(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.textPrimary,
+                      Text(
+                        dish.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: <Widget>[
+                          const Icon(Icons.schedule, size: 14, color: AppColors.textSecondary),
+                          const SizedBox(width: 4),
+                          Text('${dish.cookTime} min', style: GoogleFonts.nunito(fontSize: 12, color: AppColors.textSecondary)),
+                          const SizedBox(width: 10),
+                          const Icon(Icons.people_alt_outlined, size: 14, color: AppColors.textSecondary),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              '${dish.servings} servings',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.nunito(fontSize: 12, color: AppColors.textSecondary),
+                            ),
                           ),
-                        ),
+                        ],
                       ),
                       const Spacer(),
                       GestureDetector(
                         onTap: () => context.push('/recipe-detail/${dish.id}', extra: dish),
                         child: Text(
                           'View recipe >',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.nunito(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.primary,
-                          ),
+                          style: GoogleFonts.nunito(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primary),
                         ),
                       ),
                     ],
@@ -503,12 +695,66 @@ class _RecipeCard extends StatelessWidget {
   }
 }
 
-class _HeaderIconButton extends StatelessWidget {
-  const _HeaderIconButton({
-    required this.icon,
-    required this.onTap,
-    this.isActive = false,
+class RecipeResultsPage extends StatelessWidget {
+  const RecipeResultsPage({
+    super.key,
+    required this.title,
+    required this.dishes,
+    required this.onFavoriteTap,
+    required this.onSearchTap,
+    required this.onFilterTap,
   });
+
+  final String title;
+  final List<Dish> dishes;
+  final Future<void> Function(Dish) onFavoriteTap;
+  final VoidCallback onSearchTap;
+  final Future<void> Function() onFilterTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final Set<String> savedDishIds = context.watch<FavoritesProvider>().savedDishIds;
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        elevation: 0,
+        title: Text(title, style: GoogleFonts.nunito(fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        actions: <Widget>[
+          IconButton(onPressed: onSearchTap, icon: const Icon(Icons.search, color: AppColors.textPrimary)),
+          IconButton(onPressed: onFilterTap, icon: const Icon(Icons.tune, color: AppColors.textPrimary)),
+        ],
+      ),
+      body: GridView.builder(
+        padding: const EdgeInsets.all(16),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          childAspectRatio: 0.64,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+        ),
+        itemCount: dishes.length,
+        itemBuilder: (_, int index) {
+          final Dish dish = dishes[index];
+          return RecipeDishCard(
+            dish: dish,
+            isSaved: savedDishIds.contains(dish.id),
+            onFavoriteTap: () => onFavoriteTap(dish),
+            layout: RecipeDishCardLayout.grid,
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _HeaderIconButton extends StatelessWidget {
+  const _HeaderIconButton({required this.icon, required this.onTap, this.isActive = false});
 
   final IconData icon;
   final VoidCallback onTap;
@@ -605,11 +851,8 @@ class _SavedDishTile extends StatelessWidget {
 }
 
 class _RecipeSearchDelegate extends SearchDelegate<Dish?> {
-  _RecipeSearchDelegate({
-    required List<Dish> dishes,
-    required Set<String> savedDishIds,
-    required this.onFavoriteTap,
-  })  : _dishes = dishes,
+  _RecipeSearchDelegate({required List<Dish> dishes, required Set<String> savedDishIds, required this.onFavoriteTap})
+      : _dishes = dishes,
         _savedDishIds = savedDishIds;
 
   final List<Dish> _dishes;
@@ -630,21 +873,12 @@ class _RecipeSearchDelegate extends SearchDelegate<Dish?> {
 
   @override
   List<Widget>? buildActions(BuildContext context) {
-    return <Widget>[
-      if (query.isNotEmpty)
-        IconButton(
-          onPressed: () => query = '',
-          icon: const Icon(Icons.close),
-        ),
-    ];
+    return <Widget>[if (query.isNotEmpty) IconButton(onPressed: () => query = '', icon: const Icon(Icons.close))];
   }
 
   @override
   Widget? buildLeading(BuildContext context) {
-    return IconButton(
-      onPressed: () => close(context, null),
-      icon: const Icon(Icons.arrow_back),
-    );
+    return IconButton(onPressed: () => close(context, null), icon: const Icon(Icons.arrow_back));
   }
 
   @override
@@ -655,20 +889,12 @@ class _RecipeSearchDelegate extends SearchDelegate<Dish?> {
 
   Widget _buildList() {
     final String q = query.trim().toLowerCase();
-    final List<Dish> results = q.isEmpty
-        ? _dishes
-        : _dishes
-            .where((Dish dish) => dish.name.toLowerCase().contains(q))
-            .toList()
+    final List<Dish> results = q.isEmpty ? _dishes : _dishes.where((Dish dish) => dish.name.toLowerCase().contains(q)).toList()
       ..sort((Dish a, Dish b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
     if (results.isEmpty) {
       return const Center(
-        child: EmptyState(
-          icon: Icons.search_off,
-          title: 'No dishes found',
-          subtitle: 'Try another dish name',
-        ),
+        child: EmptyState(icon: Icons.search_off, title: 'No dishes found', subtitle: 'Try another dish name'),
       );
     }
 
@@ -753,51 +979,21 @@ class _FilterSheetState extends State<_FilterSheet> {
               child: Container(
                 width: 46,
                 height: 5,
-                decoration: BoxDecoration(
-                  color: Colors.black12,
-                  borderRadius: BorderRadius.circular(999),
-                ),
+                decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(999)),
               ),
             ),
             const SizedBox(height: 12),
-            Text(
-              'Filter recipes',
-              style: GoogleFonts.nunito(
-                fontSize: 24,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
-              ),
-            ),
+            Text('Filter recipes', style: GoogleFonts.nunito(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
             const SizedBox(height: 12),
             Expanded(
               child: SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    _FilterGroup(
-                      title: 'Cuisine',
-                      options: widget.cuisines,
-                      selected: _cuisines,
-                      onToggle: (String value) => _toggle(_cuisines, value),
-                    ),
-                    _FilterGroup(
-                      title: 'Mood',
-                      options: widget.moods,
-                      selected: _moods,
-                      onToggle: (String value) => _toggle(_moods, value),
-                    ),
-                    _FilterGroup(
-                      title: 'Diet',
-                      options: widget.diet,
-                      selected: _diet,
-                      onToggle: (String value) => _toggle(_diet, value),
-                    ),
-                    _FilterGroup(
-                      title: 'Tags',
-                      options: widget.types,
-                      selected: _types,
-                      onToggle: (String value) => _toggle(_types, value),
-                    ),
+                    _FilterGroup(title: 'Cuisine', options: widget.cuisines, selected: _cuisines, onToggle: (v) => _toggle(_cuisines, v)),
+                    _FilterGroup(title: 'Mood', options: widget.moods, selected: _moods, onToggle: (v) => _toggle(_moods, v)),
+                    _FilterGroup(title: 'Diet', options: widget.diet, selected: _diet, onToggle: (v) => _toggle(_diet, v)),
+                    _FilterGroup(title: 'Tags', options: widget.types, selected: _types, onToggle: (v) => _toggle(_types, v)),
                   ],
                 ),
               ),
@@ -818,16 +1014,9 @@ class _FilterSheetState extends State<_FilterSheet> {
                 ),
                 const Spacer(),
                 ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(context).pop(
-                      _FilterSelection(
-                        cuisines: _cuisines,
-                        moods: _moods,
-                        diet: _diet,
-                        types: _types,
-                      ),
-                    );
-                  },
+                  onPressed: () => Navigator.of(context).pop(
+                    _FilterSelection(cuisines: _cuisines, moods: _moods, diet: _diet, types: _types),
+                  ),
                   child: const Text('Apply'),
                 ),
               ],
@@ -850,12 +1039,7 @@ class _FilterSheetState extends State<_FilterSheet> {
 }
 
 class _FilterGroup extends StatelessWidget {
-  const _FilterGroup({
-    required this.title,
-    required this.options,
-    required this.selected,
-    required this.onToggle,
-  });
+  const _FilterGroup({required this.title, required this.options, required this.selected, required this.onToggle});
 
   final String title;
   final List<String> options;
@@ -864,23 +1048,14 @@ class _FilterGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (options.isEmpty) {
-      return const SizedBox.shrink();
-    }
+    if (options.isEmpty) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(
-            title,
-            style: GoogleFonts.nunito(
-              fontSize: 17,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-            ),
-          ),
+          Text(title, style: GoogleFonts.nunito(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -894,9 +1069,7 @@ class _FilterGroup extends StatelessWidget {
                 showCheckmark: false,
                 backgroundColor: Colors.white,
                 selectedColor: const Color(0xFFFFEFE7),
-                side: BorderSide(
-                  color: isSelected ? AppColors.primary : const Color(0xFFE0D8D5),
-                ),
+                side: BorderSide(color: isSelected ? AppColors.primary : const Color(0xFFE0D8D5)),
               );
             }).toList(),
           ),
