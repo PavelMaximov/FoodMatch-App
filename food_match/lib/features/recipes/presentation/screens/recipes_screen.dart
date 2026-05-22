@@ -159,12 +159,26 @@ class _RecipesScreenState extends State<RecipesScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Expanded(
-                    child: Text(
-                      'Recipes',
-                      style: GoogleFonts.pacifico(
-                        fontSize: 36,
-                        color: AppColors.textPrimary,
-                      ),
+                    child: Row(
+                      children: <Widget>[
+                        if (_selectedMealTab != null)
+                          IconButton(
+                            onPressed: () => setState(() => _selectedMealTab = null),
+                            icon: const Icon(Icons.arrow_back),
+                            color: AppColors.textPrimary,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                          ),
+                        Expanded(
+                          child: Text(
+                            'Recipes',
+                            style: GoogleFonts.pacifico(
+                              fontSize: 36,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   Row(
@@ -221,20 +235,6 @@ class _RecipesScreenState extends State<RecipesScreen> {
     final List<RecipeCategoryConfig> categories = _visibleCategories(activePool);
     final List<Dish> preview = _previewRecipes(activePool);
 
-    if (activePool.isEmpty) {
-      return ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        children: const <Widget>[
-          SizedBox(height: 120),
-          EmptyState(
-            icon: Icons.menu_book_outlined,
-            title: 'No recipes found',
-            subtitle: 'Try clearing filters or searching another dish name',
-          ),
-        ],
-      );
-    }
-
     final Set<String> savedDishIds = context.watch<FavoritesProvider>().savedDishIds;
 
     return ListView(
@@ -255,6 +255,15 @@ class _RecipesScreenState extends State<RecipesScreen> {
           const SizedBox(height: 10),
           PopularCategoriesGrid(categories: categories, onTap: _openCategory),
           const SizedBox(height: 18),
+        ],
+        if (activePool.isEmpty) ...<Widget>[
+          const SizedBox(height: 24),
+          const EmptyState(
+            icon: Icons.menu_book_outlined,
+            title: 'No recipes found',
+            subtitle: 'No dishes match the selected meal tab and filters.',
+          ),
+          const SizedBox(height: 20),
         ],
         GestureDetector(
           onTap: _openAllRecipes,
@@ -290,7 +299,12 @@ class _RecipesScreenState extends State<RecipesScreen> {
   List<Dish> _buildActivePool() {
     final List<Dish> basePool = _filteredDishes;
     if (_selectedMealTab == null) return basePool;
-    return basePool.where((Dish dish) => _matchesMealTab(dish, _selectedMealTab!)).toList();
+    final List<Dish> filtered =
+        basePool.where((Dish dish) => _matchesMealTab(dish, _selectedMealTab!)).toList();
+    debugPrint(
+      '[RecipesScreen] Meal tab=${_selectedMealTab!.name} basePool=${basePool.length} activePool=${filtered.length}',
+    );
+    return filtered;
   }
 
   bool _matchesMealTab(Dish dish, MealTabType tab) {
@@ -420,9 +434,9 @@ class _RecipesScreenState extends State<RecipesScreen> {
         RecipeCategoryConfig(id: 'desserts', title: 'Desserts', assetName: 'Desserts.svg', filter: (Dish d) => d.type.toLowerCase() == 'dessert'),
         RecipeCategoryConfig(
           id: 'german',
-          title: 'German Favourites',
+          title: 'German Favorites',
           assetName: 'German Favourites.svg',
-          filter: (Dish d) => d.cuisine.toLowerCase() == 'german',
+          filter: (Dish d) => d.cuisine.trim().toLowerCase() == 'german',
         ),
         RecipeCategoryConfig(
           id: 'asian',
@@ -556,15 +570,28 @@ class PopularCategoriesGrid extends StatelessWidget {
           child: Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              gradient: const LinearGradient(colors: <Color>[Color(0xFFF08741), Color(0xFFE45D30)]),
+              border: Border.all(color: const Color(0xFFE4DEDB)),
+              color: Colors.white,
             ),
             padding: const EdgeInsets.all(12),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                category.title,
-                style: GoogleFonts.nunito(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800),
-              ),
+            child: Stack(
+              children: <Widget>[
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      color: Colors.transparent,
+                    ),
+                  ),
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    category.title,
+                    style: GoogleFonts.nunito(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ],
             ),
           ),
         );
@@ -652,7 +679,7 @@ class RecipeDishCard extends StatelessWidget {
                     children: <Widget>[
                       Text(
                         dish.name,
-                        maxLines: 2,
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
                       ),
@@ -687,10 +714,10 @@ class RecipeDishCard extends StatelessWidget {
                   ),
                 ),
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
