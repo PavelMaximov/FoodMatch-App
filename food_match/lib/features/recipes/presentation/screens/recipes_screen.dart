@@ -47,7 +47,6 @@ class _RecipesScreenState extends State<RecipesScreen> {
   final Set<String> _selectedDiet = <String>{};
   final Set<String> _selectedTypes = <String>{};
 
-  MealTabType? _selectedMealTab;
 
   @override
   void initState() {
@@ -159,26 +158,12 @@ class _RecipesScreenState extends State<RecipesScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Expanded(
-                    child: Row(
-                      children: <Widget>[
-                        if (_selectedMealTab != null)
-                          IconButton(
-                            onPressed: () => setState(() => _selectedMealTab = null),
-                            icon: const Icon(Icons.arrow_back),
-                            color: AppColors.textPrimary,
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                          ),
-                        Expanded(
-                          child: Text(
-                            'Recipes',
-                            style: GoogleFonts.pacifico(
-                              fontSize: 36,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      'Recipes',
+                      style: GoogleFonts.pacifico(
+                        fontSize: 36,
+                        color: AppColors.textPrimary,
+                      ),
                     ),
                   ),
                   Row(
@@ -231,7 +216,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
       );
     }
 
-    final List<Dish> activePool = _buildActivePool();
+    final List<Dish> activePool = _buildActivePool(tab: null);
     final List<RecipeCategoryConfig> categories = _visibleCategories(activePool);
     final List<Dish> preview = _previewRecipes(activePool);
 
@@ -242,12 +227,8 @@ class _RecipesScreenState extends State<RecipesScreen> {
       physics: const AlwaysScrollableScrollPhysics(),
       children: <Widget>[
         MealTabsBar(
-          selected: _selectedMealTab,
-          onSelected: (MealTabType tab) {
-            setState(() {
-              _selectedMealTab = _selectedMealTab == tab ? null : tab;
-            });
-          },
+          selected: null,
+          onSelected: _openMealTabPage,
         ),
         const SizedBox(height: 18),
         if (categories.isNotEmpty) ...<Widget>[
@@ -296,21 +277,42 @@ class _RecipesScreenState extends State<RecipesScreen> {
     );
   }
 
-  List<Dish> _buildActivePool() {
+  List<Dish> _buildActivePool({required MealTabType? tab}) {
     final List<Dish> basePool = _filteredDishes;
-    if (_selectedMealTab == null) return basePool;
-    final List<Dish> filtered =
-        basePool.where((Dish dish) => _matchesMealTab(dish, _selectedMealTab!)).toList();
-    debugPrint(
-      '[RecipesScreen] Meal tab=${_selectedMealTab!.name} basePool=${basePool.length} activePool=${filtered.length}',
-    );
+    if (tab == null) return basePool;
+    final List<Dish> filtered = basePool.where((Dish dish) => _matchesMealTab(dish, tab)).toList();
+    debugPrint('[Recipes] mealTab=${tab.name} all=${basePool.length} filtered=${filtered.length}');
     return filtered;
   }
 
   bool _matchesMealTab(Dish dish, MealTabType tab) {
-    // NOTE: Flutter Dish model only exposes tags as List<String>; no typed {name,type} structure.
-    final Set<String> tags = dish.tags.map((String t) => t.trim().toLowerCase()).toSet();
-    return tags.contains(tab.name);
+    final Set<String> normalizedTags = dish.tags.map((String tag) => tag.trim().toLowerCase()).toSet();
+    final String type = dish.type.trim().toLowerCase();
+    switch (tab) {
+      case MealTabType.breakfast:
+        return normalizedTags.contains('breakfast') || type == 'breakfast';
+      case MealTabType.lunch:
+        return normalizedTags.contains('lunch');
+      case MealTabType.dinner:
+        return normalizedTags.contains('dinner');
+      case MealTabType.snack:
+        return normalizedTags.contains('snack') || type == 'snack';
+    }
+  }
+
+  void _openMealTabPage(MealTabType tab) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => RecipesMealTabResultPage(
+          allDishes: _filteredDishes,
+          initialTab: tab,
+          onFavoriteTap: _toggleSaved,
+          onSearchTap: _openSearch,
+          onFilterTap: _openFilters,
+          categories: _categoryConfigs,
+        ),
+      ),
+    );
   }
 
   List<RecipeCategoryConfig> _visibleCategories(List<Dish> activePool) {
@@ -334,7 +336,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
   List<Dish> _previewRecipes(List<Dish> pool) => _sortedRecipes(pool).take(10).toList();
 
   void _openCategory(RecipeCategoryConfig category) {
-    final List<Dish> activePool = _buildActivePool();
+    final List<Dish> activePool = _buildActivePool(tab: null);
     final List<Dish> dishes = _sortedRecipes(_categoryPool(category, activePool));
     Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -350,7 +352,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
   }
 
   void _openAllRecipes() {
-    final List<Dish> dishes = _sortedRecipes(_buildActivePool());
+    final List<Dish> dishes = _sortedRecipes(_buildActivePool(tab: null));
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => RecipeResultsPage(
@@ -598,6 +600,14 @@ class PopularCategoriesGrid extends StatelessWidget {
       },
     );
   }
+
+  Widget _buildCategoryBackground(RecipeCategoryConfig category) {
+    // TODO: Insert SVG background here later.
+    // SVG BACKGROUND SLOT: replace SizedBox with SvgPicture.asset(category.assetName)
+    // Example:
+    // return SvgPicture.asset(category.assetName, fit: BoxFit.cover);
+    return const SizedBox.expand();
+  }
 }
 
 enum RecipeDishCardLayout { horizontal, grid }
@@ -719,6 +729,120 @@ class RecipeDishCard extends StatelessWidget {
         );
       },
     );
+  }
+}
+
+class RecipesMealTabResultPage extends StatefulWidget {
+  const RecipesMealTabResultPage({
+    super.key,
+    required this.allDishes,
+    required this.initialTab,
+    required this.onFavoriteTap,
+    required this.onSearchTap,
+    required this.onFilterTap,
+    required this.categories,
+  });
+
+  final List<Dish> allDishes;
+  final MealTabType initialTab;
+  final Future<void> Function(Dish dish) onFavoriteTap;
+  final VoidCallback onSearchTap;
+  final Future<void> Function() onFilterTap;
+  final List<RecipeCategoryConfig> categories;
+
+  @override
+  State<RecipesMealTabResultPage> createState() => _RecipesMealTabResultPageState();
+}
+
+class _RecipesMealTabResultPageState extends State<RecipesMealTabResultPage> {
+  late MealTabType _selectedTab = widget.initialTab;
+
+  @override
+  Widget build(BuildContext context) {
+    final List<Dish> activePool = _buildActivePool();
+    final List<RecipeCategoryConfig> visibleCategories = widget.categories.where((c) => activePool.where(c.filter).isNotEmpty).toList();
+    final List<Dish> preview = _sortedRecipes(activePool).take(10).toList();
+    final Set<String> savedDishIds = context.watch<FavoritesProvider>().savedDishIds;
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        elevation: 0,
+        leading: IconButton(onPressed: () => Navigator.of(context).pop(), icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary)),
+        title: Text(_selectedTab.name[0].toUpperCase() + _selectedTab.name.substring(1), style: GoogleFonts.nunito(fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+        actions: <Widget>[
+          IconButton(onPressed: widget.onSearchTap, icon: const Icon(Icons.search, color: AppColors.textPrimary)),
+          IconButton(onPressed: widget.onFilterTap, icon: const Icon(Icons.tune, color: AppColors.textPrimary)),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+        children: <Widget>[
+          MealTabsBar(selected: _selectedTab, onSelected: (tab) => setState(() => _selectedTab = tab)),
+          const SizedBox(height: 18),
+          if (visibleCategories.isNotEmpty) ...[
+            Text('Popular Categories', style: GoogleFonts.nunito(fontSize: 22, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 10),
+            PopularCategoriesGrid(
+              categories: visibleCategories,
+              onTap: (category) {
+                final dishes = _sortedRecipes(activePool.where(category.filter).toList());
+                Navigator.of(context).push(MaterialPageRoute(builder: (_) => RecipeResultsPage(title: category.title, dishes: dishes, onFavoriteTap: widget.onFavoriteTap, onSearchTap: widget.onSearchTap, onFilterTap: widget.onFilterTap)));
+              },
+            ),
+            const SizedBox(height: 18),
+          ],
+          if (activePool.isEmpty) ...[
+            const EmptyState(icon: Icons.menu_book_outlined, title: 'No recipes found', subtitle: 'Try another meal tab or adjust filters.'),
+            const SizedBox(height: 16),
+          ],
+          Text('All Recipes', style: GoogleFonts.nunito(fontSize: 22, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 270,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: preview.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (_, i) {
+                final dish = preview[i];
+                return RecipeDishCard(dish: dish, isSaved: savedDishIds.contains(dish.id), onFavoriteTap: () => widget.onFavoriteTap(dish), layout: RecipeDishCardLayout.horizontal);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Dish> _buildActivePool() {
+    final List<Dish> filtered = widget.allDishes.where((dish) {
+      final tags = dish.tags.map((e) => e.trim().toLowerCase()).toSet();
+      final type = dish.type.trim().toLowerCase();
+      switch (_selectedTab) {
+        case MealTabType.breakfast:
+          return tags.contains('breakfast') || type == 'breakfast';
+        case MealTabType.lunch:
+          return tags.contains('lunch');
+        case MealTabType.dinner:
+          return tags.contains('dinner');
+        case MealTabType.snack:
+          return tags.contains('snack') || type == 'snack';
+      }
+    }).toList();
+    debugPrint('[Recipes] mealTab=${_selectedTab.name} all=${widget.allDishes.length} filtered=${filtered.length}');
+    return filtered;
+  }
+
+  List<Dish> _sortedRecipes(List<Dish> pool) {
+    final List<Dish> sorted = List<Dish>.from(pool);
+    sorted.sort((Dish a, Dish b) {
+      final int pop = (b.popular ? 1 : 0) - (a.popular ? 1 : 0);
+      if (pop != 0) return pop;
+      return b.qualityScore.compareTo(a.qualityScore);
+    });
+    return sorted;
   }
 }
 
@@ -853,7 +977,7 @@ class _SavedDishTile extends StatelessWidget {
               Expanded(
                 child: Text(
                   dish.name,
-                  maxLines: 2,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.nunito(
                     fontSize: 15,
