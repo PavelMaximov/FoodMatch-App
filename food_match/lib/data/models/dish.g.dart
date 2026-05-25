@@ -50,7 +50,7 @@ Dish _$DishFromJson(Map<String, dynamic> json) => Dish(
               .toList() ??
           <RecipeStep>[],
       qualityScore: json['qualityScore'] as num? ?? 0,
-      tags: (json['tags'] as List<dynamic>?)?.map((e) => e as String).toList() ?? <String>[],
+      tags: _readDishTags(json),
       sections: _readDishSections(json),
     );
 
@@ -100,4 +100,25 @@ List<DishSection> _readDishSections(Map<String, dynamic> json) {
   }
 
   return <DishSection>[];
+}
+
+List<String> _readDishTags(Map<String, dynamic> json) {
+  final dynamic rawTags = json['tags'];
+  if (rawTags is! List) {
+    return <String>[];
+  }
+
+  return rawTags
+      .map((dynamic tag) {
+        if (tag is String) {
+          return tag;
+        }
+        if (tag is Map) {
+          return tag['name']?.toString() ?? '';
+        }
+        return '';
+      })
+      .map((String name) => name.trim())
+      .where((String name) => name.isNotEmpty)
+      .toList();
 }
