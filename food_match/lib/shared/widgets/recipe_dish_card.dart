@@ -49,7 +49,7 @@ class RecipeDishCard extends StatelessWidget {
         child: InkWell(
           onTap: onOpen,
           child: Padding(
-            padding: EdgeInsets.fromLTRB(isGrid ? 10 : 14, isGrid ? 10 : 14, isGrid ? 10 : 14, isGrid ? 10 : 14),
+            padding: EdgeInsets.fromLTRB(isGrid ? 14 : 15, isGrid ? 14 : 15, isGrid ? 14 : 15, isGrid ? 14 : 15),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -57,7 +57,7 @@ class RecipeDishCard extends StatelessWidget {
                 Stack(
                   children: <Widget>[
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(13),
                       child: AspectRatio(
                         aspectRatio: 4 / 3,
                         child: CachedNetworkImage(
@@ -155,7 +155,7 @@ class DishMetaPill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Icon(icon, size: 13, color: AppColors.textSecondary),
+          Icon(icon, size: 10, color: AppColors.textSecondary),
           const SizedBox(width: 4),
           Flexible(
             child: Text(
@@ -163,7 +163,7 @@ class DishMetaPill extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.nunito(
-                fontSize: 11,
+                fontSize: 8,
                 fontWeight: FontWeight.w600,
                 color: AppColors.textSecondary,
               ),
