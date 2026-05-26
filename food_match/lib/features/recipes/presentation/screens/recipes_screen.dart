@@ -327,7 +327,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
           ),
           const SizedBox(height: 10),
           SizedBox(
-            height: 270,
+            height: 220,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: preview.length,
@@ -848,7 +848,7 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
                     ),
                   )
                 : GridView.builder(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,

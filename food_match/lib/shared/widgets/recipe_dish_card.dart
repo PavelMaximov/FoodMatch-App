@@ -33,7 +33,7 @@ class RecipeDishCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool isGrid = layout == RecipeDishCardLayout.grid;
-    final double cardWidth = isGrid ? double.infinity : 178;
+    final double cardWidth = isGrid ? double.infinity : 169;
 
     return SizedBox(
       width: cardWidth,
@@ -49,8 +49,9 @@ class RecipeDishCard extends StatelessWidget {
         child: InkWell(
           onTap: onOpen,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
+            padding: EdgeInsets.fromLTRB(isGrid ? 10 : 14, isGrid ? 10 : 14, isGrid ? 10 : 14, isGrid ? 10 : 14),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Stack(
@@ -58,7 +59,7 @@ class RecipeDishCard extends StatelessWidget {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(14),
                       child: AspectRatio(
-                        aspectRatio: 1,
+                        aspectRatio: 4 / 3,
                         child: CachedNetworkImage(
                           imageUrl: ImageUtils.getImageUrl(dish.imageUrl),
                           fit: BoxFit.cover,
@@ -99,12 +100,12 @@ class RecipeDishCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
+                SizedBox(height: isGrid ? 8 : 10),
                 SizedBox(
-                  height: 40,
+                  height: isGrid ? 20 : 22,
                   child: Text(
                     dish.name,
-                    maxLines: 2,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.nunito(
                       fontSize: 14,
@@ -114,7 +115,7 @@ class RecipeDishCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 9),
+                SizedBox(height: isGrid ? 6 : 9),
                 Row(
                   children: <Widget>[
                     DishMetaPill(icon: Icons.schedule, label: '${dish.cookTime} min'),
@@ -126,21 +127,6 @@ class RecipeDishCard extends StatelessWidget {
                       ),
                     ),
                   ],
-                ),
-                const Spacer(),
-                const SizedBox(height: 10),
-                InkWell(
-                  onTap: onOpen,
-                  child: Text(
-                    'View recipe >',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.nunito(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
-                    ),
-                  ),
                 ),
               ],
             ),
