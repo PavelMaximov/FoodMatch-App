@@ -327,14 +327,14 @@ class _RecipesScreenState extends State<RecipesScreen> {
           ),
           const SizedBox(height: 10),
           SizedBox(
-            height: 220,
+            height: 200,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: preview.length,
               separatorBuilder: (_, __) => const SizedBox(width: 12),
               itemBuilder: (_, int index) {
                 final Dish dish = preview[index];
-                return DishCard(
+                return RecipeDishCard(
                   dish: dish,
                   isSaved: savedDishIds.contains(dish.id),
                   onFavoriteTap: () => _toggleSaved(dish),
@@ -852,7 +852,7 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
-                      childAspectRatio: 0.64,
+                      childAspectRatio: 0.84,
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
                     ),

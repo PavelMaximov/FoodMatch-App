@@ -237,26 +237,16 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       );
     }
 
-    return DishCardGrid(
-      dishes: dishes,
-      crossAxisCount: 2,
-      savedDishIds: favoritesProvider.savedDishIds,
-      onFavoriteTap: _removeFavorite,
-      onDishTap: (Dish dish) => context.push('/recipe-detail/${dish.id}', extra: dish),
-      isFavoriteUpdating: favoritesProvider.isUpdating,
-      favoriteAlignment: Alignment.topLeft,
+    return GridView.builder(
       padding: const EdgeInsets.fromLTRB(23, 28, 23, 24),
-      mainAxisSpacing: 18,
-      crossAxisSpacing: 12,
-      childAspectRatio: 0.78,
       physics: const AlwaysScrollableScrollPhysics(),
-      itemCount: dishes.length,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         mainAxisSpacing: 18,
         crossAxisSpacing: 12,
         childAspectRatio: 0.78,
       ),
+      itemCount: dishes.length,
       itemBuilder: (BuildContext context, int index) {
         final Dish dish = dishes[index];
         return RecipeDishCard(
