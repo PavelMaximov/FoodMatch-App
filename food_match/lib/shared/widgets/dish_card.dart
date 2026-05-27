@@ -130,16 +130,16 @@ class DishCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: _DishCardTokens.gapBeforeAction),
-                Text(
-                  'View recipe >',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.nunito(
-                    fontSize: _DishCardTokens.viewRecipeFontSize,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
-                  ),
-                ),
+                // Text(
+                //   'View recipe >',
+                //   maxLines: 1,
+                //   overflow: TextOverflow.ellipsis,
+                //   style: GoogleFonts.nunito(
+                //     fontSize: _DishCardTokens.viewRecipeFontSize,
+                //     fontWeight: FontWeight.w700,
+                //     color: AppColors.primary,
+                //   ),
+                // ),
               ],
             ),
           ),
