@@ -334,7 +334,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
               separatorBuilder: (_, __) => const SizedBox(width: 12),
               itemBuilder: (_, int index) {
                 final Dish dish = preview[index];
-                return RecipeDishCard(
+                return DishCard(
                   dish: dish,
                   isSaved: savedDishIds.contains(dish.id),
                   onFavoriteTap: () => _toggleSaved(dish),
