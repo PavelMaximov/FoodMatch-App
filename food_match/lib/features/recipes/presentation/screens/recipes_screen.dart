@@ -13,8 +13,6 @@ import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
 import '../../../../shared/widgets/recipe_dish_card.dart';
-import '../../../../shared/widgets/recipe_dish_layout.dart';
-import '../../../../shared/widgets/dish_card_grid.dart';
 import '../../../favorites/logic/favorites_provider.dart';
 
 class RecipesScreen extends StatefulWidget {
@@ -329,14 +327,14 @@ class _RecipesScreenState extends State<RecipesScreen> {
           ),
           const SizedBox(height: 10),
           SizedBox(
-            height: 270,
+            height: 200,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: preview.length,
               separatorBuilder: (_, __) => const SizedBox(width: 12),
               itemBuilder: (_, int index) {
                 final Dish dish = preview[index];
-                return RecipeDishCard(
+                return DishCard(
                   dish: dish,
                   isSaved: savedDishIds.contains(dish.id),
                   onFavoriteTap: () => _toggleSaved(dish),
@@ -849,16 +847,26 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
                       ),
                     ),
                   )
-                : DishCardGrid(
-                    dishes: dishes,
-                    crossAxisCount: 2,
-                    savedDishIds: savedDishIds,
-                    onFavoriteTap: widget.onFavoriteTap,
-                                        padding: const EdgeInsets.all(16),
-                    childAspectRatio: 0.64,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    physics: const AlwaysScrollableScrollPhysics(),
+                : GridView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      childAspectRatio: 0.84,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                    ),
+                    itemCount: dishes.length,
+                    itemBuilder: (_, int index) {
+                      final Dish dish = dishes[index];
+                      return RecipeDishCard(
+                        dish: dish,
+                        isSaved: savedDishIds.contains(dish.id),
+                        onFavoriteTap: () => widget.onFavoriteTap(dish),
+                        onOpen: () => context.push('/recipe-detail/${dish.id}', extra: dish),
+                        layout: RecipeDishCardLayout.grid,
+                      );
+                    },
                   ),
           ),
         ],

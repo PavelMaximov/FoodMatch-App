@@ -8,7 +8,7 @@ import '../../../../data/models/dish.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
-import '../../../../shared/widgets/dish_card_grid.dart';
+import '../../../../shared/widgets/recipe_dish_card.dart';
 import '../../logic/favorites_provider.dart';
 
 class FavoritesScreen extends StatefulWidget {
@@ -242,6 +242,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       crossAxisCount: 2,
       savedDishIds: favoritesProvider.savedDishIds,
       onFavoriteTap: _removeFavorite,
+      onDishTap: (Dish dish) => context.push('/recipe-detail/${dish.id}', extra: dish),
       isFavoriteUpdating: favoritesProvider.isUpdating,
       favoriteAlignment: Alignment.topLeft,
       padding: const EdgeInsets.fromLTRB(23, 28, 23, 24),
@@ -249,6 +250,26 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       crossAxisSpacing: 12,
       childAspectRatio: 0.78,
       physics: const AlwaysScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisSpacing: 18,
+        crossAxisSpacing: 12,
+        childAspectRatio: 0.78,
+      ),
+      itemCount: dishes.length,
+      itemBuilder: (BuildContext context, int index) {
+        final Dish dish = dishes[index];
+        return RecipeDishCard(
+          dish: dish,
+          isSaved: true,
+          isFavoriteUpdating: favoritesProvider.isUpdating(dish.id),
+          onFavoriteTap: () => _removeFavorite(dish),
+          onOpen: () => context.push('/recipe-detail/${dish.id}', extra: dish),
+          favoriteAlignment: Alignment.topLeft,
+          cardBorderColor: const Color(0xFFEDE7E4),
+          layout: RecipeDishCardLayout.grid,
+        );
+      },
     );
   }
 }

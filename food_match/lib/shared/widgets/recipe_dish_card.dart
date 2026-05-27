@@ -1,13 +1,12 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:food_match/core/theme/app_colors.dart';
 import 'package:food_match/core/theme/app_dimensions.dart';
 import 'package:food_match/core/utils/image_utils.dart';
 import 'package:food_match/data/models/dish.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-enum RecipeDishCardLayout { grid, horizontal }
+enum RecipeDishCardLayout { horizontal, grid }
 
 class RecipeDishCard extends StatelessWidget {
   const RecipeDishCard({
@@ -15,21 +14,26 @@ class RecipeDishCard extends StatelessWidget {
     required this.dish,
     required this.isSaved,
     required this.onFavoriteTap,
+    required this.onOpen,
     required this.layout,
     this.favoriteAlignment = Alignment.topRight,
     this.isFavoriteUpdating = false,
+    this.cardBorderColor = const Color(0xFFEDE7E4),
   });
 
   final Dish dish;
   final bool isSaved;
   final VoidCallback onFavoriteTap;
+  final VoidCallback onOpen;
   final RecipeDishCardLayout layout;
   final Alignment favoriteAlignment;
   final bool isFavoriteUpdating;
+  final Color cardBorderColor;
 
   @override
   Widget build(BuildContext context) {
-    final double? cardWidth = layout == RecipeDishCardLayout.horizontal ? 178 : null;
+    final bool isGrid = layout == RecipeDishCardLayout.grid;
+    final double cardWidth = isGrid ? double.infinity : 169;
 
     return SizedBox(
       width: cardWidth,
@@ -39,13 +43,13 @@ class RecipeDishCard extends StatelessWidget {
         color: AppColors.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppDimensions.radiusL),
-          side: const BorderSide(color: Color(0xFFEDE7E4)),
+          side: BorderSide(color: cardBorderColor),
         ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          onTap: () => context.push('/recipe-detail/${dish.id}', extra: dish),
+          onTap: onOpen,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
+            padding: EdgeInsets.fromLTRB(isGrid ? 14 : 15, isGrid ? 14 : 15, isGrid ? 14 : 15, isGrid ? 14 : 15),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -53,9 +57,9 @@ class RecipeDishCard extends StatelessWidget {
                 Stack(
                   children: <Widget>[
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(13),
                       child: AspectRatio(
-                        aspectRatio: 1,
+                        aspectRatio: 4 / 3,
                         child: CachedNetworkImage(
                           imageUrl: ImageUtils.getImageUrl(dish.imageUrl),
                           fit: BoxFit.cover,
@@ -96,27 +100,33 @@ class RecipeDishCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
-                Text(
-                  dish.name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.nunito(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.textPrimary, height: 1.35),
+                SizedBox(height: isGrid ? 8 : 10),
+                SizedBox(
+                  height: isGrid ? 20 : 22,
+                  child: Text(
+                    dish.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.nunito(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                      height: 1.35,
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 9),
+                SizedBox(height: isGrid ? 6 : 9),
                 Row(
                   children: <Widget>[
-                    _MetaPill(icon: Icons.schedule, label: '${dish.cookTime} min'),
+                    DishMetaPill(icon: Icons.schedule, label: '${dish.cookTime} min'),
                     const SizedBox(width: 8),
-                    Expanded(child: _MetaPill(icon: Icons.restaurant_menu, label: '${dish.ingredients.length} ingredients')),
+                    Expanded(
+                      child: DishMetaPill(
+                        icon: Icons.restaurant_menu,
+                        label: '${dish.ingredients.length} ingredients',
+                      ),
+                    ),
                   ],
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'View recipe >',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary),
                 ),
               ],
             ),
@@ -127,10 +137,12 @@ class RecipeDishCard extends StatelessWidget {
   }
 }
 
-class _MetaPill extends StatelessWidget {
-  const _MetaPill({required this.icon, required this.label});
+class DishMetaPill extends StatelessWidget {
+  const DishMetaPill({super.key, required this.icon, required this.label});
+
   final IconData icon;
   final String label;
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -140,11 +152,25 @@ class _MetaPill extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE5E5E5)),
         borderRadius: BorderRadius.circular(999),
       ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: <Widget>[
-        Icon(icon, size: 13, color: AppColors.textSecondary),
-        const SizedBox(width: 4),
-        Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textSecondary))),
-      ]),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Icon(icon, size: 10, color: AppColors.textSecondary),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.nunito(
+                fontSize: 8,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
