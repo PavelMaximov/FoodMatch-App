@@ -1,15 +1,14 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/utils/image_utils.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
+import '../../../../shared/widgets/dish_card_grid.dart';
 import '../../logic/favorites_provider.dart';
 
 class FavoritesScreen extends StatefulWidget {
@@ -20,9 +19,6 @@ class FavoritesScreen extends StatefulWidget {
 }
 
 class _FavoritesScreenState extends State<FavoritesScreen> {
-  static const Color _bookmarkColor = Color(0xFFFF5D33);
-  static const Color _cardBorder = Color(0xFFEDE7E4);
-
   bool _isSearching = false;
   String _query = '';
   Set<String> _selectedCuisines = <String>{};
@@ -241,25 +237,18 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       );
     }
 
-    return GridView.builder(
+    return DishCardGrid(
+      dishes: dishes,
+      crossAxisCount: 2,
+      savedDishIds: favoritesProvider.savedDishIds,
+      onFavoriteTap: _removeFavorite,
+      isFavoriteUpdating: favoritesProvider.isUpdating,
+      favoriteAlignment: Alignment.topLeft,
       padding: const EdgeInsets.fromLTRB(23, 28, 23, 24),
+      mainAxisSpacing: 18,
+      crossAxisSpacing: 12,
+      childAspectRatio: 0.78,
       physics: const AlwaysScrollableScrollPhysics(),
-      itemCount: dishes.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: 18,
-        crossAxisSpacing: 12,
-        childAspectRatio: 0.78,
-      ),
-      itemBuilder: (BuildContext context, int index) {
-        final Dish dish = dishes[index];
-        return _FavoriteDishCard(
-          dish: dish,
-          isRemoving: favoritesProvider.isUpdating(dish.id),
-          onFavoriteTap: () => _removeFavorite(dish),
-          onOpen: () => context.push('/recipe-detail/${dish.id}', extra: dish),
-        );
-      },
     );
   }
 }
@@ -410,112 +399,6 @@ class _ResultSummary extends StatelessWidget {
           child: const Text('Clear'),
         ),
       ],
-    );
-  }
-}
-
-class _FavoriteDishCard extends StatelessWidget {
-  const _FavoriteDishCard({
-    required this.dish,
-    required this.isRemoving,
-    required this.onFavoriteTap,
-    required this.onOpen,
-  });
-
-  final Dish dish;
-  final bool isRemoving;
-  final VoidCallback onFavoriteTap;
-  final VoidCallback onOpen;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      margin: EdgeInsets.zero,
-      color: AppColors.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: _FavoritesScreenState._cardBorder),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          AspectRatio(
-            aspectRatio: 4 / 3,
-            child: Stack(
-              fit: StackFit.expand,
-              children: <Widget>[
-                CachedNetworkImage(
-                  imageUrl: ImageUtils.getImageUrl(dish.imageUrl),
-                  fit: BoxFit.cover,
-                  errorWidget: (_, __, ___) => const ColoredBox(
-                    color: Colors.black12,
-                    child: Icon(Icons.image_not_supported_outlined),
-                  ),
-                ),
-                Positioned(
-                  top: 9,
-                  left: 9,
-                  child: InkWell(
-                    customBorder: const CircleBorder(),
-                    onTap: isRemoving ? null : onFavoriteTap,
-                    child: Padding(
-                      padding: const EdgeInsets.all(2),
-                      child: isRemoving
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(
-                              Icons.bookmark,
-                              size: 18,
-                              color: _FavoritesScreenState._bookmarkColor,
-                            ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(
-            height: 62,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(9, 8, 9, 9),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    dish.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.nunito(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const Spacer(),
-                  InkWell(
-                    onTap: onOpen,
-                    child: Text(
-                      'View recipe >',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.nunito(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
