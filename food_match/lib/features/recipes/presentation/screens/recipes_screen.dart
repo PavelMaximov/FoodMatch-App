@@ -280,7 +280,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
         .savedDishIds;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(26, 4, 16, 20),
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
       physics: const AlwaysScrollableScrollPhysics(),
       children: <Widget>[
         MealTabsBar(selected: null, onSelected: _openMealTabPage),
@@ -334,7 +334,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
               separatorBuilder: (_, __) => const SizedBox(width: 12),
               itemBuilder: (_, int index) {
                 final Dish dish = preview[index];
-                return DishCard(
+                return RecipeDishCard(
                   dish: dish,
                   isSaved: savedDishIds.contains(dish.id),
                   onFavoriteTap: () => _toggleSaved(dish),

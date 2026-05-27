@@ -8,7 +8,7 @@ import '../../../../data/models/dish.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
-import '../../../../shared/widgets/recipe_dish_card.dart';
+import '../../../../shared/widgets/dish_card_grid.dart';
 import '../../logic/favorites_provider.dart';
 
 class FavoritesScreen extends StatefulWidget {
@@ -146,7 +146,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Padding(
-              padding: const EdgeInsets.fromLTRB(23, 16, 23, 10),
+              padding: const EdgeInsets.fromLTRB(19, 16, 19, 0),
               child: _FavoritesHeader(
                 isSearching: _isSearching,
                 query: _query,
@@ -159,7 +159,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             ),
             if (_hasActiveFilters || _query.trim().isNotEmpty)
               Padding(
-                padding: const EdgeInsets.fromLTRB(23, 0, 23, 8),
+                padding: const EdgeInsets.fromLTRB(19, 10, 19, 8),
                 child: _ResultSummary(
                   count: visibleFavorites.length,
                   onClear: () => setState(() {
@@ -185,7 +185,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   Widget _buildBody(FavoritesProvider favoritesProvider, List<Dish> visibleFavorites) {
     if (favoritesProvider.isLoading && favoritesProvider.savedDishes.isEmpty) {
       return GridView.builder(
-        padding: const EdgeInsets.fromLTRB(23, 28, 23, 24),
+        padding: const EdgeInsets.fromLTRB(19, 18, 19, 24),
         physics: const AlwaysScrollableScrollPhysics(),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
@@ -250,26 +250,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       crossAxisSpacing: 12,
       childAspectRatio: 0.78,
       physics: const AlwaysScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: 18,
-        crossAxisSpacing: 12,
-        childAspectRatio: 0.78,
-      ),
-      itemCount: dishes.length,
-      itemBuilder: (BuildContext context, int index) {
-        final Dish dish = dishes[index];
-        return RecipeDishCard(
-          dish: dish,
-          isSaved: true,
-          isFavoriteUpdating: favoritesProvider.isUpdating(dish.id),
-          onFavoriteTap: () => _removeFavorite(dish),
-          onOpen: () => context.push('/recipe-detail/${dish.id}', extra: dish),
-          favoriteAlignment: Alignment.topLeft,
-          cardBorderColor: const Color(0xFFEDE7E4),
-          layout: RecipeDishCardLayout.grid,
-        );
-      },
+     
+    
     );
   }
 }
@@ -468,7 +450,7 @@ class _FavoriteFilterSheetState extends State<_FavoriteFilterSheet> {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 22),
+        padding: const EdgeInsets.fromLTRB(19, 52, 19, 22),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[

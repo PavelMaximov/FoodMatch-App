@@ -10,6 +10,7 @@ class DishCardGrid extends StatelessWidget {
     required this.dishes,
     required this.savedDishIds,
     required this.onFavoriteTap,
+    required this.onDishTap,
     this.crossAxisCount = RecipeDishLayoutStyle.defaultGridColumns,
     this.padding = RecipeDishLayoutStyle.gridPadding,
     this.physics,
@@ -19,11 +20,14 @@ class DishCardGrid extends StatelessWidget {
     this.mainAxisSpacing = RecipeDishLayoutStyle.gridMainAxisSpacing,
     this.favoriteAlignment = Alignment.topRight,
     this.isFavoriteUpdating,
+    this.cardBorderColor = const Color(0xFFEDE7E4),
   });
 
   final List<Dish> dishes;
   final Set<String> savedDishIds;
   final Future<void> Function(Dish dish) onFavoriteTap;
+  final void Function(Dish dish) onDishTap;
+
   final int crossAxisCount;
   final EdgeInsetsGeometry padding;
   final ScrollPhysics? physics;
@@ -33,6 +37,7 @@ class DishCardGrid extends StatelessWidget {
   final double mainAxisSpacing;
   final Alignment favoriteAlignment;
   final bool Function(String dishId)? isFavoriteUpdating;
+  final Color cardBorderColor;
 
   @override
   Widget build(BuildContext context) {
@@ -54,8 +59,10 @@ class DishCardGrid extends StatelessWidget {
           dish: dish,
           isSaved: savedDishIds.contains(dish.id),
           onFavoriteTap: () => onFavoriteTap(dish),
+          onOpen: () => onDishTap(dish),
           isFavoriteUpdating: isFavoriteUpdating?.call(dish.id) ?? false,
           favoriteAlignment: favoriteAlignment,
+          cardBorderColor: cardBorderColor,
           layout: RecipeDishCardLayout.grid,
         );
       },
