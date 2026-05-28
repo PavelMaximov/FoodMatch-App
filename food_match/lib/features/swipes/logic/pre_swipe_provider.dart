@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../../../data/local/user_profile_hive_service.dart';
+import '../../../data/models/couple_filter_state.dart';
 import '../../../data/models/dish.dart';
 import '../../../data/models/filter_config.dart';
 import '../../../data/models/user_profile.dart';
@@ -24,6 +25,51 @@ class PreparedPoolResult {
   final bool relaxed;
   final List<String> messages;
   final FilterConfig? config;
+}
+
+class FilterAvailabilitySummary {
+  const FilterAvailabilitySummary({
+    required this.totalCount,
+    required this.availableCount,
+    required this.usesPartnerChoices,
+    required this.usedCuisineUnionFallback,
+    required this.wouldWidenSearch,
+  });
+
+  final int totalCount;
+  final int availableCount;
+  final bool usesPartnerChoices;
+  final bool usedCuisineUnionFallback;
+  final bool wouldWidenSearch;
+
+  double get progress {
+    if (totalCount <= 0) {
+      return 0;
+    }
+    return (availableCount / totalCount).clamp(0, 1).toDouble();
+  }
+
+  String get helperText {
+    if (totalCount <= 0) {
+      return 'Loading dish catalog...';
+    }
+    if (usedCuisineUnionFallback) {
+      return 'No common cuisine — showing both preferences.';
+    }
+    if (wouldWidenSearch && availableCount > 0) {
+      return 'We widened the search a bit so you still have dishes to swipe.';
+    }
+    if (availableCount == 0) {
+      return 'No dishes found yet. Try removing one filter.';
+    }
+    if (availableCount <= 10) {
+      return 'Very narrow choice. We may widen the search.';
+    }
+    if (availableCount <= 40) {
+      return 'Good match range.';
+    }
+    return 'Many options available.';
+  }
 }
 
 class PreSwipeProvider extends ChangeNotifier {
@@ -129,6 +175,42 @@ class PreSwipeProvider extends ChangeNotifier {
       relaxed: messages.isNotEmpty,
       messages: messages,
       config: config,
+    );
+  }
+
+  FilterAvailabilitySummary buildAvailabilitySummary({
+    required List<Dish> allDishes,
+    required List<String> cuisines,
+    required List<String> moods,
+    required List<String> blocked,
+    required List<String> diet,
+    CoupleFilterChoices? partnerChoices,
+  }) {
+    final bool partnerHasChoices = partnerChoices != null &&
+        (partnerChoices.cuisines.isNotEmpty ||
+            partnerChoices.moods.isNotEmpty ||
+            partnerChoices.diet.isNotEmpty ||
+            partnerChoices.exclusions.isNotEmpty);
+    final List<String> partnerCuisines = partnerHasChoices ? partnerChoices.cuisines : const <String>[];
+    final bool usedCuisineUnionFallback = _scoringService.shouldShowPairCuisineFallback(cuisines, partnerCuisines);
+    final FilterConfig config = _scoringService.buildConfig(
+      myCuisines: cuisines,
+      myMoods: moods,
+      myBlocked: blocked,
+      myDiet: diet,
+      partnerCuisines: partnerCuisines,
+      partnerMoods: partnerHasChoices ? partnerChoices.moods : const <String>[],
+      partnerBlocked: partnerHasChoices ? partnerChoices.exclusions : const <String>[],
+      partnerDiet: partnerHasChoices ? partnerChoices.diet : const <String>[],
+    );
+    final int availableCount = _scoringService.applyHardFilters(allDishes, config).length;
+
+    return FilterAvailabilitySummary(
+      totalCount: allDishes.length,
+      availableCount: availableCount,
+      usesPartnerChoices: partnerHasChoices,
+      usedCuisineUnionFallback: usedCuisineUnionFallback,
+      wouldWidenSearch: availableCount > 0 && availableCount < 5,
     );
   }
 
