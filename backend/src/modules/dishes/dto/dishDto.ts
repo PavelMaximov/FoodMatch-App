@@ -1,5 +1,3 @@
-import { Types } from 'mongoose';
-
 export interface DishDto {
   id: string;
   name: string;
@@ -7,40 +5,58 @@ export interface DishDto {
   imageUrl: string;
   cuisine: string;
   type: string;
+  tags: string[];
   mood: string[];
   diet: string[];
   ingredients: string[];
+  ingredientCount: number;
   cookTime: number;
+  totalTime: number;
+  servings: string;
+  qualityScore: number;
   calories: string;
   effort: string;
   source: string[];
-  servings: string;
   season: string[];
   popular: boolean;
   steps: Array<{ step: number; text: string }>;
 }
 
-export function toDishDto(dish: any): DishDto {
-  const rawDish = toRawDish(dish);
+export function toDishDto(dish: any): DishDto | null {
+  if (!dish) {
+    return null;
+  }
+
+  const raw = toRawDish(dish);
+  if (!raw) {
+    return null;
+  }
+
+  const ingredients = readIngredients(raw);
+  const cookTime = firstNumber(raw.total_time_minutes, raw.cook_time_minutes, raw.cookTime);
 
   return {
-    id: toPublicDishId(rawDish),
-    name: asString(rawDish.name).value,
-    description: asString(rawDish.description).value,
-    imageUrl: firstString(rawDish.imageUrl, rawDish.image_url, rawDish.image, rawDish.thumbnail, rawDish.photoUrl, rawDish.photo_url),
-    cuisine: asString(rawDish.cuisine).value,
-    type: asString(rawDish.type).value,
-    mood: asStringList(rawDish.mood),
-    diet: asStringList(rawDish.diet),
-    ingredients: readIngredients(rawDish),
-    cookTime: firstNumber(rawDish.cook_time_minutes, rawDish.cookTime),
-    calories: asString(rawDish.calories).value,
-    effort: asString(rawDish.effort).value,
-    source: readSource(rawDish),
-    servings: firstString(rawDish.num_servings, rawDish.servings),
-    season: asStringList(rawDish.season),
-    popular: typeof rawDish.popular === 'boolean' ? rawDish.popular : false,
-    steps: readSteps(rawDish)
+    id: firstString(raw.id, raw.sourceId, raw._id?.toString()),
+    name: asString(raw.name),
+    description: asString(raw.description),
+    imageUrl: firstString(raw.imageUrl, raw.thumbnail_url, raw.image_url),
+    cuisine: asString(raw.cuisine),
+    type: asString(raw.type),
+    tags: readTags(raw.tags),
+    mood: asStringList(raw.mood),
+    diet: asStringList(raw.diet),
+    ingredients,
+    ingredientCount: ingredients.length,
+    cookTime,
+    totalTime: firstNumber(raw.total_time_minutes, cookTime),
+    servings: firstString(raw.num_servings, raw.servings, raw.yields),
+    qualityScore: firstNumber(raw.quality_score, raw.qualityScore),
+    calories: firstString(raw.calories_level, raw.calories),
+    effort: asString(raw.effort),
+    source: asStringList(raw.source),
+    season: asStringList(raw.season),
+    popular: typeof raw.popular === 'boolean' ? raw.popular : false,
+    steps: readSteps(raw)
   };
 }
 
@@ -48,148 +64,93 @@ export function toRawDish(dish: any) {
   return typeof dish?.toObject === 'function' ? dish.toObject({ virtuals: false }) : dish;
 }
 
-export function toPublicDishId(dish: any) {
-  const rawDish = toRawDish(dish);
-  const sourceId = asString(rawDish.sourceId);
-  if (sourceId.isNotEmpty) {
-    return sourceId.value;
-  }
-
-  const publicId = firstStringValue(rawDish.publicId, rawDish.public_id, rawDish.dishId, rawDish.dish_id, rawDish.id);
-  if (publicId && !Types.ObjectId.isValid(publicId)) {
-    return publicId;
-  }
-
-  return rawDish._id?.toString() ?? publicId ?? '';
+export function toPublicDishId(dish: any): string {
+  const dto = toDishDto(dish);
+  return dto?.id ?? '';
 }
 
-function readIngredients(rawDish: any): string[] {
-  const sectionIngredients = readSectionIngredientNames(rawDish.sections);
-  if (sectionIngredients.length > 0) {
-    return sectionIngredients;
-  }
-
-  const structuredIngredients = readStructuredIngredientNames(rawDish.structuredIngredients);
-  if (structuredIngredients.length > 0) {
-    return structuredIngredients;
-  }
-
-  return asStringList(rawDish.ingredients);
-}
-
-function readSectionIngredientNames(sections: any): string[] {
-  if (!Array.isArray(sections)) {
-    return [];
-  }
-
-  const names: string[] = [];
-  for (const section of sections) {
-    const components = Array.isArray(section?.components) ? section.components : [];
-    for (const component of components) {
-      const name = firstStringValue(
-        component?.ingredient?.name,
-        component?.ingredient_name,
-        component?.name
-      );
-      if (name) {
-        names.push(name);
-      }
-    }
-  }
-
-  return uniqueStrings(names);
-}
-
-function readStructuredIngredientNames(ingredients: any): string[] {
-  if (!Array.isArray(ingredients)) {
+function readTags(tags: any): string[] {
+  if (!Array.isArray(tags)) {
     return [];
   }
 
   return uniqueStrings(
-    ingredients
-      .map((ingredient) => firstStringValue(ingredient?.name, ingredient))
-      .filter((name): name is string => Boolean(name))
+    tags.map((tag) => {
+      if (typeof tag === 'string') {
+        return tag;
+      }
+      return tag?.name;
+    })
   );
 }
 
+function readIngredients(rawDish: any): string[] {
+  const fromSections = Array.isArray(rawDish.sections)
+    ? rawDish.sections.flatMap((section: any) =>
+        Array.isArray(section?.components)
+          ? section.components.map((component: any) => component?.ingredient?.name)
+          : []
+      )
+    : [];
+
+  if (fromSections.length > 0) {
+    return uniqueStrings(fromSections, false);
+  }
+
+  if (Array.isArray(rawDish.ingredients)) {
+    return uniqueStrings(rawDish.ingredients, false);
+  }
+
+  return [];
+}
+
 function readSteps(rawDish: any): Array<{ step: number; text: string }> {
-  const instructionSteps = normalizeInstructions(rawDish.instructions);
-  if (instructionSteps.length > 0) {
-    return instructionSteps;
+  if (Array.isArray(rawDish.instructions) && rawDish.instructions.length > 0) {
+    return rawDish.instructions
+      .map((instruction: any, index: number) => ({
+        step: firstNumber(instruction?.position, index + 1),
+        text: asString(instruction?.display_text)
+      }))
+      .filter((step: { step: number; text: string }) => step.text.length > 0);
   }
 
-  return normalizeSteps(rawDish.steps);
-}
-
-function normalizeInstructions(instructions: any): Array<{ step: number; text: string }> {
-  if (!Array.isArray(instructions)) {
-    return [];
+  if (Array.isArray(rawDish.steps)) {
+    return rawDish.steps
+      .map((step: any, index: number) => ({
+        step: firstNumber(step?.step, index + 1),
+        text: asString(step?.text)
+      }))
+      .filter((step: { step: number; text: string }) => step.text.length > 0);
   }
 
-  return instructions
-    .map((instruction) => ({
-      step: firstNumber(instruction?.position),
-      text: asString(instruction?.display_text).value
-    }))
-    .filter((step) => step.text.length > 0);
-}
-
-function normalizeSteps(rawSteps: any): Array<{ step: number; text: string }> {
-  if (!Array.isArray(rawSteps)) {
-    return [];
-  }
-
-  return rawSteps
-    .map((rawStep, index) => {
-      if (typeof rawStep === 'string') {
-        return { step: index + 1, text: rawStep.trim() };
-      }
-
-      const text = firstStringValue(rawStep?.text, rawStep?.instruction, rawStep?.description, rawStep?.title) ?? '';
-      const stepNumber = firstNumber(rawStep?.step, rawStep?.order, rawStep?.number, index + 1);
-      return { step: stepNumber, text };
-    })
-    .filter((step) => step.text.length > 0);
-}
-
-function readSource(rawDish: any): string[] {
-  const source = asStringList(rawDish.source);
-  if (source.length > 0) {
-    return source;
-  }
-
-  const sourceType = asString(rawDish.sourceType);
-  return sourceType.isNotEmpty ? [sourceType.value] : [];
+  return [];
 }
 
 function asStringList(value: any): string[] {
-  if (Array.isArray(value)) {
-    return value
-      .map((item) => asString(item).value)
-      .filter((item) => item.length > 0);
+  if (!Array.isArray(value)) {
+    return [];
   }
 
-  const stringValue = asString(value).value;
-  return stringValue.length > 0 ? [stringValue] : [];
+  return uniqueStrings(value, false);
 }
 
-function uniqueStrings(values: string[]): string[] {
-  return [...new Set(values.map((value) => value.trim()).filter((value) => value.length > 0))];
+function uniqueStrings(values: any[], lowercase = true): string[] {
+  return [...new Set(values.map((value) => {
+    const normalized = asString(value);
+    return lowercase ? normalized.toLowerCase() : normalized;
+  }).filter(Boolean))];
 }
+
 
 function firstString(...values: any[]): string {
-  return firstStringValue(...values) ?? '';
-}
-
-function firstStringValue(...values: any[]): string | undefined {
   for (const value of values) {
-    const stringValue = asString(value).value;
-    if (stringValue.length > 0) {
-      return stringValue;
+    const normalized = asString(value);
+    if (normalized) {
+      return normalized;
     }
   }
 
-  return undefined;
+  return '';
 }
 
 function firstNumber(...values: any[]): number {
@@ -198,8 +159,8 @@ function firstNumber(...values: any[]): number {
       return Math.max(0, Math.trunc(value));
     }
 
-    if (typeof value === 'string' && value.trim().length > 0) {
-      const parsed = Number(value.trim());
+    if (typeof value === 'string' && value.trim()) {
+      const parsed = Number(value);
       if (Number.isFinite(parsed)) {
         return Math.max(0, Math.trunc(parsed));
       }
@@ -209,11 +170,10 @@ function firstNumber(...values: any[]): number {
   return 0;
 }
 
-function asString(value: any): { value: string; isNotEmpty: boolean } {
+function asString(value: any): string {
   if (value === null || value === undefined) {
-    return { value: '', isNotEmpty: false };
+    return '';
   }
 
-  const stringValue = String(value).trim();
-  return { value: stringValue, isNotEmpty: stringValue.length > 0 };
+  return String(value).trim();
 }

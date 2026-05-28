@@ -2,16 +2,12 @@ import { Types } from 'mongoose';
 import { AppError } from '../../../core/errors/AppError';
 import { CoupleSessionModel } from '../../couples/models/CoupleSession';
 import { toDishDto, toPublicDishId } from '../../dishes/dto/dishDto';
-import { DishModel } from '../../dishes/models/Dish';
+import { resolveDishByAnyId } from '../../dishes/utils/resolveDishByAnyId';
 import { MatchModel } from '../../matches/models/Match';
 import { SwipeModel } from '../models/Swipe';
 
 export class SwipeService {
   async createSwipe(userId: string, dishId: string, direction: 'like' | 'dislike') {
-    if (process.env.DEBUG_SWIPE_PIPELINE === '1') {
-      console.log('[debug][swipeService.createSwipe] userId=%s dishId=%s direction=%s', userId, dishId, direction);
-    }
-
     if (!Types.ObjectId.isValid(userId)) {
       throw new AppError('Invalid token user id', 401);
     }
@@ -21,7 +17,7 @@ export class SwipeService {
       throw new AppError('User has no active session', 409);
     }
 
-    const dish = await this.findDishForSwipe(dishId);
+    const dish = await resolveDishByAnyId(dishId);
     if (!dish) {
       throw new AppError('Dish not found', 404);
     }
@@ -39,13 +35,12 @@ export class SwipeService {
     );
 
     const matchCreated = direction === 'like' ? await this.tryCreateMatch(session.id, dish._id.toString()) : false;
-    const publicDishId = toPublicDishId(dish);
 
     return {
       id: swipe.id,
       userId,
       coupleId: session.id,
-      dishId: publicDishId,
+      dishId: toPublicDishId(dish),
       direction: swipe.direction,
       matchCreated
     };
@@ -58,12 +53,27 @@ export class SwipeService {
     }
 
     const matches = await MatchModel.find({ coupleId: session._id }).populate('dishId');
-    return matches.map((match) => ({
-      id: match.id,
-      dish: toDishDto(match.dishId),
-      users: match.users,
-      createdAt: match.createdAt
-    }));
+    const validMatches = [];
+
+    for (const match of matches) {
+      const dish = toDishDto(match.dishId);
+      if (!dish) {
+        console.warn('[Matches] Skipping match with missing dish', {
+          matchId: match.id,
+          dishRef: match.dishId
+        });
+        continue;
+      }
+
+      validMatches.push({
+        id: match.id,
+        dish,
+        users: match.users,
+        createdAt: match.createdAt
+      });
+    }
+
+    return validMatches;
   }
 
   async getMySwipeHistory(userId: string) {
@@ -76,12 +86,21 @@ export class SwipeService {
       .populate('dishId')
       .sort({ createdAt: -1 });
 
-    return swipes.map((swipe) => ({
-      id: swipe.id,
-      direction: swipe.direction,
-      createdAt: swipe.createdAt,
-      dish: toDishDto(swipe.dishId)
-    }));
+    return swipes
+      .map((swipe) => {
+        const dish = toDishDto(swipe.dishId);
+        if (!dish) {
+          return null;
+        }
+
+        return {
+          id: swipe.id,
+          direction: swipe.direction,
+          createdAt: swipe.createdAt,
+          dish
+        };
+      })
+      .filter((swipe): swipe is NonNullable<typeof swipe> => Boolean(swipe));
   }
 
   private async tryCreateMatch(coupleId: string, dishId: string): Promise<boolean> {
@@ -103,35 +122,4 @@ export class SwipeService {
 
     return true;
   }
-
-  private async findDishForSwipe(dishId: string) {
-    const normalizedDishId = dishId.trim();
-
-    if (Types.ObjectId.isValid(normalizedDishId)) {
-      if (process.env.DEBUG_SWIPE_PIPELINE === '1') {
-        console.log('[debug][swipeService.findDishForSwipe] lookup by _id=%s', normalizedDishId);
-      }
-
-      const dishByObjectId = await DishModel.findById(normalizedDishId);
-      if (dishByObjectId) {
-        return dishByObjectId;
-      }
-    }
-
-    if (process.env.DEBUG_SWIPE_PIPELINE === '1') {
-      console.log('[debug][swipeService.findDishForSwipe] lookup by id=%s', normalizedDishId);
-    }
-
-    const dishByPublicId = await DishModel.findOne({ id: normalizedDishId });
-    if (dishByPublicId) {
-      return dishByPublicId;
-    }
-
-    if (process.env.DEBUG_SWIPE_PIPELINE === '1') {
-      console.log('[debug][swipeService.findDishForSwipe] lookup by sourceId=%s', normalizedDishId);
-    }
-
-    return DishModel.findOne({ sourceId: normalizedDishId });
-  }
-
 }

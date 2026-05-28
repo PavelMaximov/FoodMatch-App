@@ -2,6 +2,7 @@ import { FilterQuery, Types } from 'mongoose';
 import { AppError } from '../../../core/errors/AppError';
 import { CoupleSessionModel } from '../../couples/models/CoupleSession';
 import { toDishDto, toPublicDishId } from '../dto/dishDto';
+import { resolveDishByAnyId } from '../utils/resolveDishByAnyId';
 import { DishDocument, DishModel } from '../models/Dish';
 
 interface CreateCustomDishInput {
@@ -32,7 +33,7 @@ export class DishService {
     console.log(
       `[Dishes] listDishes limit=${returnAll ? 'all' : '50'} returned ${dishes.length} dishes`
     );
-    return dishes.map((dish) => toDishDto(dish));
+    return dishes.map((dish) => toDishDto(dish)).filter((dish): dish is NonNullable<ReturnType<typeof toDishDto>> => Boolean(dish));
   }
 
   async searchDishes(userId: string, query: string) {
@@ -51,13 +52,13 @@ export class DishService {
     };
 
     const dishes = await DishModel.find(filter).sort({ updatedAt: -1 }).limit(50);
-    return dishes.map((dish) => toDishDto(dish));
+    return dishes.map((dish) => toDishDto(dish)).filter((dish): dish is NonNullable<ReturnType<typeof toDishDto>> => Boolean(dish));
   }
 
   async getDishById(userId: string, id: string) {
     const normalizedId = id.trim();
 
-    const localDish = await this.findDishByPublicOrObjectId(normalizedId);
+    const localDish = await resolveDishByAnyId(normalizedId);
 
     if (!localDish) {
       throw new AppError('Dish not found', 404);
@@ -139,13 +140,13 @@ export class DishService {
 
     const dishes = await DishModel.find(filter).sort({ createdAt: -1 });
 
-    return dishes.map((dish) => toDishDto(dish));
+    return dishes.map((dish) => toDishDto(dish)).filter((dish): dish is NonNullable<ReturnType<typeof toDishDto>> => Boolean(dish));
   }
 
   async deleteMyCustomDish(userId: string, dishId: string) {
     const normalizedId = dishId.trim();
 
-    const candidate = await this.findDishByPublicOrObjectId(normalizedId);
+    const candidate = await resolveDishByAnyId(normalizedId);
 
     if (!candidate || candidate.sourceType !== 'custom' || candidate.status !== 'active') {
       throw new AppError('Dish not found', 404);
@@ -158,28 +159,6 @@ export class DishService {
     await DishModel.deleteOne({ _id: candidate._id });
 
     return { id: toPublicDishId(candidate), deleted: true };
-  }
-
-  private async findDishByPublicOrObjectId(dishId: string): Promise<DishDocument | null> {
-    if (!dishId) {
-      return null;
-    }
-
-    if (Types.ObjectId.isValid(dishId)) {
-      // Try to find by _id first
-      const dishByObjectId = await DishModel.findById(dishId);
-      if (dishByObjectId) {
-        return dishByObjectId;
-      }
-    }
-
-    // Search by sourceId (public ID)
-    const dishBySourceId = await DishModel.findOne({ sourceId: dishId });
-    if (dishBySourceId) {
-      return dishBySourceId;
-    }
-
-    return null;
   }
 
   private async buildVisibilityFilter(userId: string): Promise<FilterQuery<DishDocument>> {
