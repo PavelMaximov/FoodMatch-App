@@ -81,12 +81,6 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   }
 
   @override
-  void dispose() {
-    context.read<CoupleProvider>().stopFilterStatePolling();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -427,12 +421,6 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
 
 class _EmptyPoolScreen extends StatelessWidget {
   const _EmptyPoolScreen();
-
-  @override
-  void dispose() {
-    context.read<CoupleProvider>().stopFilterStatePolling();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {

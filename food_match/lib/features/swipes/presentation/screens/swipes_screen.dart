@@ -84,9 +84,16 @@ class _SwipesScreenState extends State<SwipesScreen> {
 
     swipeProvider.applyPreparedDeck(result.dishes, seenDishIds: result.seenDishIds);
 
-    if (context.read<CoupleProvider>().partnerChoicesFor(userId ?? '').cuisines.isEmpty) {
+    final CoupleProvider coupleProvider = context.read<CoupleProvider>();
+    final bool hasNoPartnerChoices = coupleProvider.hasCouple &&
+        (coupleProvider.partnerChoices == null ||
+            coupleProvider.partnerChoices!.cuisines.isEmpty);
+
+    if (hasNoPartnerChoices) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Waiting for partner choices. Using your current filters for now.')),
+        const SnackBar(
+          content: Text('Waiting for partner choices. Using your current filters for now.'),
+        ),
       );
     }
 
