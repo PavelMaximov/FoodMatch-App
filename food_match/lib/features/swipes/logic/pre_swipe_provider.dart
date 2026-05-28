@@ -89,18 +89,12 @@ class PreSwipeProvider extends ChangeNotifier {
       blocked: blocked,
     );
 
-    coupleProvider.setMySessionChoices(
-      userId,
-      cuisines: cuisines,
-      moods: moods,
-      blocked: blocked,
-      diet: diet,
-    );
+    await coupleProvider.saveMyChoices(cuisines: cuisines, moods: moods, diet: diet, exclusions: blocked);
 
-    final PartnerSessionChoices partner = coupleProvider.partnerChoicesFor(userId);
-    final bool usePairCuisineLogic = partner.cuisines.isNotEmpty;
+    final partner = coupleProvider.partnerChoices;
+    final bool usePairCuisineLogic = (partner?.cuisines ?? const <String>[]).isNotEmpty;
     final List<String> effectivePartnerCuisines =
-        usePairCuisineLogic ? partner.cuisines : const <String>[];
+        usePairCuisineLogic ? partner!.cuisines : const <String>[];
     final List<String> messages = <String>[];
 
     if (_scoringService.shouldShowPairCuisineFallback(cuisines, effectivePartnerCuisines)) {
@@ -113,9 +107,9 @@ class PreSwipeProvider extends ChangeNotifier {
       myBlocked: blocked,
       myDiet: diet,
       partnerCuisines: effectivePartnerCuisines,
-      partnerMoods: partner.moods,
-      partnerBlocked: partner.blocked,
-      partnerDiet: partner.diet,
+      partnerMoods: partner?.moods ?? const <String>[],
+      partnerBlocked: partner?.exclusions ?? const <String>[],
+      partnerDiet: partner?.diet ?? const <String>[],
     );
 
     final List<Dish> all = await _dishRepository.getCatalogDishes();

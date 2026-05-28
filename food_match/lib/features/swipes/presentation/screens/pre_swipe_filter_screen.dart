@@ -66,6 +66,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         }
       }
 
+      context.read<CoupleProvider>().startFilterStatePolling();
       final PreSwipeProvider preSwipeProvider = context.read<PreSwipeProvider>();
       final List<Dish> dishes = await preSwipeProvider.loadDishes();
       final List<String> cuisines = await preSwipeProvider.loadCuisineOptions();
@@ -77,6 +78,12 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         _cuisineOptions = cuisines;
       });
     });
+  }
+
+  @override
+  void dispose() {
+    context.read<CoupleProvider>().stopFilterStatePolling();
+    super.dispose();
   }
 
   @override
@@ -380,6 +387,8 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       await Future<void>.delayed(const Duration(milliseconds: 900));
     }
 
+    await context.read<CoupleProvider>().confirmMyChoices();
+
     if (!mounted) {
       return;
     }
@@ -418,6 +427,12 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
 
 class _EmptyPoolScreen extends StatelessWidget {
   const _EmptyPoolScreen();
+
+  @override
+  void dispose() {
+    context.read<CoupleProvider>().stopFilterStatePolling();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
