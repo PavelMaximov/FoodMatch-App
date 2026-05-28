@@ -66,6 +66,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         }
       }
 
+      context.read<CoupleProvider>().startFilterStatePolling();
       final PreSwipeProvider preSwipeProvider = context.read<PreSwipeProvider>();
       final List<Dish> dishes = await preSwipeProvider.loadDishes();
       final List<String> cuisines = await preSwipeProvider.loadCuisineOptions();
@@ -379,6 +380,8 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       await Future<void>.delayed(const Duration(milliseconds: 600));
       await Future<void>.delayed(const Duration(milliseconds: 900));
     }
+
+    await context.read<CoupleProvider>().confirmMyChoices();
 
     if (!mounted) {
       return;

@@ -90,6 +90,25 @@ class ApiService {
   }
 
 
+  Future<dynamic> put(String endpoint, Map<String, dynamic> body) async {
+    final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint');
+    try {
+      await _throttle();
+      AppLogger.api('PUT', uri.toString(), body: jsonEncode(body));
+      final response = await _requestWithRetry(() => _client.put(uri, headers: _getHeaders(), body: jsonEncode(body)));
+      AppLogger.api('PUT', uri.toString(), statusCode: response.statusCode, body: response.body);
+      return _handleResponse(response);
+    } on TimeoutException {
+      throw const ApiException(AppStrings.requestTimeout);
+    } on SocketException {
+      throw const ApiException(AppStrings.noInternet);
+    } catch (e) {
+      AppLogger.error('PUT request failed', e);
+      rethrow;
+    }
+  }
+
+
   Future<dynamic> delete(String endpoint) async {
     final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint');
     try {

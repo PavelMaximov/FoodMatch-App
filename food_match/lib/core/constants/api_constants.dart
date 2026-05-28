@@ -12,6 +12,10 @@ class ApiConstants {
   static const String coupleMe = '/api/couples/me';
   static const String coupleReset = '/api/couples/reset';
   static const String coupleLeave = '/api/couples/leave';
+  static const String coupleFilterState = '/api/couples/filter-state';
+  static const String coupleFilterStateMe = '/api/couples/filter-state/me';
+  static const String coupleFilterStateConfirm = '/api/couples/filter-state/confirm';
+  static const String coupleFilterStateReset = '/api/couples/filter-state/reset';
   static const String dishes = '/api/dishes';
   static const String dishesCatalog = '/api/dishes?limit=all';
   static const String dishesCustom = '/api/dishes/custom';
