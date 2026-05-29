@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/theme/app_colors.dart';
-import '../../../../data/models/couple_filter_state.dart';
 import '../../../../data/models/dish.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../couple/logic/couple_provider.dart';
@@ -26,6 +25,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   int _step = 1;
   bool _showIntro = true;
   bool _loading = false;
+  late final CoupleProvider _coupleProvider;
 
   final Set<String> _cuisines = <String>{};
   final Set<String> _moods = <String>{};
@@ -58,7 +58,11 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   @override
   void initState() {
     super.initState();
+    _coupleProvider = context.read<CoupleProvider>();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) {
+        return;
+      }
       final String? userId = context.read<AuthProvider>().currentUser?.id;
       if (userId != null) {
         final profile = await context.read<PreSwipeProvider>().loadProfile(userId);
@@ -66,8 +70,11 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
           setState(() => _favoriteCuisines = profile.favoriteCuisines.toSet());
         }
       }
+      if (!mounted) {
+        return;
+      }
 
-      context.read<CoupleProvider>().startFilterStatePolling();
+      _coupleProvider.startFilterStatePolling();
       final PreSwipeProvider preSwipeProvider = context.read<PreSwipeProvider>();
       final List<Dish> dishes = await preSwipeProvider.loadDishes();
       final List<String> cuisines = await preSwipeProvider.loadCuisineOptions();
@@ -79,6 +86,12 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         _cuisineOptions = cuisines;
       });
     });
+  }
+
+  @override
+  void dispose() {
+    _coupleProvider.stopFilterStatePolling();
+    super.dispose();
   }
 
   @override
@@ -119,12 +132,8 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
               const SizedBox(height: 16),
               Consumer<CoupleProvider>(
                 builder: (BuildContext context, CoupleProvider coupleProvider, _) {
-                  return _FilterSummaryPanel(
+                  return _FilterBottomPanel(
                     cuisines: _cuisines.toList(),
-                    moods: _moods.toList(),
-                    diet: _diet.toList(),
-                    exclusions: _blocked.toList(),
-                    coupleProvider: coupleProvider,
                     availability: context.read<PreSwipeProvider>().buildAvailabilitySummary(
                           allDishes: _allDishes,
                           cuisines: _cuisines.toList(),
@@ -133,48 +142,14 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
                           diet: _diet.toList(),
                           partnerChoices: coupleProvider.partnerChoices,
                         ),
+                    isLoading: _loading,
+                    canGoBack: _step > 1,
+                    primaryLabel: _step == 3 ? 'Confirm' : 'Continue',
+                    onBack: _step == 1 ? null : () => setState(() => _step--),
+                    onSkip: _loading ? null : _skip,
+                    onContinue: _loading ? null : _next,
                   );
                 },
-              ),
-              if (_loading)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8, bottom: 8),
-                  child: Text('Finding your perfect dinner...', style: GoogleFonts.nunito()),
-                ),
-              const SizedBox(height: 16),
-              Row(
-                children: <Widget>[
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: _step == 1 ? null : () => setState(() => _step--),
-                      style: OutlinedButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(_buttonRadius),
-                        ),
-                      ),
-                      child: const Text('Back'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  TextButton(
-                    onPressed: _loading ? null : _skip,
-                    child: Text('Skip', style: GoogleFonts.nunito(fontSize: 16)),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: _loading ? null : _next,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(_buttonRadius),
-                        ),
-                      ),
-                      child: Text(_step == 3 ? 'Confirm' : 'Continue'),
-                    ),
-                  ),
-                ],
               ),
             ],
           ),
@@ -239,7 +214,6 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
             options: _dietOptions,
             selected: _diet,
             onTap: _toggleDiet,
-            useCrossForSelected: true,
             anyWhenEmpty: true,
           ),
           const SizedBox(height: 16),
@@ -255,7 +229,6 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
                 }
               });
             },
-            useCrossForSelected: true,
             chipStates: context.read<PreSwipeProvider>().buildExceptionChipStates(
                   options: _exceptionOptions,
                   allDishes: _allDishes,
@@ -271,7 +244,6 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     required List<String> options,
     required Set<String> selected,
     required void Function(String) onTap,
-    bool useCrossForSelected = false,
     bool anyWhenEmpty = false,
     List<FilterChipState> chipStates = const <FilterChipState>[],
   }) {
@@ -286,11 +258,10 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         final bool highlighted = options == _cuisineOptions && !_cuisines.contains(option) && _favoriteCuisines.contains(option);
 
         return _FilterOptionChip(
-          label: _chipLabel(option, chipState),
+          label: _chipLabel(option),
           selected: isSelected,
           enabled: isEnabled,
           highlighted: highlighted,
-          useCrossForSelected: useCrossForSelected,
           onTap: () => onTap(option),
         );
       }).toList(),
@@ -306,12 +277,8 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     return null;
   }
 
-  String _chipLabel(String option, FilterChipState? chipState) {
-    final String label = _displayLabel(option);
-    if (chipState == null || option == 'Any') {
-      return label;
-    }
-    return '$label (${chipState.count})';
+  String _chipLabel(String option) {
+    return _displayLabel(option);
   }
 
   String _displayLabel(String value) {
@@ -327,7 +294,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       case 'no_seafood':
         return 'No seafood';
       default:
-        return _formatOptionLabel(value);
+        return formatOptionLabel(value);
     }
   }
 
@@ -427,7 +394,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   }
 }
 
-String _formatOptionLabel(String value) {
+String formatOptionLabel(String value) {
   final Set<String> uppercaseWords = <String>{'eu', 'uk', 'usa', 'us'};
   return value
       .trim()
@@ -453,6 +420,7 @@ class PreSwipeIntroScreen extends StatelessWidget {
 
   final VoidCallback onClose;
   final VoidCallback onCustomize;
+
 
   @override
   Widget build(BuildContext context) {
@@ -519,7 +487,6 @@ class _FilterOptionChip extends StatelessWidget {
     required this.selected,
     required this.enabled,
     required this.highlighted,
-    required this.useCrossForSelected,
     required this.onTap,
     this.icon = Icons.restaurant_menu,
     this.iconAsset,
@@ -529,10 +496,10 @@ class _FilterOptionChip extends StatelessWidget {
   final bool selected;
   final bool enabled;
   final bool highlighted;
-  final bool useCrossForSelected;
   final VoidCallback onTap;
   final IconData icon;
   final String? iconAsset;
+
 
   @override
   Widget build(BuildContext context) {
@@ -541,7 +508,11 @@ class _FilterOptionChip extends StatelessWidget {
         : highlighted
             ? AppColors.success
             : const Color(0xFFD9D9D9);
-    final Color textColor = enabled ? AppColors.textPrimary : AppColors.textHint;
+    final Color textColor = selected
+        ? AppColors.primary
+        : enabled
+            ? AppColors.textPrimary
+            : AppColors.textHint;
 
     return InkWell(
       borderRadius: BorderRadius.circular(_PreSwipeFilterScreenState._chipRadius),
@@ -558,8 +529,8 @@ class _FilterOptionChip extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             if (selected)
-              Icon(
-                useCrossForSelected ? Icons.close : Icons.check,
+              const Icon(
+                Icons.check,
                 size: 18,
                 color: AppColors.primary,
               )
@@ -570,7 +541,11 @@ class _FilterOptionChip extends StatelessWidget {
             const SizedBox(width: 8),
             Text(
               label,
-              style: GoogleFonts.nunito(fontSize: _PreSwipeFilterScreenState._chipFontSize, color: textColor),
+              style: GoogleFonts.nunito(
+                fontSize: _PreSwipeFilterScreenState._chipFontSize,
+                color: textColor,
+                fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+              ),
             ),
           ],
         ),
@@ -579,132 +554,144 @@ class _FilterOptionChip extends StatelessWidget {
   }
 }
 
-class _FilterSummaryPanel extends StatelessWidget {
-  const _FilterSummaryPanel({
+class _FilterBottomPanel extends StatelessWidget {
+  const _FilterBottomPanel({
     required this.cuisines,
-    required this.moods,
-    required this.diet,
-    required this.exclusions,
-    required this.coupleProvider,
     required this.availability,
+    required this.isLoading,
+    required this.canGoBack,
+    required this.primaryLabel,
+    required this.onBack,
+    required this.onSkip,
+    required this.onContinue,
   });
 
   final List<String> cuisines;
-  final List<String> moods;
-  final List<String> diet;
-  final List<String> exclusions;
-  final CoupleProvider coupleProvider;
   final FilterAvailabilitySummary availability;
+  final bool isLoading;
+  final bool canGoBack;
+  final String primaryLabel;
+  final VoidCallback? onBack;
+  final VoidCallback? onSkip;
+  final VoidCallback? onContinue;
 
   @override
   Widget build(BuildContext context) {
-    final bool hasPartnerChoices = availability.usesPartnerChoices;
-    final String availabilityTitle = hasPartnerChoices ? '⚡ Match result:' : '⚡ Available dishes:';
+    final String dishLabel = availability.availableCount == 1 ? 'dish' : 'dishes';
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFD0D0D0)),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Text('🎯 Your choice:', style: GoogleFonts.nunito(fontSize: 20, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 6),
-          ..._choiceLines(),
-          if (coupleProvider.hasCouple) ...<Widget>[
-            const SizedBox(height: 8),
-            Text(_partnerStatusText(), style: GoogleFonts.nunito(fontSize: 14, color: AppColors.textSecondary)),
-          ],
-          const SizedBox(height: 18),
-          Text(availabilityTitle, style: GoogleFonts.nunito(fontSize: 20, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 6),
-          Text(_availabilityCopy(), style: GoogleFonts.nunito(fontSize: 16, color: AppColors.textPrimary)),
-          if (coupleProvider.hasCouple && !hasPartnerChoices)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                coupleProvider.partnerChoices == null
-                    ? 'Waiting for partner choices. Showing your current result.'
-                    : 'Partner choices will update this result.',
-                style: GoogleFonts.nunito(fontSize: 13, color: AppColors.textSecondary),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  '🎯 ${_summaryChoiceText()}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.nunito(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
               ),
+              const SizedBox(width: 12),
+              Text(
+                '⚡ ${availability.availableCount} $dishLabel',
+                style: GoogleFonts.nunito(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          if (isLoading) ...<Widget>[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text('Finding your perfect dinner...', style: GoogleFonts.nunito(fontSize: 13)),
             ),
-          const SizedBox(height: 12),
+          ],
+          const SizedBox(height: 10),
           ClipRRect(
             borderRadius: BorderRadius.circular(99),
             child: LinearProgressIndicator(
-              minHeight: 10,
-              value: availability.progress,
+              minHeight: 14,
+              value: availability.totalCount <= 0 ? 0 : availability.progress,
               backgroundColor: const Color(0xFFE8E0DC),
               valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
             ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            '${availability.availableCount} of ${availability.totalCount} dishes available',
-            style: GoogleFonts.nunito(fontSize: 13, color: AppColors.textSecondary),
+          const SizedBox(height: 16),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: canGoBack ? onBack : null,
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(_PreSwipeFilterScreenState._buttonRadius),
+                    ),
+                  ),
+                  child: const Text('Back'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              TextButton(
+                onPressed: onSkip,
+                child: Text(
+                  'Skip',
+                  style: GoogleFonts.nunito(
+                    fontSize: 16,
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: onContinue,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(_PreSwipeFilterScreenState._buttonRadius),
+                    ),
+                  ),
+                  child: Text(primaryLabel),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 4),
-          Text(availability.helperText, style: GoogleFonts.nunito(fontSize: 13, color: AppColors.textSecondary)),
         ],
       ),
     );
   }
 
-  List<Widget> _choiceLines() {
-    final List<Widget> lines = <Widget>[];
-    void addLine(String label, List<String> values) {
-      if (values.isEmpty) {
-        return;
-      }
-      lines.add(Text(
-        '$label: ${values.map(_formatOptionLabel).join(', ')}',
-        style: GoogleFonts.nunito(fontSize: 15, color: AppColors.textPrimary),
-      ));
+  String _summaryChoiceText() {
+    if (cuisines.isEmpty) {
+      return 'Any cuisine';
     }
-
-    addLine('Cuisine', cuisines);
-    addLine('Mood priority', moods);
-    addLine('Diet', diet);
-    addLine('Exclusions', exclusions);
-
-    if (lines.isEmpty) {
-      return <Widget>[Text('No choices yet', style: GoogleFonts.nunito(fontSize: 15, color: AppColors.textSecondary))];
-    }
-    return lines;
-  }
-
-  String _availabilityCopy() {
-    final String suffix = availability.usesPartnerChoices ? 'match both your choices' : 'match your current setup';
-    return '${availability.availableCount} dishes $suffix';
-  }
-
-  String _partnerStatusText() {
-    if (!coupleProvider.hasCouple) {
-      return '';
-    }
-    if ((coupleProvider.currentCouple?.members.length ?? 0) < 2) {
-      return 'Partner: Waiting for partner...';
-    }
-    if (coupleProvider.bothConfirmed || coupleProvider.isPartnerReady) {
-      return 'Partner: Ready';
-    }
-    final CoupleFilterChoices? partnerChoices = coupleProvider.partnerChoices;
-    final bool hasChoices = partnerChoices != null &&
-        (partnerChoices.cuisines.isNotEmpty ||
-            partnerChoices.moods.isNotEmpty ||
-            partnerChoices.diet.isNotEmpty ||
-            partnerChoices.exclusions.isNotEmpty);
-    return hasChoices ? 'Partner: Choices received' : 'Partner: Waiting for choices...';
+    return cuisines.map(formatOptionLabel).join(', ');
   }
 }
 
 class _EmptyPoolScreen extends StatelessWidget {
   const _EmptyPoolScreen();
+
 
   @override
   Widget build(BuildContext context) {

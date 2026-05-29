@@ -81,80 +81,19 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
                     partnerLabel: _partnerLabel(context, coupleProvider),
                     isLoading: coupleProvider.isLoading && !coupleProvider.hasCouple,
                   ),
-                  const SizedBox(height: 34),
-                  Text(
-                    'Join an existing session',
-                    style: GoogleFonts.nunito(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  TextField(
-                    controller: _codeController,
-                    textCapitalization: TextCapitalization.characters,
-                    style: GoogleFonts.nunito(fontSize: 15, color: AppColors.textPrimary),
-                    decoration: InputDecoration(
-                      hintText: 'Enter the invitation code',
-                      hintStyle: GoogleFonts.nunito(
-                        fontSize: 14,
-                        color: AppColors.textHint,
-                      ),
-                      filled: true,
-                      fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppDimensions.radiusM),
-                        borderSide: BorderSide(color: AppColors.divider),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppDimensions.radiusM),
-                        borderSide: BorderSide(color: AppColors.divider),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppDimensions.radiusM),
-                        borderSide: BorderSide(color: AppColors.primary, width: 1.4),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: coupleProvider.isLoading ? null : () => _connectToSession(coupleProvider),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.55),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      child: coupleProvider.isLoading
-                          ? const SizedBox(
-                              height: 18,
-                              width: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : Text(
-                              'Connect to session',
-                              style: GoogleFonts.nunito(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                              ),
-                            ),
-                    ),
-                  ),
+                  const SizedBox(height: 24),
+                  if (coupleProvider.hasCouple)
+                    _buildActiveSessionControls(coupleProvider)
+                  else
+                    _buildJoinControls(coupleProvider),
                   if (coupleProvider.error != null) ...<Widget>[
                     const SizedBox(height: 12),
                     Text(
                       coupleProvider.error!,
-                      style: GoogleFonts.nunito(fontSize: 13, color: AppColors.error),
+                      style: GoogleFonts.nunito(
+                        fontSize: 13,
+                        color: coupleProvider.hasActiveSessionConflict ? AppColors.textSecondary : AppColors.error,
+                      ),
                     ),
                   ],
                 ],
@@ -166,7 +105,136 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
     );
   }
 
+
+  Widget _buildActiveSessionControls(CoupleProvider coupleProvider) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          'You already have an active session. Leave it before joining another one.',
+          style: GoogleFonts.nunito(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: OutlinedButton(
+                onPressed: coupleProvider.isLoading ? null : coupleProvider.leaveCouple,
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('Leave session'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: coupleProvider.isLoading ? null : coupleProvider.resetCouple,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('Reset'),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildJoinControls(CoupleProvider coupleProvider) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          'Join an existing session',
+          style: GoogleFonts.nunito(
+            fontSize: 18,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 14),
+        TextField(
+          controller: _codeController,
+          textCapitalization: TextCapitalization.characters,
+          style: GoogleFonts.nunito(fontSize: 15, color: AppColors.textPrimary),
+          decoration: InputDecoration(
+            hintText: 'Enter the invitation code',
+            hintStyle: GoogleFonts.nunito(
+              fontSize: 14,
+              color: AppColors.textHint,
+            ),
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppDimensions.radiusM),
+              borderSide: BorderSide(color: AppColors.divider),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppDimensions.radiusM),
+              borderSide: BorderSide(color: AppColors.divider),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppDimensions.radiusM),
+              borderSide: BorderSide(color: AppColors.primary, width: 1.4),
+            ),
+          ),
+        ),
+        const SizedBox(height: 18),
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: ElevatedButton(
+            onPressed: coupleProvider.isLoading || coupleProvider.isJoining
+                ? null
+                : () => _connectToSession(coupleProvider),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.55),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: coupleProvider.isLoading || coupleProvider.isJoining
+                ? const SizedBox(
+                    height: 18,
+                    width: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : Text(
+                    'Connect to session',
+                    style: GoogleFonts.nunito(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Future<void> _connectToSession(CoupleProvider coupleProvider) async {
+    if (coupleProvider.hasCouple) {
+      SnackBarUtils.showError(context, 'You already have an active session. Leave it before joining another one.');
+      return;
+    }
+
     final String code = _codeController.text.trim();
     if (code.isEmpty) {
       SnackBarUtils.showError(context, 'Enter the invitation code');
@@ -175,6 +243,10 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
 
     await coupleProvider.joinCouple(code);
     if (!mounted) return;
+    if (coupleProvider.hasActiveSessionConflict) {
+      SnackBarUtils.showError(context, CoupleProvider.activeSessionMessage);
+      return;
+    }
     if (coupleProvider.currentCouple != null) {
       Navigator.pop(context);
       SnackBarUtils.showSuccess(context, 'Connected to session!');
