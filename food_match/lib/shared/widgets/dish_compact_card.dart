@@ -54,18 +54,6 @@ class DishCompactCard extends StatelessWidget {
                         color: AppColors.textPrimary,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      dish.description.isEmpty ? 'No description available.' : dish.description,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.nunito(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.textSecondary,
-                        height: 1.2,
-                      ),
-                    ),
                     const SizedBox(height: 12),
                     Wrap(
                       spacing: 8,

@@ -11,6 +11,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/image_utils.dart';
+import '../../../../data/models/couple.dart';
 import '../../../../data/models/dish.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../couple/logic/couple_provider.dart';
@@ -34,12 +35,12 @@ class _MatchOverlayScreenState extends State<MatchOverlayScreen> with SingleTick
     super.initState();
     _glowController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1800),
+      duration: const Duration(milliseconds: 2200),
     )..repeat(reverse: true);
-    _glowOpacity = Tween<double>(begin: 0.20, end: 0.45).animate(
+    _glowOpacity = Tween<double>(begin: 0.16, end: 0.32).animate(
       CurvedAnimation(parent: _glowController, curve: Curves.easeInOut),
     );
-    _glowScale = Tween<double>(begin: 0.95, end: 1.05).animate(
+    _glowScale = Tween<double>(begin: 0.96, end: 1.04).animate(
       CurvedAnimation(parent: _glowController, curve: Curves.easeInOut),
     );
   }
@@ -53,13 +54,13 @@ class _MatchOverlayScreenState extends State<MatchOverlayScreen> with SingleTick
   @override
   Widget build(BuildContext context) {
     final CoupleProvider coupleProvider = context.watch<CoupleProvider>();
-    final String? currentUserName = context.watch<AuthProvider>().currentUser?.displayName;
+    final String? currentUserId = context.watch<AuthProvider>().currentUser?.id;
     final String partnerName = _resolvePartnerName(
-      members: coupleProvider.currentCouple?.members,
-      currentUserName: currentUserName,
+      members: coupleProvider.currentCouple?.memberProfiles,
+      currentUserId: currentUserId,
     );
     final Size screenSize = MediaQuery.sizeOf(context);
-    final double imageWidth = math.min(screenSize.width * 0.68, 300);
+    final double imageWidth = math.min(screenSize.width * 0.68, 300.0).toDouble();
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -95,7 +96,7 @@ class _MatchOverlayScreenState extends State<MatchOverlayScreen> with SingleTick
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.pacifico(
-                          fontSize: math.min(screenSize.width * 0.11, 44),
+                          fontSize: math.min(screenSize.width * 0.11, 44.0).toDouble(),
                           color: AppColors.primary,
                         ),
                       ),
@@ -106,12 +107,12 @@ class _MatchOverlayScreenState extends State<MatchOverlayScreen> with SingleTick
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.nunito(
-                          fontSize: math.min(screenSize.width * 0.075, 30),
+                          fontSize: math.min(screenSize.width * 0.075, 30.0).toDouble(),
                           color: Colors.white,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
-                      SizedBox(height: math.min(screenSize.height * 0.045, 34)),
+                      SizedBox(height: math.min(screenSize.height * 0.045, 34.0).toDouble()),
                       if (widget.dish != null) ...<Widget>[
                         _GlowingDishImage(
                           dish: widget.dish!,
@@ -132,23 +133,13 @@ class _MatchOverlayScreenState extends State<MatchOverlayScreen> with SingleTick
                             height: 1.15,
                           ),
                         ),
-                        SizedBox(height: math.min(screenSize.height * 0.035, 28)),
+                        SizedBox(height: math.min(screenSize.height * 0.035, 28.0).toDouble()),
                       ] else
-                        SizedBox(height: math.min(screenSize.height * 0.035, 28)),
-                      _MatchInfoPanel(partnerName: partnerName),
-                      const SizedBox(height: AppDimensions.paddingL),
-                      _MatchOverlayButton(
-                        text: AppStrings.continueBrowsing,
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                      const SizedBox(height: AppDimensions.paddingM - 4),
-                      _MatchOverlayButton(
-                        text: AppStrings.goToMatchResults,
-                        backgroundColor: Colors.white,
-                        foregroundColor: const Color(0xFF211B20),
-                        onPressed: () {
+                        SizedBox(height: math.min(screenSize.height * 0.035, 28.0).toDouble()),
+                      _MatchInfoPanel(
+                        partnerName: partnerName,
+                        onContinueBrowsing: () => Navigator.pop(context),
+                        onGoToMatches: () {
                           Navigator.pop(context);
                           context.go('/matches');
                         },
@@ -164,14 +155,22 @@ class _MatchOverlayScreenState extends State<MatchOverlayScreen> with SingleTick
     );
   }
 
-  String _resolvePartnerName({List<String>? members, String? currentUserName}) {
+  String _resolvePartnerName({
+    List<CoupleMemberProfile>? members,
+    String? currentUserId,
+  }) {
     if (members == null || members.isEmpty) {
       return AppStrings.yourPartner;
     }
 
-    for (final String member in members) {
-      if (member.isNotEmpty && member != currentUserName) {
-        return member;
+    for (final CoupleMemberProfile member in members) {
+      if (member.id.isEmpty || member.id == currentUserId) {
+        continue;
+      }
+
+      final String? displayName = member.displayName?.trim();
+      if (displayName != null && displayName.isNotEmpty) {
+        return displayName;
       }
     }
 
@@ -194,29 +193,32 @@ class _GlowingDishImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final double glowWidth = imageWidth * 0.62;
+    final double glowHeight = math.min(math.max(imageWidth * 0.11, 24.0), 34.0).toDouble();
+
     return SizedBox(
       width: imageWidth,
-      height: imageWidth + 28,
+      height: imageWidth + 40,
       child: Stack(
         alignment: Alignment.center,
         children: <Widget>[
           Positioned(
-            bottom: 8,
+            bottom: 2,
             child: AnimatedBuilder(
               animation: opacityAnimation,
               builder: (_, __) => Transform.scale(
                 scale: scaleAnimation.value,
                 child: Container(
-                  width: imageWidth * 0.82,
-                  height: 42,
+                  width: glowWidth,
+                  height: glowHeight,
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: opacityAnimation.value),
                     borderRadius: BorderRadius.circular(999),
                     boxShadow: <BoxShadow>[
                       BoxShadow(
                         color: Colors.white.withValues(alpha: opacityAnimation.value),
-                        blurRadius: 36,
-                        spreadRadius: 10,
+                        blurRadius: 28,
+                        spreadRadius: 6,
                       ),
                     ],
                   ),
@@ -262,9 +264,15 @@ class _GlowingDishImage extends StatelessWidget {
 }
 
 class _MatchInfoPanel extends StatelessWidget {
-  const _MatchInfoPanel({required this.partnerName});
+  const _MatchInfoPanel({
+    required this.partnerName,
+    required this.onContinueBrowsing,
+    required this.onGoToMatches,
+  });
 
   final String partnerName;
+  final VoidCallback onContinueBrowsing;
+  final VoidCallback onGoToMatches;
 
   @override
   Widget build(BuildContext context) {
@@ -305,6 +313,20 @@ class _MatchInfoPanel extends StatelessWidget {
               color: Colors.white70,
               fontSize: 14,
             ),
+          ),
+          const SizedBox(height: AppDimensions.paddingL),
+          _MatchOverlayButton(
+            text: AppStrings.continueBrowsing,
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            onPressed: onContinueBrowsing,
+          ),
+          const SizedBox(height: AppDimensions.paddingM - 4),
+          _MatchOverlayButton(
+            text: AppStrings.goToMatchResults,
+            backgroundColor: Colors.white,
+            foregroundColor: const Color(0xFF211B20),
+            onPressed: onGoToMatches,
           ),
         ],
       ),
