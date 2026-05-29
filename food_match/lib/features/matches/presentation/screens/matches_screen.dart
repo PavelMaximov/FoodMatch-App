@@ -10,7 +10,7 @@ import '../../../../core/utils/image_utils.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
-import '../../../../data/models/dish.dart';
+import '../../../../shared/widgets/dish_compact_card.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../couple/logic/couple_provider.dart';
 import '../../../favorites/logic/favorites_provider.dart';
@@ -116,96 +116,16 @@ class _MatchesScreenState extends State<MatchesScreen> {
           final dish = matchProvider.matches[index];
           return Padding(
             padding: const EdgeInsets.only(bottom: AppDimensions.paddingS),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(24),
+            child: DishCompactCard(
+              dish: dish,
+              isSaved: favoritesProvider.isFavorite(dish.id),
               onTap: () => context.push('/recipe-detail/${dish.id}', extra: dish),
-              child: Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: const Color(0xFFEDEBEA)),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Text(
-                            dish.name.isEmpty ? 'Untitled dish' : dish.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.nunito(
-                              fontSize: 34 * 0.5,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            dish.description.isEmpty ? 'No description available.' : dish.description,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.nunito(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.textSecondary,
-                              height: 1.2,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 6,
-                            children: _buildChips(dish),
-                          ),
-                          const SizedBox(height: 12),
-                          Wrap(
-                            spacing: 14,
-                            runSpacing: 6,
-                            children: <Widget>[
-                              _MetaItem(
-                                icon: Icons.access_time,
-                                text: '${dish.cookTime <= 0 ? 0 : dish.cookTime} min.',
-                              ),
-                              _MetaItem(
-                                icon: Icons.people_outline,
-                                text: '${dish.servings.isEmpty ? '2' : dish.servings} servings',
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    _MatchDishImage(
-                      imageUrl: dish.imageUrl,
-                      isBookmarked: favoritesProvider.isFavorite(dish.id),
-                      onBookmarkTap: () => context.read<FavoritesProvider>().toggleFavorite(dish),
-                    ),
-                  ],
-                ),
-              ),
+              onFavoriteTap: () => context.read<FavoritesProvider>().toggleFavorite(dish),
             ),
           );
         },
       ),
     );
-  }
-
-  List<Widget> _buildChips(Dish dish) {
-    final List<String> candidates = <String>[
-      dish.cuisine,
-      dish.type,
-    ].where((String value) => value.trim().isNotEmpty).toList();
-
-    if (candidates.isEmpty) {
-      candidates.add('Dish');
-    }
-
-    return candidates.take(2).map(_TagChip.new).toList();
   }
 
   CoupleMemberProfile? _resolvePartner({
@@ -326,118 +246,6 @@ class _PartnerAvatar extends StatelessWidget {
           color: AppColors.textSecondary,
         ),
       ),
-    );
-  }
-}
-
-class _MatchDishImage extends StatelessWidget {
-  const _MatchDishImage({
-    required this.imageUrl,
-    required this.isBookmarked,
-    required this.onBookmarkTap,
-  });
-
-  final String imageUrl;
-  final bool isBookmarked;
-  final VoidCallback onBookmarkTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: <Widget>[
-        ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: CachedNetworkImage(
-            imageUrl: ImageUtils.getImageUrl(imageUrl),
-            width: 120,
-            height: 120,
-            fit: BoxFit.cover,
-            errorWidget: (_, __, ___) => Container(
-              width: 120,
-              height: 120,
-              color: const Color(0xFFF1EFEE),
-              alignment: Alignment.center,
-              child: const Icon(Icons.image_not_supported_outlined, color: AppColors.textSecondary),
-            ),
-          ),
-        ),
-        Positioned(
-          top: 6,
-          right: 6,
-          child: Material(
-            color: Colors.black.withValues(alpha: 0.25),
-            shape: const CircleBorder(),
-            child: InkWell(
-              customBorder: const CircleBorder(),
-              onTap: onBookmarkTap,
-              child: Padding(
-                padding: const EdgeInsets.all(6),
-                child: Icon(
-                  isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-                  size: 18,
-                  color: isBookmarked ? const Color(0xFFFF5D33) : Colors.white,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _TagChip extends StatelessWidget {
-  const _TagChip(this.label);
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFF858585), width: 1.5),
-      ),
-      child: Text(
-        label,
-        style: GoogleFonts.nunito(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          color: const Color(0xFF666666),
-        ),
-      ),
-    );
-  }
-}
-
-class _MetaItem extends StatelessWidget {
-  const _MetaItem({
-    required this.icon,
-    required this.text,
-  });
-
-  final IconData icon;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        Icon(icon, size: 16, color: AppColors.textSecondary),
-        const SizedBox(width: 4),
-        Text(
-          text,
-          softWrap: true,
-          overflow: TextOverflow.visible,
-          style: GoogleFonts.nunito(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textSecondary,
-          ),
-        ),
-      ],
     );
   }
 }
