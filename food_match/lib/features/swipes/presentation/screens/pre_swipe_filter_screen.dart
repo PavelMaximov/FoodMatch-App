@@ -1,6 +1,5 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
@@ -24,7 +23,9 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   static const double _chipFontSize = 17;
 
   int _step = 1;
+  bool _showIntro = true;
   bool _loading = false;
+  late final CoupleProvider _coupleProvider;
 
   final Set<String> _cuisines = <String>{};
   final Set<String> _moods = <String>{};
@@ -57,7 +58,11 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   @override
   void initState() {
     super.initState();
+    _coupleProvider = context.read<CoupleProvider>();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) {
+        return;
+      }
       final String? userId = context.read<AuthProvider>().currentUser?.id;
       if (userId != null) {
         final profile = await context.read<PreSwipeProvider>().loadProfile(userId);
@@ -65,8 +70,11 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
           setState(() => _favoriteCuisines = profile.favoriteCuisines.toSet());
         }
       }
+      if (!mounted) {
+        return;
+      }
 
-      context.read<CoupleProvider>().startFilterStatePolling();
+      _coupleProvider.startFilterStatePolling();
       final PreSwipeProvider preSwipeProvider = context.read<PreSwipeProvider>();
       final List<Dish> dishes = await preSwipeProvider.loadDishes();
       final List<String> cuisines = await preSwipeProvider.loadCuisineOptions();
@@ -81,7 +89,20 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   }
 
   @override
+  void dispose() {
+    _coupleProvider.stopFilterStatePolling();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_showIntro) {
+      return PreSwipeIntroScreen(
+        onClose: () => Navigator.of(context).pop(),
+        onCustomize: () => setState(() => _showIntro = false),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -105,47 +126,30 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
                 style: GoogleFonts.pacifico(fontSize: 42, color: const Color(0xFF1A1A1A)),
               ),
               const SizedBox(height: 10),
-              Text(_subtitle, style: GoogleFonts.nunito(fontSize: 28)),
+              Text(_subtitle, style: GoogleFonts.nunito(fontSize: 18, color: AppColors.textSecondary)),
               const SizedBox(height: 24),
               Expanded(child: _buildStepContent()),
-              if (_loading)
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 8),
-                  child: Text('Finding your perfect dinner...'),
-                ),
-              Row(
-                children: <Widget>[
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: _step == 1 ? null : () => setState(() => _step--),
-                      style: OutlinedButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(_buttonRadius),
+              const SizedBox(height: 16),
+              Consumer<CoupleProvider>(
+                builder: (BuildContext context, CoupleProvider coupleProvider, _) {
+                  return _FilterBottomPanel(
+                    cuisines: _cuisines.toList(),
+                    availability: context.read<PreSwipeProvider>().buildAvailabilitySummary(
+                          allDishes: _allDishes,
+                          cuisines: _cuisines.toList(),
+                          moods: _moods.toList(),
+                          blocked: _blocked.toList(),
+                          diet: _diet.toList(),
+                          partnerChoices: coupleProvider.partnerChoices,
                         ),
-                      ),
-                      child: const Text('Back'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  TextButton(
-                    onPressed: _loading ? null : _skip,
-                    child: Text('Skip', style: GoogleFonts.nunito(fontSize: 16)),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: _loading ? null : _next,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(_buttonRadius),
-                        ),
-                      ),
-                      child: Text(_step == 3 ? 'Confirm' : 'Continue'),
-                    ),
-                  ),
-                ],
+                    isLoading: _loading,
+                    canGoBack: _step > 1,
+                    primaryLabel: _step == 3 ? 'Confirm' : 'Continue',
+                    onBack: _step == 1 ? null : () => setState(() => _step--),
+                    onSkip: _loading ? null : _skip,
+                    onContinue: _loading ? null : _next,
+                  );
+                },
               ),
             ],
           ),
@@ -158,43 +162,47 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       ? 'Cuisine'
       : _step == 2
           ? 'Mood'
-          : 'Exceptions';
+          : 'Exclusions';
 
   String get _subtitle => _step == 1
-      ? 'Choose up to 3'
+      ? 'Pick the cuisines you want to see.'
       : _step == 2
-          ? 'Pick 1–3 vibes'
-          : 'Any restrictions?';
+          ? "We'll prioritize dishes with this vibe."
+          : "Choose ingredients you want to avoid. We'll remove dishes that contain them.";
 
   Widget _buildStepContent() {
     if (_step == 1) {
-      return _buildChipGrid(
-        options: _cuisineOptions,
-        selected: _cuisines,
-        onTap: _toggleCuisine,
-        chipStates: context.read<PreSwipeProvider>().buildCuisineChipStates(_cuisineOptions, _allDishes),
-        anyWhenEmpty: true,
+      return SingleChildScrollView(
+        child: _buildChipGrid(
+          options: _cuisineOptions,
+          selected: _cuisines,
+          onTap: _toggleCuisine,
+          chipStates: context.read<PreSwipeProvider>().buildCuisineChipStates(_cuisineOptions, _allDishes),
+          anyWhenEmpty: true,
+        ),
       );
     }
 
     if (_step == 2) {
-      return _buildChipGrid(
-        options: _moodOptions,
-        selected: _moods,
-        onTap: (String value) {
-          setState(() {
-            if (_moods.contains(value)) {
-              _moods.remove(value);
-            } else if (_moods.length < 3) {
-              _moods.add(value);
-            }
-          });
-        },
-        chipStates: context.read<PreSwipeProvider>().buildMoodChipStates(
-              options: _moodOptions,
-              allDishes: _allDishes,
-              selectedCuisines: _cuisines.toList(),
-            ),
+      return SingleChildScrollView(
+        child: _buildChipGrid(
+          options: _moodOptions,
+          selected: _moods,
+          onTap: (String value) {
+            setState(() {
+              if (_moods.contains(value)) {
+                _moods.remove(value);
+              } else if (_moods.length < 3) {
+                _moods.add(value);
+              }
+            });
+          },
+          chipStates: context.read<PreSwipeProvider>().buildMoodChipStates(
+                options: _moodOptions,
+                allDishes: _allDishes,
+                selectedCuisines: _cuisines.toList(),
+              ),
+        ),
       );
     }
 
@@ -206,7 +214,6 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
             options: _dietOptions,
             selected: _diet,
             onTap: _toggleDiet,
-            useCrossForSelected: true,
             anyWhenEmpty: true,
           ),
           const SizedBox(height: 16),
@@ -222,7 +229,6 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
                 }
               });
             },
-            useCrossForSelected: true,
             chipStates: context.read<PreSwipeProvider>().buildExceptionChipStates(
                   options: _exceptionOptions,
                   allDishes: _allDishes,
@@ -238,7 +244,6 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     required List<String> options,
     required Set<String> selected,
     required void Function(String) onTap,
-    bool useCrossForSelected = false,
     bool anyWhenEmpty = false,
     List<FilterChipState> chipStates = const <FilterChipState>[],
   }) {
@@ -252,38 +257,12 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         final bool isEnabled = chipState?.enabled ?? true;
         final bool highlighted = options == _cuisineOptions && !_cuisines.contains(option) && _favoriteCuisines.contains(option);
 
-        return ChoiceChip(
-          label: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              if (isSelected)
-                Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: Icon(
-                    useCrossForSelected ? Icons.close : Icons.check,
-                    size: 16,
-                    color: AppColors.primary,
-                  ),
-                ),
-              Text(_chipLabel(option, chipState), style: GoogleFonts.nunito(fontSize: _chipFontSize)),
-            ],
-          ),
+        return _FilterOptionChip(
+          label: _chipLabel(option),
           selected: isSelected,
-          showCheckmark: false,
-          onSelected: isEnabled ? (_) => onTap(option) : null,
-          selectedColor: const Color(0xFFFFEFE7),
-          disabledColor: const Color(0xFFF2F2F2),
-          backgroundColor: Colors.white,
-          side: BorderSide(
-            color: isSelected
-                ? AppColors.primary
-                : highlighted
-                    ? const Color(0xFF4CAF50)
-                    : const Color(0xFFD9D9D9),
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(_chipRadius),
-          ),
+          enabled: isEnabled,
+          highlighted: highlighted,
+          onTap: () => onTap(option),
         );
       }).toList(),
     );
@@ -298,12 +277,8 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     return null;
   }
 
-  String _chipLabel(String option, FilterChipState? chipState) {
-    final String label = _displayLabel(option);
-    if (chipState == null || option == 'Any') {
-      return label;
-    }
-    return '$label (${chipState.count})';
+  String _chipLabel(String option) {
+    return _displayLabel(option);
   }
 
   String _displayLabel(String value) {
@@ -319,7 +294,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       case 'no_seafood':
         return 'No seafood';
       default:
-        return value;
+        return formatOptionLabel(value);
     }
   }
 
@@ -419,8 +394,304 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   }
 }
 
+String formatOptionLabel(String value) {
+  final Set<String> uppercaseWords = <String>{'eu', 'uk', 'usa', 'us'};
+  return value
+      .trim()
+      .replaceAll('_', ' ')
+      .split(RegExp(r'\s+'))
+      .where((String word) => word.isNotEmpty)
+      .map((String word) {
+        final String lower = word.toLowerCase();
+        if (uppercaseWords.contains(lower)) {
+          return lower.toUpperCase();
+        }
+        return lower[0].toUpperCase() + lower.substring(1);
+      })
+      .join(' ');
+}
+
+class PreSwipeIntroScreen extends StatelessWidget {
+  const PreSwipeIntroScreen({
+    super.key,
+    required this.onClose,
+    required this.onCustomize,
+  });
+
+  final VoidCallback onClose;
+  final VoidCallback onCustomize;
+
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            children: <Widget>[
+              Align(
+                alignment: Alignment.centerRight,
+                child: IconButton(
+                  onPressed: onClose,
+                  icon: const Icon(Icons.close, size: 30, color: AppColors.textSecondary),
+                ),
+              ),
+              const Spacer(),
+              SvgPicture.asset(
+                'assets/icons/pre_swipe_intro.svg',
+                width: 170,
+                height: 170,
+              ),
+              const SizedBox(height: 36),
+              Text(
+                'Before you start swiping...',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.pacifico(fontSize: 38, color: AppColors.textPrimary, height: 1.15),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                'We have over 200 dishes in our database. Without filters, that\'s a lot of swiping. Answer a few quick questions about your food preferences and we\'ll show you dishes that better match your taste and your partner\'s choice.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.nunito(fontSize: 17, height: 1.45, color: AppColors.textSecondary),
+              ),
+              const Spacer(),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: onCustomize,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                  child: Text(
+                    'Customize my feed >',
+                    style: GoogleFonts.nunito(fontSize: 17, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FilterOptionChip extends StatelessWidget {
+  const _FilterOptionChip({
+    required this.label,
+    required this.selected,
+    required this.enabled,
+    required this.highlighted,
+    required this.onTap,
+    this.icon = Icons.restaurant_menu,
+    this.iconAsset,
+  });
+
+  final String label;
+  final bool selected;
+  final bool enabled;
+  final bool highlighted;
+  final VoidCallback onTap;
+  final IconData icon;
+  final String? iconAsset;
+
+
+  @override
+  Widget build(BuildContext context) {
+    final Color borderColor = selected
+        ? AppColors.primary
+        : highlighted
+            ? AppColors.success
+            : const Color(0xFFD9D9D9);
+    final Color textColor = selected
+        ? AppColors.primary
+        : enabled
+            ? AppColors.textPrimary
+            : AppColors.textHint;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(_PreSwipeFilterScreenState._chipRadius),
+      onTap: enabled ? onTap : null,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 140),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFFFFEFE7) : enabled ? Colors.white : const Color(0xFFF2F2F2),
+          borderRadius: BorderRadius.circular(_PreSwipeFilterScreenState._chipRadius),
+          border: Border.all(color: borderColor, width: selected ? 2 : 1),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            if (selected)
+              const Icon(
+                Icons.check,
+                size: 18,
+                color: AppColors.primary,
+              )
+            else if (iconAsset != null)
+              SvgPicture.asset(iconAsset!, width: 18, height: 18)
+            else
+              Icon(icon, size: 18, color: AppColors.textSecondary),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: GoogleFonts.nunito(
+                fontSize: _PreSwipeFilterScreenState._chipFontSize,
+                color: textColor,
+                fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FilterBottomPanel extends StatelessWidget {
+  const _FilterBottomPanel({
+    required this.cuisines,
+    required this.availability,
+    required this.isLoading,
+    required this.canGoBack,
+    required this.primaryLabel,
+    required this.onBack,
+    required this.onSkip,
+    required this.onContinue,
+  });
+
+  final List<String> cuisines;
+  final FilterAvailabilitySummary availability;
+  final bool isLoading;
+  final bool canGoBack;
+  final String primaryLabel;
+  final VoidCallback? onBack;
+  final VoidCallback? onSkip;
+  final VoidCallback? onContinue;
+
+  @override
+  Widget build(BuildContext context) {
+    final String dishLabel = availability.availableCount == 1 ? 'dish' : 'dishes';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFD0D0D0)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  '🎯 ${_summaryChoiceText()}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.nunito(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w400,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                '⚡ ${availability.availableCount} $dishLabel',
+                style: GoogleFonts.nunito(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
+          ),
+          if (isLoading) ...<Widget>[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text('Finding your perfect dinner...', style: GoogleFonts.nunito(fontSize: 13)),
+            ),
+          ],
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(99),
+            child: LinearProgressIndicator(
+              minHeight: 10,
+              value: availability.totalCount <= 0 ? 0 : availability.progress,
+              backgroundColor: const Color(0xFFE8E0DC),
+              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: canGoBack ? onBack : null,
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(_PreSwipeFilterScreenState._buttonRadius),
+                    ),
+                  ),
+                  child: const Text('Back'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              TextButton(
+                onPressed: onSkip,
+                child: Text(
+                  'Skip',
+                  style: GoogleFonts.nunito(
+                    fontSize: 16,
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: onContinue,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(_PreSwipeFilterScreenState._buttonRadius),
+                    ),
+                  ),
+                  child: Text(primaryLabel),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _summaryChoiceText() {
+    if (cuisines.isEmpty) {
+      return 'Any cuisine';
+    }
+    return cuisines.map(formatOptionLabel).join(', ');
+  }
+}
+
 class _EmptyPoolScreen extends StatelessWidget {
   const _EmptyPoolScreen();
+
 
   @override
   Widget build(BuildContext context) {
