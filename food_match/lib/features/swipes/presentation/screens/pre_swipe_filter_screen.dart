@@ -161,7 +161,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   String get _title => _step == 1
       ? 'Cuisine'
       : _step == 2
-          ? 'What are you in the mood for?'
+          ? 'Mood'
           : 'Exclusions';
 
   String get _subtitle => _step == 1
@@ -598,8 +598,8 @@ class _FilterBottomPanel extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.nunito(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w400,
                     color: AppColors.textPrimary,
                   ),
                 ),
@@ -608,9 +608,9 @@ class _FilterBottomPanel extends StatelessWidget {
               Text(
                 '⚡ ${availability.availableCount} $dishLabel',
                 style: GoogleFonts.nunito(
-                  fontSize: 16,
+                  fontSize: 14,
                   fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
+                  color: AppColors.primary,
                 ),
               ),
             ],
@@ -626,7 +626,7 @@ class _FilterBottomPanel extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(99),
             child: LinearProgressIndicator(
-              minHeight: 14,
+              minHeight: 10,
               value: availability.totalCount <= 0 ? 0 : availability.progress,
               backgroundColor: const Color(0xFFE8E0DC),
               valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
