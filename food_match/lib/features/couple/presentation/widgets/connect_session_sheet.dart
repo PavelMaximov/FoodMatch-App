@@ -19,12 +19,12 @@ class ConnectSessionSheet extends StatefulWidget {
 
 class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
   final TextEditingController _codeController = TextEditingController();
-  bool _hasPreparedInvite = false;
+  bool _hasLoadedCurrentSession = false;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _prepareInviteCode());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadCurrentSession());
   }
 
   @override
@@ -33,17 +33,14 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
     super.dispose();
   }
 
-  Future<void> _prepareInviteCode() async {
-    if (!mounted || _hasPreparedInvite) return;
-    _hasPreparedInvite = true;
+  Future<void> _loadCurrentSession() async {
+    if (!mounted || _hasLoadedCurrentSession) return;
+    _hasLoadedCurrentSession = true;
 
     final CoupleProvider coupleProvider = context.read<CoupleProvider>();
     if (coupleProvider.hasCouple || coupleProvider.isLoading) return;
 
     await coupleProvider.loadCouple();
-    if (!mounted || coupleProvider.hasCouple || coupleProvider.isLoading) return;
-
-    await coupleProvider.createCouple();
     if (!mounted) return;
     if (coupleProvider.error != null) {
       SnackBarUtils.showError(context, coupleProvider.error!);
@@ -68,24 +65,28 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
           ),
           child: Consumer<CoupleProvider>(
             builder: (BuildContext context, CoupleProvider coupleProvider, _) {
+              final Couple? couple = coupleProvider.currentCouple;
+              final bool hasRealCouple = couple != null && couple.inviteCode.trim().isNotEmpty;
+
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
                   _SheetHeader(onClose: () => Navigator.pop(context)),
                   const SizedBox(height: 34),
-                  _InviteCodePanel(
-                    inviteCode: coupleProvider.inviteCode?.isNotEmpty == true
-                        ? coupleProvider.inviteCode!
-                        : '00000',
-                    partnerLabel: _partnerLabel(context, coupleProvider),
-                    isLoading: coupleProvider.isLoading && !coupleProvider.hasCouple,
-                  ),
-                  const SizedBox(height: 24),
-                  if (coupleProvider.hasCouple)
-                    _buildActiveSessionControls(coupleProvider)
-                  else
+                  if (hasRealCouple) ...<Widget>[
+                    _InviteCodePanel(
+                      inviteCode: couple.inviteCode,
+                      partnerLabel: _partnerLabel(context, coupleProvider),
+                      isLoading: false,
+                    ),
+                    const SizedBox(height: 24),
+                    _buildActiveSessionControls(coupleProvider),
+                  ] else ...<Widget>[
+                    _buildNoSessionControls(coupleProvider),
+                    const SizedBox(height: 24),
                     _buildJoinControls(coupleProvider),
+                  ],
                   if (coupleProvider.error != null) ...<Widget>[
                     const SizedBox(height: 12),
                     Text(
@@ -106,6 +107,57 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
   }
 
 
+
+  Widget _buildNoSessionControls(CoupleProvider coupleProvider) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          'Create your own session',
+          style: GoogleFonts.nunito(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Start a new invite code or join one from your partner below.',
+          style: GoogleFonts.nunito(fontSize: 14, color: AppColors.textSecondary),
+        ),
+        const SizedBox(height: 14),
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: ElevatedButton(
+            onPressed: coupleProvider.isLoading ? null : () => _createSession(coupleProvider),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.55),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: coupleProvider.isLoading
+                ? const SizedBox(
+                    height: 18,
+                    width: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  )
+                : Text(
+                    'Create session',
+                    style: GoogleFonts.nunito(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildActiveSessionControls(CoupleProvider coupleProvider) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -123,7 +175,7 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
           children: <Widget>[
             Expanded(
               child: OutlinedButton(
-                onPressed: coupleProvider.isLoading ? null : coupleProvider.leaveCouple,
+                onPressed: coupleProvider.isLoading || coupleProvider.isLeaving ? null : () => _leaveSession(coupleProvider),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 13),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -226,6 +278,34 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
           ),
         ),
       ],
+    );
+  }
+
+
+  Future<void> _createSession(CoupleProvider coupleProvider) async {
+    await coupleProvider.createCouple();
+    if (!mounted) return;
+    if (coupleProvider.error != null) {
+      SnackBarUtils.showError(context, coupleProvider.error!);
+    }
+  }
+
+  Future<void> _leaveSession(CoupleProvider coupleProvider) async {
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    await coupleProvider.leaveCouple();
+    if (!mounted) return;
+    if (coupleProvider.error != null) {
+      SnackBarUtils.showError(context, coupleProvider.error!);
+      return;
+    }
+    Navigator.pop(context);
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('Session left'),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: 2),
+      ),
     );
   }
 
