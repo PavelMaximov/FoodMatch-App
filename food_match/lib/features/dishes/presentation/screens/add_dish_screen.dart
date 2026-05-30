@@ -19,6 +19,7 @@ import '../../../../data/repositories/dish_repository.dart';
 import '../../../../data/repositories/upload_repository.dart';
 import '../../../../data/services/api_service.dart';
 import '../../../../shared/widgets/app_button.dart';
+import '../../../../shared/widgets/dish_compact_card.dart';
 
 class AddDishScreen extends StatefulWidget {
   const AddDishScreen({super.key});
@@ -528,10 +529,16 @@ class _AddDishScreenState extends State<AddDishScreen> {
                       final Dish dish = _myDishes[index];
                       return Padding(
                         padding: const EdgeInsets.only(bottom: AppDimensions.paddingS),
-                        child: _MyDishCard(
+                        child: DishCompactCard(
                           dish: dish,
-                          onDelete: () => _deleteDish(dish),
-                          onOpen: () => context.push('/recipe-detail/${dish.id}', extra: dish),
+                          onTap: () => context.push('/recipe-detail/${dish.id}', extra: dish),
+                          trailing: DishCompactCardIconButton(
+                            icon: Icons.delete_outline,
+                            tooltip: 'Delete dish',
+                            color: AppColors.error,
+                            backgroundColor: Colors.white.withValues(alpha: 0.88),
+                            onTap: () => _deleteDish(dish),
+                          ),
                         ),
                       );
                     },
@@ -866,122 +873,6 @@ class _AddIngredientSheetState extends State<_AddIngredientSheet> {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _MyDishCard extends StatelessWidget {
-  const _MyDishCard({
-    required this.dish,
-    required this.onDelete,
-    required this.onOpen,
-  });
-
-  final Dish dish;
-  final VoidCallback onDelete;
-  final VoidCallback onOpen;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(26),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(26),
-        onTap: onOpen,
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(26),
-            border: Border.all(color: const Color(0xFFBFB7B2)),
-          ),
-          child: Row(
-            children: <Widget>[
-              ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(26),
-                  bottomLeft: Radius.circular(26),
-                ),
-                child: CachedNetworkImage(
-                  imageUrl: ImageUtils.getImageUrl(dish.imageUrl),
-                  width: 115,
-                  height: 120,
-                  fit: BoxFit.cover,
-                  errorWidget: (_, __, ___) => const SizedBox(
-                    width: 115,
-                    height: 120,
-                    child: ColoredBox(
-                      color: Colors.black12,
-                      child: Icon(Icons.image_not_supported_outlined),
-                    ),
-                  ),
-                ),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Row(
-                        children: <Widget>[
-                          Expanded(
-                            child: Text(
-                              dish.name,
-                              style: AppTextStyles.cardTitle.copyWith(fontSize: 17),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          IconButton(
-                            onPressed: onDelete,
-                            icon: const Icon(Icons.delete, color: AppColors.error),
-                          )
-                        ],
-                      ),
-                      Wrap(
-                        spacing: 6,
-                        children: <String>[
-                          if (dish.cuisine.isNotEmpty) dish.cuisine,
-                          if (dish.mood.isNotEmpty) dish.mood.first,
-                        ]
-                            .map(
-                              (tag) => Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(999),
-                                  border: Border.all(color: const Color(0xFF888888)),
-                                ),
-                                child: Text(tag, style: AppTextStyles.bodySmall),
-                              ),
-                            )
-                            .toList(),
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: <Widget>[
-                          const Icon(Icons.access_time, size: 16, color: AppColors.textSecondary),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${dish.cookTime} min.',
-                            style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w700),
-                          ),
-                          const SizedBox(width: 12),
-                          const Icon(Icons.groups_2_outlined, size: 16, color: AppColors.textSecondary),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${dish.servings.isEmpty ? '2' : dish.servings} servings',
-                            style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w700),
-                          ),
-                        ],
-                      )
-                    ],
-                  ),
-                ),
-              )
-            ],
-          ),
-        ),
       ),
     );
   }

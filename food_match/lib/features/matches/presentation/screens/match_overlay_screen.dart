@@ -1,31 +1,59 @@
+import 'dart:math' as math;
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/image_utils.dart';
+import '../../../../data/models/couple.dart';
 import '../../../../data/models/dish.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../couple/logic/couple_provider.dart';
-import '../../../../shared/widgets/app_button.dart';
-import '../../../../core/constants/app_strings.dart';
 
-class MatchOverlayScreen extends StatelessWidget {
+class MatchOverlayScreen extends StatefulWidget {
   const MatchOverlayScreen({this.dish, super.key});
 
   final Dish? dish;
 
   @override
+  State<MatchOverlayScreen> createState() => _MatchOverlayScreenState();
+}
+
+class _MatchOverlayScreenState extends State<MatchOverlayScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _glowController;
+
+  @override
+  void initState() {
+    super.initState();
+    _glowController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _glowController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final CoupleProvider coupleProvider = context.watch<CoupleProvider>();
-    final String? currentUserName = context.watch<AuthProvider>().currentUser?.displayName;
+    final String? currentUserId = context.watch<AuthProvider>().currentUser?.id;
     final String partnerName = _resolvePartnerName(
-      members: coupleProvider.currentCouple?.members,
-      currentUserName: currentUserName,
+      members: coupleProvider.currentCouple?.memberProfiles,
+      currentUserId: currentUserId,
     );
+    final Size screenSize = MediaQuery.sizeOf(context);
+    final double imageWidth = math.min(screenSize.width * 0.68, 300.0).toDouble();
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -34,128 +62,292 @@ class MatchOverlayScreen extends StatelessWidget {
         height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              AppColors.matchOverlayStart,
-              AppColors.matchOverlayEnd,
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: <Color>[
+              Color(0xFF614A4D),
+              Color(0xFF4A436C),
             ],
           ),
         ),
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(AppDimensions.paddingL),
-            child: Column(
-              children: <Widget>[
-                const Spacer(),
-                Text(AppStrings.congratulations, style: AppTextStyles.matchCongrats),
-                const SizedBox(height: AppDimensions.paddingXS),
-                Text(
-                  AppStrings.youHaveA,
-                  style: AppTextStyles.sectionHeader.copyWith(
-                    fontSize: 20,
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
+          child: LayoutBuilder(
+            builder: (BuildContext context, BoxConstraints constraints) {
+              return SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppDimensions.paddingL,
+                  vertical: AppDimensions.paddingM,
                 ),
-                Text(
-                  AppStrings.match,
-                  style: AppTextStyles.matchCongrats.copyWith(
-                    fontSize: 40,
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight - (AppDimensions.paddingM * 2),
                   ),
-                ),
-                const SizedBox(height: AppDimensions.paddingL),
-                if (dish != null)
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(AppDimensions.radiusL),
-                      boxShadow: const <BoxShadow>[
-                        BoxShadow(
-                          color: Color(0x66FFFFFF),
-                          blurRadius: 18,
-                          spreadRadius: 1,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: <Widget>[
+                      Text(
+                        AppStrings.congratulations,
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.pacifico(
+                          fontSize: math.min(screenSize.width * 0.11, 44.0).toDouble(),
+                          color: AppColors.primary,
                         ),
-                        BoxShadow(
-                          color: Color(0x33000000),
-                          blurRadius: 24,
-                          offset: Offset(0, 12),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(AppDimensions.radiusL),
-                      child: CachedNetworkImage(
-                        imageUrl: ImageUtils.getImageUrl(dish!.imageUrl),
-                        width: 250,
-                        height: 250,
-                        fit: BoxFit.cover,
                       ),
-                    ),
+                      const SizedBox(height: AppDimensions.paddingXS),
+                      Text(
+                        'You have a Match!',
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.nunito(
+                          fontSize: math.min(screenSize.width * 0.075, 30.0).toDouble(),
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      SizedBox(height: math.min(screenSize.height * 0.045, 34.0).toDouble()),
+                      if (widget.dish != null) ...<Widget>[
+                        _GlowingDishImage(
+                          dish: widget.dish!,
+                          imageWidth: imageWidth,
+                          animation: _glowController,
+                        ),
+                        const SizedBox(height: AppDimensions.paddingM),
+                        Text(
+                          widget.dish!.name.isEmpty ? 'Untitled dish' : widget.dish!.name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.nunito(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            height: 1.15,
+                          ),
+                        ),
+                        SizedBox(height: math.min(screenSize.height * 0.035, 28.0).toDouble()),
+                      ] else
+                        SizedBox(height: math.min(screenSize.height * 0.035, 28.0).toDouble()),
+                      _MatchInfoPanel(
+                        partnerName: partnerName,
+                        onContinueBrowsing: () => Navigator.pop(context),
+                        onGoToMatches: () {
+                          Navigator.pop(context);
+                          context.go('/matches');
+                        },
+                      ),
+                    ],
                   ),
-                const SizedBox(height: AppDimensions.paddingL),
-                Text(
-                  '${AppStrings.youAnd} $partnerName',
-                  style: AppTextStyles.bodyLarge.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 18,
-                  ),
-                  textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: AppDimensions.paddingXS),
-                Text(
-                  AppStrings.chosenSameDish,
-                  style: AppTextStyles.bodyLarge.copyWith(
-                    color: Colors.white,
-                    fontSize: 16,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: AppDimensions.paddingS),
-                Text(
-                  AppStrings.nowYouHaveChoice,
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    color: Colors.white70,
-                    fontSize: 14,
-                  ),
-                ),
-                const Spacer(),
-                AppButton(
-                  text: AppStrings.continueBrowsing,
-                  onPressed: () => Navigator.pop(context),
-                  darkBackground: true,
-                ),
-                const SizedBox(height: AppDimensions.paddingM - 4),
-                AppButton(
-                  text: AppStrings.goToMatchResults,
-                  isOutlined: true,
-                  darkBackground: true,
-                  onPressed: () {
-                    Navigator.pop(context);
-                    context.go('/matches');
-                  },
-                ),
-              ],
-            ),
+              );
+            },
           ),
         ),
       ),
     );
   }
 
-  String _resolvePartnerName({List<String>? members, String? currentUserName}) {
+  String _resolvePartnerName({
+    List<CoupleMemberProfile>? members,
+    String? currentUserId,
+  }) {
     if (members == null || members.isEmpty) {
       return AppStrings.yourPartner;
     }
 
-    for (final String member in members) {
-      if (member.isNotEmpty && member != currentUserName) {
-        return member;
+    for (final CoupleMemberProfile member in members) {
+      if (member.id.isEmpty || member.id == currentUserId) {
+        continue;
+      }
+
+      final String? displayName = member.displayName?.trim();
+      if (displayName != null && displayName.isNotEmpty) {
+        return displayName;
       }
     }
 
     return AppStrings.yourPartner;
+  }
+}
+
+// ── Glowing dish image with sweep border animation ───────────────────────────
+
+class _GlowingDishImage extends StatelessWidget {
+  const _GlowingDishImage({
+    required this.dish,
+    required this.imageWidth,
+    required this.animation,
+  });
+
+  final Dish dish;
+  final double imageWidth;
+  final Animation<double> animation;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (_, __) {
+        final double t = Curves.easeInOut.transform(animation.value);
+        return Container(
+          width: imageWidth,
+          height: imageWidth,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              // Внутренний слой — резкий, брендовый цвет
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.45 + t * 0.25),
+                blurRadius: 12 + t * 10,
+                spreadRadius: 1 + t * 3,
+              ),
+              // Внешний слой — широкий мягкий ореол
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.15 + t * 0.15),
+                blurRadius: 28 + t * 20,
+                spreadRadius: 4 + t * 8,
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(28),
+            child: CachedNetworkImage(
+              imageUrl: ImageUtils.getImageUrl(dish.imageUrl),
+              width: imageWidth,
+              height: imageWidth,
+              fit: BoxFit.cover,
+              errorWidget: (_, __, ___) => Container(
+                width: imageWidth,
+                height: imageWidth,
+                color: const Color(0xFFF1EFEE),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.image_not_supported_outlined,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+
+
+ 
+
+// ── Match info panel ─────────────────────────────────────────────────────────
+
+class _MatchInfoPanel extends StatelessWidget {
+  const _MatchInfoPanel({
+    required this.partnerName,
+    required this.onContinueBrowsing,
+    required this.onGoToMatches,
+  });
+
+  final String partnerName;
+  final VoidCallback onContinueBrowsing;
+  final VoidCallback onGoToMatches;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.30),
+        borderRadius: BorderRadius.circular(26),
+      ),
+      child: Column(
+        children: <Widget>[
+          Text(
+            '${AppStrings.youAnd} $partnerName',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: AppTextStyles.bodyLarge.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+              fontSize: 18,
+            ),
+          ),
+          const SizedBox(height: AppDimensions.paddingXS),
+          Text(
+            AppStrings.chosenSameDish.replaceAll('.', ''),
+            textAlign: TextAlign.center,
+            style: AppTextStyles.bodyLarge.copyWith(
+              color: Colors.white,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: AppDimensions.paddingS),
+          Text(
+            AppStrings.nowYouHaveChoice,
+            textAlign: TextAlign.center,
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: Colors.white70,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: AppDimensions.paddingL),
+          _MatchOverlayButton(
+            text: AppStrings.continueBrowsing,
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            onPressed: onContinueBrowsing,
+          ),
+          const SizedBox(height: AppDimensions.paddingM - 4),
+          _MatchOverlayButton(
+            text: AppStrings.goToMatchResults,
+            backgroundColor: Colors.white,
+            foregroundColor: const Color(0xFF211B20),
+            onPressed: onGoToMatches,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Button ───────────────────────────────────────────────────────────────────
+
+class _MatchOverlayButton extends StatelessWidget {
+  const _MatchOverlayButton({
+    required this.text,
+    required this.backgroundColor,
+    required this.foregroundColor,
+    required this.onPressed,
+  });
+
+  final String text;
+  final Color backgroundColor;
+  final Color foregroundColor;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: AppDimensions.buttonHeight,
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: backgroundColor,
+          foregroundColor: foregroundColor,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+  borderRadius: BorderRadius.circular(AppDimensions.radiusM),
+          ),
+        ),
+        child: Text(
+          text,
+          style: AppTextStyles.button.copyWith(color: foregroundColor),
+        ),
+      ),
+    );
   }
 }
