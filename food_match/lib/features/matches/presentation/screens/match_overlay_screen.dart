@@ -25,24 +25,17 @@ class MatchOverlayScreen extends StatefulWidget {
   State<MatchOverlayScreen> createState() => _MatchOverlayScreenState();
 }
 
-class _MatchOverlayScreenState extends State<MatchOverlayScreen> with SingleTickerProviderStateMixin {
+class _MatchOverlayScreenState extends State<MatchOverlayScreen>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _glowController;
-  late final Animation<double> _glowOpacity;
-  late final Animation<double> _glowScale;
 
   @override
   void initState() {
     super.initState();
     _glowController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2200),
+      duration: const Duration(milliseconds: 2000),
     )..repeat(reverse: true);
-    _glowOpacity = Tween<double>(begin: 0.16, end: 0.32).animate(
-      CurvedAnimation(parent: _glowController, curve: Curves.easeInOut),
-    );
-    _glowScale = Tween<double>(begin: 0.96, end: 1.04).animate(
-      CurvedAnimation(parent: _glowController, curve: Curves.easeInOut),
-    );
   }
 
   @override
@@ -86,7 +79,9 @@ class _MatchOverlayScreenState extends State<MatchOverlayScreen> with SingleTick
                   vertical: AppDimensions.paddingM,
                 ),
                 child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: constraints.maxHeight - (AppDimensions.paddingM * 2)),
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight - (AppDimensions.paddingM * 2),
+                  ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: <Widget>[
@@ -117,8 +112,7 @@ class _MatchOverlayScreenState extends State<MatchOverlayScreen> with SingleTick
                         _GlowingDishImage(
                           dish: widget.dish!,
                           imageWidth: imageWidth,
-                          opacityAnimation: _glowOpacity,
-                          scaleAnimation: _glowScale,
+                          animation: _glowController,
                         ),
                         const SizedBox(height: AppDimensions.paddingM),
                         Text(
@@ -178,90 +172,75 @@ class _MatchOverlayScreenState extends State<MatchOverlayScreen> with SingleTick
   }
 }
 
+// ── Glowing dish image with sweep border animation ───────────────────────────
+
 class _GlowingDishImage extends StatelessWidget {
   const _GlowingDishImage({
     required this.dish,
     required this.imageWidth,
-    required this.opacityAnimation,
-    required this.scaleAnimation,
+    required this.animation,
   });
 
   final Dish dish;
   final double imageWidth;
-  final Animation<double> opacityAnimation;
-  final Animation<double> scaleAnimation;
+  final Animation<double> animation;
 
   @override
   Widget build(BuildContext context) {
-    final double glowWidth = imageWidth * 0.62;
-    final double glowHeight = math.min(math.max(imageWidth * 0.11, 24.0), 34.0).toDouble();
-
-    return SizedBox(
-      width: imageWidth,
-      height: imageWidth + 40,
-      child: Stack(
-        alignment: Alignment.center,
-        children: <Widget>[
-          Positioned(
-            bottom: 2,
-            child: AnimatedBuilder(
-              animation: opacityAnimation,
-              builder: (_, __) => Transform.scale(
-                scale: scaleAnimation.value,
-                child: Container(
-                  width: glowWidth,
-                  height: glowHeight,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: opacityAnimation.value),
-                    borderRadius: BorderRadius.circular(999),
-                    boxShadow: <BoxShadow>[
-                      BoxShadow(
-                        color: Colors.white.withValues(alpha: opacityAnimation.value),
-                        blurRadius: 28,
-                        spreadRadius: 6,
-                      ),
-                    ],
-                  ),
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (_, __) {
+        final double t = Curves.easeInOut.transform(animation.value);
+        return Container(
+          width: imageWidth,
+          height: imageWidth,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              // Внутренний слой — резкий, брендовый цвет
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.45 + t * 0.25),
+                blurRadius: 12 + t * 10,
+                spreadRadius: 1 + t * 3,
+              ),
+              // Внешний слой — широкий мягкий ореол
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.15 + t * 0.15),
+                blurRadius: 28 + t * 20,
+                spreadRadius: 4 + t * 8,
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(28),
+            child: CachedNetworkImage(
+              imageUrl: ImageUtils.getImageUrl(dish.imageUrl),
+              width: imageWidth,
+              height: imageWidth,
+              fit: BoxFit.cover,
+              errorWidget: (_, __, ___) => Container(
+                width: imageWidth,
+                height: imageWidth,
+                color: const Color(0xFFF1EFEE),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.image_not_supported_outlined,
+                  color: AppColors.textSecondary,
                 ),
               ),
             ),
           ),
-          Positioned(
-            top: 0,
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(28),
-                boxShadow: const <BoxShadow>[
-                  BoxShadow(
-                    color: Color(0x55000000),
-                    blurRadius: 28,
-                    offset: Offset(0, 16),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(28),
-                child: CachedNetworkImage(
-                  imageUrl: ImageUtils.getImageUrl(dish.imageUrl),
-                  width: imageWidth,
-                  height: imageWidth,
-                  fit: BoxFit.cover,
-                  errorWidget: (_, __, ___) => Container(
-                    width: imageWidth,
-                    height: imageWidth,
-                    color: const Color(0xFFF1EFEE),
-                    alignment: Alignment.center,
-                    child: const Icon(Icons.image_not_supported_outlined, color: AppColors.textSecondary),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
+
+
+
+ 
+
+// ── Match info panel ─────────────────────────────────────────────────────────
 
 class _MatchInfoPanel extends StatelessWidget {
   const _MatchInfoPanel({
@@ -334,6 +313,8 @@ class _MatchInfoPanel extends StatelessWidget {
   }
 }
 
+// ── Button ───────────────────────────────────────────────────────────────────
+
 class _MatchOverlayButton extends StatelessWidget {
   const _MatchOverlayButton({
     required this.text,
@@ -359,7 +340,7 @@ class _MatchOverlayButton extends StatelessWidget {
           foregroundColor: foregroundColor,
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppDimensions.radiusButton),
+  borderRadius: BorderRadius.circular(AppDimensions.radiusM),
           ),
         ),
         child: Text(

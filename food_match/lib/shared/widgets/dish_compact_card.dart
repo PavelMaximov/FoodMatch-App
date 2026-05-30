@@ -128,12 +128,12 @@ class _CompactDishImage extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           child: CachedNetworkImage(
             imageUrl: ImageUtils.getImageUrl(imageUrl),
-            width: 120,
-            height: 120,
+            width: 100,
+            height: 100,
             fit: BoxFit.cover,
             errorWidget: (_, __, ___) => Container(
-              width: 120,
-              height: 120,
+              width: 100,
+              height: 100,
               color: const Color(0xFFF1EFEE),
               alignment: Alignment.center,
               child: const Icon(Icons.image_not_supported_outlined, color: AppColors.textSecondary),
@@ -210,7 +210,7 @@ class DishCompactCardIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final Widget button = _ImageActionButton(
       onTap: onTap,
-      child: Icon(icon, size: 18, color: color),
+      child: Icon(icon, size: 16, color: color),
     );
 
     if (backgroundColor == null && tooltip == null) {
@@ -227,7 +227,7 @@ class DishCompactCardIconButton extends StatelessWidget {
               onTap: onTap,
               child: Padding(
                 padding: const EdgeInsets.all(6),
-                child: Icon(icon, size: 18, color: color),
+                child: Icon(icon, size: 16, color: color),
               ),
             ),
           );
@@ -259,7 +259,7 @@ class _TagChip extends StatelessWidget {
       child: Text(
         label,
         style: GoogleFonts.nunito(
-          fontSize: 13,
+          fontSize: 12,
           fontWeight: FontWeight.w600,
           color: const Color(0xFF666666),
         ),
@@ -282,7 +282,7 @@ class _MetaItem extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        Icon(icon, size: 16, color: AppColors.textSecondary),
+        Icon(icon, size: 15, color: AppColors.textSecondary),
         const SizedBox(width: 4),
         Text(
           text,
