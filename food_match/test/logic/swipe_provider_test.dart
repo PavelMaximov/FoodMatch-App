@@ -1,97 +1,97 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:food_match/data/local/cache_service.dart';
+import 'package:food_match/data/local/user_profile_hive_service.dart';
 import 'package:food_match/data/models/dish.dart';
 import 'package:food_match/data/repositories/dish_repository.dart';
 import 'package:food_match/data/repositories/swipe_repository.dart';
+import 'package:food_match/data/services/api_service.dart';
 import 'package:food_match/features/swipes/logic/swipe_provider.dart';
-import 'package:mockito/annotations.dart';
-import 'package:mockito/mockito.dart';
 
-import 'swipe_provider_test.mocks.dart';
+import '../helpers/dish_test_data.dart';
 
-@GenerateMocks(<Type>[DishRepository, SwipeRepository])
 void main() {
   late SwipeProvider provider;
-  late MockDishRepository mockDishRepo;
-  late MockSwipeRepository mockSwipeRepo;
+  late _FakeDishRepository fakeDishRepo;
+  late _FakeSwipeRepository fakeSwipeRepo;
+  late _FakeCacheService fakeCacheService;
 
-  const testDishes = <Dish>[
-    Dish(
-      id: '1',
-      title: 'Борщ',
-      description: 'Суп',
-      imageUrl: 'url1',
-      cuisine: 'Russian',
-      tags: <String>[],
-      source: 'user',
-      externalId: null,
-      createdBy: 'u1',
-      recipe: null,
-    ),
-    Dish(
-      id: '2',
-      title: 'Паста',
-      description: 'Итальянская',
-      imageUrl: 'url2',
-      cuisine: 'Italian',
-      tags: <String>[],
-      source: 'user',
-      externalId: null,
-      createdBy: 'u1',
-      recipe: null,
-    ),
+  final List<Dish> testDishes = <Dish>[
+    buildTestDish(id: '1', name: 'Borscht', description: 'Soup', cuisine: 'Russian'),
+    buildTestDish(id: '2', name: 'Pasta', description: 'Italian', cuisine: 'Italian'),
   ];
 
   setUp(() {
-    mockDishRepo = MockDishRepository();
-    mockSwipeRepo = MockSwipeRepository();
+    fakeDishRepo = _FakeDishRepository()..dishes = testDishes;
+    fakeSwipeRepo = _FakeSwipeRepository();
+    fakeCacheService = _FakeCacheService();
+
     provider = SwipeProvider(
-      dishRepository: mockDishRepo,
-      swipeRepository: mockSwipeRepo,
+      dishRepository: fakeDishRepo,
+      swipeRepository: fakeSwipeRepo,
+      cacheService: fakeCacheService,
+      userProfileService: _FakeUserProfileHiveService(),
     );
   });
 
-  test('loadDeck загружает блюда', () async {
-    when(mockDishRepo.getDishes(cuisine: anyNamed('cuisine')))
-        .thenAnswer((_) async => testDishes);
-
+  test('loadDeck loads dishes', () async {
     await provider.loadDeck();
 
     expect(provider.deck.length, 2);
-    expect(provider.currentDish?.title, 'Борщ');
+    expect(provider.currentDish?.name, 'Borscht');
     expect(provider.isDeckEmpty, false);
+    expect(fakeCacheService.cachedDishes, testDishes);
   });
 
-  test('like сдвигает currentIndex', () async {
-    when(mockDishRepo.getDishes(cuisine: anyNamed('cuisine')))
-        .thenAnswer((_) async => testDishes);
-    when(
-      mockSwipeRepo.sendSwipe(
-        dishId: anyNamed('dishId'),
-        action: anyNamed('action'),
-      ),
-    ).thenAnswer((_) async => <String, dynamic>{});
-
+  test('like advances currentIndex', () async {
     await provider.loadDeck();
     await provider.like();
 
-    expect(provider.currentDish?.title, 'Паста');
+    expect(provider.currentDish?.name, 'Pasta');
+    expect(fakeSwipeRepo.sentSwipes.single, ('1', 'like'));
   });
 
-  test('дека становится пустой после всех свайпов', () async {
-    when(mockDishRepo.getDishes(cuisine: anyNamed('cuisine')))
-        .thenAnswer((_) async => testDishes);
-    when(
-      mockSwipeRepo.sendSwipe(
-        dishId: anyNamed('dishId'),
-        action: anyNamed('action'),
-      ),
-    ).thenAnswer((_) async => <String, dynamic>{});
-
+  test('deck becomes empty after all swipes', () async {
     await provider.loadDeck();
     await provider.like();
     await provider.dislike();
 
     expect(provider.isDeckEmpty, true);
     expect(provider.currentDish, isNull);
+    expect(fakeSwipeRepo.sentSwipes, <(String, String)>[('1', 'like'), ('2', 'dislike')]);
   });
 }
+
+class _FakeDishRepository extends DishRepository {
+  _FakeDishRepository() : super(ApiService());
+
+  List<Dish> dishes = <Dish>[];
+
+  @override
+  Future<List<Dish>> getDishes({String? cuisine}) async => dishes;
+}
+
+class _FakeSwipeRepository extends SwipeRepository {
+  _FakeSwipeRepository() : super(ApiService());
+
+  final List<(String, String)> sentSwipes = <(String, String)>[];
+
+  @override
+  Future<dynamic> sendSwipe({required String dishId, required String direction}) async {
+    sentSwipes.add((dishId, direction));
+    return <String, dynamic>{};
+  }
+}
+
+class _FakeCacheService extends CacheService {
+  List<Dish> cachedDishes = <Dish>[];
+
+  @override
+  Future<void> cacheDishes(List<Dish> dishes) async {
+    cachedDishes = dishes;
+  }
+
+  @override
+  Future<List<Dish>> getCachedDishes() async => <Dish>[];
+}
+
+class _FakeUserProfileHiveService extends UserProfileHiveService {}

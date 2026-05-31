@@ -86,19 +86,6 @@ class UserProfileHiveService {
       sessionCount: nextSessionCount,
     );
 
-    if (nextSessionCount % 10 == 0 && weights.isNotEmpty) {
-      final List<MapEntry<String, int>> sortedEntries = weights.entries
-    .where((e) => e.value > 0)
-    .toList()
-  ..sort((a, b) => b.value.compareTo(a.value));
-
-final List<String> topThree = sortedEntries
-    .take(3)
-    .map((e) => e.key)
-    .toList();
-      
-    }
-
     await saveProfile(userId, next);
   }
 
