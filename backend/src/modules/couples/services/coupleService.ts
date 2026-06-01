@@ -4,6 +4,7 @@ import { generateInviteCode } from '../../../core/utils/inviteCode';
 import { MatchModel } from '../../matches/models/Match';
 import { SwipeModel } from '../../swipes/models/Swipe';
 import { CoupleFilterState, CoupleFilterUserChoice, CoupleSessionDocument, CoupleSessionModel } from '../models/CoupleSession';
+import { clearPreparedDeck } from './coupleDeckService';
 
 export class CoupleService {
   async getMyActiveSession(userId: string) {
@@ -35,6 +36,7 @@ export class CoupleService {
 
     session.members.push(new Types.ObjectId(userId));
     this.ensureFilterState(session);
+    clearPreparedDeck(session);
     await session.save();
     return session;
   }
@@ -49,6 +51,7 @@ export class CoupleService {
       session.filterState.status = 'draft';
       session.filterState.updatedAt = new Date();
     }
+    clearPreparedDeck(session);
 
     if (session.members.length === 0) {
       await SwipeModel.deleteMany({ coupleId: session._id });
@@ -69,6 +72,7 @@ export class CoupleService {
     await SwipeModel.deleteMany({ coupleId: session._id });
     await MatchModel.deleteMany({ coupleId: session._id });
     this.clearFilterState(session as CoupleSessionDocument);
+    clearPreparedDeck(session as CoupleSessionDocument);
     await (session as CoupleSessionDocument).save();
 
     return { message: 'Session swipes and matches reset', coupleId: session.id };
@@ -96,6 +100,7 @@ export class CoupleService {
 
     session.filterState!.status = 'draft';
     session.filterState!.updatedAt = now;
+    clearPreparedDeck(session);
 
     await session.save();
     console.log(`[CoupleFilterState] update user=${userId} choices=c${entry.cuisines.length}/m${entry.moods.length}/d${entry.diet.length}/e${entry.exclusions.length}`);
@@ -123,6 +128,7 @@ export class CoupleService {
   async resetFilterState(userId: string) {
     const session = await this.requireActiveSession(userId);
     this.clearFilterState(session);
+    clearPreparedDeck(session);
     await session.save();
     console.log(`[CoupleFilterState] reset couple=${session.id}`);
     return this.buildFilterStateResponse(session, userId);

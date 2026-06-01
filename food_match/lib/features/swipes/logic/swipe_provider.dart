@@ -5,7 +5,9 @@ import '../../../core/utils/logger.dart';
 import '../../../data/local/cache_service.dart';
 import '../../../data/local/user_profile_hive_service.dart';
 import '../../../data/models/dish.dart';
+import '../../../data/models/prepared_deck.dart';
 import '../../../data/repositories/dish_repository.dart';
+import '../../../data/repositories/couple_repository.dart';
 import '../../../data/repositories/swipe_repository.dart';
 import '../../../data/services/api_service.dart';
 
@@ -13,15 +15,18 @@ class SwipeProvider extends ChangeNotifier {
   SwipeProvider({
     required DishRepository dishRepository,
     required SwipeRepository swipeRepository,
+    required CoupleRepository coupleRepository,
     required UserProfileHiveService userProfileService,
     CacheService? cacheService,
   })  : _dishRepository = dishRepository,
         _swipeRepository = swipeRepository,
+        _coupleRepository = coupleRepository,
         _cacheService = cacheService ?? CacheService(),
         _userProfileService = userProfileService;
 
   final DishRepository _dishRepository;
   final SwipeRepository _swipeRepository;
+  final CoupleRepository _coupleRepository;
   final CacheService _cacheService;
   final UserProfileHiveService _userProfileService;
 
@@ -30,6 +35,7 @@ class SwipeProvider extends ChangeNotifier {
   String? _activeUserId;
   bool _hasPreparedDeck = false;
   int _deckVersion = 0;
+  PreparedDeckMeta? _preparedDeckMeta;
 
   List<Dish> deck = <Dish>[];
   int currentIndex = 0;
@@ -46,6 +52,7 @@ class SwipeProvider extends ChangeNotifier {
   bool get canUndo => _lastSwipedDish != null && _lastSwipedIndex != null;
   bool get hasPreparedDeck => _hasPreparedDeck;
   int get deckVersion => _deckVersion;
+  PreparedDeckMeta? get preparedDeckMeta => _preparedDeckMeta;
 
   bool isSeenDish(String dishId) => _seenDishIds.contains(dishId);
 
@@ -58,6 +65,7 @@ class SwipeProvider extends ChangeNotifier {
     _deckVersion++;
     _seenDishIds = seenDishIds;
     _hasPreparedDeck = true;
+    _preparedDeckMeta = null;
     currentIndex = 0;
     _lastSwipedDish = null;
     _lastSwipedIndex = null;
@@ -67,8 +75,29 @@ class SwipeProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void applyBackendPreparedDeck(PreparedDeck preparedDeck) {
+    _preparedDeckMeta = preparedDeck.meta;
+    debugPrint('[PreparedDeck] loaded existing deck final=${preparedDeck.meta.finalCount}');
+    applyPreparedDeck(preparedDeck.dishes);
+    _preparedDeckMeta = preparedDeck.meta;
+  }
+
+  Future<bool> loadExistingPreparedDeck() async {
+    try {
+      final PreparedDeck preparedDeck = await _coupleRepository.getPreparedDeck();
+      if (preparedDeck.isReady && preparedDeck.dishes.isNotEmpty) {
+        applyBackendPreparedDeck(preparedDeck);
+        return true;
+      }
+    } catch (e) {
+      debugPrint('[PreparedDeck] load existing failed $e');
+    }
+    return false;
+  }
+
   void clearPreparedDeckFlag() {
     _hasPreparedDeck = false;
+    _preparedDeckMeta = null;
   }
 
   Future<void> loadDeck({String? cuisine}) async {
@@ -97,6 +126,7 @@ class SwipeProvider extends ChangeNotifier {
     _seenDishIds = <String>{};
     _deckVersion++;
     _hasPreparedDeck = false;
+    _preparedDeckMeta = null;
     currentIndex = 0;
     _lastSwipedDish = null;
     _lastSwipedIndex = null;

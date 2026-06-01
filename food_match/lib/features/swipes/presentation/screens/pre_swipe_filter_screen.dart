@@ -343,7 +343,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
 
     setState(() => _loading = true);
     final DateTime started = DateTime.now();
-    final PreparedPoolResult result = await preSwipeProvider.prepare(
+    final PreparedPoolResult localResult = await preSwipeProvider.prepare(
           userId: userId,
           coupleProvider: coupleProvider,
           cuisines: _cuisines.toList(),
@@ -362,6 +362,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       return;
     }
     await coupleProvider.confirmMyChoices();
+    final PreparedPoolResult result = await preSwipeProvider.prepareBackendDeckWithFallback(localResult);
 
     if (!mounted) {
       return;

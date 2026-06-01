@@ -13,6 +13,10 @@ router.get('/me', authMiddleware, asyncHandler(coupleController.me.bind(coupleCo
 router.post('/leave', authMiddleware, asyncHandler(coupleController.leave.bind(coupleController)));
 router.post('/reset', authMiddleware, asyncHandler(coupleController.reset.bind(coupleController)));
 
+router.post('/deck/prepare', authMiddleware, asyncHandler(coupleController.prepareDeck.bind(coupleController)));
+router.get('/deck', authMiddleware, asyncHandler(coupleController.getDeck.bind(coupleController)));
+router.post('/deck/reset', authMiddleware, asyncHandler(coupleController.resetDeck.bind(coupleController)));
+
 router.get('/filter-state', authMiddleware, asyncHandler(coupleController.getFilterState.bind(coupleController)));
 router.put('/filter-state/me', authMiddleware, validateBody(updateCoupleFilterStateSchema), asyncHandler(coupleController.updateMyFilterState.bind(coupleController)));
 router.post('/filter-state/confirm', authMiddleware, asyncHandler(coupleController.confirmFilterState.bind(coupleController)));

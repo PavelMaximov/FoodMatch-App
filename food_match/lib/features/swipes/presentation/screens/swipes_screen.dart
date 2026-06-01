@@ -36,9 +36,28 @@ class _SwipesScreenState extends State<SwipesScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _runPreSwipeFlow();
+      _loadExistingBackendDeckOrStart();
       context.read<MatchProvider>().loadMatches();
     });
+  }
+
+  Future<void> _loadExistingBackendDeckOrStart() async {
+    final SwipeProvider swipeProvider = context.read<SwipeProvider>();
+    final String? userId = context.read<AuthProvider>().currentUser?.id;
+    swipeProvider.setActiveUser(userId);
+
+    final CoupleProvider coupleProvider = context.read<CoupleProvider>();
+    if (coupleProvider.hasCouple) {
+      final bool loaded = await swipeProvider.loadExistingPreparedDeck();
+      if (loaded || !mounted) {
+        return;
+      }
+    }
+
+    if (!mounted) {
+      return;
+    }
+    await _runPreSwipeFlow();
   }
 
   Future<void> _runPreSwipeFlow({bool fromHeaderAction = false}) async {

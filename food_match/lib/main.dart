@@ -40,6 +40,7 @@ Future<void> main() async {
     MultiProvider(
       providers: [
         Provider<DishRepository>.value(value: dishRepo),
+        Provider<CoupleRepository>.value(value: coupleRepo),
         Provider<UploadRepository>.value(value: uploadRepo),
         Provider<UserProfileHiveService>.value(value: userProfileService),
         Provider<FilterScoringService>.value(value: const FilterScoringService()),
@@ -57,6 +58,7 @@ Future<void> main() async {
         ChangeNotifierProvider<PreSwipeProvider>(
           create: (BuildContext context) => PreSwipeProvider(
             dishRepository: dishRepo,
+            coupleRepository: coupleRepo,
             profileService: userProfileService,
             scoringService: context.read<FilterScoringService>(),
           ),
@@ -65,6 +67,7 @@ Future<void> main() async {
           create: (_) => SwipeProvider(
             dishRepository: dishRepo,
             swipeRepository: swipeRepo,
+            coupleRepository: coupleRepo,
             cacheService: cacheService,
             userProfileService: userProfileService,
           ),
@@ -73,6 +76,7 @@ Future<void> main() async {
                 SwipeProvider(
                   dishRepository: dishRepo,
                   swipeRepository: swipeRepo,
+                  coupleRepository: coupleRepo,
                   cacheService: cacheService,
                   userProfileService: userProfileService,
                 );

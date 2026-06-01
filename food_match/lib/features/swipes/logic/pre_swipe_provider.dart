@@ -4,8 +4,10 @@ import '../../../data/local/user_profile_hive_service.dart';
 import '../../../data/models/couple_filter_state.dart';
 import '../../../data/models/dish.dart';
 import '../../../data/models/filter_config.dart';
+import '../../../data/models/prepared_deck.dart';
 import '../../../data/models/user_profile.dart';
 import '../../../data/repositories/dish_repository.dart';
+import '../../../data/repositories/couple_repository.dart';
 import '../../couple/logic/couple_provider.dart';
 import 'filter_scoring_service.dart';
 
@@ -75,15 +77,22 @@ class FilterAvailabilitySummary {
 class PreSwipeProvider extends ChangeNotifier {
   PreSwipeProvider({
     required DishRepository dishRepository,
+    required CoupleRepository coupleRepository,
     required UserProfileHiveService profileService,
     required FilterScoringService scoringService,
   })  : _dishRepository = dishRepository,
+        _coupleRepository = coupleRepository,
         _profileService = profileService,
         _scoringService = scoringService;
 
   final DishRepository _dishRepository;
+  final CoupleRepository _coupleRepository;
   final UserProfileHiveService _profileService;
   final FilterScoringService _scoringService;
+
+  bool isPreparingBackendDeck = false;
+  PreparedDeckMeta? preparedDeckMeta;
+  String? backendDeckError;
 
   Future<UserProfile> loadProfile(String userId) => _profileService.getProfile(userId);
 
@@ -176,6 +185,50 @@ class PreSwipeProvider extends ChangeNotifier {
       messages: messages,
       config: config,
     );
+  }
+
+  Future<PreparedPoolResult> prepareBackendDeckWithFallback(PreparedPoolResult fallback) async {
+    isPreparingBackendDeck = true;
+    backendDeckError = null;
+    notifyListeners();
+    debugPrint('[PreparedDeck] prepare started');
+
+    try {
+      final PreparedDeck backendDeck = await _coupleRepository.prepareDeck();
+      preparedDeckMeta = backendDeck.meta;
+      debugPrint('[PreparedDeck] prepare success final=${backendDeck.meta.finalCount}');
+      final List<String> messages = <String>[...fallback.messages];
+      final String? fallbackReason = backendDeck.meta.fallbackReason;
+      if (fallbackReason != null && fallbackReason.isNotEmpty) {
+        messages.add(fallbackReason);
+      }
+      return PreparedPoolResult(
+        dishes: backendDeck.dishes,
+        seenDishIds: const <String>{},
+        usedFallback: false,
+        relaxed: fallback.relaxed || fallbackReason != null,
+        messages: messages,
+        config: fallback.config,
+      );
+    } catch (e) {
+      backendDeckError = e.toString();
+      debugPrint('[PreparedDeck] prepare failed $e');
+      debugPrint('[PreparedDeck] Backend prepare failed, using local fallback');
+      return PreparedPoolResult(
+        dishes: fallback.dishes,
+        seenDishIds: fallback.seenDishIds,
+        usedFallback: true,
+        relaxed: true,
+        messages: <String>[
+          ...fallback.messages,
+          'Could not prepare shared deck. Using local fallback for now.',
+        ],
+        config: fallback.config,
+      );
+    } finally {
+      isPreparingBackendDeck = false;
+      notifyListeners();
+    }
   }
 
   FilterAvailabilitySummary buildAvailabilitySummary({

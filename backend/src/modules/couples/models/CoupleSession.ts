@@ -16,12 +16,26 @@ export interface CoupleFilterState {
   updatedAt: Date | null;
 }
 
+export interface CouplePreparedDeck {
+  status: 'idle' | 'ready' | 'failed';
+  dishIds: Types.ObjectId[];
+  publicDishIds: string[];
+  totalCatalogCount: number;
+  candidateCount: number;
+  finalCount: number;
+  filtersHash: string;
+  generatedAt: Date | null;
+  generatedBy: Types.ObjectId | null;
+  reason: string | null;
+}
+
 export interface CoupleSessionDocument extends Document {
   inviteCode: string;
   members: Types.ObjectId[];
   status: 'active' | 'closed';
   createdBy: Types.ObjectId;
   filterState?: CoupleFilterState;
+  preparedDeck?: CouplePreparedDeck;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -48,13 +62,30 @@ const filterStateSchema = new Schema<CoupleFilterState>(
   { _id: false }
 );
 
+const preparedDeckSchema = new Schema<CouplePreparedDeck>(
+  {
+    status: { type: String, enum: ['idle', 'ready', 'failed'], default: 'idle' },
+    dishIds: [{ type: Schema.Types.ObjectId, ref: 'Dish' }],
+    publicDishIds: { type: [String], default: [] },
+    totalCatalogCount: { type: Number, default: 0 },
+    candidateCount: { type: Number, default: 0 },
+    finalCount: { type: Number, default: 0 },
+    filtersHash: { type: String, default: '' },
+    generatedAt: { type: Date, default: null },
+    generatedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+    reason: { type: String, default: null }
+  },
+  { _id: false }
+);
+
 const coupleSessionSchema = new Schema<CoupleSessionDocument>(
   {
     inviteCode: { type: String, required: true, unique: true, index: true },
     members: [{ type: Schema.Types.ObjectId, ref: 'User', required: true }],
     status: { type: String, enum: ['active', 'closed'], default: 'active', index: true },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    filterState: { type: filterStateSchema, default: undefined }
+    filterState: { type: filterStateSchema, default: undefined },
+    preparedDeck: { type: preparedDeckSchema, default: () => ({ status: 'idle' }) }
   },
   { timestamps: true }
 );
