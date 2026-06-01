@@ -246,7 +246,7 @@ class _SwipeableStackState extends State<SwipeableStack>
                 return Transform(
                   alignment: Alignment.center,
                   transform: Matrix4.identity()
-                    ..translate(offset.dx, offset.dy)
+                    ..translateByDouble(offset.dx, offset.dy, 0.0, 1.0)
                     ..rotateZ(angle),
                   child: Opacity(
                     opacity: opacity.clamp(0.0, 1.0),

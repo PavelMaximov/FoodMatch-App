@@ -185,23 +185,55 @@ class CoupleProvider extends ChangeNotifier {
   }
 
   Future<void> refreshFilterState() async {
-    if (!hasCouple) return;
+    if (!hasCouple) {
+      AppLogger.info('[CoupleFilterState] polling skipped no active couple');
+      stopFilterStatePolling();
+      return;
+    }
     try {
       final previousPartnerConfirmed = _filterState?.partnerChoices?.confirmed == true;
       final CoupleFilterState nextState = await _repository.getFilterState();
+      if (!hasCouple) {
+        AppLogger.info('[CoupleFilterState] discarded response after session cleared');
+        return;
+      }
       _filterState = nextState;
       AppLogger.info('[CoupleFilterState] loaded status=${nextState.status} bothConfirmed=${nextState.bothConfirmed}');
       if (!previousPartnerConfirmed && (nextState.partnerChoices?.confirmed == true)) {
         AppLogger.info('[CoupleFilterState] partner confirmed=true');
       }
       _safeNotify();
-    } catch (_) {}
+    } on ApiException catch (e) {
+      if (e.statusCode == 404) {
+        AppLogger.info('[CoupleFilterState] no active couple while refreshing; clearing session state');
+        _clearSessionState();
+        _safeNotify();
+        return;
+      }
+      AppLogger.error('[CoupleFilterState] refresh failed', e);
+    } catch (e) {
+      AppLogger.error('[CoupleFilterState] refresh failed', e);
+    }
   }
 
   void startFilterStatePolling() {
-    if (!hasCouple || _pollTimer != null) return;
+    if (!hasCouple) {
+      AppLogger.info('[CoupleFilterState] polling skipped no active couple');
+      return;
+    }
+    if (_pollTimer != null) {
+      AppLogger.info('[CoupleFilterState] polling skipped already running');
+      return;
+    }
     AppLogger.info('[CoupleFilterState] polling started');
-    _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) => refreshFilterState());
+    _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (!hasCouple) {
+        AppLogger.info('[CoupleFilterState] polling skipped no active couple');
+        stopFilterStatePolling();
+        return;
+      }
+      refreshFilterState();
+    });
   }
 
   void stopFilterStatePolling() {

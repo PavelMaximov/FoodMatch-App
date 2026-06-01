@@ -275,7 +275,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
                   style: AppTextStyles.bodyMedium.copyWith(fontSize: 15.5),
                 ),
                 const SizedBox(height: AppDimensions.paddingL),
-                _RequiredLabel(text: 'Enter title of your dish'),
+                const _RequiredLabel(text: 'Enter title of your dish'),
                 const SizedBox(height: 8),
                 _AppInput(
                   controller: _titleController,
@@ -286,7 +286,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
                   },
                 ),
                 const SizedBox(height: 14),
-                _RequiredLabel(text: 'Choose country of your dish'),
+                const _RequiredLabel(text: 'Choose country of your dish'),
                 const SizedBox(height: 8),
                 _AppSelect<String>(
                   value: _selectedCuisine,
@@ -295,7 +295,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
                   onChanged: (String? value) => setState(() => _selectedCuisine = value),
                 ),
                 const SizedBox(height: 14),
-                _RequiredLabel(text: 'Choose mood of your dish'),
+                const _RequiredLabel(text: 'Choose mood of your dish'),
                 const SizedBox(height: 8),
                 _AppSelect<String>(
                   value: _selectedMood,
@@ -337,7 +337,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
                   ],
                 ),
                 const SizedBox(height: 14),
-                _RequiredLabel(text: 'Ingredients'),
+                const _RequiredLabel(text: 'Ingredients'),
                 const SizedBox(height: 8),
                 if (_ingredients.isNotEmpty)
                   Wrap(

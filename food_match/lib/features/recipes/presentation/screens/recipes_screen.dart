@@ -5,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/utils/image_utils.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../data/repositories/dish_repository.dart';
@@ -26,15 +25,21 @@ enum MealTabType { breakfast, lunch, dinner, snack }
 
 bool _matchesToken(String rawValue, String target) {
   final String v = rawValue.trim().toLowerCase();
-  if (v.isEmpty) return false;
-  if (v == target) return true;
+  if (v.isEmpty) {
+    return false;
+  }
+  if (v == target) {
+    return true;
+  }
   // split on common separators and whitespace
   final List<String> tokens = v
       .split(RegExp(r'[\s\/,&|]+'))
       .map((s) => s.trim())
       .where((s) => s.isNotEmpty)
       .toList();
-  if (tokens.contains(target)) return true;
+  if (tokens.contains(target)) {
+    return true;
+  }
   // word-boundary match as a fallback
   return RegExp(r'\b' + RegExp.escape(target) + r'\b').hasMatch(v);
 }
@@ -46,12 +51,18 @@ bool matchesMealTab(Dish dish, MealTabType tab) {
   final String target = tab.name.toLowerCase();
 
   for (final t in tags) {
-    if (_matchesToken(t, target)) return true;
+    if (_matchesToken(t, target)) {
+      return true;
+    }
   }
   for (final m in mood) {
-    if (_matchesToken(m, target)) return true;
+    if (_matchesToken(m, target)) {
+      return true;
+    }
   }
-  if (_matchesToken(type, target)) return true;
+  if (_matchesToken(type, target)) {
+    return true;
+  }
   return false;
 }
 
@@ -92,10 +103,13 @@ class _RecipesScreenState extends State<RecipesScreen> {
     });
 
     final DishRepository repository = context.read<DishRepository>();
+    final FavoritesProvider favoritesProvider = context.read<FavoritesProvider>();
     try {
       final List<Dish> dishes = await repository.getCatalogDishes();
-      await context.read<FavoritesProvider>().loadFavorites();
-      if (!mounted) return;
+      await favoritesProvider.loadFavorites();
+      if (!mounted) {
+        return;
+      }
       setState(() => _allDishes = dishes);
       debugPrint('[Recipes] loaded dishes=${dishes.length}');
       final List<List<String>> firstFiveTags = dishes
@@ -104,7 +118,9 @@ class _RecipesScreenState extends State<RecipesScreen> {
           .toList();
       debugPrint('[Recipes] first5.tags=$firstFiveTags');
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       setState(() => _error = e.toString());
     } finally {
       if (mounted) {
@@ -115,7 +131,9 @@ class _RecipesScreenState extends State<RecipesScreen> {
 
   Future<void> _toggleSaved(Dish dish) async {
     await context.read<FavoritesProvider>().toggleFavorite(dish);
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
     final String? error = context.read<FavoritesProvider>().error;
     if (error != null) {
       ScaffoldMessenger.of(
@@ -140,7 +158,9 @@ class _RecipesScreenState extends State<RecipesScreen> {
         onFavoriteTap: _toggleSaved,
       ),
     ).then((Dish? selected) {
-      if (selected == null || !mounted) return;
+      if (selected == null || !mounted) {
+        return;
+      }
       context.push('/recipe-detail/${selected.id}', extra: selected);
     });
   }
@@ -165,7 +185,9 @@ class _RecipesScreenState extends State<RecipesScreen> {
       ),
     );
 
-    if (next == null || !mounted) return;
+    if (next == null || !mounted) {
+      return;
+    }
 
     setState(() {
       _selectedCuisines
@@ -351,7 +373,9 @@ class _RecipesScreenState extends State<RecipesScreen> {
 
   List<Dish> _buildActivePool({required MealTabType? tab}) {
     final List<Dish> basePool = _filteredDishes;
-    if (tab == null) return basePool;
+    if (tab == null) {
+      return basePool;
+    }
     final List<Dish> filtered = basePool
         .where((Dish dish) => matchesMealTab(dish, tab))
         .toList();
@@ -398,7 +422,9 @@ class _RecipesScreenState extends State<RecipesScreen> {
     final List<Dish> sorted = List<Dish>.from(pool);
     sorted.sort((Dish a, Dish b) {
       final int pop = (b.popular ? 1 : 0) - (a.popular ? 1 : 0);
-      if (pop != 0) return pop;
+      if (pop != 0) {
+        return pop;
+      }
       return b.qualityScore.compareTo(a.qualityScore);
     });
     return sorted;
@@ -453,15 +479,19 @@ class _RecipesScreenState extends State<RecipesScreen> {
           .where((String value) => value.isNotEmpty)
           .toSet();
 
-      if (_selectedCuisines.isNotEmpty && !_selectedCuisines.contains(cuisine))
+      if (_selectedCuisines.isNotEmpty && !_selectedCuisines.contains(cuisine)) {
         return false;
+      }
       if (_selectedMoods.isNotEmpty &&
-          mood.intersection(_selectedMoods).isEmpty)
+          mood.intersection(_selectedMoods).isEmpty) {
         return false;
-      if (_selectedDiet.isNotEmpty && diet.intersection(_selectedDiet).isEmpty)
+      }
+      if (_selectedDiet.isNotEmpty && diet.intersection(_selectedDiet).isEmpty) {
         return false;
-      if (_selectedTypes.isNotEmpty && !_selectedTypes.contains(type))
+      }
+      if (_selectedTypes.isNotEmpty && !_selectedTypes.contains(type)) {
         return false;
+      }
       return true;
     }).toList();
   }
@@ -512,8 +542,9 @@ class _RecipesScreenState extends State<RecipesScreen> {
       title: '5 Ingredients',
       assetName: '5 Ingredients.png',
       filter: (Dish d) {
-        if (d.sections.isNotEmpty)
+        if (d.sections.isNotEmpty) {
           return d.sections.first.components.length <= 5;
+        }
         return d.ingredients.length <= 5;
       },
     ),
@@ -571,7 +602,9 @@ class _RecipesScreenState extends State<RecipesScreen> {
     for (final Dish dish in _allDishes) {
       for (final String raw in extractor(dish)) {
         final String normalized = _normalizeLabel(raw);
-        if (normalized.isNotEmpty) values.add(normalized);
+        if (normalized.isNotEmpty) {
+          values.add(normalized);
+        }
       }
     }
     final List<String> sorted = values.toList()
@@ -581,7 +614,9 @@ class _RecipesScreenState extends State<RecipesScreen> {
 
   String _normalizeLabel(String value) {
     final String trimmed = value.trim();
-    if (trimmed.isEmpty) return '';
+    if (trimmed.isEmpty) {
+      return '';
+    }
     final String lower = trimmed.toLowerCase().replaceAll('_', ' ');
     return lower
         .split(RegExp(r'\s+'))
@@ -776,12 +811,16 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
   late MealTabType? _selectedTab = widget.initialTab;
 
   List<Dish> get _displayedDishes {
-    if (_selectedTab == null) return widget.dishes;
+    if (_selectedTab == null) {
+      return widget.dishes;
+    }
     return widget.dishes.where((Dish dish) => matchesMealTab(dish, _selectedTab!)).toList();
   }
 
   String get _pageTitle {
-    if (_selectedTab == null) return widget.title;
+    if (_selectedTab == null) {
+      return widget.title;
+    }
     final String name = _selectedTab!.name;
     return name[0].toUpperCase() + name.substring(1);
   }
@@ -1243,7 +1282,9 @@ class _FilterGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (options.isEmpty) return const SizedBox.shrink();
+    if (options.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),

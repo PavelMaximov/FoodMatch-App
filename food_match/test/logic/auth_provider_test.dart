@@ -2,31 +2,29 @@ import 'dart:convert';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:food_match/data/local/cache_service.dart';
 import 'package:food_match/data/models/auth_response.dart';
 import 'package:food_match/data/models/user.dart';
 import 'package:food_match/data/repositories/auth_repository.dart';
 import 'package:food_match/data/services/api_service.dart';
 import 'package:food_match/features/auth/logic/auth_provider.dart';
-import 'package:mockito/annotations.dart';
-import 'package:mockito/mockito.dart';
 
-import 'auth_provider_test.mocks.dart';
-
-@GenerateMocks(<Type>[AuthRepository, ApiService, FlutterSecureStorage])
 void main() {
   late AuthProvider provider;
-  late MockAuthRepository mockRepo;
-  late MockApiService mockApi;
-  late MockFlutterSecureStorage mockStorage;
+  late _FakeAuthRepository fakeRepo;
+  late _FakeApiService fakeApi;
+  late _FakeCacheService fakeCacheService;
 
   setUp(() {
-    mockRepo = MockAuthRepository();
-    mockApi = MockApiService();
-    mockStorage = MockFlutterSecureStorage();
+    FlutterSecureStorage.setMockInitialValues(<String, String>{});
+    fakeRepo = _FakeAuthRepository();
+    fakeApi = _FakeApiService();
+    fakeCacheService = _FakeCacheService();
     provider = AuthProvider(
-      repository: mockRepo,
-      apiService: mockApi,
-      secureStorage: mockStorage,
+      repository: fakeRepo,
+      apiService: fakeApi,
+      secureStorage: const FlutterSecureStorage(),
+      cacheService: fakeCacheService,
     );
   });
 
@@ -37,22 +35,19 @@ void main() {
       displayName: 'Test',
       coupleId: null,
     );
-    const AuthResponse response = AuthResponse(token: 'jwt123', user: user);
-
-    when(mockRepo.login('test@test.com', 'password')).thenAnswer((_) async => response);
-    when(mockStorage.write(key: anyNamed('key'), value: anyNamed('value')))
-        .thenAnswer((_) async {});
-    when(mockApi.setToken(any)).thenReturn(null);
+    fakeRepo.loginResponse = const AuthResponse(token: 'jwt123', user: user);
 
     await provider.login('test@test.com', 'password');
 
     expect(provider.isAuthenticated, true);
     expect(provider.currentUser?.email, 'test@test.com');
     expect(provider.error, isNull);
+    expect(fakeApi.token, 'jwt123');
+    expect(fakeCacheService.cachedName, 'Test');
   });
 
   test('login with error sets error', () async {
-    when(mockRepo.login(any, any)).thenThrow(Exception('Invalid credentials'));
+    fakeRepo.loginError = Exception('Invalid credentials');
 
     await provider.login('bad@test.com', 'wrong');
 
@@ -69,13 +64,12 @@ void main() {
       coupleId: null,
     );
 
-    when(mockStorage.delete(key: anyNamed('key'))).thenAnswer((_) async {});
-    when(mockApi.setToken(any)).thenReturn(null);
-
     await provider.logout();
 
     expect(provider.isAuthenticated, false);
     expect(provider.currentUser, isNull);
+    expect(fakeApi.token, isNull);
+    expect(fakeCacheService.wasCleared, isTrue);
   });
 
   test('expired token detected correctly', () {
@@ -87,4 +81,55 @@ void main() {
 
     expect(provider.isTokenExpiredForTest(token), isTrue);
   });
+}
+
+class _FakeAuthRepository extends AuthRepository {
+  _FakeAuthRepository() : super(_FakeApiService());
+
+  AuthResponse? loginResponse;
+  Object? loginError;
+
+  @override
+  Future<AuthResponse> login(String email, String password) async {
+    final Object? error = loginError;
+    if (error != null) {
+      throw error;
+    }
+    final AuthResponse? response = loginResponse;
+    if (response == null) {
+      throw StateError('loginResponse must be set before calling login.');
+    }
+    return response;
+  }
+}
+
+class _FakeApiService extends ApiService {
+  String? _token;
+
+  @override
+  String? get token => _token;
+
+  @override
+  void setToken(String? token) {
+    _token = token;
+  }
+}
+
+class _FakeCacheService extends CacheService {
+  String? cachedName;
+  bool wasCleared = false;
+
+  @override
+  Future<void> cacheUserData({
+    required String displayName,
+    required String email,
+    String? coupleId,
+  }) async {
+    cachedName = displayName;
+  }
+
+  @override
+  Future<void> clearAll() async {
+    wasCleared = true;
+  }
 }

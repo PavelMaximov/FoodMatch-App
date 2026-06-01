@@ -231,15 +231,15 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppDimensions.radiusM),
-              borderSide: BorderSide(color: AppColors.divider),
+              borderSide: const BorderSide(color: AppColors.divider),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppDimensions.radiusM),
-              borderSide: BorderSide(color: AppColors.divider),
+              borderSide: const BorderSide(color: AppColors.divider),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppDimensions.radiusM),
-              borderSide: BorderSide(color: AppColors.primary, width: 1.4),
+              borderSide: const BorderSide(color: AppColors.primary, width: 1.4),
             ),
           ),
         ),

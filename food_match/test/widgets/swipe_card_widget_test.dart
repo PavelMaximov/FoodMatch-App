@@ -1,30 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:food_match/data/models/dish.dart';
 import 'package:food_match/features/swipes/presentation/widgets/swipe_card_widget.dart';
 
+import '../helpers/dish_test_data.dart';
+
 void main() {
-  const dish = Dish(
+  final dish = buildTestDish(
     id: '1',
-    title: 'Тестовое блюдо',
-    description: 'Описание',
-    imageUrl: 'https://via.placeholder.com/300',
+    name: 'Test dish',
+    description: 'Description',
     cuisine: 'Russian',
-    tags: <String>['суп', 'горячее'],
-    source: 'user',
-    externalId: null,
-    createdBy: 'u1',
-    recipe: null,
+    tags: <String>['soup', 'hot'],
   );
 
-  testWidgets('SwipeCardWidget показывает название и cuisine', (tester) async {
+  testWidgets('SwipeCardWidget shows name and cuisine', (WidgetTester tester) async {
     await tester.pumpWidget(
-      const MaterialApp(
+      MaterialApp(
         home: Scaffold(body: SwipeCardWidget(dish: dish)),
       ),
     );
 
-    expect(find.text('Тестовое блюдо'), findsOneWidget);
+    expect(find.text('Test dish'), findsOneWidget);
     expect(find.text('Russian'), findsOneWidget);
   });
 }

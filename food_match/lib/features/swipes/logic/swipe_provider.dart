@@ -140,7 +140,7 @@ class SwipeProvider extends ChangeNotifier {
       }
 
       AppLogger.error('SwipeProvider: swipe rejected', e);
-      error = e.toString();
+      error = _mapSwipeError(e);
       notifyListeners();
       return null;
     } finally {
@@ -194,6 +194,13 @@ class SwipeProvider extends ChangeNotifier {
   Future<dynamic> like() => swipe('like');
 
   Future<dynamic> dislike() => swipe('dislike');
+
+  String _mapSwipeError(Object error) {
+    if (error is ApiException) {
+      return error.message;
+    }
+    return AppStrings.unexpectedError;
+  }
 
   bool _shouldQueueOffline(Object error) {
     if (error is! ApiException) {

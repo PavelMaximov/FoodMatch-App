@@ -338,12 +338,14 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       Navigator.pop(context);
       return;
     }
+    final PreSwipeProvider preSwipeProvider = context.read<PreSwipeProvider>();
+    final CoupleProvider coupleProvider = context.read<CoupleProvider>();
 
     setState(() => _loading = true);
     final DateTime started = DateTime.now();
-    final PreparedPoolResult result = await context.read<PreSwipeProvider>().prepare(
+    final PreparedPoolResult result = await preSwipeProvider.prepare(
           userId: userId,
-          coupleProvider: context.read<CoupleProvider>(),
+          coupleProvider: coupleProvider,
           cuisines: _cuisines.toList(),
           moods: _moods.toList(),
           blocked: _blocked.toList(),
@@ -356,7 +358,10 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       await Future<void>.delayed(const Duration(milliseconds: 900));
     }
 
-    await context.read<CoupleProvider>().confirmMyChoices();
+    if (!mounted) {
+      return;
+    }
+    await coupleProvider.confirmMyChoices();
 
     if (!mounted) {
       return;
@@ -386,7 +391,8 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       return;
     }
 
-    final PreparedPoolResult result = await context.read<PreSwipeProvider>().skip(userId);
+    final PreSwipeProvider preSwipeProvider = context.read<PreSwipeProvider>();
+    final PreparedPoolResult result = await preSwipeProvider.skip(userId);
     if (!mounted) {
       return;
     }
@@ -488,8 +494,6 @@ class _FilterOptionChip extends StatelessWidget {
     required this.enabled,
     required this.highlighted,
     required this.onTap,
-    this.icon = Icons.restaurant_menu,
-    this.iconAsset,
   });
 
   final String label;
@@ -497,9 +501,6 @@ class _FilterOptionChip extends StatelessWidget {
   final bool enabled;
   final bool highlighted;
   final VoidCallback onTap;
-  final IconData icon;
-  final String? iconAsset;
-
 
   @override
   Widget build(BuildContext context) {
@@ -534,10 +535,9 @@ class _FilterOptionChip extends StatelessWidget {
                 size: 18,
                 color: AppColors.primary,
               )
-            else if (iconAsset != null)
-              SvgPicture.asset(iconAsset!, width: 18, height: 18)
             else
-              Icon(icon, size: 18, color: AppColors.textSecondary),
+              // TODO: replace placeholder option icon with per-category assets.
+              const Icon(Icons.restaurant_menu, size: 18, color: AppColors.textSecondary),
             const SizedBox(width: 8),
             Text(
               label,

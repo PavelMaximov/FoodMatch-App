@@ -130,16 +130,6 @@ class DishCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: _DishCardTokens.gapBeforeAction),
-                // Text(
-                //   'View recipe >',
-                //   maxLines: 1,
-                //   overflow: TextOverflow.ellipsis,
-                //   style: GoogleFonts.nunito(
-                //     fontSize: _DishCardTokens.viewRecipeFontSize,
-                //     fontWeight: FontWeight.w700,
-                //     color: AppColors.primary,
-                //   ),
-                // ),
               ],
             ),
           ),
@@ -263,7 +253,6 @@ class _DishCardTokens {
   static const double gapAfterTitle = 9;
   static const double gapBeforeAction = 10;
   static const double pillGap = 8;
-  static const double viewRecipeFontSize = 13;
   static const double favoriteInset = 8;
   static const double favoritePadding = 6;
   static const double favoriteIconSize = 18;
