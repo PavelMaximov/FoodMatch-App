@@ -494,8 +494,6 @@ class _FilterOptionChip extends StatelessWidget {
     required this.enabled,
     required this.highlighted,
     required this.onTap,
-    this.icon = Icons.restaurant_menu,
-    this.iconAsset,
   });
 
   final String label;
@@ -503,9 +501,6 @@ class _FilterOptionChip extends StatelessWidget {
   final bool enabled;
   final bool highlighted;
   final VoidCallback onTap;
-  final IconData icon;
-  final String? iconAsset;
-
 
   @override
   Widget build(BuildContext context) {
@@ -540,10 +535,9 @@ class _FilterOptionChip extends StatelessWidget {
                 size: 18,
                 color: AppColors.primary,
               )
-            else if (iconAsset != null)
-              SvgPicture.asset(iconAsset!, width: 18, height: 18)
             else
-              Icon(icon, size: 18, color: AppColors.textSecondary),
+              // TODO: replace placeholder option icon with per-category assets.
+              const Icon(Icons.restaurant_menu, size: 18, color: AppColors.textSecondary),
             const SizedBox(width: 8),
             Text(
               label,

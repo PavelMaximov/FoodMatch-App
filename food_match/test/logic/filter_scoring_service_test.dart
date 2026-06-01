@@ -16,7 +16,7 @@ void main() {
       diet: <String>['vegetarian'],
       ingredients: <String>['tomato', 'mozzarella'],
       sections: <DishSection>[
-        DishSection(
+        const DishSection(
           components: <DishComponent>[
             DishComponent(ingredient: DishIngredient(name: 'Mozzarella')),
           ],

@@ -17,7 +17,7 @@ class UserProfileHiveService {
     await init();
     final dynamic raw = _box!.get('$_profileKeyPrefix$userId');
     if (raw is Map) {
-      return UserProfile.fromJson(Map<dynamic, dynamic>.from(raw as Map<dynamic, dynamic>));
+      return UserProfile.fromJson(Map<dynamic, dynamic>.from(raw));
     }
     return UserProfile.empty();
   }
