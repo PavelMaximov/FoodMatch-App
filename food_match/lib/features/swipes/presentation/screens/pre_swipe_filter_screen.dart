@@ -609,12 +609,12 @@ class PreSwipeIntroScreen extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              SvgPicture.asset(
-                'assets/icons/pre_swipe_intro.svg',
-                width: 170,
-                height: 170,
+              Image.asset(
+                'assets/media/pre_swipe_intro.png',
+                width: 270,
+                height: 270,
               ),
-              const SizedBox(height: 36),
+              const SizedBox(height: 13),
               Text(
                 'Before you start swiping...',
                 textAlign: TextAlign.center,
