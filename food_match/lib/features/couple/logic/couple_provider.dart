@@ -21,6 +21,9 @@ class CoupleProvider extends ChangeNotifier {
   bool _disposed = false;
   bool _joinInFlight = false;
   bool _leaveInFlight = false;
+  bool _isRefreshingFilterState = false;
+  bool _isAuthenticated = false;
+  String? _activeUserId;
 
   bool isLoading = false;
   String? error;
@@ -41,6 +44,28 @@ class CoupleProvider extends ChangeNotifier {
   bool get isJoining => _joinInFlight;
   bool get isLeaving => _leaveInFlight;
   bool get hasActiveSessionConflict => error == activeSessionMessage;
+  bool get _canPollFilterState => !_disposed && _isAuthenticated && (_activeUserId?.isNotEmpty ?? false) && hasCouple;
+
+  void setAuthenticatedUser(String? userId, {required bool isAuthenticated}) {
+    final String? normalized = userId?.trim().isEmpty == true ? null : userId?.trim();
+    final bool nextAuthenticated = isAuthenticated && normalized != null;
+    final bool userChanged = _activeUserId != normalized;
+    if (!userChanged && _isAuthenticated == nextAuthenticated) {
+      return;
+    }
+
+    _activeUserId = normalized;
+    _isAuthenticated = nextAuthenticated;
+    if (!nextAuthenticated) {
+      clearSessionStateForLogout(notify: false);
+      return;
+    }
+
+    if (userChanged) {
+      _clearSessionState();
+      AppLogger.info('[CoupleProvider] session state cleared for account switch');
+    }
+  }
 
   @override
   void dispose() {
@@ -50,6 +75,10 @@ class CoupleProvider extends ChangeNotifier {
   }
 
   Future<void> loadCouple() async {
+    if (!_isAuthenticated || (_activeUserId?.isEmpty ?? true)) {
+      clearSessionStateForLogout(notify: false);
+      return;
+    }
     if (isLoading) return;
     isLoading = true;
     error = null;
@@ -185,11 +214,20 @@ class CoupleProvider extends ChangeNotifier {
   }
 
   Future<void> refreshFilterState() async {
-    if (!hasCouple) {
-      AppLogger.info('[CoupleFilterState] polling skipped no active couple');
-      stopFilterStatePolling();
+    if (!_isAuthenticated || (_activeUserId?.isEmpty ?? true)) {
+      stopFilterStatePolling(reason: 'unauthenticated');
       return;
     }
+    if (!hasCouple) {
+      stopFilterStatePolling(reason: 'no active couple');
+      return;
+    }
+    if (_isRefreshingFilterState) {
+      AppLogger.info('[CoupleFilterState] refresh skipped: already in flight');
+      return;
+    }
+
+    _isRefreshingFilterState = true;
     try {
       final previousPartnerConfirmed = _filterState?.partnerChoices?.confirmed == true;
       final CoupleFilterState nextState = await _repository.getFilterState();
@@ -213,34 +251,43 @@ class CoupleProvider extends ChangeNotifier {
       AppLogger.error('[CoupleFilterState] refresh failed', e);
     } catch (e) {
       AppLogger.error('[CoupleFilterState] refresh failed', e);
+    } finally {
+      _isRefreshingFilterState = false;
     }
   }
 
   void startFilterStatePolling() {
+    if (!_isAuthenticated || (_activeUserId?.isEmpty ?? true)) {
+      stopFilterStatePolling(reason: 'unauthenticated');
+      return;
+    }
     if (!hasCouple) {
-      AppLogger.info('[CoupleFilterState] polling skipped no active couple');
+      stopFilterStatePolling(reason: 'no active couple');
       return;
     }
     if (_pollTimer != null) {
-      AppLogger.info('[CoupleFilterState] polling skipped already running');
+      AppLogger.info('[CoupleFilterState] polling already active, skip');
       return;
     }
     AppLogger.info('[CoupleFilterState] polling started');
     _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-      if (!hasCouple) {
-        AppLogger.info('[CoupleFilterState] polling skipped no active couple');
-        stopFilterStatePolling();
+      if (!_canPollFilterState) {
+        stopFilterStatePolling(reason: !_isAuthenticated ? 'unauthenticated' : 'no active couple');
         return;
       }
       refreshFilterState();
     });
   }
 
-  void stopFilterStatePolling() {
-    if (_pollTimer == null) return;
+  void stopFilterStatePolling({String? reason}) {
+    final bool hadTimer = _pollTimer != null;
     _pollTimer?.cancel();
     _pollTimer = null;
-    AppLogger.info('[CoupleFilterState] polling stopped');
+    if (reason != null) {
+      AppLogger.info('[CoupleFilterState] polling stopped: $reason');
+    } else if (hadTimer) {
+      AppLogger.info('[CoupleFilterState] polling stopped');
+    }
   }
 
 
@@ -259,6 +306,16 @@ class CoupleProvider extends ChangeNotifier {
       } else {
         rethrow;
       }
+    }
+  }
+
+  void clearSessionStateForLogout({bool notify = true}) {
+    _clearSessionState();
+    isLoading = false;
+    _isRefreshingFilterState = false;
+    AppLogger.info('[CoupleProvider] session state cleared for logout');
+    if (notify) {
+      _safeNotify();
     }
   }
 

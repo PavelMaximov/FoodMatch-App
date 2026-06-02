@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -29,7 +27,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   bool _loading = false;
   bool _waitingForPartner = false;
   bool _isPreparingSharedDeck = false;
-  Timer? _waitingPollTimer;
+  bool _hasStartedPrepareAfterBothConfirmed = false;
   String? _pendingUserId;
   late final CoupleProvider _coupleProvider;
 
@@ -110,7 +108,6 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
 
   @override
   void dispose() {
-    _waitingPollTimer?.cancel();
     _coupleProvider.stopFilterStatePolling();
     super.dispose();
   }
@@ -125,7 +122,12 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     }
 
     if (_waitingForPartner) {
-      return _buildWaitingForPartnerScreen();
+      return Consumer<CoupleProvider>(
+        builder: (BuildContext context, CoupleProvider coupleProvider, _) {
+          _schedulePrepareIfBothConfirmed(coupleProvider);
+          return _buildWaitingForPartnerScreen();
+        },
+      );
     }
 
     return Scaffold(
@@ -392,6 +394,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         _loading = false;
         _waitingForPartner = true;
         _pendingUserId = userId;
+        _hasStartedPrepareAfterBothConfirmed = false;
       });
       _startWaitingPolling();
       return;
@@ -450,24 +453,25 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   }
 
   void _startWaitingPolling() {
-    if (_waitingPollTimer != null) {
+    _coupleProvider.startFilterStatePolling();
+  }
+
+  void _schedulePrepareIfBothConfirmed(CoupleProvider coupleProvider) {
+    if (!coupleProvider.bothConfirmed || _isPreparingSharedDeck || _hasStartedPrepareAfterBothConfirmed) {
       return;
     }
-    _coupleProvider.startFilterStatePolling();
-    _waitingPollTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+    final String? userId = _pendingUserId;
+    if (userId == null || userId.isEmpty) {
+      return;
+    }
+
+    _hasStartedPrepareAfterBothConfirmed = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_waitingForPartner || _isPreparingSharedDeck) {
         return;
       }
-      await _coupleProvider.refreshFilterState();
-      if (!mounted || !_waitingForPartner || !_coupleProvider.bothConfirmed) {
-        return;
-      }
-      final String? userId = _pendingUserId ?? context.read<AuthProvider>().currentUser?.id;
-      if (userId == null) {
-        return;
-      }
       debugPrint('[PreSwipe] both confirmed, preparing shared deck');
-      await _prepareSharedDeck(userId);
+      _prepareSharedDeck(userId);
     });
   }
 
@@ -505,6 +509,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         _loading = false;
         _isPreparingSharedDeck = false;
         _waitingForPartner = true;
+        _hasStartedPrepareAfterBothConfirmed = false;
       });
       _startWaitingPolling();
       return;
@@ -513,8 +518,6 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     if (!mounted) {
       return;
     }
-    _waitingPollTimer?.cancel();
-    _waitingPollTimer = null;
     setState(() {
       _loading = false;
       _waitingForPartner = false;

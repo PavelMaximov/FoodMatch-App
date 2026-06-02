@@ -82,6 +82,23 @@ class MatchProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void clearForLogout({bool notify = true}) {
+    final bool changed = _activeCoupleId != null ||
+        _sessionStateVersion != 0 ||
+        matches.isNotEmpty ||
+        error != null ||
+        isLoading;
+    _activeCoupleId = null;
+    _sessionStateVersion = 0;
+    matches = <Dish>[];
+    error = null;
+    isLoading = false;
+    _cacheService.clearCachedMatches();
+    if (changed && notify) {
+      notifyListeners();
+    }
+  }
+
   String _mapError(Object e) {
     if (e is ApiException) {
       return e.message;

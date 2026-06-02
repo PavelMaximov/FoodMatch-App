@@ -57,7 +57,30 @@ class SwipeProvider extends ChangeNotifier {
   bool isSeenDish(String dishId) => _seenDishIds.contains(dishId);
 
   void setActiveUser(String? userId) {
-    _activeUserId = userId;
+    final String? normalized = userId?.trim().isEmpty == true ? null : userId?.trim();
+    if (normalized == _activeUserId) {
+      return;
+    }
+    _activeUserId = normalized;
+    clearForLogout(notify: false);
+  }
+
+  void clearForLogout({bool notify = true}) {
+    deck = <Dish>[];
+    currentIndex = 0;
+    isLoading = false;
+    error = null;
+    _lastSwipedDish = null;
+    _lastSwipedIndex = null;
+    _seenDishIds = <String>{};
+    _sentSwipeDishIds.clear();
+    _isSendingSwipe = false;
+    _hasPreparedDeck = false;
+    _preparedDeckMeta = null;
+    _deckVersion++;
+    if (notify) {
+      notifyListeners();
+    }
   }
 
   void applyPreparedDeck(

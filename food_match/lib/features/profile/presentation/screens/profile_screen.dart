@@ -72,7 +72,8 @@ class ProfileScreen extends StatelessWidget {
                   AppStrings.confirmLogout,
                 );
                 if (!confirmed || !context.mounted) return;
-                await context.read<AuthProvider>().logout();
+                final AuthProvider authProvider = context.read<AuthProvider>();
+                await authProvider.logout();
                 if (context.mounted) {
                   SnackBarUtils.showSuccess(context, 'Logout');
                   context.go('/login');
@@ -457,9 +458,10 @@ class _SessionCard extends StatelessWidget {
                     isLoading: couple.isLoading,
                     isOutlined: true,
                     onPressed: () async {
-                      await context.read<CoupleProvider>().resetCouple();
+                      final CoupleProvider coupleProvider = context.read<CoupleProvider>();
+                      await coupleProvider.resetCouple();
                       if (!context.mounted) return;
-                      final String? error = context.read<CoupleProvider>().error;
+                      final String? error = coupleProvider.error;
                       if (error == null) {
                         SnackBarUtils.showSuccess(context, 'Session reset');
                       } else {
@@ -480,9 +482,10 @@ class _SessionCard extends StatelessWidget {
                         AppStrings.confirmLeave,
                       );
                       if (!confirmed || !context.mounted) return;
-                      await context.read<CoupleProvider>().leaveCouple();
+                      final CoupleProvider coupleProvider = context.read<CoupleProvider>();
+                      await coupleProvider.leaveCouple();
                       if (!context.mounted) return;
-                      final String? error = context.read<CoupleProvider>().error;
+                      final String? error = coupleProvider.error;
                       if (error == null) {
                         SnackBarUtils.showSuccess(context, 'Leave');
                       } else {

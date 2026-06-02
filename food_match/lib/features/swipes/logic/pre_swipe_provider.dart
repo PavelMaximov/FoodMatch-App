@@ -99,6 +99,16 @@ class PreSwipeProvider extends ChangeNotifier {
 
   Future<UserProfile> loadProfile(String userId) => _profileService.getProfile(userId);
 
+  void clearForLogout({bool notify = true}) {
+    final bool changed = isPreparingBackendDeck || preparedDeckMeta != null || backendDeckError != null;
+    isPreparingBackendDeck = false;
+    preparedDeckMeta = null;
+    backendDeckError = null;
+    if (changed && notify) {
+      notifyListeners();
+    }
+  }
+
   Future<List<Dish>> loadDishes() => _dishRepository.getCatalogDishes();
 
   Future<List<String>> loadCuisineOptions() async {

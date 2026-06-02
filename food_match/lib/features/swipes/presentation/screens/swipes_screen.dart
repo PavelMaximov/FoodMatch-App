@@ -32,12 +32,18 @@ class _SwipesScreenState extends State<SwipesScreen> {
   final SwipeableStackController _swiperController = SwipeableStackController();
   bool _isOpeningPreSwipe = false;
   bool _isCardActionInProgress = false;
+  CoupleProvider? _coupleProvider;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<CoupleProvider>().startFilterStatePolling();
+      if (!mounted) {
+        return;
+      }
+      final CoupleProvider coupleProvider = context.read<CoupleProvider>();
+      _coupleProvider = coupleProvider;
+      coupleProvider.startFilterStatePolling();
       _loadExistingBackendDeckOrStart();
       context.read<MatchProvider>().loadMatches();
     });
@@ -45,7 +51,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
 
   @override
   void dispose() {
-    context.read<CoupleProvider>().stopFilterStatePolling();
+    _coupleProvider?.stopFilterStatePolling();
     super.dispose();
   }
 
@@ -105,7 +111,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
     }
 
     if (result == null) {
-      final CoupleProvider coupleProvider = context.read<CoupleProvider>();
+      final CoupleProvider coupleProvider = _coupleProvider ?? context.read<CoupleProvider>();
       if (!swipeProvider.hasPreparedDeck && (!coupleProvider.hasCouple || coupleProvider.bothConfirmed)) {
         await swipeProvider.loadDeck();
       }
@@ -126,7 +132,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
     );
 
     final String? waitingMessage = _partnerWaitingMessage(
-      coupleProvider: context.read<CoupleProvider>(),
+      coupleProvider: _coupleProvider ?? context.read<CoupleProvider>(),
       deckMeta: result.preparedDeckMeta ?? swipeProvider.preparedDeckMeta,
     );
     if (waitingMessage != null) {

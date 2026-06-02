@@ -32,7 +32,7 @@ export class CoupleService {
 
     const session = await CoupleSessionModel.findOne({ inviteCode: inviteCode.toUpperCase(), status: 'active' });
     if (!session) throw new AppError('Session not found', 404);
-    if (session.members.some((memberId) => memberId.toString() === userId)) throw new AppError('You are already in this session', 409);
+    if (session.members.some((memberId) => this.idsEqual(memberId, userId))) throw new AppError('You are already in this session', 409);
     if (session.members.length >= 2) throw new AppError('Session is full', 409);
 
     session.members.push(new Types.ObjectId(userId));
@@ -46,9 +46,9 @@ export class CoupleService {
     const session = await CoupleSessionModel.findOne({ members: new Types.ObjectId(userId), status: 'active' });
     if (!session) throw new AppError('No active session found', 404);
 
-    session.members = session.members.filter((memberId) => memberId.toString() !== userId);
+    session.members = session.members.filter((memberId) => !this.idsEqual(memberId, userId));
     if (session.filterState?.users) {
-      session.filterState.users = session.filterState.users.filter((entry) => entry.userId.toString() !== userId);
+      session.filterState.users = session.filterState.users.filter((entry) => !this.idsEqual(entry.userId, userId));
       session.filterState.status = 'draft';
       session.filterState.updatedAt = new Date();
     }
@@ -115,8 +115,8 @@ export class CoupleService {
     entry.confirmed = true;
     entry.updatedAt = now;
 
-    const hasPartner = session.members.some((memberId) => memberId.toString() !== userId);
-    const partnerConfirmed = session.filterState!.users.some((u) => u.userId.toString() !== userId && u.confirmed);
+    const hasPartner = session.members.some((memberId) => !this.idsEqual(memberId, userId));
+    const partnerConfirmed = session.filterState!.users.some((u) => !this.idsEqual(u.userId, userId) && u.confirmed);
     const bothConfirmed = hasPartner && entry.confirmed && partnerConfirmed;
     session.filterState!.status = bothConfirmed ? 'ready' : 'draft';
     session.filterState!.updatedAt = now;
@@ -154,10 +154,23 @@ export class CoupleService {
     session.filterState = { users: [], status: 'draft', updatedAt: new Date() };
   }
 
+  private toIdString(value: unknown): string {
+    if (!value) return '';
+    const maybeDoc = value as { _id?: unknown; toString?: () => string };
+    if (maybeDoc._id) return this.toIdString(maybeDoc._id);
+    return typeof maybeDoc.toString === 'function' ? maybeDoc.toString() : String(value);
+  }
+
+  private idsEqual(left: unknown, right: unknown): boolean {
+    return this.toIdString(left) === this.toIdString(right);
+  }
+
   private upsertUserFilterEntry(session: CoupleSessionDocument, userId: string): CoupleFilterUserChoice {
     this.ensureFilterState(session);
-    session.filterState!.users = session.filterState!.users.filter((entry, index, arr) => arr.findIndex((e) => e.userId.toString() === entry.userId.toString()) === index);
-    let entry = session.filterState!.users.find((u) => u.userId.toString() === userId);
+    session.filterState!.users = session.filterState!.users.filter(
+      (entry, index, arr) => arr.findIndex((e) => this.idsEqual(e.userId, entry.userId)) === index
+    );
+    let entry = session.filterState!.users.find((u) => this.idsEqual(u.userId, userId));
     if (!entry) {
       entry = { userId: new Types.ObjectId(userId), cuisines: [], moods: [], diet: [], exclusions: [], confirmed: false, updatedAt: null };
       session.filterState!.users.push(entry);
@@ -198,9 +211,16 @@ export class CoupleService {
   private buildFilterStateResponse(session: CoupleSessionDocument, userId: string) {
     this.ensureFilterState(session);
     const myEntry = this.upsertUserFilterEntry(session, userId);
-    const partnerEntry = session.filterState!.users.find((u) => u.userId.toString() !== userId) ?? null;
+    const partnerEntry = session.filterState!.users.find((u) => !this.idsEqual(u.userId, userId)) ?? null;
     const bothConfirmed = Boolean(partnerEntry && myEntry.confirmed && partnerEntry.confirmed);
     if (bothConfirmed && session.filterState!.status !== 'ready') session.filterState!.status = 'ready';
+
+    console.log(
+      `[FilterState] userId=${userId} session=${session.id} ` +
+        `members=${session.members.map((memberId) => this.toIdString(memberId)).join(',')} ` +
+        `entries=${session.filterState!.users.map((entry) => this.toIdString(entry.userId)).join(',')} ` +
+        `bothConfirmed=${bothConfirmed}`
+    );
 
     return {
       myChoices: { cuisines: myEntry.cuisines, moods: myEntry.moods, diet: myEntry.diet, exclusions: myEntry.exclusions, confirmed: myEntry.confirmed, updatedAt: myEntry.updatedAt },
