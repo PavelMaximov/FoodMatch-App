@@ -40,6 +40,7 @@ const NARROW_CHOICE_THRESHOLD = 5;
 export class CoupleDeckService {
   async prepareDeckForActiveSession(userId: string) {
     const session = await this.requireActiveSession(userId);
+    this.assertDeckCanPrepare(session);
     const filters = buildEffectiveFilters(session, userId);
     const filtersHash = createFiltersHash(filters);
     const generatedAt = new Date();
@@ -115,6 +116,21 @@ export class CoupleDeckService {
     await session.save();
     console.log(`[PreparedDeck] reset session=${session.id}`);
     return this.emptyDeckResponse('idle', buildEffectiveFilters(session, userId), createFiltersHash(buildEffectiveFilters(session, userId)), null);
+  }
+
+
+  private assertDeckCanPrepare(session: CoupleSessionDocument) {
+    const memberIds = session.members.map((memberId) => memberId.toString());
+    const users = session.filterState?.users ?? [];
+    const allMembersConfirmed = memberIds.length >= 2 && memberIds.every((memberId) => {
+      const entry = users.find((user) => user.userId.toString() === memberId);
+      return entry?.confirmed === true;
+    });
+
+    if (!allMembersConfirmed) {
+      console.log(`[PreparedDeck] Waiting for partner filters session=${session.id}`);
+      throw new AppError('Waiting for partner to finish filters', 409, 'FILTERS_NOT_READY', { bothConfirmed: false });
+    }
   }
 
   private async requireActiveSession(userId: string) {

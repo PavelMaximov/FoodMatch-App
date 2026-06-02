@@ -97,6 +97,20 @@ class SwipeProvider extends ChangeNotifier {
     return false;
   }
 
+  void clearPreparedDeck() {
+    deck = <Dish>[];
+    currentIndex = 0;
+    _seenDishIds = <String>{};
+    _sentSwipeDishIds.clear();
+    _hasPreparedDeck = false;
+    _preparedDeckMeta = null;
+    _lastSwipedDish = null;
+    _lastSwipedIndex = null;
+    error = null;
+    _deckVersion++;
+    notifyListeners();
+  }
+
   void clearPreparedDeckFlag() {
     _hasPreparedDeck = false;
     _preparedDeckMeta = null;

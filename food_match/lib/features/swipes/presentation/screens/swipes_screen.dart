@@ -37,9 +37,16 @@ class _SwipesScreenState extends State<SwipesScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<CoupleProvider>().startFilterStatePolling();
       _loadExistingBackendDeckOrStart();
       context.read<MatchProvider>().loadMatches();
     });
+  }
+
+  @override
+  void dispose() {
+    context.read<CoupleProvider>().stopFilterStatePolling();
+    super.dispose();
   }
 
   Future<void> _loadExistingBackendDeckOrStart() async {
@@ -49,6 +56,15 @@ class _SwipesScreenState extends State<SwipesScreen> {
 
     final CoupleProvider coupleProvider = context.read<CoupleProvider>();
     if (coupleProvider.hasCouple) {
+      await coupleProvider.refreshFilterState();
+      if (!mounted) {
+        return;
+      }
+      if (!coupleProvider.bothConfirmed) {
+        swipeProvider.clearPreparedDeck();
+        await _runPreSwipeFlow();
+        return;
+      }
       final bool loaded = await swipeProvider.loadExistingPreparedDeck();
       if (loaded || !mounted) {
         return;
@@ -89,7 +105,8 @@ class _SwipesScreenState extends State<SwipesScreen> {
     }
 
     if (result == null) {
-      if (!swipeProvider.hasPreparedDeck) {
+      final CoupleProvider coupleProvider = context.read<CoupleProvider>();
+      if (!swipeProvider.hasPreparedDeck && (!coupleProvider.hasCouple || coupleProvider.bothConfirmed)) {
         await swipeProvider.loadDeck();
       }
       _isOpeningPreSwipe = false;
@@ -137,11 +154,8 @@ class _SwipesScreenState extends State<SwipesScreen> {
     }
 
     final partnerChoices = coupleProvider.partnerChoices;
-    if (partnerChoices == null) {
-      return 'Waiting for partner choices. Using your current filters for now.';
-    }
-    if (!partnerChoices.confirmed) {
-      return 'Waiting for partner to finish choices. Using your current filters for now.';
+    if (partnerChoices == null || !partnerChoices.confirmed) {
+      return 'Waiting for your partner to finish filters.';
     }
     return null;
   }
@@ -234,6 +248,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final CoupleProvider coupleProvider = context.watch<CoupleProvider>();
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -308,6 +323,25 @@ class _SwipesScreenState extends State<SwipesScreen> {
                 ),
                 child: Consumer<SwipeProvider>(
                   builder: (BuildContext context, SwipeProvider provider, _) {
+                    if (coupleProvider.hasCouple && !coupleProvider.bothConfirmed) {
+                      if (provider.hasPreparedDeck || provider.deck.isNotEmpty) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted) {
+                            provider.clearPreparedDeck();
+                          }
+                        });
+                      }
+                      return EmptyState(
+                        icon: Icons.hourglass_empty,
+                        title: coupleProvider.isMyChoicesConfirmed
+                            ? 'Waiting for your partner to finish filters.'
+                            : 'Complete your filters to prepare your shared deck.',
+                        subtitle: 'Your shared deck will be ready after both of you confirm filters.',
+                        buttonText: 'Filter',
+                        onButtonPressed: () => _runPreSwipeFlow(fromHeaderAction: true),
+                      );
+                    }
+
                     if (provider.isLoading) {
                       return const ShimmerCard();
                     }

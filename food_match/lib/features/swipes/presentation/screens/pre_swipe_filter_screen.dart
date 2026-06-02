@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -25,6 +27,10 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   int _step = 1;
   bool _showIntro = true;
   bool _loading = false;
+  bool _waitingForPartner = false;
+  bool _isPreparingSharedDeck = false;
+  Timer? _waitingPollTimer;
+  String? _pendingUserId;
   late final CoupleProvider _coupleProvider;
 
   final Set<String> _cuisines = <String>{};
@@ -75,6 +81,20 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       }
 
       _coupleProvider.startFilterStatePolling();
+      await _coupleProvider.refreshFilterState();
+      if (!mounted) {
+        return;
+      }
+      if (_coupleProvider.isMyChoicesConfirmed && !_coupleProvider.bothConfirmed) {
+        debugPrint('[PreSwipe] waiting for partner filters');
+        setState(() {
+          _showIntro = false;
+          _waitingForPartner = true;
+          _pendingUserId = userId;
+        });
+        _startWaitingPolling();
+        return;
+      }
       final PreSwipeProvider preSwipeProvider = context.read<PreSwipeProvider>();
       final List<Dish> dishes = await preSwipeProvider.loadDishes();
       final List<String> cuisines = await preSwipeProvider.loadCuisineOptions();
@@ -90,6 +110,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
 
   @override
   void dispose() {
+    _waitingPollTimer?.cancel();
     _coupleProvider.stopFilterStatePolling();
     super.dispose();
   }
@@ -101,6 +122,10 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         onClose: () => Navigator.of(context).pop(),
         onCustomize: () => setState(() => _showIntro = false),
       );
+    }
+
+    if (_waitingForPartner) {
+      return _buildWaitingForPartnerScreen();
     }
 
     return Scaffold(
@@ -342,34 +367,159 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     final CoupleProvider coupleProvider = context.read<CoupleProvider>();
 
     setState(() => _loading = true);
-    final DateTime started = DateTime.now();
-    final PreparedPoolResult localResult = await preSwipeProvider.prepare(
-          userId: userId,
-          coupleProvider: coupleProvider,
-          cuisines: _cuisines.toList(),
-          moods: _moods.toList(),
-          blocked: _blocked.toList(),
-          diet: _diet.toList(),
-        );
-
-    final int elapsed = DateTime.now().difference(started).inMilliseconds;
-    if (elapsed > 300) {
-      await Future<void>.delayed(const Duration(milliseconds: 600));
-      await Future<void>.delayed(const Duration(milliseconds: 900));
-    }
+    await preSwipeProvider.saveChoices(
+      userId: userId,
+      coupleProvider: coupleProvider,
+      cuisines: _cuisines.toList(),
+      moods: _moods.toList(),
+      blocked: _blocked.toList(),
+      diet: _diet.toList(),
+    );
 
     if (!mounted) {
       return;
     }
     await coupleProvider.confirmMyChoices();
     await coupleProvider.refreshFilterState();
-    final PreparedPoolResult result = await preSwipeProvider.prepareBackendDeckWithFallback(localResult);
-    await coupleProvider.refreshFilterState();
 
     if (!mounted) {
       return;
     }
-    setState(() => _loading = false);
+
+    if (!coupleProvider.bothConfirmed) {
+      debugPrint('[PreSwipe] waiting for partner filters');
+      setState(() {
+        _loading = false;
+        _waitingForPartner = true;
+        _pendingUserId = userId;
+      });
+      _startWaitingPolling();
+      return;
+    }
+
+    await _prepareSharedDeck(userId);
+  }
+
+
+  Widget _buildWaitingForPartnerScreen() {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                Container(
+                  width: 96,
+                  height: 96,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(48),
+                  ),
+                  child: const Icon(Icons.hourglass_empty, size: 44, color: AppColors.primary),
+                ),
+                const SizedBox(height: 28),
+                Text(
+                  _isPreparingSharedDeck ? 'Preparing your shared deck...' : 'Waiting for your partner...',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.pacifico(fontSize: 38, color: const Color(0xFF1A1A1A)),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  _isPreparingSharedDeck
+                      ? 'Both filter sets are ready. We’re preparing your shared deck now.'
+                      : 'Your choices are saved. We’ll start swiping when your partner finishes their filters.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.nunito(fontSize: 17, color: AppColors.textSecondary, height: 1.35),
+                ),
+                const SizedBox(height: 24),
+                const CircularProgressIndicator(),
+                const SizedBox(height: 28),
+                TextButton(
+                  onPressed: _isPreparingSharedDeck ? null : () => Navigator.of(context).pop(),
+                  child: const Text('Back to session'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _startWaitingPolling() {
+    if (_waitingPollTimer != null) {
+      return;
+    }
+    _coupleProvider.startFilterStatePolling();
+    _waitingPollTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+      if (!mounted || !_waitingForPartner || _isPreparingSharedDeck) {
+        return;
+      }
+      await _coupleProvider.refreshFilterState();
+      if (!mounted || !_waitingForPartner || !_coupleProvider.bothConfirmed) {
+        return;
+      }
+      final String? userId = _pendingUserId ?? context.read<AuthProvider>().currentUser?.id;
+      if (userId == null) {
+        return;
+      }
+      debugPrint('[PreSwipe] both confirmed, preparing shared deck');
+      await _prepareSharedDeck(userId);
+    });
+  }
+
+  Future<void> _prepareSharedDeck(String userId) async {
+    if (_isPreparingSharedDeck) {
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+      _isPreparingSharedDeck = true;
+    });
+
+    final PreSwipeProvider preSwipeProvider = context.read<PreSwipeProvider>();
+    final CoupleProvider coupleProvider = context.read<CoupleProvider>();
+    PreparedPoolResult result;
+    try {
+      final PreparedPoolResult localResult = await preSwipeProvider.prepare(
+        userId: userId,
+        coupleProvider: coupleProvider,
+        cuisines: _cuisines.toList(),
+        moods: _moods.toList(),
+        blocked: _blocked.toList(),
+        diet: _diet.toList(),
+        saveChoicesFirst: false,
+      );
+      result = await preSwipeProvider.prepareBackendDeckWithFallback(localResult);
+      await coupleProvider.refreshFilterState();
+    } catch (e) {
+      debugPrint('[PreSwipe] shared deck prepare deferred $e');
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _loading = false;
+        _isPreparingSharedDeck = false;
+        _waitingForPartner = true;
+      });
+      _startWaitingPolling();
+      return;
+    }
+
+    if (!mounted) {
+      return;
+    }
+    _waitingPollTimer?.cancel();
+    _waitingPollTimer = null;
+    setState(() {
+      _loading = false;
+      _waitingForPartner = false;
+      _isPreparingSharedDeck = false;
+    });
 
     for (final String message in result.messages) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -391,6 +541,14 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     final String? userId = context.read<AuthProvider>().currentUser?.id;
     if (userId == null) {
       Navigator.pop(context);
+      return;
+    }
+
+    final CoupleProvider coupleProvider = context.read<CoupleProvider>();
+    if (coupleProvider.hasCouple) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Complete your filters to prepare your shared deck.')),
+      );
       return;
     }
 

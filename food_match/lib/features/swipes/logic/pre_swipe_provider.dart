@@ -8,6 +8,7 @@ import '../../../data/models/prepared_deck.dart';
 import '../../../data/models/user_profile.dart';
 import '../../../data/repositories/dish_repository.dart';
 import '../../../data/repositories/couple_repository.dart';
+import '../../../data/services/api_service.dart';
 import '../../couple/logic/couple_provider.dart';
 import 'filter_scoring_service.dart';
 
@@ -130,7 +131,7 @@ class PreSwipeProvider extends ChangeNotifier {
     );
   }
 
-  Future<PreparedPoolResult> prepare({
+  Future<void> saveChoices({
     required String userId,
     required CoupleProvider coupleProvider,
     required List<String> cuisines,
@@ -138,15 +139,35 @@ class PreSwipeProvider extends ChangeNotifier {
     required List<String> blocked,
     required List<String> diet,
   }) async {
-    final UserProfile profile = await _profileService.getProfile(userId);
     await _profileService.saveSessionChoices(
       userId,
       cuisines: cuisines,
       moods: moods,
       blocked: blocked,
     );
-
     await coupleProvider.saveMyChoices(cuisines: cuisines, moods: moods, diet: diet, exclusions: blocked);
+  }
+
+  Future<PreparedPoolResult> prepare({
+    required String userId,
+    required CoupleProvider coupleProvider,
+    required List<String> cuisines,
+    required List<String> moods,
+    required List<String> blocked,
+    required List<String> diet,
+    bool saveChoicesFirst = true,
+  }) async {
+    final UserProfile profile = await _profileService.getProfile(userId);
+    if (saveChoicesFirst) {
+      await saveChoices(
+        userId: userId,
+        coupleProvider: coupleProvider,
+        cuisines: cuisines,
+        moods: moods,
+        blocked: blocked,
+        diet: diet,
+      );
+    }
 
     final partner = coupleProvider.partnerChoices;
     final bool usePairCuisineLogic = (partner?.cuisines ?? const <String>[]).isNotEmpty;
@@ -213,9 +234,12 @@ class PreSwipeProvider extends ChangeNotifier {
         config: fallback.config,
         preparedDeckMeta: backendDeck.meta,
       );
-    } catch (e) {
+    } on ApiException catch (e) {
       backendDeckError = e.toString();
       debugPrint('[PreparedDeck] prepare failed $e');
+      if (e.statusCode == 409 && e.message.toLowerCase().contains('filter')) {
+        rethrow;
+      }
       debugPrint('[PreparedDeck] Backend prepare failed, using local fallback');
       return PreparedPoolResult(
         dishes: fallback.dishes,
