@@ -43,27 +43,46 @@ export class CoupleService {
   }
 
   async leaveSession(userId: string) {
+    console.log(`[Couple] leave requested user=${userId}`);
     const session = await CoupleSessionModel.findOne({ members: new Types.ObjectId(userId), status: 'active' });
-    if (!session) throw new AppError('No active session found', 404);
-
-    session.members = session.members.filter((memberId) => !this.idsEqual(memberId, userId));
-    if (session.filterState?.users) {
-      session.filterState.users = session.filterState.users.filter((entry) => !this.idsEqual(entry.userId, userId));
-      session.filterState.status = 'draft';
-      session.filterState.updatedAt = new Date();
+    if (!session) {
+      console.log(`[Couple] leave skipped: no active session user=${userId}`);
+      return { message: 'No active session', alreadyLeft: true };
     }
+
+    const sessionId = session._id;
+    const sessionIdString = session.id;
+    const remainingMembers = (session.members ?? []).filter((memberId) => !this.idsEqual(memberId, userId));
+    session.members = remainingMembers;
+
+    this.ensureFilterState(session);
+    session.filterState!.users = session.filterState!.users.filter((entry) => !this.idsEqual(entry.userId, userId));
+    session.filterState!.status = 'draft';
+    session.filterState!.updatedAt = new Date();
+
+    console.log(`[Couple] member removed session=${sessionIdString} remaining=${remainingMembers.length}`);
+
+    if (remainingMembers.length === 0) {
+      await SwipeModel.deleteMany({ coupleId: sessionId });
+      await MatchModel.deleteMany({ coupleId: sessionId });
+      await CoupleSessionModel.deleteOne({ _id: sessionId });
+      console.log(`[Couple] session deleted session=${sessionIdString}`);
+      return {
+        message: 'Session deleted because no members remain',
+        left: true,
+        sessionDeleted: true
+      };
+    }
+
     clearPreparedDeck(session);
-
-    if (session.members.length === 0) {
-      await SwipeModel.deleteMany({ coupleId: session._id });
-      await MatchModel.deleteMany({ coupleId: session._id });
-      await CoupleSessionModel.deleteOne({ _id: session._id });
-      return { message: 'Session deleted because no members remain' };
-    }
-
     session.status = 'closed';
     await session.save();
-    return { message: 'Session closed after member left' };
+    console.log(`[Couple] leave completed session=${sessionIdString}`);
+    return {
+      message: 'Left session',
+      left: true,
+      sessionDeleted: false
+    };
   }
 
   async resetSession(userId: string) {
@@ -156,8 +175,9 @@ export class CoupleService {
 
   private toIdString(value: unknown): string {
     if (!value) return '';
+    if (value instanceof Types.ObjectId) return value.toString();
     const maybeDoc = value as { _id?: unknown; toString?: () => string };
-    if (maybeDoc._id) return this.toIdString(maybeDoc._id);
+    if (maybeDoc._id && maybeDoc._id !== value) return this.toIdString(maybeDoc._id);
     return typeof maybeDoc.toString === 'function' ? maybeDoc.toString() : String(value);
   }
 

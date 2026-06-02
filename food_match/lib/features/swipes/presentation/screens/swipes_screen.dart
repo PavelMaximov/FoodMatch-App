@@ -14,7 +14,6 @@ import '../../../../shared/widgets/shimmer_card.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../couple/logic/couple_provider.dart';
 import '../../../couple/presentation/widgets/connect_session_sheet.dart';
-import '../../../matches/logic/match_provider.dart';
 import '../../logic/pre_swipe_provider.dart';
 import '../../logic/swipe_provider.dart';
 import '../widgets/swipe_card_widget.dart';
@@ -45,7 +44,6 @@ class _SwipesScreenState extends State<SwipesScreen> {
       _coupleProvider = coupleProvider;
       coupleProvider.startFilterStatePolling();
       _loadExistingBackendDeckOrStart();
-      context.read<MatchProvider>().loadMatches();
     });
   }
 
