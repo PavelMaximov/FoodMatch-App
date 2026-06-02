@@ -8,7 +8,7 @@ import { clearPreparedDeck } from './coupleDeckService';
 
 export class CoupleService {
   async getMyActiveSession(userId: string) {
-    return CoupleSessionModel.findOne({ members: new Types.ObjectId(userId), status: 'active' }).populate('members', 'email displayName');
+    return CoupleSessionModel.findOne({ members: new Types.ObjectId(userId), status: 'active' }).populate('members', 'email displayName avatarUrl');
   }
 
   async createSession(userId: string) {
@@ -16,13 +16,14 @@ export class CoupleService {
     if (active) throw new AppError('User already has an active session', 409);
 
     const inviteCode = await this.generateUniqueInviteCode();
-    return CoupleSessionModel.create({
+    await CoupleSessionModel.create({
       inviteCode,
       members: [new Types.ObjectId(userId)],
       createdBy: new Types.ObjectId(userId),
       status: 'active',
       filterState: { users: [], status: 'draft', updatedAt: null }
     });
+    return this.getMyActiveSession(userId);
   }
 
   async joinSession(userId: string, inviteCode: string) {
@@ -38,7 +39,7 @@ export class CoupleService {
     this.ensureFilterState(session);
     clearPreparedDeck(session);
     await session.save();
-    return session;
+    return this.getMyActiveSession(userId);
   }
 
   async leaveSession(userId: string) {

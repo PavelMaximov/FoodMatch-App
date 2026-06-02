@@ -22,28 +22,38 @@ export class SwipeService {
       throw new AppError('Dish not found', 404);
     }
 
-    const swipe = await SwipeModel.findOneAndUpdate(
-      {
-        userId: new Types.ObjectId(userId),
-        coupleId: session._id,
-        dishId: dish._id
-      },
-      {
-        $set: { direction }
-      },
-      { upsert: true, new: true }
-    );
-
-    const matchCreated = direction === 'like' ? await this.tryCreateMatch(session.id, dish._id.toString()) : false;
-
-    return {
-      id: swipe.id,
-      userId,
-      coupleId: session.id,
-      dishId: toPublicDishId(dish),
-      direction: swipe.direction,
-      matchCreated
+    const swipeFilter = {
+      userId: new Types.ObjectId(userId),
+      coupleId: session._id,
+      dishId: dish._id
     };
+
+    const existingSwipe = await SwipeModel.findOne(swipeFilter);
+    if (existingSwipe) {
+      const matchCreated = existingSwipe.direction === 'like'
+        ? await this.tryCreateMatch(session.id, dish._id.toString())
+        : false;
+      return this.buildSwipeResponse(existingSwipe, userId, session.id, toPublicDishId(dish), matchCreated, true);
+    }
+
+    try {
+      const swipe = await SwipeModel.create({ ...swipeFilter, direction });
+      const matchCreated = direction === 'like' ? await this.tryCreateMatch(session.id, dish._id.toString()) : false;
+      return this.buildSwipeResponse(swipe, userId, session.id, toPublicDishId(dish), matchCreated, false);
+    } catch (error) {
+      if (this.isDuplicateKeyError(error)) {
+        const duplicateSwipe = await SwipeModel.findOne(swipeFilter);
+        if (duplicateSwipe) {
+          const matchCreated = duplicateSwipe.direction === 'like'
+            ? await this.tryCreateMatch(session.id, dish._id.toString())
+            : false;
+          return this.buildSwipeResponse(duplicateSwipe, userId, session.id, toPublicDishId(dish), matchCreated, true);
+        }
+
+        throw new AppError('Duplicate swipe index conflict. Run swipes index migration.', 409);
+      }
+      throw error;
+    }
   }
 
   async getMyMatches(userId: string) {
@@ -94,13 +104,32 @@ export class SwipeService {
         }
 
         return {
-          id: swipe.id,
+          id: swipe.id ?? swipe._id?.toString() ?? '',
           direction: swipe.direction,
           createdAt: swipe.createdAt,
           dish
         };
       })
       .filter((swipe): swipe is NonNullable<typeof swipe> => Boolean(swipe));
+  }
+
+  private buildSwipeResponse(
+    swipe: { id?: string; _id?: Types.ObjectId; direction: 'like' | 'dislike' },
+    userId: string,
+    coupleId: string,
+    publicDishId: string,
+    matchCreated: boolean,
+    alreadySwiped: boolean
+  ) {
+    return {
+      id: swipe.id ?? swipe._id?.toString() ?? '',
+      userId,
+      coupleId,
+      dishId: publicDishId,
+      direction: swipe.direction,
+      matchCreated,
+      alreadySwiped
+    };
   }
 
   private async tryCreateMatch(coupleId: string, dishId: string): Promise<boolean> {
@@ -114,12 +143,16 @@ export class SwipeService {
       return false;
     }
 
-    await MatchModel.updateOne(
+    const result = await MatchModel.updateOne(
       { coupleId: new Types.ObjectId(coupleId), dishId: new Types.ObjectId(dishId) },
       { $setOnInsert: { users: uniqueUserIds.map((id) => new Types.ObjectId(id)) } },
       { upsert: true }
     );
 
-    return true;
+    return result.upsertedCount > 0;
+  }
+
+  private isDuplicateKeyError(error: unknown) {
+    return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: number }).code === 11000;
   }
 }
