@@ -48,9 +48,10 @@ class _MatchOverlayScreenState extends State<MatchOverlayScreen>
   Widget build(BuildContext context) {
     final CoupleProvider coupleProvider = context.watch<CoupleProvider>();
     final String? currentUserId = context.watch<AuthProvider>().currentUser?.id;
-    final String partnerName = _resolvePartnerName(
-      members: coupleProvider.currentCouple?.memberProfiles,
+    final String partnerName = resolvePartnerDisplayName(
+      couple: coupleProvider.currentCouple,
       currentUserId: currentUserId,
+      fallback: AppStrings.yourPartner,
     );
     final Size screenSize = MediaQuery.sizeOf(context);
     final double imageWidth = math.min(screenSize.width * 0.68, 300.0).toDouble();
@@ -147,28 +148,6 @@ class _MatchOverlayScreenState extends State<MatchOverlayScreen>
         ),
       ),
     );
-  }
-
-  String _resolvePartnerName({
-    List<CoupleMemberProfile>? members,
-    String? currentUserId,
-  }) {
-    if (members == null || members.isEmpty) {
-      return AppStrings.yourPartner;
-    }
-
-    for (final CoupleMemberProfile member in members) {
-      if (member.id.isEmpty || member.id == currentUserId) {
-        continue;
-      }
-
-      final String? displayName = member.displayName?.trim();
-      if (displayName != null && displayName.isNotEmpty) {
-        return displayName;
-      }
-    }
-
-    return AppStrings.yourPartner;
   }
 }
 

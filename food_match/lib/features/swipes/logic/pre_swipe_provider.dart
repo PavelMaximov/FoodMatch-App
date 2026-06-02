@@ -19,6 +19,7 @@ class PreparedPoolResult {
     required this.relaxed,
     required this.messages,
     this.config,
+    this.preparedDeckMeta,
   });
 
   final List<Dish> dishes;
@@ -27,6 +28,7 @@ class PreparedPoolResult {
   final bool relaxed;
   final List<String> messages;
   final FilterConfig? config;
+  final PreparedDeckMeta? preparedDeckMeta;
 }
 
 class FilterAvailabilitySummary {
@@ -209,6 +211,7 @@ class PreSwipeProvider extends ChangeNotifier {
         relaxed: fallback.relaxed || fallbackReason != null,
         messages: messages,
         config: fallback.config,
+        preparedDeckMeta: backendDeck.meta,
       );
     } catch (e) {
       backendDeckError = e.toString();
@@ -224,6 +227,7 @@ class PreSwipeProvider extends ChangeNotifier {
           'Could not prepare shared deck. Using local fallback for now.',
         ],
         config: fallback.config,
+        preparedDeckMeta: fallback.preparedDeckMeta,
       );
     } finally {
       isPreparingBackendDeck = false;
@@ -239,11 +243,7 @@ class PreSwipeProvider extends ChangeNotifier {
     required List<String> diet,
     CoupleFilterChoices? partnerChoices,
   }) {
-    final bool partnerHasChoices = partnerChoices != null &&
-        (partnerChoices.cuisines.isNotEmpty ||
-            partnerChoices.moods.isNotEmpty ||
-            partnerChoices.diet.isNotEmpty ||
-            partnerChoices.exclusions.isNotEmpty);
+    final bool partnerHasChoices = partnerChoices != null;
     final List<String> partnerCuisines = partnerHasChoices ? partnerChoices.cuisines : const <String>[];
     final bool usedCuisineUnionFallback = _scoringService.shouldShowPairCuisineFallback(cuisines, partnerCuisines);
     final FilterConfig config = _scoringService.buildConfig(

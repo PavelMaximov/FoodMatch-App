@@ -362,7 +362,9 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       return;
     }
     await coupleProvider.confirmMyChoices();
+    await coupleProvider.refreshFilterState();
     final PreparedPoolResult result = await preSwipeProvider.prepareBackendDeckWithFallback(localResult);
+    await coupleProvider.refreshFilterState();
 
     if (!mounted) {
       return;

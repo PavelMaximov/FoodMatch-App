@@ -60,12 +60,16 @@ class SwipeProvider extends ChangeNotifier {
     _activeUserId = userId;
   }
 
-  void applyPreparedDeck(List<Dish> prepared, {Set<String> seenDishIds = const <String>{}}) {
+  void applyPreparedDeck(
+    List<Dish> prepared, {
+    Set<String> seenDishIds = const <String>{},
+    PreparedDeckMeta? preparedDeckMeta,
+  }) {
     deck = prepared;
     _deckVersion++;
-    _seenDishIds = seenDishIds;
+    _seenDishIds = Set<String>.from(seenDishIds);
     _hasPreparedDeck = true;
-    _preparedDeckMeta = null;
+    _preparedDeckMeta = preparedDeckMeta;
     currentIndex = 0;
     _lastSwipedDish = null;
     _lastSwipedIndex = null;
@@ -76,10 +80,8 @@ class SwipeProvider extends ChangeNotifier {
   }
 
   void applyBackendPreparedDeck(PreparedDeck preparedDeck) {
-    _preparedDeckMeta = preparedDeck.meta;
     debugPrint('[PreparedDeck] loaded existing deck final=${preparedDeck.meta.finalCount}');
-    applyPreparedDeck(preparedDeck.dishes);
-    _preparedDeckMeta = preparedDeck.meta;
+    applyPreparedDeck(preparedDeck.dishes, preparedDeckMeta: preparedDeck.meta);
   }
 
   Future<bool> loadExistingPreparedDeck() async {
@@ -146,36 +148,48 @@ class SwipeProvider extends ChangeNotifier {
     _lastSwipedDish = dish;
     _lastSwipedIndex = currentIndex;
 
+    dynamic result;
     try {
-      final dynamic result = await _swipeRepository.sendSwipe(
+      result = await _swipeRepository.sendSwipe(
         dishId: dish.id,
         direction: direction,
       );
-      _sentSwipeDishIds.add(dish.id);
-      currentIndex++;
-      await _persistLearning(dish, direction, result);
-      _cleanupSessionChoicesIfDone();
-      notifyListeners();
-      return result;
     } catch (e) {
       if (_shouldQueueOffline(e)) {
         AppLogger.info('SwipeProvider: queueing swipe offline');
-        await _cacheService.queueSwipe(dish.id, direction);
-        _sentSwipeDishIds.add(dish.id);
-        currentIndex++;
-        await _persistLearning(dish, direction, null);
-        _cleanupSessionChoicesIfDone();
-        notifyListeners();
+        try {
+          await _cacheService.queueSwipe(dish.id, direction);
+          await _applyLocalPostSwipe(dish, direction, null);
+        } finally {
+          _isSendingSwipe = false;
+        }
         return null;
       }
 
       AppLogger.error('SwipeProvider: swipe rejected', e);
       error = _mapSwipeError(e);
       notifyListeners();
+      _isSendingSwipe = false;
       return null;
+    }
+
+    try {
+      await _applyLocalPostSwipe(dish, direction, result);
+    } catch (e) {
+      AppLogger.error('SwipeProvider: local post-swipe update failed after backend success', e);
+      notifyListeners();
     } finally {
       _isSendingSwipe = false;
     }
+    return result;
+  }
+
+  Future<void> _applyLocalPostSwipe(Dish dish, String direction, dynamic result) async {
+    _sentSwipeDishIds.add(dish.id);
+    currentIndex++;
+    await _persistLearning(dish, direction, result);
+    await _cleanupSessionChoicesIfDone();
+    notifyListeners();
   }
 
   void undo() {

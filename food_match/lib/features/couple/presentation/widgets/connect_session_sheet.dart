@@ -337,21 +337,11 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
 
   String _partnerLabel(BuildContext context, CoupleProvider coupleProvider) {
     final String? currentUserId = context.read<AuthProvider>().currentUser?.id;
-    final List<CoupleMemberProfile> profiles =
-        coupleProvider.currentCouple?.memberProfiles ?? const <CoupleMemberProfile>[];
-    for (final CoupleMemberProfile member in profiles) {
-      final String id = member.id;
-      if (id != currentUserId) {
-        final String? name = member.displayName;
-        if (name != null && name.trim().isNotEmpty) {
-          return name.trim();
-        }
-        if (id.isNotEmpty) {
-          return id;
-        }
-      }
-    }
-    return 'Waiting...';
+    return resolvePartnerDisplayName(
+      couple: coupleProvider.currentCouple,
+      currentUserId: currentUserId,
+      fallback: 'Partner connected',
+    );
   }
 }
 

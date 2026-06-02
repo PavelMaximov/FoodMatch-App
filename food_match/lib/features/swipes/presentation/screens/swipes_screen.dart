@@ -7,6 +7,7 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../data/models/dish.dart';
+import '../../../../data/models/prepared_deck.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
@@ -101,22 +102,48 @@ class _SwipesScreenState extends State<SwipesScreen> {
       return;
     }
 
-    swipeProvider.applyPreparedDeck(result.dishes, seenDishIds: result.seenDishIds);
+    swipeProvider.applyPreparedDeck(
+      result.dishes,
+      seenDishIds: result.seenDishIds,
+      preparedDeckMeta: result.preparedDeckMeta,
+    );
 
-    final CoupleProvider coupleProvider = context.read<CoupleProvider>();
-    final bool hasNoPartnerChoices = coupleProvider.hasCouple &&
-        (coupleProvider.partnerChoices == null ||
-            coupleProvider.partnerChoices!.cuisines.isEmpty);
-
-    if (hasNoPartnerChoices) {
+    final String? waitingMessage = _partnerWaitingMessage(
+      coupleProvider: context.read<CoupleProvider>(),
+      deckMeta: result.preparedDeckMeta ?? swipeProvider.preparedDeckMeta,
+    );
+    if (waitingMessage != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Waiting for partner choices. Using your current filters for now.'),
-        ),
+        SnackBar(content: Text(waitingMessage)),
       );
     }
 
     _isOpeningPreSwipe = false;
+  }
+
+
+  String? _partnerWaitingMessage({
+    required CoupleProvider coupleProvider,
+    PreparedDeckMeta? deckMeta,
+  }) {
+    if (!coupleProvider.hasCouple) {
+      return null;
+    }
+    if (deckMeta?.bothConfirmed == true || deckMeta?.usedPartnerChoices == true) {
+      return null;
+    }
+    if (coupleProvider.bothConfirmed) {
+      return null;
+    }
+
+    final partnerChoices = coupleProvider.partnerChoices;
+    if (partnerChoices == null) {
+      return 'Waiting for partner choices. Using your current filters for now.';
+    }
+    if (!partnerChoices.confirmed) {
+      return 'Waiting for partner to finish choices. Using your current filters for now.';
+    }
+    return null;
   }
 
   void _showConnectSheet(BuildContext context) {
