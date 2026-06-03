@@ -383,6 +383,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
                           onRefresh: provider.isLoading || _isCardActionInProgress
                               ? null
                               : () => _handleReload(provider),
+                          onInfoTap: () => context.push('/recipe-detail/${dish.id}', extra: dish),
                           showSeenBadge: provider.isSeenDish(dish.id),
                         );
                       },

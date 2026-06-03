@@ -27,6 +27,14 @@ DishSection _$DishSectionFromJson(Map<String, dynamic> json) => DishSection(
 Map<String, dynamic> _$DishSectionToJson(DishSection instance) =>
     <String, dynamic>{'components': instance.components};
 
+
+DishNutrition _$DishNutritionFromJson(Map<String, dynamic> json) => DishNutrition(
+      calories: _readOptionalInt(json['calories']),
+    );
+
+Map<String, dynamic> _$DishNutritionToJson(DishNutrition instance) =>
+    <String, dynamic>{'calories': instance.calories};
+
 Dish _$DishFromJson(Map<String, dynamic> json) => Dish(
       id: json['id'] as String? ?? '',
       name: json['name'] as String? ?? '',
@@ -52,6 +60,9 @@ Dish _$DishFromJson(Map<String, dynamic> json) => Dish(
       qualityScore: json['qualityScore'] as num? ?? 0,
       tags: _readDishTags(json),
       sections: _readDishSections(json),
+      nutrition: json['nutrition'] == null
+          ? null
+          : DishNutrition.fromJson(json['nutrition'] as Map<String, dynamic>),
     );
 
 Map<String, dynamic> _$DishToJson(Dish instance) => <String, dynamic>{
@@ -75,6 +86,7 @@ Map<String, dynamic> _$DishToJson(Dish instance) => <String, dynamic>{
       'qualityScore': instance.qualityScore,
       'tags': instance.tags,
       'sections': instance.sections,
+      'nutrition': instance.nutrition?.toJson(),
     };
 
 
@@ -121,4 +133,15 @@ List<String> _readDishTags(Map<String, dynamic> json) {
       .map((String name) => name.trim())
       .where((String name) => name.isNotEmpty)
       .toList();
+}
+
+
+int? _readOptionalInt(dynamic value) {
+  if (value is num) {
+    return value.toInt();
+  }
+  if (value is String) {
+    return int.tryParse(value.trim());
+  }
+  return null;
 }

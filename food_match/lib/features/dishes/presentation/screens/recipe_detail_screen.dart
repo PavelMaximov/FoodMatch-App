@@ -447,9 +447,6 @@ class _StatsRow extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.divider),
-        boxShadow: const <BoxShadow>[
-          BoxShadow(color: AppColors.cardShadow, blurRadius: 16, offset: Offset(0, 6)),
-        ],
       ),
       child: Row(
         children: <Widget>[
@@ -460,7 +457,7 @@ class _StatsRow extends StatelessWidget {
           Expanded(
             child: _StatItem(
               icon: Icons.local_fire_department_outlined,
-              label: _formatCalories(dish.calories),
+              label: _formatCalories(dish),
             ),
           ),
         ],
@@ -484,15 +481,26 @@ class _StatsRow extends StatelessWidget {
     return '$trimmed ${AppStrings.servings}';
   }
 
-  String _formatCalories(String calories) {
-    final String trimmed = calories.trim();
+  String _formatCalories(Dish dish) {
+    final int? numericCalories = dish.nutrition?.calories;
+    if (numericCalories != null && numericCalories > 0) {
+      return '$numericCalories kcal';
+    }
+
+    final String trimmed = dish.calories.trim();
     if (trimmed.isEmpty) {
-      return '0 kcal';
+      return '— kcal';
     }
     if (trimmed.toLowerCase().contains('kcal')) {
       return trimmed;
     }
-    return '$trimmed kcal';
+
+    final int? parsed = int.tryParse(trimmed);
+    if (parsed != null && parsed > 0) {
+      return '$parsed kcal';
+    }
+
+    return '— kcal';
   }
 }
 
@@ -544,26 +552,21 @@ class _Tabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: AppColors.divider)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: <Widget>[
-          _TabButton(
-            title: AppStrings.ingredients,
-            isActive: activeTab == _RecipeDetailTab.ingredients,
-            onTap: () => onChanged(_RecipeDetailTab.ingredients),
-          ),
-          const SizedBox(width: 6),
-          _TabButton(
-            title: 'Instructions',
-            isActive: activeTab == _RecipeDetailTab.instructions,
-            onTap: () => onChanged(_RecipeDetailTab.instructions),
-          ),
-        ],
-      ),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: <Widget>[
+        _TabButton(
+          title: AppStrings.ingredients,
+          isActive: activeTab == _RecipeDetailTab.ingredients,
+          onTap: () => onChanged(_RecipeDetailTab.ingredients),
+        ),
+        const SizedBox(width: 6),
+        _TabButton(
+          title: 'Instructions',
+          isActive: activeTab == _RecipeDetailTab.instructions,
+          onTap: () => onChanged(_RecipeDetailTab.instructions),
+        ),
+      ],
     );
   }
 }
@@ -637,6 +640,7 @@ class _IngredientsContent extends StatelessWidget {
     }
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: rows
           .asMap()
           .entries
@@ -666,7 +670,7 @@ class _IngredientText extends StatelessWidget {
     final String measurement = row.measurement?.trim() ?? '';
 
     if (measurement.isEmpty) {
-      return Text(row.name, style: baseStyle);
+      return Text(row.name, textAlign: TextAlign.start, style: baseStyle);
     }
 
     return Text.rich(
@@ -676,6 +680,7 @@ class _IngredientText extends StatelessWidget {
           TextSpan(text: ' ${row.name}', style: baseStyle),
         ],
       ),
+      textAlign: TextAlign.start,
     );
   }
 }
@@ -734,15 +739,18 @@ class _DashedSeparatedRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 11),
-          child: child,
-        ),
-        if (showDivider) const _DashedDivider(),
-      ],
+    return SizedBox(
+      width: double.infinity,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 11),
+            child: Align(alignment: Alignment.centerLeft, child: child),
+          ),
+          if (showDivider) const _DashedDivider(),
+        ],
+      ),
     );
   }
 }

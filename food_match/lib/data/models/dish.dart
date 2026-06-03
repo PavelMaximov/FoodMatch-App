@@ -43,6 +43,19 @@ class DishSection {
   Map<String, dynamic> toJson() => _$DishSectionToJson(this);
 }
 
+
+@JsonSerializable()
+class DishNutrition {
+  const DishNutrition({this.calories});
+
+  final int? calories;
+
+  factory DishNutrition.fromJson(Map<String, dynamic> json) =>
+      _$DishNutritionFromJson(json);
+
+  Map<String, dynamic> toJson() => _$DishNutritionToJson(this);
+}
+
 @JsonSerializable()
 class Dish {
   const Dish({
@@ -66,6 +79,7 @@ class Dish {
     this.qualityScore = 0,
     this.tags = const <String>[],
     this.sections = const <DishSection>[],
+    this.nutrition,
   });
 
   @JsonKey(defaultValue: '')
@@ -108,6 +122,7 @@ class Dish {
   final List<String> tags;
   @JsonKey(defaultValue: <DishSection>[])
   final List<DishSection> sections;
+  final DishNutrition? nutrition;
 
   factory Dish.fromJson(Map<String, dynamic> json) => _$DishFromJson(json);
 
