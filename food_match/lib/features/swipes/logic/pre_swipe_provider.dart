@@ -4,8 +4,11 @@ import '../../../data/local/user_profile_hive_service.dart';
 import '../../../data/models/couple_filter_state.dart';
 import '../../../data/models/dish.dart';
 import '../../../data/models/filter_config.dart';
+import '../../../data/models/prepared_deck.dart';
 import '../../../data/models/user_profile.dart';
 import '../../../data/repositories/dish_repository.dart';
+import '../../../data/repositories/couple_repository.dart';
+import '../../../data/services/api_service.dart';
 import '../../couple/logic/couple_provider.dart';
 import 'filter_scoring_service.dart';
 
@@ -17,6 +20,7 @@ class PreparedPoolResult {
     required this.relaxed,
     required this.messages,
     this.config,
+    this.preparedDeckMeta,
   });
 
   final List<Dish> dishes;
@@ -25,6 +29,7 @@ class PreparedPoolResult {
   final bool relaxed;
   final List<String> messages;
   final FilterConfig? config;
+  final PreparedDeckMeta? preparedDeckMeta;
 }
 
 class FilterAvailabilitySummary {
@@ -75,17 +80,34 @@ class FilterAvailabilitySummary {
 class PreSwipeProvider extends ChangeNotifier {
   PreSwipeProvider({
     required DishRepository dishRepository,
+    required CoupleRepository coupleRepository,
     required UserProfileHiveService profileService,
     required FilterScoringService scoringService,
   })  : _dishRepository = dishRepository,
+        _coupleRepository = coupleRepository,
         _profileService = profileService,
         _scoringService = scoringService;
 
   final DishRepository _dishRepository;
+  final CoupleRepository _coupleRepository;
   final UserProfileHiveService _profileService;
   final FilterScoringService _scoringService;
 
+  bool isPreparingBackendDeck = false;
+  PreparedDeckMeta? preparedDeckMeta;
+  String? backendDeckError;
+
   Future<UserProfile> loadProfile(String userId) => _profileService.getProfile(userId);
+
+  void clearForLogout({bool notify = true}) {
+    final bool changed = isPreparingBackendDeck || preparedDeckMeta != null || backendDeckError != null;
+    isPreparingBackendDeck = false;
+    preparedDeckMeta = null;
+    backendDeckError = null;
+    if (changed && notify) {
+      notifyListeners();
+    }
+  }
 
   Future<List<Dish>> loadDishes() => _dishRepository.getCatalogDishes();
 
@@ -119,7 +141,7 @@ class PreSwipeProvider extends ChangeNotifier {
     );
   }
 
-  Future<PreparedPoolResult> prepare({
+  Future<void> saveChoices({
     required String userId,
     required CoupleProvider coupleProvider,
     required List<String> cuisines,
@@ -127,15 +149,35 @@ class PreSwipeProvider extends ChangeNotifier {
     required List<String> blocked,
     required List<String> diet,
   }) async {
-    final UserProfile profile = await _profileService.getProfile(userId);
     await _profileService.saveSessionChoices(
       userId,
       cuisines: cuisines,
       moods: moods,
       blocked: blocked,
     );
-
     await coupleProvider.saveMyChoices(cuisines: cuisines, moods: moods, diet: diet, exclusions: blocked);
+  }
+
+  Future<PreparedPoolResult> prepare({
+    required String userId,
+    required CoupleProvider coupleProvider,
+    required List<String> cuisines,
+    required List<String> moods,
+    required List<String> blocked,
+    required List<String> diet,
+    bool saveChoicesFirst = true,
+  }) async {
+    final UserProfile profile = await _profileService.getProfile(userId);
+    if (saveChoicesFirst) {
+      await saveChoices(
+        userId: userId,
+        coupleProvider: coupleProvider,
+        cuisines: cuisines,
+        moods: moods,
+        blocked: blocked,
+        diet: diet,
+      );
+    }
 
     final partner = coupleProvider.partnerChoices;
     final bool usePairCuisineLogic = (partner?.cuisines ?? const <String>[]).isNotEmpty;
@@ -165,6 +207,7 @@ class PreSwipeProvider extends ChangeNotifier {
       config: config,
       profile: profile,
       now: DateTime.now(),
+      seed: _fallbackSeed(coupleProvider, config),
     );
     messages.addAll(attempt.messages);
 
@@ -178,6 +221,55 @@ class PreSwipeProvider extends ChangeNotifier {
     );
   }
 
+  Future<PreparedPoolResult> prepareBackendDeckWithFallback(PreparedPoolResult fallback) async {
+    isPreparingBackendDeck = true;
+    backendDeckError = null;
+    notifyListeners();
+    debugPrint('[PreparedDeck] prepare started');
+
+    try {
+      final PreparedDeck backendDeck = await _coupleRepository.prepareDeck();
+      preparedDeckMeta = backendDeck.meta;
+      debugPrint('[PreparedDeck] prepare success final=${backendDeck.meta.finalCount}');
+      final List<String> messages = <String>[...fallback.messages];
+      final String? fallbackReason = backendDeck.meta.fallbackReason;
+      if (fallbackReason != null && fallbackReason.isNotEmpty) {
+        messages.add(fallbackReason);
+      }
+      return PreparedPoolResult(
+        dishes: backendDeck.dishes,
+        seenDishIds: const <String>{},
+        usedFallback: false,
+        relaxed: fallback.relaxed || fallbackReason != null,
+        messages: messages,
+        config: fallback.config,
+        preparedDeckMeta: backendDeck.meta,
+      );
+    } on ApiException catch (e) {
+      backendDeckError = e.toString();
+      debugPrint('[PreparedDeck] prepare failed $e');
+      if (e.statusCode == 409 && e.message.toLowerCase().contains('filter')) {
+        rethrow;
+      }
+      debugPrint('[PreparedDeck] Backend prepare failed, using local fallback');
+      return PreparedPoolResult(
+        dishes: fallback.dishes,
+        seenDishIds: fallback.seenDishIds,
+        usedFallback: true,
+        relaxed: true,
+        messages: <String>[
+          ...fallback.messages,
+          'Could not prepare shared deck. Using local fallback for now.',
+        ],
+        config: fallback.config,
+        preparedDeckMeta: fallback.preparedDeckMeta,
+      );
+    } finally {
+      isPreparingBackendDeck = false;
+      notifyListeners();
+    }
+  }
+
   FilterAvailabilitySummary buildAvailabilitySummary({
     required List<Dish> allDishes,
     required List<String> cuisines,
@@ -186,11 +278,7 @@ class PreSwipeProvider extends ChangeNotifier {
     required List<String> diet,
     CoupleFilterChoices? partnerChoices,
   }) {
-    final bool partnerHasChoices = partnerChoices != null &&
-        (partnerChoices.cuisines.isNotEmpty ||
-            partnerChoices.moods.isNotEmpty ||
-            partnerChoices.diet.isNotEmpty ||
-            partnerChoices.exclusions.isNotEmpty);
+    final bool partnerHasChoices = partnerChoices != null;
     final List<String> partnerCuisines = partnerHasChoices ? partnerChoices.cuisines : const <String>[];
     final bool usedCuisineUnionFallback = _scoringService.shouldShowPairCuisineFallback(cuisines, partnerCuisines);
     final FilterConfig config = _scoringService.buildConfig(
@@ -247,11 +335,12 @@ class PreSwipeProvider extends ChangeNotifier {
     required FilterConfig config,
     required UserProfile profile,
     required DateTime now,
+    required String seed,
   }) {
     final List<String> messages = <String>[];
 
     List<Dish> pool = _scoringService.applyHardFilters(all, config);
-    List<ScoredDish> picked = _pickDeck(pool, config: config, profile: profile, now: now);
+    List<ScoredDish> picked = _pickDeck(pool, config: config, profile: profile, now: now, seed: '$seed:strict');
     if (pool.length >= 5) {
       return _DeckAttempt(picked: picked, messages: messages, usedPopularFallback: false);
     }
@@ -263,7 +352,7 @@ class PreSwipeProvider extends ChangeNotifier {
       diet: config.diet,
       maxCookTime: config.maxCookTime,
     );
-    picked = _pickDeck(pool, config: neutralMoodConfig, profile: profile, now: now);
+    picked = _pickDeck(pool, config: neutralMoodConfig, profile: profile, now: now, seed: '$seed:neutralMood');
     messages.add('Widened mood filter to find more options');
     if (pool.length >= 5) {
       return _DeckAttempt(picked: picked, messages: messages, usedPopularFallback: false);
@@ -277,7 +366,7 @@ class PreSwipeProvider extends ChangeNotifier {
       maxCookTime: config.maxCookTime,
     );
     pool = _scoringService.applyHardFilters(all, noCuisineConfig);
-    picked = _pickDeck(pool, config: noCuisineConfig, profile: profile, now: now);
+    picked = _pickDeck(pool, config: noCuisineConfig, profile: profile, now: now, seed: '$seed:noCuisine');
     messages.add('Added dishes from other cuisines');
     if (pool.length >= 5) {
       return _DeckAttempt(picked: picked, messages: messages, usedPopularFallback: false);
@@ -291,20 +380,23 @@ class PreSwipeProvider extends ChangeNotifier {
       maxCookTime: config.maxCookTime,
     );
     pool = _scoringService.applyHardFilters(all, dietOnlyConfig);
-    picked = _pickDeck(pool, config: dietOnlyConfig, profile: profile, now: now);
+    picked = _pickDeck(pool, config: dietOnlyConfig, profile: profile, now: now, seed: '$seed:dietOnly');
     messages.add('Removed some restrictions to fill your deck');
     if (pool.length >= 5) {
       return _DeckAttempt(picked: picked, messages: messages, usedPopularFallback: false);
     }
 
     final List<Dish> popular = _scoringService.fallbackPopular(all);
-    final List<ScoredDish> popularPicked = popular
-        .map((Dish dish) => ScoredDish(
-              dish: dish,
-              score: _scoringService.scoreDish(dish, dietOnlyConfig, profile, now),
-              seenBefore: profile.matchHistory.contains(dish.id),
-            ))
-        .toList();
+    final List<ScoredDish> popularPicked = _shuffleScoredByScoreBucket(
+      popular
+          .map((Dish dish) => ScoredDish(
+                dish: dish,
+                score: _scoringService.scoreDish(dish, dietOnlyConfig, profile, now),
+                seenBefore: profile.matchHistory.contains(dish.id),
+              ))
+          .toList(),
+      '$seed:popular',
+    );
     messages.add('Showing popular dishes — filters were too narrow');
     return _DeckAttempt(picked: popularPicked, messages: messages, usedPopularFallback: true);
   }
@@ -314,6 +406,7 @@ class PreSwipeProvider extends ChangeNotifier {
     required FilterConfig config,
     required UserProfile profile,
     required DateTime now,
+    required String seed,
   }) {
     final List<ScoredDish> scored = _scoringService.scoreDishes(
       dishes: pool,
@@ -321,7 +414,61 @@ class PreSwipeProvider extends ChangeNotifier {
       profile: profile,
       now: now,
     );
-    return scored.take(30).toList();
+    return _shuffleScoredByScoreBucket(scored, seed).take(30).toList();
+  }
+
+  String _fallbackSeed(CoupleProvider coupleProvider, FilterConfig config) {
+    final String coupleSeed = coupleProvider.currentCouple?.id.trim().isNotEmpty == true
+        ? coupleProvider.currentCouple!.id.trim()
+        : 'solo';
+    return <String>[
+      coupleSeed,
+      _stableList(config.cuisines),
+      _stableList(config.moods),
+      _stableList(config.blocked),
+      _stableList(config.diet),
+    ].join('|');
+  }
+
+  String _stableList(List<String> values) {
+    final List<String> sorted = values.map((String value) => value.trim().toLowerCase()).toList()..sort();
+    return sorted.join(',');
+  }
+
+  List<ScoredDish> _shuffleScoredByScoreBucket(List<ScoredDish> scored, String seed) {
+    final Map<int, List<ScoredDish>> buckets = <int, List<ScoredDish>>{};
+    for (final ScoredDish item in scored) {
+      final int bucket = item.score.round();
+      buckets.putIfAbsent(bucket, () => <ScoredDish>[]).add(item);
+    }
+
+    final List<int> sortedBuckets = buckets.keys.toList()..sort((int a, int b) => b.compareTo(a));
+    return sortedBuckets.expand((int score) {
+      final List<ScoredDish> stableBucket = List<ScoredDish>.from(buckets[score]!)
+        ..sort((ScoredDish a, ScoredDish b) => a.dish.id.compareTo(b.dish.id));
+      return _seededShuffle(stableBucket, '$seed:$score');
+    }).toList();
+  }
+
+  List<T> _seededShuffle<T>(List<T> items, String seedInput) {
+    final List<T> result = List<T>.from(items);
+    final _SeededRandom random = _SeededRandom(_hashStringToSeed(seedInput));
+    for (int i = result.length - 1; i > 0; i -= 1) {
+      final int j = (random.nextDouble() * (i + 1)).floor();
+      final T temp = result[i];
+      result[i] = result[j];
+      result[j] = temp;
+    }
+    return result;
+  }
+
+  int _hashStringToSeed(String input) {
+    int hash = 2166136261;
+    for (int i = 0; i < input.length; i += 1) {
+      hash ^= input.codeUnitAt(i);
+      hash = (hash * 16777619) & 0xFFFFFFFF;
+    }
+    return hash;
   }
 
   String _normalizeCuisine(String value) {
@@ -348,4 +495,22 @@ class _DeckAttempt {
   final List<ScoredDish> picked;
   final List<String> messages;
   final bool usedPopularFallback;
+}
+
+class _SeededRandom {
+  _SeededRandom(this._seed);
+
+  int _seed;
+
+  double nextDouble() {
+    _seed = (_seed + 0x6D2B79F5) & 0xFFFFFFFF;
+    int t = _seed;
+    t = _imul(t ^ (t >> 15), t | 1);
+    t ^= t + _imul(t ^ (t >> 7), t | 61);
+    return ((t ^ (t >> 14)) & 0xFFFFFFFF) / 4294967296;
+  }
+
+  int _imul(int a, int b) {
+    return (a * b) & 0xFFFFFFFF;
+  }
 }

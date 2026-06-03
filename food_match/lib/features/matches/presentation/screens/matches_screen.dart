@@ -43,11 +43,15 @@ class _MatchesScreenState extends State<MatchesScreen> {
     final CoupleProvider coupleProvider = context.watch<CoupleProvider>();
     final FavoritesProvider favoritesProvider = context.watch<FavoritesProvider>();
     final String? currentUserId = context.watch<AuthProvider>().currentUser?.id;
-    final CoupleMemberProfile? partner = _resolvePartner(
-      members: coupleProvider.currentCouple?.memberProfiles,
+    final CoupleMemberProfile? partner = resolvePartnerProfile(
+      couple: coupleProvider.currentCouple,
       currentUserId: currentUserId,
     );
-    final String partnerName = _resolvePartnerName(partner);
+    final String partnerName = resolvePartnerDisplayName(
+      couple: coupleProvider.currentCouple,
+      currentUserId: currentUserId,
+      fallback: AppStrings.yourPartner,
+    );
     final String? partnerAvatarUrl = partner?.avatarUrl;
 
     return Scaffold(
@@ -126,30 +130,6 @@ class _MatchesScreenState extends State<MatchesScreen> {
         },
       ),
     );
-  }
-
-  CoupleMemberProfile? _resolvePartner({
-    List<CoupleMemberProfile>? members,
-    String? currentUserId,
-  }) {
-    if (members == null || members.isEmpty || currentUserId == null || currentUserId.isEmpty) {
-      return null;
-    }
-
-    for (final CoupleMemberProfile member in members) {
-      if (member.id.isNotEmpty && member.id != currentUserId) {
-        return member;
-      }
-    }
-    return null;
-  }
-
-  String _resolvePartnerName(CoupleMemberProfile? partner) {
-    final String? displayName = partner?.displayName?.trim();
-    if (displayName != null && displayName.isNotEmpty) {
-      return displayName;
-    }
-    return AppStrings.yourPartner;
   }
 }
 

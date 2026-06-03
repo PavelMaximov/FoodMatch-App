@@ -40,6 +40,7 @@ Future<void> main() async {
     MultiProvider(
       providers: [
         Provider<DishRepository>.value(value: dishRepo),
+        Provider<CoupleRepository>.value(value: coupleRepo),
         Provider<UploadRepository>.value(value: uploadRepo),
         Provider<UserProfileHiveService>.value(value: userProfileService),
         Provider<FilterScoringService>.value(value: const FilterScoringService()),
@@ -51,20 +52,43 @@ Future<void> main() async {
             cacheService: cacheService,
           ),
         ),
-        ChangeNotifierProvider<CoupleProvider>(
+        ChangeNotifierProxyProvider<AuthProvider, CoupleProvider>(
           create: (_) => CoupleProvider(repository: coupleRepo),
+          update: (_, AuthProvider authProvider, CoupleProvider? coupleProvider) {
+            final CoupleProvider provider = coupleProvider ?? CoupleProvider(repository: coupleRepo);
+            provider.setAuthenticatedUser(
+              authProvider.currentUser?.id,
+              isAuthenticated: authProvider.isAuthenticated,
+            );
+            return provider;
+          },
         ),
-        ChangeNotifierProvider<PreSwipeProvider>(
+        ChangeNotifierProxyProvider<AuthProvider, PreSwipeProvider>(
           create: (BuildContext context) => PreSwipeProvider(
             dishRepository: dishRepo,
+            coupleRepository: coupleRepo,
             profileService: userProfileService,
             scoringService: context.read<FilterScoringService>(),
           ),
+          update: (BuildContext context, AuthProvider authProvider, PreSwipeProvider? preSwipeProvider) {
+            final PreSwipeProvider provider = preSwipeProvider ??
+                PreSwipeProvider(
+                  dishRepository: dishRepo,
+                  coupleRepository: coupleRepo,
+                  profileService: userProfileService,
+                  scoringService: context.read<FilterScoringService>(),
+                );
+            if (!authProvider.isAuthenticated) {
+              provider.clearForLogout(notify: false);
+            }
+            return provider;
+          },
         ),
         ChangeNotifierProxyProvider<AuthProvider, SwipeProvider>(
           create: (_) => SwipeProvider(
             dishRepository: dishRepo,
             swipeRepository: swipeRepo,
+            coupleRepository: coupleRepo,
             cacheService: cacheService,
             userProfileService: userProfileService,
           ),
@@ -73,6 +97,7 @@ Future<void> main() async {
                 SwipeProvider(
                   dishRepository: dishRepo,
                   swipeRepository: swipeRepo,
+                  coupleRepository: coupleRepo,
                   cacheService: cacheService,
                   userProfileService: userProfileService,
                 );
@@ -89,17 +114,21 @@ Future<void> main() async {
             return provider;
           },
         ),
-        ChangeNotifierProxyProvider<CoupleProvider, MatchProvider>(
+        ChangeNotifierProxyProvider2<AuthProvider, CoupleProvider, MatchProvider>(
           create: (_) => MatchProvider(
             swipeRepository: swipeRepo,
             cacheService: cacheService,
           ),
-          update: (_, CoupleProvider coupleProvider, MatchProvider? matchProvider) {
+          update: (_, AuthProvider authProvider, CoupleProvider coupleProvider, MatchProvider? matchProvider) {
             final MatchProvider provider = matchProvider ??
                 MatchProvider(
                   swipeRepository: swipeRepo,
                   cacheService: cacheService,
                 );
+            if (!authProvider.isAuthenticated) {
+              provider.clearForLogout(notify: false);
+              return provider;
+            }
             provider.setActiveCouple(
               coupleProvider.currentCouple?.id,
               sessionStateVersion: coupleProvider.sessionStateVersion,

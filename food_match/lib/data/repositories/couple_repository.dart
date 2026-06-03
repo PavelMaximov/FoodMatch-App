@@ -2,6 +2,7 @@ import '../../core/constants/api_constants.dart';
 import '../../core/utils/logger.dart';
 import '../models/couple.dart';
 import '../models/couple_filter_state.dart';
+import '../models/prepared_deck.dart';
 import '../services/api_service.dart';
 
 class CoupleRepository {
@@ -37,6 +38,10 @@ class CoupleRepository {
   Future<CoupleFilterState> updateMyFilterState(CoupleFilterChoices choices) async => CoupleFilterState.fromJson(await _apiService.put(ApiConstants.coupleFilterStateMe, choices.toJson()) as Map<String, dynamic>);
   Future<CoupleFilterState> confirmMyFilterState() async => CoupleFilterState.fromJson(await _apiService.post(ApiConstants.coupleFilterStateConfirm, {}) as Map<String, dynamic>);
   Future<CoupleFilterState> resetFilterState() async => CoupleFilterState.fromJson(await _apiService.post(ApiConstants.coupleFilterStateReset, {}) as Map<String, dynamic>);
+
+  Future<PreparedDeck> prepareDeck() async => PreparedDeck.fromJson(await _apiService.post(ApiConstants.coupleDeckPrepare, {}) as Map<String, dynamic>);
+  Future<PreparedDeck> getPreparedDeck() async => PreparedDeck.fromJson(await _apiService.get(ApiConstants.coupleDeck) as Map<String, dynamic>);
+  Future<void> resetPreparedDeck() async => _apiService.post(ApiConstants.coupleDeckReset, {});
 
   Map<String, dynamic> _extractSessionMap(dynamic data) {
     if (data is Map<String, dynamic>) {

@@ -155,6 +155,7 @@ class AuthProvider extends ChangeNotifier {
       currentUser = null;
       _apiService.setToken(null);
       await _cacheService.clearAll();
+      AppLogger.info('[Auth] logout cleanup complete');
     } catch (e) {
       error = _mapError(e);
     } finally {

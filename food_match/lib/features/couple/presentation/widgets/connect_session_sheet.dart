@@ -20,6 +20,7 @@ class ConnectSessionSheet extends StatefulWidget {
 class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
   final TextEditingController _codeController = TextEditingController();
   bool _hasLoadedCurrentSession = false;
+  bool _leaveRequestInFlight = false;
 
   @override
   void initState() {
@@ -175,7 +176,9 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
           children: <Widget>[
             Expanded(
               child: OutlinedButton(
-                onPressed: coupleProvider.isLoading || coupleProvider.isLeaving ? null : () => _leaveSession(coupleProvider),
+                onPressed: coupleProvider.isLoading || coupleProvider.isLeaving || _leaveRequestInFlight
+                    ? null
+                    : () => _leaveSession(coupleProvider),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 13),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -291,9 +294,14 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
   }
 
   Future<void> _leaveSession(CoupleProvider coupleProvider) async {
+    if (_leaveRequestInFlight) {
+      return;
+    }
+    setState(() => _leaveRequestInFlight = true);
     final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
     await coupleProvider.leaveCouple();
     if (!mounted) return;
+    setState(() => _leaveRequestInFlight = false);
     if (coupleProvider.error != null) {
       SnackBarUtils.showError(context, coupleProvider.error!);
       return;
@@ -337,21 +345,11 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
 
   String _partnerLabel(BuildContext context, CoupleProvider coupleProvider) {
     final String? currentUserId = context.read<AuthProvider>().currentUser?.id;
-    final List<CoupleMemberProfile> profiles =
-        coupleProvider.currentCouple?.memberProfiles ?? const <CoupleMemberProfile>[];
-    for (final CoupleMemberProfile member in profiles) {
-      final String id = member.id;
-      if (id != currentUserId) {
-        final String? name = member.displayName;
-        if (name != null && name.trim().isNotEmpty) {
-          return name.trim();
-        }
-        if (id.isNotEmpty) {
-          return id;
-        }
-      }
-    }
-    return 'Waiting...';
+    return resolvePartnerDisplayName(
+      couple: coupleProvider.currentCouple,
+      currentUserId: currentUserId,
+      fallback: 'Partner connected',
+    );
   }
 }
 

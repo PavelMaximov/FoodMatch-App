@@ -7,13 +7,13 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../data/models/dish.dart';
+import '../../../../data/models/prepared_deck.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../couple/logic/couple_provider.dart';
 import '../../../couple/presentation/widgets/connect_session_sheet.dart';
-import '../../../matches/logic/match_provider.dart';
 import '../../logic/pre_swipe_provider.dart';
 import '../../logic/swipe_provider.dart';
 import '../widgets/swipe_card_widget.dart';
@@ -31,14 +31,54 @@ class _SwipesScreenState extends State<SwipesScreen> {
   final SwipeableStackController _swiperController = SwipeableStackController();
   bool _isOpeningPreSwipe = false;
   bool _isCardActionInProgress = false;
+  CoupleProvider? _coupleProvider;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _runPreSwipeFlow();
-      context.read<MatchProvider>().loadMatches();
+      if (!mounted) {
+        return;
+      }
+      final CoupleProvider coupleProvider = context.read<CoupleProvider>();
+      _coupleProvider = coupleProvider;
+      coupleProvider.startFilterStatePolling();
+      _loadExistingBackendDeckOrStart();
     });
+  }
+
+  @override
+  void dispose() {
+    _coupleProvider?.stopFilterStatePolling();
+    super.dispose();
+  }
+
+  Future<void> _loadExistingBackendDeckOrStart() async {
+    final SwipeProvider swipeProvider = context.read<SwipeProvider>();
+    final String? userId = context.read<AuthProvider>().currentUser?.id;
+    swipeProvider.setActiveUser(userId);
+
+    final CoupleProvider coupleProvider = context.read<CoupleProvider>();
+    if (coupleProvider.hasCouple) {
+      await coupleProvider.refreshFilterState();
+      if (!mounted) {
+        return;
+      }
+      if (!coupleProvider.bothConfirmed) {
+        swipeProvider.clearPreparedDeck();
+        await _runPreSwipeFlow();
+        return;
+      }
+      final bool loaded = await swipeProvider.loadExistingPreparedDeck();
+      if (loaded || !mounted) {
+        return;
+      }
+    }
+
+    if (!mounted) {
+      return;
+    }
+    await _runPreSwipeFlow();
   }
 
   Future<void> _runPreSwipeFlow({bool fromHeaderAction = false}) async {
@@ -69,7 +109,8 @@ class _SwipesScreenState extends State<SwipesScreen> {
     }
 
     if (result == null) {
-      if (!swipeProvider.hasPreparedDeck) {
+      final CoupleProvider coupleProvider = _coupleProvider ?? context.read<CoupleProvider>();
+      if (!swipeProvider.hasPreparedDeck && (!coupleProvider.hasCouple || coupleProvider.bothConfirmed)) {
         await swipeProvider.loadDeck();
       }
       _isOpeningPreSwipe = false;
@@ -82,22 +123,45 @@ class _SwipesScreenState extends State<SwipesScreen> {
       return;
     }
 
-    swipeProvider.applyPreparedDeck(result.dishes, seenDishIds: result.seenDishIds);
+    swipeProvider.applyPreparedDeck(
+      result.dishes,
+      seenDishIds: result.seenDishIds,
+      preparedDeckMeta: result.preparedDeckMeta,
+    );
 
-    final CoupleProvider coupleProvider = context.read<CoupleProvider>();
-    final bool hasNoPartnerChoices = coupleProvider.hasCouple &&
-        (coupleProvider.partnerChoices == null ||
-            coupleProvider.partnerChoices!.cuisines.isEmpty);
-
-    if (hasNoPartnerChoices) {
+    final String? waitingMessage = _partnerWaitingMessage(
+      coupleProvider: _coupleProvider ?? context.read<CoupleProvider>(),
+      deckMeta: result.preparedDeckMeta ?? swipeProvider.preparedDeckMeta,
+    );
+    if (waitingMessage != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Waiting for partner choices. Using your current filters for now.'),
-        ),
+        SnackBar(content: Text(waitingMessage)),
       );
     }
 
     _isOpeningPreSwipe = false;
+  }
+
+
+  String? _partnerWaitingMessage({
+    required CoupleProvider coupleProvider,
+    PreparedDeckMeta? deckMeta,
+  }) {
+    if (!coupleProvider.hasCouple) {
+      return null;
+    }
+    if (deckMeta?.bothConfirmed == true || deckMeta?.usedPartnerChoices == true) {
+      return null;
+    }
+    if (coupleProvider.bothConfirmed) {
+      return null;
+    }
+
+    final partnerChoices = coupleProvider.partnerChoices;
+    if (partnerChoices == null || !partnerChoices.confirmed) {
+      return 'Waiting for your partner to finish filters.';
+    }
+    return null;
   }
 
   void _showConnectSheet(BuildContext context) {
@@ -188,6 +252,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final CoupleProvider coupleProvider = context.watch<CoupleProvider>();
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -262,6 +327,25 @@ class _SwipesScreenState extends State<SwipesScreen> {
                 ),
                 child: Consumer<SwipeProvider>(
                   builder: (BuildContext context, SwipeProvider provider, _) {
+                    if (coupleProvider.hasCouple && !coupleProvider.bothConfirmed) {
+                      if (provider.hasPreparedDeck || provider.deck.isNotEmpty) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted) {
+                            provider.clearPreparedDeck();
+                          }
+                        });
+                      }
+                      return EmptyState(
+                        icon: Icons.hourglass_empty,
+                        title: coupleProvider.isMyChoicesConfirmed
+                            ? 'Waiting for your partner to finish filters.'
+                            : 'Complete your filters to prepare your shared deck.',
+                        subtitle: 'Your shared deck will be ready after both of you confirm filters.',
+                        buttonText: 'Filter',
+                        onButtonPressed: () => _runPreSwipeFlow(fromHeaderAction: true),
+                      );
+                    }
+
                     if (provider.isLoading) {
                       return const ShimmerCard();
                     }
