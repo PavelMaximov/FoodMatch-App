@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -26,11 +28,14 @@ class RecipeDetailScreen extends StatefulWidget {
 }
 
 class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
-  _DetailTab _activeTab = _DetailTab.ingredients;
+  final ScrollController _scrollController = ScrollController();
+  _RecipeDetailTab _activeTab = _RecipeDetailTab.ingredients;
+  bool _isScrolled = false;
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_handleScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<RecipeProvider>().loadRecipeForDish(
             dishId: widget.dishId,
@@ -38,6 +43,21 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           );
       context.read<FavoritesProvider>().loadFavorites();
     });
+  }
+
+  @override
+  void dispose() {
+    _scrollController
+      ..removeListener(_handleScroll)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _handleScroll() {
+    final bool nextIsScrolled = _scrollController.hasClients && _scrollController.offset > 80;
+    if (nextIsScrolled != _isScrolled) {
+      setState(() => _isScrolled = nextIsScrolled);
+    }
   }
 
   @override
@@ -63,9 +83,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           child: ErrorState(
             message: recipeProvider.error!,
             onRetry: () => context.read<RecipeProvider>().loadRecipeForDish(
-              dishId: widget.dishId,
-              dish: widget.dish,
-            ),
+                  dishId: widget.dishId,
+                  dish: widget.dish,
+                ),
           ),
         ),
       );
@@ -78,7 +98,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              IconButton(onPressed: () => Navigator.of(context).pop(), icon: const Icon(Icons.arrow_back)),
+              IconButton(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.arrow_back),
+              ),
               Expanded(
                 child: Center(
                   child: Text(
@@ -93,93 +116,279 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       );
     }
 
+    final double heroHeight = math.min(
+      math.max(MediaQuery.sizeOf(context).height * 0.40, 280.0),
+      380.0,
+    );
+    final bool isFavorite = favoritesProvider.isFavorite(dish.id);
+
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: CustomScrollView(
-        slivers: <Widget>[
-          SliverToBoxAdapter(
-            child: _ImageHeader(
-              dish: dish,
-              dishId: dish.id,
-              isFavorite: favoritesProvider.isFavorite(dish.id),
-              isFavoriteUpdating: favoritesProvider.isUpdating(dish.id),
-              onFavoriteTap: () => context.read<FavoritesProvider>().toggleFavorite(dish),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingL),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  const SizedBox(height: AppDimensions.paddingL),
-                  Text(
-                    dish.name.isNotEmpty ? dish.name : 'Dish ${widget.dishId}',
-                    style: GoogleFonts.nunito(
-                      fontSize: 56 * 0.8,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    dish.description.isNotEmpty ? dish.description : AppStrings.cooking,
-                    style: GoogleFonts.nunito(
-                      fontSize: 20,
-                      height: 1.35,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: _buildDishTags(dish),
-                  ),
-                  const SizedBox(height: 18),
-                  Row(
-                    children: <Widget>[
-                      const Icon(Icons.people_outline, size: 18, color: AppColors.textSecondary),
-                      const SizedBox(width: 6),
-                      Text(
-                        '${dish.servings.isEmpty ? '2' : dish.servings} ${AppStrings.servings}',
-                        style: AppTextStyles.bodyLarge,
-                      ),
-                      const SizedBox(width: 18),
-                      const Icon(Icons.access_time, size: 18, color: AppColors.textSecondary),
-                      const SizedBox(width: 6),
-                      Text(
-                        '${dish.cookTime <= 0 ? 0 : dish.cookTime} ${AppStrings.minutes}',
-                        style: AppTextStyles.bodyLarge,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppDimensions.paddingL),
-                  _Tabs(
-                    activeTab: _activeTab,
-                    onChanged: (_DetailTab tab) => setState(() => _activeTab = tab),
-                  ),
-                  const SizedBox(height: AppDimensions.paddingM),
-                  if (_activeTab == _DetailTab.ingredients)
-                    _IngredientsContent(ingredients: dish.ingredients)
-                  else
-                    _InstructionsContent(steps: dish.steps),
-                  const SizedBox(height: AppDimensions.paddingXL),
-                ],
+      body: Stack(
+        children: <Widget>[
+          CustomScrollView(
+            controller: _scrollController,
+            slivers: <Widget>[
+              SliverToBoxAdapter(
+                child: _HeroImage(dish: dish, dishId: dish.id, height: heroHeight),
               ),
-            ),
+              SliverToBoxAdapter(
+                child: _RecipeContent(
+                  dish: dish,
+                  fallbackDishId: widget.dishId,
+                  activeTab: _activeTab,
+                  onTabChanged: (_RecipeDetailTab tab) => setState(() => _activeTab = tab),
+                ),
+              ),
+            ],
+          ),
+          _StickyOverlayButtons(
+            isScrolled: _isScrolled,
+            isFavorite: isFavorite,
+            isFavoriteUpdating: favoritesProvider.isUpdating(dish.id),
+            onBackTap: () => Navigator.of(context).pop(),
+            onFavoriteTap: () => context.read<FavoritesProvider>().toggleFavorite(dish),
           ),
         ],
       ),
     );
   }
+}
 
-  List<Widget> _buildDishTags(Dish dish) {
+enum _RecipeDetailTab { ingredients, instructions }
+
+class _HeroImage extends StatelessWidget {
+  const _HeroImage({required this.dish, required this.dishId, required this.height});
+
+  final Dish dish;
+  final String dishId;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: height,
+      width: double.infinity,
+      child: ClipRRect(
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(28),
+          bottomRight: Radius.circular(28),
+        ),
+        child: Hero(
+          tag: 'dish-image-$dishId',
+          child: CachedNetworkImage(
+            imageUrl: ImageUtils.getImageUrl(dish.imageUrl),
+            fit: BoxFit.cover,
+            placeholder: (_, __) => const ColoredBox(
+              color: Color(0xFFF5EDE8),
+              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            ),
+            errorWidget: (_, __, ___) => const ColoredBox(
+              color: Color(0xFFF5EDE8),
+              child: Center(
+                child: Icon(Icons.restaurant_menu, size: 72, color: AppColors.textSecondary),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StickyOverlayButtons extends StatelessWidget {
+  const _StickyOverlayButtons({
+    required this.isScrolled,
+    required this.isFavorite,
+    required this.isFavoriteUpdating,
+    required this.onBackTap,
+    required this.onFavoriteTap,
+  });
+
+  final bool isScrolled;
+  final bool isFavorite;
+  final bool isFavoriteUpdating;
+  final VoidCallback onBackTap;
+  final VoidCallback onFavoriteTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.only(top: 12, left: 20, right: 20),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: <Widget>[
+            _OverlayCircleButton(
+              icon: Icons.arrow_back,
+              iconColor: isScrolled ? Colors.white : AppColors.textPrimary,
+              backgroundColor: isScrolled ? Colors.black.withValues(alpha: 0.70) : Colors.white,
+              onTap: onBackTap,
+            ),
+            _OverlayCircleButton(
+              icon: isFavorite ? Icons.bookmark : Icons.bookmark_border,
+              iconColor: isFavorite
+                  ? AppColors.primary
+                  : isScrolled
+                      ? Colors.white
+                      : AppColors.textPrimary,
+              backgroundColor: isScrolled ? Colors.black.withValues(alpha: 0.70) : Colors.white,
+              onTap: isFavoriteUpdating ? null : onFavoriteTap,
+              isLoading: isFavoriteUpdating,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _OverlayCircleButton extends StatelessWidget {
+  const _OverlayCircleButton({
+    required this.icon,
+    required this.iconColor,
+    required this.backgroundColor,
+    required this.onTap,
+    this.isLoading = false,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+  final Color backgroundColor;
+  final VoidCallback? onTap;
+  final bool isLoading;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: backgroundColor,
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: SizedBox(
+          width: 42,
+          height: 42,
+          child: Center(
+            child: isLoading
+                ? SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(iconColor),
+                    ),
+                  )
+                : Icon(icon, size: 22, color: iconColor),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RecipeContent extends StatelessWidget {
+  const _RecipeContent({
+    required this.dish,
+    required this.fallbackDishId,
+    required this.activeTab,
+    required this.onTabChanged,
+  });
+
+  final Dish dish;
+  final String fallbackDishId;
+  final _RecipeDetailTab activeTab;
+  final ValueChanged<_RecipeDetailTab> onTabChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final EdgeInsets safePadding = MediaQuery.paddingOf(context);
+    final List<_IngredientDisplayRow> ingredientRows = _buildIngredientRows(dish);
+
+    return ColoredBox(
+      color: AppColors.background,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          AppDimensions.paddingL,
+          26,
+          AppDimensions.paddingL,
+          safePadding.bottom + AppDimensions.bottomNavHeight + AppDimensions.paddingXL,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              dish.name.isNotEmpty ? dish.name : 'Dish $fallbackDishId',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.nunito(
+                fontSize: 27,
+                fontWeight: FontWeight.w800,
+                height: 1.08,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            if (dish.description.trim().isNotEmpty) ...<Widget>[
+              const SizedBox(height: 8),
+              Text(
+                dish.description.trim(),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.nunito(
+                  fontSize: 14,
+                  height: 1.42,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
+            _TagChips(dish: dish),
+            const SizedBox(height: 18),
+            _StatsRow(dish: dish),
+            const SizedBox(height: 24),
+            _Tabs(activeTab: activeTab, onChanged: onTabChanged),
+            _TabPanel(
+              child: activeTab == _RecipeDetailTab.ingredients
+                  ? _IngredientsContent(rows: ingredientRows)
+                  : _InstructionsContent(steps: dish.steps),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<_IngredientDisplayRow> _buildIngredientRows(Dish dish) {
+    final List<_IngredientDisplayRow> structuredRows = dish.sections
+        .expand((DishSection section) => section.components)
+        .map((DishComponent component) => _IngredientDisplayRow(name: component.ingredient.name.trim()))
+        .where((_IngredientDisplayRow row) => row.name.isNotEmpty)
+        .toList();
+
+    if (structuredRows.isNotEmpty) {
+      return structuredRows;
+    }
+
+    return dish.ingredients
+        .map((String ingredient) => _IngredientDisplayRow(name: ingredient.trim()))
+        .where((_IngredientDisplayRow row) => row.name.isNotEmpty)
+        .toList();
+  }
+}
+
+class _TagChips extends StatelessWidget {
+  const _TagChips({required this.dish});
+
+  final Dish dish;
+
+  @override
+  Widget build(BuildContext context) {
     final List<String> tags = <String>[
       dish.cuisine,
+      dish.effort,
       dish.type,
       ...dish.mood,
-      ...dish.diet,
+      ...dish.tags,
     ]
         .map((String item) => item.trim())
         .where((String item) => item.isNotEmpty)
@@ -188,82 +397,137 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         .toList();
 
     if (tags.isEmpty) {
-      return <Widget>[const _TagChip(label: 'Dish')];
+      return const SizedBox.shrink();
     }
 
-    return tags.map((String tag) => _TagChip(label: tag)).toList();
+    return Wrap(
+      spacing: 8,
+      runSpacing: 6,
+      children: tags.map((String tag) => _TagChip(label: tag)).toList(),
+    );
   }
 }
 
-enum _DetailTab { ingredients, instructions }
+class _TagChip extends StatelessWidget {
+  const _TagChip({required this.label});
 
-class _ImageHeader extends StatelessWidget {
-  const _ImageHeader({
-    required this.dish,
-    required this.dishId,
-    required this.isFavorite,
-    required this.isFavoriteUpdating,
-    required this.onFavoriteTap,
-  });
-
-  final Dish dish;
-  final String dishId;
-  final bool isFavorite;
-  final bool isFavoriteUpdating;
-  final VoidCallback onFavoriteTap;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.nunito(
+          color: AppColors.chipText,
+          fontSize: 12.5,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _StatsRow extends StatelessWidget {
+  const _StatsRow({required this.dish});
+
+  final Dish dish;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 15),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Row(
+        children: <Widget>[
+          Expanded(child: _StatItem(icon: Icons.schedule, label: _formatCookTime(dish.cookTime))),
+          const _VerticalDivider(),
+          Expanded(child: _StatItem(icon: Icons.groups_outlined, label: _formatServings(dish.servings))),
+          const _VerticalDivider(),
+          Expanded(
+            child: _StatItem(
+              icon: Icons.local_fire_department_outlined,
+              label: _formatCalories(dish),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatCookTime(int cookTime) {
+    final int minutes = cookTime <= 0 ? 0 : cookTime;
+    return '$minutes ${AppStrings.minutes}';
+  }
+
+  String _formatServings(String servings) {
+    final String trimmed = servings.trim();
+    if (trimmed.isEmpty) {
+      return '2 ${AppStrings.servings}';
+    }
+    if (trimmed.toLowerCase().contains(AppStrings.servings)) {
+      return trimmed;
+    }
+    return '$trimmed ${AppStrings.servings}';
+  }
+
+  String _formatCalories(Dish dish) {
+    final int? numericCalories = dish.nutrition?.calories;
+    if (numericCalories != null && numericCalories > 0) {
+      return '$numericCalories kcal';
+    }
+
+    final String trimmed = dish.calories.trim();
+    if (trimmed.isEmpty) {
+      return '— kcal';
+    }
+    if (trimmed.toLowerCase().contains('kcal')) {
+      return trimmed;
+    }
+
+    final int? parsed = int.tryParse(trimmed);
+    if (parsed != null && parsed > 0) {
+      return '$parsed kcal';
+    }
+
+    return '— kcal';
+  }
+}
+
+class _StatItem extends StatelessWidget {
+  const _StatItem({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        SizedBox(
-          height: 390,
-          width: double.infinity,
-          child: ClipRRect(
-            borderRadius: const BorderRadius.only(
-              bottomLeft: Radius.circular(32),
-              bottomRight: Radius.circular(32),
+        Icon(icon, size: 17, color: AppColors.textPrimary),
+        const SizedBox(width: 5),
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.nunito(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
             ),
-            child: Hero(
-              tag: 'dish-image-$dishId',
-              child: CachedNetworkImage(
-                imageUrl: ImageUtils.getImageUrl(dish.imageUrl),
-                fit: BoxFit.cover,
-                errorWidget: (_, __, ___) => Container(
-                  color: Colors.black12,
-                  child: const Icon(Icons.restaurant_menu, size: 72),
-                ),
-              ),
-            ),
-          ),
-        ),
-        Positioned.fill(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.center,
-                colors: <Color>[Colors.black.withValues(alpha: 0.42), Colors.transparent],
-              ),
-            ),
-          ),
-        ),
-        Positioned(
-          top: 52,
-          left: AppDimensions.paddingM,
-          child: _IconCircleButton(
-            icon: Icons.arrow_back,
-            onTap: () => Navigator.of(context).pop(),
-          ),
-        ),
-        Positioned(
-          top: 52,
-          right: AppDimensions.paddingM,
-          child: _IconCircleButton(
-            icon: isFavorite ? Icons.bookmark : Icons.bookmark_border,
-            iconColor: isFavorite ? const Color(0xFF5D4136) : AppColors.textPrimary,
-            onTap: isFavoriteUpdating ? null : onFavoriteTap,
-            isLoading: isFavoriteUpdating,
           ),
         ),
       ],
@@ -271,26 +535,36 @@ class _ImageHeader extends StatelessWidget {
   }
 }
 
+class _VerticalDivider extends StatelessWidget {
+  const _VerticalDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(width: 1, height: 28, color: AppColors.divider);
+  }
+}
+
 class _Tabs extends StatelessWidget {
   const _Tabs({required this.activeTab, required this.onChanged});
 
-  final _DetailTab activeTab;
-  final ValueChanged<_DetailTab> onChanged;
+  final _RecipeDetailTab activeTab;
+  final ValueChanged<_RecipeDetailTab> onChanged;
 
   @override
   Widget build(BuildContext context) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
       children: <Widget>[
         _TabButton(
           title: AppStrings.ingredients,
-          isActive: activeTab == _DetailTab.ingredients,
-          onTap: () => onChanged(_DetailTab.ingredients),
+          isActive: activeTab == _RecipeDetailTab.ingredients,
+          onTap: () => onChanged(_RecipeDetailTab.ingredients),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 6),
         _TabButton(
           title: 'Instructions',
-          isActive: activeTab == _DetailTab.instructions,
-          onTap: () => onChanged(_DetailTab.instructions),
+          isActive: activeTab == _RecipeDetailTab.instructions,
+          onTap: () => onChanged(_RecipeDetailTab.instructions),
         ),
       ],
     );
@@ -298,11 +572,7 @@ class _Tabs extends StatelessWidget {
 }
 
 class _TabButton extends StatelessWidget {
-  const _TabButton({
-    required this.title,
-    required this.isActive,
-    required this.onTap,
-  });
+  const _TabButton({required this.title, required this.isActive, required this.onTap});
 
   final String title;
   final bool isActive;
@@ -310,21 +580,21 @@ class _TabButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-        decoration: BoxDecoration(
-          color: isActive ? const Color(0xFFFFDCD0) : const Color(0xFFF0EDEB),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Text(
-          title,
-          style: GoogleFonts.nunito(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
+    return Material(
+      color: isActive ? AppColors.primaryLight : const Color(0xFFF0EDEB),
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(19)),
+      child: InkWell(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(19)),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 11),
+          child: Text(
+            title,
+            style: GoogleFonts.nunito(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: isActive ? Colors.white : AppColors.textPrimary,
+            ),
           ),
         ),
       ),
@@ -332,40 +602,85 @@ class _TabButton extends StatelessWidget {
   }
 }
 
-class _IngredientsContent extends StatelessWidget {
-  const _IngredientsContent({required this.ingredients});
+class _TabPanel extends StatelessWidget {
+  const _TabPanel({required this.child});
 
-  final List<String> ingredients;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    if (ingredients.isEmpty) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Color(0xFFF0EDEB))),
+      ),
+      child: child,
+    );
+  }
+}
+
+class _IngredientDisplayRow {
+  const _IngredientDisplayRow({required this.name, this.measurement});
+
+  final String? measurement;
+  final String name;
+}
+
+class _IngredientsContent extends StatelessWidget {
+  const _IngredientsContent({required this.rows});
+
+  final List<_IngredientDisplayRow> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    if (rows.isEmpty) {
       return Text('No ingredients available.', style: AppTextStyles.bodyMedium);
     }
 
     return Column(
-      children: ingredients
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: rows
+          .asMap()
+          .entries
           .map(
-            (String ingredient) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    ingredient,
-                    style: GoogleFonts.nunito(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Divider(height: 1, color: AppColors.divider),
-                ],
-              ),
+            (MapEntry<int, _IngredientDisplayRow> entry) => _DashedSeparatedRow(
+              showDivider: entry.key < rows.length - 1,
+              child: _IngredientText(row: entry.value),
             ),
           )
           .toList(),
+    );
+  }
+}
+
+class _IngredientText extends StatelessWidget {
+  const _IngredientText({required this.row});
+
+  final _IngredientDisplayRow row;
+
+  @override
+  Widget build(BuildContext context) {
+    final TextStyle baseStyle = GoogleFonts.nunito(
+      fontSize: 14.5,
+      height: 1.35,
+      color: AppColors.textPrimary,
+    );
+    final String measurement = row.measurement?.trim() ?? '';
+
+    if (measurement.isEmpty) {
+      return Text(row.name, textAlign: TextAlign.start, style: baseStyle);
+    }
+
+    return Text.rich(
+      TextSpan(
+        children: <InlineSpan>[
+          TextSpan(text: measurement, style: baseStyle.copyWith(fontWeight: FontWeight.w800)),
+          TextSpan(text: ' ${row.name}', style: baseStyle),
+        ],
+      ),
+      textAlign: TextAlign.start,
     );
   }
 }
@@ -382,122 +697,93 @@ class _InstructionsContent extends StatelessWidget {
     }
 
     return Column(
-      children: steps
-          .asMap()
-          .entries
-          .map(
-            (MapEntry<int, RecipeStep> entry) => Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Container(
-                    width: 30,
-                    height: 30,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.textPrimary, width: 2),
-                    ),
-                    child: Text(
-                      '${entry.value.step > 0 ? entry.value.step : entry.key + 1}',
-                      style: GoogleFonts.nunito(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(
-                          'Step ${entry.value.step > 0 ? entry.value.step : entry.key + 1}',
-                          style: GoogleFonts.nunito(
-                            fontSize: 31 * 0.62,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(entry.value.text, style: AppTextStyles.bodyMedium),
-                      ],
-                    ),
-                  ),
-                ],
+      children: steps.asMap().entries.map((MapEntry<int, RecipeStep> entry) {
+        final int stepNumber = entry.value.step > 0 ? entry.value.step : entry.key + 1;
+        return _DashedSeparatedRow(
+          showDivider: entry.key < steps.length - 1,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                '$stepNumber.',
+                style: GoogleFonts.nunito(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primary,
+                ),
               ),
-            ),
-          )
-          .toList(),
-    );
-  }
-}
-
-class _TagChip extends StatelessWidget {
-  const _TagChip({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF888888), width: 1.5),
-      ),
-      child: Text(
-        label,
-        style: GoogleFonts.nunito(
-          color: const Color(0xFF666666),
-          fontSize: 15,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-}
-
-class _IconCircleButton extends StatelessWidget {
-  const _IconCircleButton({
-    required this.icon,
-    this.onTap,
-    this.iconColor = AppColors.textPrimary,
-    this.isLoading = false,
-  });
-
-  final IconData icon;
-  final VoidCallback? onTap;
-  final Color iconColor;
-  final bool isLoading;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(20),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: onTap,
-        child: SizedBox(
-          width: 40,
-          height: 40,
-          child: Center(
-            child: isLoading
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: AppColors.textPrimary,
-                    ),
-                  )
-                : Icon(icon, color: iconColor),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  entry.value.text,
+                  style: GoogleFonts.nunito(
+                    fontSize: 14.5,
+                    height: 1.4,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _DashedSeparatedRow extends StatelessWidget {
+  const _DashedSeparatedRow({required this.child, required this.showDivider});
+
+  final Widget child;
+  final bool showDivider;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 11),
+            child: Align(alignment: Alignment.centerLeft, child: child),
+          ),
+          if (showDivider) const _DashedDivider(),
+        ],
       ),
     );
   }
+}
+
+class _DashedDivider extends StatelessWidget {
+  const _DashedDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 1,
+      width: double.infinity,
+      child: CustomPaint(painter: _DashedDividerPainter()),
+    );
+  }
+}
+
+class _DashedDividerPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    const double dashWidth = 5;
+    const double dashGap = 4;
+    double startX = 0;
+    final Paint paint = Paint()
+      ..color = AppColors.divider
+      ..strokeWidth = 1;
+
+    while (startX < size.width) {
+      canvas.drawLine(Offset(startX, 0), Offset(math.min(startX + dashWidth, size.width), 0), paint);
+      startX += dashWidth + dashGap;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

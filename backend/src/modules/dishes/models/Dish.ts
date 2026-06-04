@@ -11,6 +11,16 @@ export interface StructuredIngredient {
   unit: string;
 }
 
+export interface DishNutrition {
+  calories?: number;
+  protein?: number;
+  fat?: number;
+  carbohydrates?: number;
+  fiber?: number;
+  sugar?: number;
+  sodium?: number;
+}
+
 export interface DishDocument extends Document {
   sourceType: 'mealdb' | 'custom';
   sourceId?: string;
@@ -25,6 +35,7 @@ export interface DishDocument extends Document {
   ingredients: string[];
   cookTime: number;
   calories: string;
+  nutrition?: DishNutrition;
   effort: string;
   source: string[];
   servings: string;
@@ -71,6 +82,7 @@ const dishSchema = new Schema<DishDocument>(
     ingredients: { type: [String], default: [] },
     cookTime: { type: Number, default: 0 },
     calories: { type: String, default: '' },
+    nutrition: { type: Schema.Types.Mixed, default: undefined },
     effort: { type: String, default: '' },
     source: { type: [String], default: [] },
     servings: { type: String, default: '' },

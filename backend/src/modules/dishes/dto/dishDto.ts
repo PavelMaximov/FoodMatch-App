@@ -1,3 +1,7 @@
+export interface DishNutritionDto {
+  calories: number;
+}
+
 export interface DishDto {
   id: string;
   name: string;
@@ -15,6 +19,7 @@ export interface DishDto {
   servings: string;
   qualityScore: number;
   calories: string;
+  nutrition: DishNutritionDto | null;
   effort: string;
   source: string[];
   season: string[];
@@ -52,6 +57,7 @@ export function toDishDto(dish: any): DishDto | null {
     servings: firstString(raw.num_servings, raw.servings, raw.yields),
     qualityScore: firstNumber(raw.quality_score, raw.qualityScore),
     calories: firstString(raw.calories_level, raw.calories),
+    nutrition: readNutrition(raw.nutrition ?? raw.rawSourceData?.nutrition),
     effort: asString(raw.effort),
     source: asStringList(raw.source),
     season: asStringList(raw.season),
@@ -102,6 +108,15 @@ function readIngredients(rawDish: any): string[] {
   }
 
   return [];
+}
+
+function readNutrition(nutrition: any): DishNutritionDto | null {
+  const calories = firstNumber(nutrition?.calories);
+  if (calories <= 0) {
+    return null;
+  }
+
+  return { calories };
 }
 
 function readSteps(rawDish: any): Array<{ step: number; text: string }> {

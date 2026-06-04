@@ -14,6 +14,7 @@ class SwipeCardWidget extends StatefulWidget {
     this.onDislike,
     this.onBack,
     this.onRefresh,
+    this.onInfoTap,
     this.showSeenBadge = false,
     super.key,
   });
@@ -23,6 +24,7 @@ class SwipeCardWidget extends StatefulWidget {
   final VoidCallback? onDislike;
   final VoidCallback? onBack;
   final VoidCallback? onRefresh;
+  final VoidCallback? onInfoTap;
   final bool showSeenBadge;
 
   @override
@@ -30,8 +32,6 @@ class SwipeCardWidget extends StatefulWidget {
 }
 
 class _SwipeCardWidgetState extends State<SwipeCardWidget> {
-  bool _isExpanded = false;
-
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
@@ -83,10 +83,8 @@ class _SwipeCardWidgetState extends State<SwipeCardWidget> {
             bottom: 0,
             left: 0,
             right: 0,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-              height: _isExpanded ? 450 : 280,
+            child: Container(
+              height: 280,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
@@ -103,77 +101,39 @@ class _SwipeCardWidgetState extends State<SwipeCardWidget> {
             bottom: 100,
             left: 20,
             right: 20,
-            child: AnimatedCrossFade(
-              duration: const Duration(milliseconds: 300),
-              crossFadeState:
-                  _isExpanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-              firstChild: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: Text(
-                          widget.dish.name,
-                          style: GoogleFonts.nunito(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      _buildInfoButton(),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    widget.dish.description,
-                    style: GoogleFonts.nunito(
-                      fontSize: 14,
-                      color: Colors.white.withValues(alpha: 0.85),
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 8),
-                  _buildTags(),
-                ],
-              ),
-              secondChild: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Row(
                   children: <Widget>[
-                    Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: Text(
-                            widget.dish.name,
-                            style: GoogleFonts.nunito(
-                              fontSize: 28,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                            ),
-                          ),
+                    Expanded(
+                      child: Text(
+                        widget.dish.name,
+                        style: GoogleFonts.nunito(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
                         ),
-                        _buildInfoButton(),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      widget.dish.description,
-                      style: GoogleFonts.nunito(
-                        fontSize: 14,
-                        color: Colors.white.withValues(alpha: 0.9),
-                        height: 1.5,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    _buildTags(),
+                    _buildInfoButton(),
                   ],
                 ),
-              ),
+                const SizedBox(height: 4),
+                Text(
+                  widget.dish.description,
+                  style: GoogleFonts.nunito(
+                    fontSize: 14,
+                    color: Colors.white.withValues(alpha: 0.85),
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 8),
+                _buildTags(),
+              ],
             ),
           ),
           Positioned(
@@ -221,17 +181,17 @@ class _SwipeCardWidgetState extends State<SwipeCardWidget> {
 
   Widget _buildInfoButton() {
     return GestureDetector(
-      onTap: () => setState(() => _isExpanded = !_isExpanded),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+      behavior: HitTestBehavior.opaque,
+      onTap: widget.onInfoTap,
+      child: Container(
         width: 32,
         height: 32,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: _isExpanded ? AppColors.primary : Colors.white.withValues(alpha: 0.3),
+          color: Colors.white.withValues(alpha: 0.3),
         ),
-        child: Icon(
-          _isExpanded ? Icons.close : Icons.info_outline,
+        child: const Icon(
+          Icons.info_outline,
           color: Colors.white,
           size: 18,
         ),
