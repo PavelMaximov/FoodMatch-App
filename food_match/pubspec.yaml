@@ -15,6 +15,7 @@ dependencies:
   shared_preferences: ^2.5.4
   json_annotation: ^4.11.0
   http: ^1.2.0
+  http_parser: ^4.0.2
   provider: ^6.1.0
   cached_network_image: ^3.3.0
   flutter_card_swiper: ^7.0.0
@@ -38,3 +39,6 @@ flutter:
   assets:
     - assets/media/
     - assets/icons/
+    - assets/logos/
+    - assets/images/
+    - assets/illustrations/

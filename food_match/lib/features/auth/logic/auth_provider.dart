@@ -164,6 +164,35 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+
+  Future<void> updateCurrentUserAvatar({
+    required String avatarUrl,
+    String? avatarPublicId,
+  }) async {
+    final User? user = currentUser;
+    if (user == null) {
+      return;
+    }
+
+    currentUser = user.copyWith(
+      avatarUrl: avatarUrl,
+      avatarPublicId: avatarPublicId,
+    );
+    await _cacheUserDataIfAvailable();
+    notifyListeners();
+  }
+
+  Future<void> clearCurrentUserAvatar() async {
+    final User? user = currentUser;
+    if (user == null) {
+      return;
+    }
+
+    currentUser = user.copyWith(clearAvatar: true);
+    await _cacheUserDataIfAvailable();
+    notifyListeners();
+  }
+
   Future<void> _cacheUserDataIfAvailable() async {
     if (currentUser == null) {
       return;

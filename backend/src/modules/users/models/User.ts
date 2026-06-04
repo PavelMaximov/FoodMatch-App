@@ -5,6 +5,7 @@ export interface UserDocument extends Document {
   passwordHash: string;
   displayName: string;
   avatarUrl?: string;
+  avatarPublicId?: string;
   authProvider?: 'local';
   savedDishes: Types.ObjectId[];
   isActive: boolean;
@@ -18,6 +19,7 @@ const userSchema = new Schema<UserDocument>(
     passwordHash: { type: String, required: true },
     displayName: { type: String, required: true, trim: true },
     avatarUrl: { type: String },
+    avatarPublicId: { type: String },
     authProvider: { type: String, default: 'local' },
     savedDishes: { type: [{ type: Schema.Types.ObjectId, ref: 'Dish' }], default: [] },
     isActive: { type: Boolean, default: true }

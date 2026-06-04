@@ -8,7 +8,10 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
   MONGODB_URI: z.string().min(1),
   JWT_SECRET: z.string().min(16),
-  JWT_EXPIRES_IN: z.string().default('7d')
+  JWT_EXPIRES_IN: z.string().default('7d'),
+  CLOUDINARY_CLOUD_NAME: z.string().optional(),
+  CLOUDINARY_API_KEY: z.string().optional(),
+  CLOUDINARY_API_SECRET: z.string().optional()
 });
 
 const parsed = envSchema.safeParse(process.env);

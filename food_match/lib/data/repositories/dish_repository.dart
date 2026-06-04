@@ -80,6 +80,7 @@ class DishRepository {
     required int servings,
     required List<String> instructions,
     required String imageUrl,
+    String? imagePublicId,
   }) async {
     final data = await _apiService.post(ApiConstants.dishesCustom, {
       'name': title,
@@ -97,7 +98,8 @@ class DishRepository {
                 'text': entry.value.trim(),
               })
           .toList(),
-      'imageUrl': imageUrl,
+      if (imageUrl.trim().isNotEmpty) 'imageUrl': imageUrl,
+      if (imagePublicId?.trim().isNotEmpty == true) 'imagePublicId': imagePublicId,
     });
 
     if (data is Map<String, dynamic>) {

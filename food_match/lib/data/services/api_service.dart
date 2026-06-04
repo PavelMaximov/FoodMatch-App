@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 import '../../core/constants/api_constants.dart';
 import '../../core/constants/app_strings.dart';
@@ -129,15 +130,28 @@ class ApiService {
     }
   }
 
-  Future<dynamic> postMultipart(String endpoint, File file) async {
+  Future<Map<String, dynamic>> uploadFile({
+    required String endpoint,
+    required File file,
+    String fieldName = 'file',
+    Map<String, String>? fields,
+  }) async {
     final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint');
     try {
-      AppLogger.api('POST-MULTIPART', uri.toString(), body: file.path);
+      await _throttle();
+      AppLogger.api('POST-MULTIPART', uri.toString());
       final response = await _requestWithRetry(() async {
         final headers = _getHeaders(withAuth: true)..remove('Content-Type');
         final request = http.MultipartRequest('POST', uri)
           ..headers.addAll(headers)
-          ..files.add(await http.MultipartFile.fromPath('file', file.path));
+          ..fields.addAll(fields ?? const <String, String>{})
+          ..files.add(
+            await http.MultipartFile.fromPath(
+              fieldName,
+              file.path,
+              contentType: _mediaTypeForFile(file),
+            ),
+          );
 
         final streamed = await request.send();
         return http.Response.fromStream(streamed);
@@ -149,7 +163,11 @@ class ApiService {
         statusCode: response.statusCode,
         body: response.body,
       );
-      return _handleResponse(response);
+      final dynamic data = _handleResponse(response);
+      if (data is Map<String, dynamic>) {
+        return data;
+      }
+      throw const ApiException(AppStrings.unknownError);
     } on TimeoutException {
       throw const ApiException(AppStrings.requestTimeout);
     } on SocketException {
@@ -158,6 +176,23 @@ class ApiService {
       AppLogger.error('POST multipart request failed', e);
       rethrow;
     }
+  }
+
+  Future<dynamic> postMultipart(String endpoint, File file) {
+    return uploadFile(endpoint: endpoint, file: file);
+  }
+
+
+
+  MediaType _mediaTypeForFile(File file) {
+    final String lowerPath = file.path.toLowerCase();
+    if (lowerPath.endsWith('.png')) {
+      return MediaType('image', 'png');
+    }
+    if (lowerPath.endsWith('.webp')) {
+      return MediaType('image', 'webp');
+    }
+    return MediaType('image', 'jpeg');
   }
 
   Map<String, String> _getHeaders({bool withAuth = true}) {
@@ -207,6 +242,10 @@ class ApiService {
 
     if (response.statusCode == 400) {
       throw ApiException(errorMessage, statusCode: 400);
+    }
+
+    if (response.statusCode == 413) {
+      throw ApiException(errorMessage, statusCode: 413);
     }
 
     if (response.statusCode == 409) {

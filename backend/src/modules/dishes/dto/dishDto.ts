@@ -7,6 +7,7 @@ export interface DishDto {
   name: string;
   description: string;
   imageUrl: string;
+  imagePublicId?: string;
   cuisine: string;
   type: string;
   tags: string[];
@@ -45,6 +46,7 @@ export function toDishDto(dish: any): DishDto | null {
     name: asString(raw.name),
     description: asString(raw.description),
     imageUrl: firstString(raw.imageUrl, raw.thumbnail_url, raw.image_url),
+    imagePublicId: firstString(raw.imagePublicId),
     cuisine: asString(raw.cuisine),
     type: asString(raw.type),
     tags: readTags(raw.tags),

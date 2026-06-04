@@ -63,6 +63,7 @@ class Dish {
     required this.name,
     required this.description,
     required this.imageUrl,
+    this.imagePublicId,
     required this.cuisine,
     required this.type,
     required this.mood,
@@ -90,6 +91,7 @@ class Dish {
   final String description;
   @JsonKey(defaultValue: '')
   final String imageUrl;
+  final String? imagePublicId;
   @JsonKey(defaultValue: '')
   final String cuisine;
   @JsonKey(defaultValue: '')

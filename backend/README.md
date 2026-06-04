@@ -26,3 +26,31 @@ Base URL: `/api`
 - Dishes use hybrid model: TheMealDB is external source, backend normalizes and caches in local `Dish` documents.
 - Reset means deleting swipes and matches for current active couple session while keeping session active.
 - Leaving a 2-member active session closes it; leaving last member from one-member session deletes it.
+
+## Media storage strategy
+
+FoodMatch stores dynamic/content media in Cloudinary and keeps static UI assets bundled with Flutter for offline reliability.
+
+### Backend Cloudinary configuration
+
+Set these backend-only environment variables; never expose `CLOUDINARY_API_SECRET` to Flutter:
+
+- `CLOUDINARY_CLOUD_NAME`
+- `CLOUDINARY_API_KEY`
+- `CLOUDINARY_API_SECRET`
+
+### Cloudinary folders
+
+- `foodmatch/users/avatars` — authenticated user avatar uploads.
+- `foodmatch/dishes/custom` — user-uploaded custom dish photos.
+- `foodmatch/dishes/catalog` — manually managed catalog dish images for `dishes.imageUrl`.
+- `foodmatch/app/banners` — optional remote app banners.
+- `foodmatch/app/promos` — optional remote promotional images.
+
+### Catalog dish images
+
+Existing catalog `imageUrl` values remain valid and do not require migration. New catalog images can be uploaded manually to Cloudinary under `foodmatch/dishes/catalog`, then the returned `secure_url` can be stored in `dishes.imageUrl`. A future admin-only upload endpoint or migration script can automate this when admin roles exist.
+
+### Flutter static assets
+
+Flutter should continue bundling core UI media locally in `assets/icons/`, `assets/logos/`, `assets/media/`, and `assets/images/`, including logos, bottom navigation icons, empty states, default avatar placeholders, default dish placeholders, and decorative SVG/PNG assets. Static UI assets should not be uploaded to Cloudinary.
