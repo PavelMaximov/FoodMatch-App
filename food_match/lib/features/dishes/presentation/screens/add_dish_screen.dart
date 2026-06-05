@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -12,7 +11,6 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/theme/app_text_styles.dart';
-import '../../../../core/utils/image_utils.dart';
 import '../../../../core/utils/snackbar_utils.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../data/repositories/dish_repository.dart';
@@ -41,7 +39,8 @@ class _AddDishScreenState extends State<AddDishScreen> {
   String? _selectedCuisine;
   String? _selectedMood;
   int _selectedServings = 2;
-  String _imageUrl = '';
+  File? _selectedImageFile;
+  DishImageUploadResult? _uploadedDishImage;
   final List<_IngredientInput> _ingredients = <_IngredientInput>[];
   final List<String> _steps = <String>[];
 
@@ -134,17 +133,17 @@ class _AddDishScreenState extends State<AddDishScreen> {
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
     if (image == null || !mounted) return;
 
-    setState(() => _isSubmitting = true);
-    try {
-      final UploadRepository uploadRepository = context.read<UploadRepository>();
-      final String url = await uploadRepository.uploadImage(File(image.path));
-      _imageUrl = url;
-    } catch (_) {
-      if (!mounted) return;
-      SnackBarUtils.showError(context, AppStrings.unableToUploadImage);
-    } finally {
-      if (mounted) setState(() => _isSubmitting = false);
-    }
+    setState(() {
+      _selectedImageFile = File(image.path);
+      _uploadedDishImage = null;
+    });
+  }
+
+  void _removeSelectedImage() {
+    setState(() {
+      _selectedImageFile = null;
+      _uploadedDishImage = null;
+    });
   }
 
   Future<void> _openIngredientSheet({int? index}) async {
@@ -182,6 +181,24 @@ class _AddDishScreenState extends State<AddDishScreen> {
     setState(() => _isSubmitting = true);
     try {
       final DishRepository dishRepository = context.read<DishRepository>();
+      DishImageUploadResult? imageUpload = _uploadedDishImage;
+
+      if (_selectedImageFile != null && imageUpload == null) {
+        try {
+          imageUpload = await context.read<UploadRepository>().uploadCustomDishImage(_selectedImageFile!);
+          _uploadedDishImage = imageUpload;
+        } on ApiException catch (e) {
+          if (mounted) {
+            SnackBarUtils.showError(context, e.message);
+          }
+          return;
+        } catch (_) {
+          if (mounted) {
+            SnackBarUtils.showError(context, AppStrings.unableToUploadImage);
+          }
+          return;
+        }
+      }
 
       await dishRepository.createCustomDish(
         title: _titleController.text.trim(),
@@ -197,7 +214,8 @@ class _AddDishScreenState extends State<AddDishScreen> {
         cookTime: int.tryParse(_cookTimeController.text.trim()) ?? 0,
         servings: _selectedServings,
         instructions: _steps,
-        imageUrl: _imageUrl,
+        imageUrl: imageUpload?.imageUrl ?? '',
+        imagePublicId: imageUpload?.imagePublicId,
       );
 
       _formKey.currentState?.reset();
@@ -210,7 +228,8 @@ class _AddDishScreenState extends State<AddDishScreen> {
         _selectedServings = 2;
         _ingredients.clear();
         _steps.clear();
-        _imageUrl = '';
+        _selectedImageFile = null;
+        _uploadedDishImage = null;
       });
 
       await _loadMyDishes();
@@ -452,37 +471,53 @@ class _AddDishScreenState extends State<AddDishScreen> {
                 GestureDetector(
                   onTap: _isSubmitting ? null : _pickImage,
                   child: Container(
-                    width: 210,
-                    height: 90,
+                    width: double.infinity,
+                    height: _selectedImageFile == null ? 96 : 160,
                     decoration: BoxDecoration(
                       color: const Color(0xFFF1F1F1),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: AppColors.divider, style: BorderStyle.solid),
                     ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: <Widget>[
-                        const Icon(Icons.add, color: AppColors.textHint),
-                        Text(
-                          'Add image (optional)',
-                          style: AppTextStyles.bodyLarge.copyWith(color: AppColors.textHint),
-                        ),
-                      ],
-                    ),
+                    child: _selectedImageFile == null
+                        ? Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: <Widget>[
+                              const Icon(Icons.add_a_photo_outlined, color: AppColors.textHint),
+                              const SizedBox(height: 6),
+                              Text(
+                                'Add dish photo',
+                                style: AppTextStyles.bodyLarge.copyWith(color: AppColors.textHint),
+                              ),
+                              Text(
+                                'Optional',
+                                style: AppTextStyles.bodySmall.copyWith(color: AppColors.textHint),
+                              ),
+                            ],
+                          )
+                        : ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: <Widget>[
+                                Image.file(_selectedImageFile!, fit: BoxFit.cover),
+                                Positioned(
+                                  top: 8,
+                                  right: 8,
+                                  child: Material(
+                                    color: Colors.black.withValues(alpha: 0.45),
+                                    shape: const CircleBorder(),
+                                    child: IconButton(
+                                      tooltip: 'Remove image',
+                                      onPressed: _isSubmitting ? null : _removeSelectedImage,
+                                      icon: const Icon(Icons.close, color: Colors.white),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                   ),
                 ),
-                if (_imageUrl.isNotEmpty) ...<Widget>[
-                  const SizedBox(height: 12),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: CachedNetworkImage(
-                      imageUrl: ImageUtils.getImageUrl(_imageUrl),
-                      height: 120,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                ],
                 const SizedBox(height: 20),
                 AppButton(
                   text: AppStrings.saveToDeck,

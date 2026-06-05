@@ -1,24 +1,132 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/snackbar_utils.dart';
 import '../../../../data/models/couple.dart';
+import '../../../../data/repositories/upload_repository.dart';
+import '../../../../data/services/api_service.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../couple/logic/couple_provider.dart';
 import '../../../couple/presentation/widgets/connect_session_sheet.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
   static const Color _premiumStart = Color(0xFF614A4D);
   static const Color _premiumEnd = Color(0xFF4A436C);
   static const Color _premiumContent = Color(0xFFF7D218);
   static const double _cardRadius = 12;
+
+  static Future<void> _openSessionSheet(BuildContext context) {
+    HapticFeedback.selectionClick();
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.55),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (_) => const ConnectSessionSheet(),
+    );
+  }
+
+  static Future<bool> _showConfirmDialog(
+    BuildContext context,
+    String title,
+    String message,
+  ) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (BuildContext ctx) => AlertDialog(
+            title: Text(title),
+            content: Text(message),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text(AppStrings.cancel),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text(
+                  AppStrings.confirm,
+                  style: TextStyle(color: AppColors.primary),
+                ),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  bool _isUploadingAvatar = false;
+
+  Future<void> _pickAndUploadAvatar() async {
+    final XFile? image = await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (image == null || !mounted) {
+      return;
+    }
+
+    setState(() => _isUploadingAvatar = true);
+    try {
+      final AvatarUploadResult result = await context.read<UploadRepository>().uploadAvatar(File(image.path));
+      await context.read<AuthProvider>().updateCurrentUserAvatar(
+            avatarUrl: result.avatarUrl,
+            avatarPublicId: result.avatarPublicId,
+          );
+      if (mounted) {
+        SnackBarUtils.showSuccess(context, 'Avatar updated');
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        SnackBarUtils.showError(context, e.message);
+      }
+    } catch (_) {
+      if (mounted) {
+        SnackBarUtils.showError(context, 'Unable to upload avatar');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isUploadingAvatar = false);
+      }
+    }
+  }
+
+  Future<void> _deleteAvatar() async {
+    setState(() => _isUploadingAvatar = true);
+    try {
+      await context.read<UploadRepository>().deleteAvatar();
+      await context.read<AuthProvider>().clearCurrentUserAvatar();
+      if (mounted) {
+        SnackBarUtils.showSuccess(context, 'Avatar deleted');
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        SnackBarUtils.showError(context, e.message);
+      }
+    } catch (_) {
+      if (mounted) {
+        SnackBarUtils.showError(context, 'Unable to delete avatar');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isUploadingAvatar = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,6 +157,10 @@ class ProfileScreen extends StatelessWidget {
             _UserInfoCard(
               displayName: displayName,
               email: email,
+              avatarUrl: user?.avatarUrl,
+              isUploadingAvatar: _isUploadingAvatar,
+              onAvatarTap: _pickAndUploadAvatar,
+              onDeleteAvatar: user?.avatarUrl?.trim().isNotEmpty == true ? _deleteAvatar : null,
               onEdit: () => _showComingSoon(context, 'Edit profile'),
             ),
             const SizedBox(height: 18),
@@ -66,7 +178,7 @@ class ProfileScreen extends StatelessWidget {
             const SizedBox(height: 42),
             _LogoutButton(
               onPressed: () async {
-                final bool confirmed = await _showConfirmDialog(
+                final bool confirmed = await ProfileScreen._showConfirmDialog(
                   context,
                   AppStrings.logOut,
                   AppStrings.confirmLogout,
@@ -87,50 +199,8 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  static Future<void> _openSessionSheet(BuildContext context) {
-    HapticFeedback.selectionClick();
-    return showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withValues(alpha: 0.55),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (_) => const ConnectSessionSheet(),
-    );
-  }
-
-  static void _showComingSoon(BuildContext context, String label) {
+  void _showComingSoon(BuildContext context, String label) {
     SnackBarUtils.showSuccess(context, '$label coming soon');
-  }
-
-  static Future<bool> _showConfirmDialog(
-    BuildContext context,
-    String title,
-    String message,
-  ) async {
-    return await showDialog<bool>(
-          context: context,
-          builder: (BuildContext ctx) => AlertDialog(
-            title: Text(title),
-            content: Text(message),
-            actions: <Widget>[
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text(AppStrings.cancel),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text(
-                  AppStrings.confirm,
-                  style: TextStyle(color: AppColors.primary),
-                ),
-              ),
-            ],
-          ),
-        ) ??
-        false;
   }
 }
 
@@ -139,11 +209,19 @@ class _UserInfoCard extends StatelessWidget {
     required this.displayName,
     required this.email,
     required this.onEdit,
+    required this.onAvatarTap,
+    required this.isUploadingAvatar,
+    this.avatarUrl,
+    this.onDeleteAvatar,
   });
 
   final String displayName;
   final String email;
+  final String? avatarUrl;
+  final bool isUploadingAvatar;
   final VoidCallback onEdit;
+  final VoidCallback onAvatarTap;
+  final VoidCallback? onDeleteAvatar;
 
   @override
   Widget build(BuildContext context) {
@@ -152,16 +230,44 @@ class _UserInfoCard extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 16, 18, 16),
       child: Row(
         children: <Widget>[
-          CircleAvatar(
-            radius: 34,
-            backgroundColor: AppColors.primary,
-            child: Text(
-              displayName.characters.first.toUpperCase(),
-              style: GoogleFonts.nunito(
-                color: Colors.white,
-                fontSize: 29,
-                fontWeight: FontWeight.w800,
-              ),
+          GestureDetector(
+            onTap: isUploadingAvatar ? null : onAvatarTap,
+            onLongPress: isUploadingAvatar ? null : onDeleteAvatar,
+            child: Stack(
+              alignment: Alignment.center,
+              children: <Widget>[
+                CircleAvatar(
+                  radius: 34,
+                  backgroundColor: AppColors.primary,
+                  backgroundImage: avatarUrl?.trim().isNotEmpty == true ? NetworkImage(avatarUrl!.trim()) : null,
+                  child: avatarUrl?.trim().isNotEmpty == true
+                      ? null
+                      : Text(
+                          displayName.characters.first.toUpperCase(),
+                          style: GoogleFonts.nunito(
+                            color: Colors.white,
+                            fontSize: 29,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                ),
+                if (isUploadingAvatar)
+                  const SizedBox(
+                    width: 28,
+                    height: 28,
+                    child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+                  )
+                else
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                      child: const Icon(Icons.camera_alt, size: 14, color: AppColors.primary),
+                    ),
+                  ),
+              ],
             ),
           ),
           const SizedBox(width: 20),

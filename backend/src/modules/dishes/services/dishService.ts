@@ -4,6 +4,7 @@ import { CoupleSessionModel } from '../../couples/models/CoupleSession';
 import { toDishDto, toPublicDishId } from '../dto/dishDto';
 import { resolveDishByAnyId } from '../utils/resolveDishByAnyId';
 import { DishDocument, DishModel } from '../models/Dish';
+import { CLOUDINARY_FOLDERS, deleteImage } from '../../uploads/services/cloudinaryService';
 
 interface CreateCustomDishInput {
   name: string;
@@ -14,6 +15,7 @@ interface CreateCustomDishInput {
   servings: string;
   steps: Array<{ step: number; text: string }>;
   imageUrl?: string;
+  imagePublicId?: string;
 }
 
 export class DishService {
@@ -97,6 +99,7 @@ export class DishService {
       name: input.name.trim(),
       description: '',
       imageUrl: (input.imageUrl ?? '').trim(),
+      imagePublicId: this.safeCustomDishPublicId(input.imagePublicId),
       cuisine: input.cuisine.trim(),
       type: '',
       mood: [input.mood.trim()],
@@ -156,9 +159,35 @@ export class DishService {
       throw new AppError('You can delete only your own dishes', 403);
     }
 
+    if (this.isCustomDishPublicId(candidate.imagePublicId)) {
+      try {
+        await deleteImage(candidate.imagePublicId);
+      } catch (error) {
+        console.warn('[Dishes] Failed to delete custom dish Cloudinary image', {
+          dishId: candidate.id,
+          imagePublicId: candidate.imagePublicId,
+          error
+        });
+      }
+    }
+
     await DishModel.deleteOne({ _id: candidate._id });
 
     return { id: toPublicDishId(candidate), deleted: true };
+  }
+
+
+  private safeCustomDishPublicId(publicId?: string): string | undefined {
+    const normalizedPublicId = publicId?.trim();
+    if (!normalizedPublicId) {
+      return undefined;
+    }
+
+    return this.isCustomDishPublicId(normalizedPublicId) ? normalizedPublicId : undefined;
+  }
+
+  private isCustomDishPublicId(publicId?: string): publicId is string {
+    return Boolean(publicId?.startsWith(`${CLOUDINARY_FOLDERS.customDishes}/`));
   }
 
   private async buildVisibilityFilter(userId: string): Promise<FilterQuery<DishDocument>> {

@@ -9,6 +9,8 @@ class User {
     required this.email,
     required this.displayName,
     this.coupleId,
+    this.avatarUrl,
+    this.avatarPublicId,
   });
 
   @JsonKey(name: '_id', readValue: _readId)
@@ -17,6 +19,8 @@ class User {
   final String displayName;
   @JsonKey(name: 'coupleId')
   final String? coupleId;
+  final String? avatarUrl;
+  final String? avatarPublicId;
 
   static Object? _readId(Map<dynamic, dynamic> json, String _) {
     return json['_id'] ?? json['id'];
@@ -25,4 +29,23 @@ class User {
   factory User.fromJson(Map<String, dynamic> json) => _$UserFromJson(json);
 
   Map<String, dynamic> toJson() => _$UserToJson(this);
+
+  User copyWith({
+    String? id,
+    String? email,
+    String? displayName,
+    String? coupleId,
+    String? avatarUrl,
+    String? avatarPublicId,
+    bool clearAvatar = false,
+  }) {
+    return User(
+      id: id ?? this.id,
+      email: email ?? this.email,
+      displayName: displayName ?? this.displayName,
+      coupleId: coupleId ?? this.coupleId,
+      avatarUrl: clearAvatar ? null : avatarUrl ?? this.avatarUrl,
+      avatarPublicId: clearAvatar ? null : avatarPublicId ?? this.avatarPublicId,
+    );
+  }
 }
