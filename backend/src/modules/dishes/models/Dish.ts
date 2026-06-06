@@ -102,6 +102,11 @@ const dishSchema = new Schema<DishDocument>(
 
 dishSchema.index({ sourceType: 1, sourceId: 1 }, { unique: true, partialFilterExpression: { sourceId: { $exists: true } } });
 dishSchema.index({ sourceType: 1, coupleId: 1, status: 1 });
+dishSchema.index({ cuisine: 1 });
+dishSchema.index({ type: 1 });
+dishSchema.index({ popular: 1 });
+dishSchema.index({ createdBy: 1 });
+dishSchema.index({ status: 1, cuisine: 1, type: 1 });
 
 // Virtual field for public ID: prioritizes sourceId, falls back to _id
 dishSchema.virtual('id').get(function() {

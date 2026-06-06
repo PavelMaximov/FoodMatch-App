@@ -62,21 +62,24 @@ export class SwipeService {
       throw new AppError('User has no active session', 404);
     }
 
-    const matches = await MatchModel.find({ coupleId: session._id }).populate('dishId');
+    const matches = await MatchModel.find({ coupleId: session._id })
+      .sort({ createdAt: -1 })
+      .populate({ path: 'dishId', select: 'sourceId name description imageUrl imagePublicId cuisine type mood diet ingredients cookTime calories nutrition effort source servings season popular steps rawSourceData status' })
+      .lean();
     const validMatches = [];
 
     for (const match of matches) {
       const dish = toDishDto(match.dishId);
       if (!dish) {
         console.warn('[Matches] Skipping match with missing dish', {
-          matchId: match.id,
+          matchId: match._id?.toString() ?? '',
           dishRef: match.dishId
         });
         continue;
       }
 
       validMatches.push({
-        id: match.id,
+        id: match._id?.toString() ?? '',
         dish,
         users: match.users,
         createdAt: match.createdAt
@@ -93,8 +96,10 @@ export class SwipeService {
     }
 
     const swipes = await SwipeModel.find({ userId: new Types.ObjectId(userId), coupleId: session._id })
-      .populate('dishId')
-      .sort({ createdAt: -1 });
+      .select('direction createdAt dishId')
+      .populate({ path: 'dishId', select: 'sourceId name description imageUrl imagePublicId cuisine type mood diet ingredients cookTime calories nutrition effort source servings season popular steps rawSourceData status' })
+      .sort({ createdAt: -1 })
+      .lean();
 
     return swipes
       .map((swipe) => {
@@ -133,7 +138,9 @@ export class SwipeService {
   }
 
   private async tryCreateMatch(coupleId: string, dishId: string): Promise<boolean> {
-    const likes = await SwipeModel.find({ coupleId: new Types.ObjectId(coupleId), dishId: new Types.ObjectId(dishId), direction: 'like' });
+    const likes = await SwipeModel.find({ coupleId: new Types.ObjectId(coupleId), dishId: new Types.ObjectId(dishId), direction: 'like' })
+      .select('userId')
+      .lean();
     if (likes.length < 2) {
       return false;
     }

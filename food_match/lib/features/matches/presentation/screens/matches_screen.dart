@@ -90,13 +90,13 @@ class _MatchesScreenState extends State<MatchesScreen> {
     if (matchProvider.error != null && matchProvider.matches.isEmpty) {
       return ErrorState(
         message: matchProvider.error!,
-        onRetry: () => context.read<MatchProvider>().loadMatches(),
+        onRetry: () => context.read<MatchProvider>().loadMatches(force: true),
       );
     }
 
     if (matchProvider.matches.isEmpty) {
       return RefreshIndicator(
-        onRefresh: () => context.read<MatchProvider>().loadMatches(),
+        onRefresh: () => context.read<MatchProvider>().loadMatches(force: true),
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           children: const <Widget>[
@@ -112,7 +112,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
     }
 
     return RefreshIndicator(
-      onRefresh: () => context.read<MatchProvider>().loadMatches(),
+      onRefresh: () => context.read<MatchProvider>().loadMatches(force: true),
       child: ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
         itemCount: matchProvider.matches.length,
@@ -203,7 +203,7 @@ class _PartnerAvatar extends StatelessWidget {
     if (avatarUrl != null && avatarUrl!.trim().isNotEmpty) {
       return ClipOval(
         child: CachedNetworkImage(
-          imageUrl: ImageUtils.getImageUrl(avatarUrl),
+          imageUrl: ImageUtils.getImageUrl(avatarUrl, usage: ImageUsage.avatar),
           width: 30,
           height: 30,
           fit: BoxFit.cover,

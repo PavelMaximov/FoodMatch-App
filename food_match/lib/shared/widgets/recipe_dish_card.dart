@@ -61,7 +61,7 @@ class RecipeDishCard extends StatelessWidget {
                       child: AspectRatio(
                         aspectRatio: 4 / 3,
                         child: CachedNetworkImage(
-                          imageUrl: ImageUtils.getImageUrl(dish.imageUrl),
+                          imageUrl: ImageUtils.getImageUrl(dish.imageUrl, usage: ImageUsage.dishCard),
                           fit: BoxFit.cover,
                           errorWidget: (_, __, ___) => const ColoredBox(
                             color: Colors.black12,

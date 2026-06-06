@@ -17,5 +17,6 @@ const matchSchema = new Schema<MatchDocument>(
 );
 
 matchSchema.index({ coupleId: 1, dishId: 1 }, { unique: true });
+matchSchema.index({ coupleId: 1, createdAt: -1 });
 
 export const MatchModel = model<MatchDocument>('Match', matchSchema);

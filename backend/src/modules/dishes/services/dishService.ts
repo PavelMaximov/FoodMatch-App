@@ -6,6 +6,9 @@ import { resolveDishByAnyId } from '../utils/resolveDishByAnyId';
 import { DishDocument, DishModel } from '../models/Dish';
 import { CLOUDINARY_FOLDERS, deleteImage } from '../../uploads/services/cloudinaryService';
 
+const DISH_DTO_SELECT =
+  'sourceId name description imageUrl imagePublicId cuisine type mood diet ingredients cookTime calories nutrition effort source servings season popular steps rawSourceData status sourceType createdBy coupleId structuredIngredients createdAt updatedAt';
+
 interface CreateCustomDishInput {
   name: string;
   cuisine: string;
@@ -25,7 +28,7 @@ export class DishService {
     }
 
     const visibilityFilter = await this.buildVisibilityFilter(userId);
-    const dishQuery = DishModel.find(visibilityFilter).sort({ updatedAt: -1 });
+    const dishQuery = DishModel.find(visibilityFilter).select(DISH_DTO_SELECT).sort({ updatedAt: -1 }).lean();
 
     if (!returnAll) {
       dishQuery.limit(50);
@@ -53,7 +56,7 @@ export class DishService {
       ]
     };
 
-    const dishes = await DishModel.find(filter).sort({ updatedAt: -1 }).limit(50);
+    const dishes = await DishModel.find(filter).select(DISH_DTO_SELECT).sort({ updatedAt: -1 }).limit(50).lean();
     return dishes.map((dish) => toDishDto(dish)).filter((dish): dish is NonNullable<ReturnType<typeof toDishDto>> => Boolean(dish));
   }
 
@@ -141,7 +144,7 @@ export class DishService {
       filter.coupleId = activeSession._id;
     }
 
-    const dishes = await DishModel.find(filter).sort({ createdAt: -1 });
+    const dishes = await DishModel.find(filter).select(DISH_DTO_SELECT).sort({ createdAt: -1 }).lean();
 
     return dishes.map((dish) => toDishDto(dish)).filter((dish): dish is NonNullable<ReturnType<typeof toDishDto>> => Boolean(dish));
   }

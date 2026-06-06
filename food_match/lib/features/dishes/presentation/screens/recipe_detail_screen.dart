@@ -177,7 +177,7 @@ class _HeroImage extends StatelessWidget {
         child: Hero(
           tag: 'dish-image-$dishId',
           child: CachedNetworkImage(
-            imageUrl: ImageUtils.getImageUrl(dish.imageUrl),
+            imageUrl: ImageUtils.getImageUrl(dish.imageUrl, usage: ImageUsage.dishHero),
             fit: BoxFit.cover,
             placeholder: (_, __) => const ColoredBox(
               color: Color(0xFFF5EDE8),

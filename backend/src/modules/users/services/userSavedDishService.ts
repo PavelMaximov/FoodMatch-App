@@ -32,9 +32,13 @@ export class UserSavedDishService {
 
   async listSavedDishes(userId: string): Promise<DishDto[]> {
     const user = await UserModel.findById(userId)
+      .select('savedDishes')
+      .lean()
       .orFail(() => new AppError('User not found', 404));
 
-    const dishes = await DishModel.find({ _id: { $in: user.savedDishes } });
+    const dishes = await DishModel.find({ _id: { $in: user.savedDishes } })
+      .select('sourceId name description imageUrl imagePublicId cuisine type mood diet ingredients cookTime calories nutrition effort source servings season popular steps rawSourceData status')
+      .lean();
     const visibleDishes = dishes.filter((dish) => this.isVisibleDishStatus(dish.status));
 
     return visibleDishes

@@ -976,7 +976,7 @@ class _SavedDishTile extends StatelessWidget {
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: CachedNetworkImage(
-                  imageUrl: ImageUtils.getImageUrl(dish.imageUrl),
+                  imageUrl: ImageUtils.getImageUrl(dish.imageUrl, usage: ImageUsage.dishCard),
                   width: 64,
                   height: 64,
                   fit: BoxFit.cover,

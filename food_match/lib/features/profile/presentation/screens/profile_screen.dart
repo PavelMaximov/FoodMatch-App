@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -9,6 +10,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/image_utils.dart';
 import '../../../../core/utils/snackbar_utils.dart';
 import '../../../../data/models/couple.dart';
 import '../../../../data/repositories/upload_repository.dart';
@@ -239,9 +241,18 @@ class _UserInfoCard extends StatelessWidget {
                 CircleAvatar(
                   radius: 34,
                   backgroundColor: AppColors.primary,
-                  backgroundImage: avatarUrl?.trim().isNotEmpty == true ? NetworkImage(avatarUrl!.trim()) : null,
+                  backgroundImage: null,
                   child: avatarUrl?.trim().isNotEmpty == true
-                      ? null
+                      ? ClipOval(
+                          child: CachedNetworkImage(
+                            imageUrl: ImageUtils.getImageUrl(avatarUrl, usage: ImageUsage.avatar),
+                            width: 68,
+                            height: 68,
+                            fit: BoxFit.cover,
+                            placeholder: (_, __) => const SizedBox(width: 68, height: 68),
+                            errorWidget: (_, __, ___) => Center(child: Text(displayName.characters.first.toUpperCase(), style: GoogleFonts.nunito(color: Colors.white, fontSize: 29, fontWeight: FontWeight.w800))),
+                          ),
+                        )
                       : Text(
                           displayName.characters.first.toUpperCase(),
                           style: GoogleFonts.nunito(

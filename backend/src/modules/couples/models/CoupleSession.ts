@@ -91,5 +91,6 @@ const coupleSessionSchema = new Schema<CoupleSessionDocument>(
 );
 
 coupleSessionSchema.index({ members: 1, status: 1 });
+coupleSessionSchema.index({ createdBy: 1, status: 1 });
 
 export const CoupleSessionModel = model<CoupleSessionDocument>('CoupleSession', coupleSessionSchema);
