@@ -1,5 +1,6 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+
+import 'safe_network_image.dart';
 import 'package:food_match/core/theme/app_colors.dart';
 import 'package:food_match/core/theme/app_dimensions.dart';
 import 'package:food_match/core/utils/image_utils.dart';
@@ -63,13 +64,10 @@ class DishCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(_DishCardTokens.imageRadius),
                       child: AspectRatio(
                         aspectRatio: 1,
-                        child: CachedNetworkImage(
+                        child: SafeNetworkImage(
                           imageUrl: ImageUtils.getImageUrl(dish.imageUrl, usage: ImageUsage.dishCard),
                           fit: BoxFit.cover,
-                          errorWidget: (_, __, ___) => const ColoredBox(
-                            color: Colors.black12,
-                            child: Icon(Icons.image_not_supported_outlined),
-                          ),
+
                         ),
                       ),
                     ),

@@ -41,7 +41,7 @@ function configureCloudinary(): void {
   }
 
   if (!env.CLOUDINARY_CLOUD_NAME || !env.CLOUDINARY_API_KEY || !env.CLOUDINARY_API_SECRET) {
-    throw new AppError('Cloudinary is not configured on the backend.', 500);
+    throw new AppError('Image service is not available right now.', 500, 'CLOUDINARY_NOT_CONFIGURED');
   }
 
   cloudinary.config({
@@ -85,7 +85,7 @@ export async function uploadImage(input: UploadImageInput): Promise<NormalizedUp
     return normalizeUploadResult(result);
   } catch (error) {
     console.error('[Uploads] Cloudinary upload failed', safeCloudinaryLog(error));
-    throw new AppError('Image upload failed. Please try again.', 500);
+    throw new AppError('Image upload failed. Please try again.', 500, 'CLOUDINARY_UPLOAD_FAILED');
   }
 }
 
@@ -100,13 +100,13 @@ export async function deleteImage(publicId: string): Promise<void> {
     await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
   } catch (error) {
     console.error('[Uploads] Cloudinary delete failed', safeCloudinaryLog(error));
-    throw new AppError('Image deletion failed. Please try again.', 500);
+    throw new AppError('Image deletion failed. Please try again.', 500, 'CLOUDINARY_DELETE_FAILED');
   }
 }
 
 function normalizeUploadResult(result: UploadApiResponse): NormalizedUploadResult {
   if (!result.secure_url || !result.public_id) {
-    throw new AppError('Image upload failed. Please try again.', 500);
+    throw new AppError('Image upload failed. Please try again.', 500, 'CLOUDINARY_UPLOAD_FAILED');
   }
 
   return {

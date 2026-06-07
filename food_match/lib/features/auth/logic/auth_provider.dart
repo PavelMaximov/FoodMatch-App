@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-import '../../../core/constants/app_strings.dart';
+import '../../../core/errors/error_messages.dart';
 import '../../../core/utils/logger.dart';
 import '../../../data/local/cache_service.dart';
 import '../../../data/models/user.dart';
@@ -19,7 +19,9 @@ class AuthProvider extends ChangeNotifier {
   })  : _repository = repository,
         _secureStorage = secureStorage,
         _apiService = apiService,
-        _cacheService = cacheService ?? CacheService();
+        _cacheService = cacheService ?? CacheService() {
+    _apiService.onUnauthorized = handleSessionExpired;
+  }
 
   final AuthRepository _repository;
   final FlutterSecureStorage _secureStorage;
@@ -144,17 +146,21 @@ class AuthProvider extends ChangeNotifier {
   @visibleForTesting
   bool isTokenExpiredForTest(String inputToken) => _isTokenExpired(inputToken);
 
+  Future<void> handleSessionExpired() async {
+    if (!isAuthenticated && currentUser == null) return;
+    AppLogger.info('[Auth] session expired cleanup started');
+    await _clearAuthState();
+    error = ErrorMessages.sessionExpired;
+    notifyListeners();
+  }
+
   Future<void> logout() async {
     isLoading = true;
     error = null;
     notifyListeners();
 
     try {
-      await _secureStorage.delete(key: 'foodmatch_token');
-      token = null;
-      currentUser = null;
-      _apiService.setToken(null);
-      await _cacheService.clearAll();
+      await _clearAuthState();
       AppLogger.info('[Auth] logout cleanup complete');
     } catch (e) {
       error = _mapError(e);
@@ -164,6 +170,14 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+
+  Future<void> _clearAuthState() async {
+    await _secureStorage.delete(key: 'foodmatch_token');
+    token = null;
+    currentUser = null;
+    _apiService.setToken(null);
+    await _cacheService.clearAll();
+  }
 
   Future<void> updateCurrentUserAvatar({
     required String avatarUrl,
@@ -212,8 +226,8 @@ class AuthProvider extends ChangeNotifier {
 
   String _mapError(Object e) {
     if (e is ApiException) {
-      return e.message;
+      return ErrorMessages.fromApiException(e);
     }
-    return AppStrings.unexpectedError;
+    return ErrorMessages.unexpected;
   }
 }

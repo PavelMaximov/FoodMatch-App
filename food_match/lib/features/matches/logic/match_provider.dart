@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-import '../../../core/constants/app_strings.dart';
+import '../../../core/errors/error_messages.dart';
 import '../../../core/utils/logger.dart';
 import '../../../data/local/cache_service.dart';
 import '../../../data/models/dish.dart';
@@ -105,8 +105,8 @@ class MatchProvider extends ChangeNotifier {
 
   String _mapError(Object e) {
     if (e is ApiException) {
-      return e.message;
+      return ErrorMessages.fromApiException(e);
     }
-    return AppStrings.unexpectedError;
+    return ErrorMessages.unexpected;
   }
 }

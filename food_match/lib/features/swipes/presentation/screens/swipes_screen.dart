@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../data/models/dish.dart';
@@ -55,6 +54,11 @@ class _SwipesScreenState extends State<SwipesScreen> {
 
   Future<void> _loadExistingBackendDeckOrStart() async {
     final SwipeProvider swipeProvider = context.read<SwipeProvider>();
+    final CoupleProvider currentCoupleProvider = context.read<CoupleProvider>();
+    if (!currentCoupleProvider.hasCouple) {
+      _isOpeningPreSwipe = false;
+      return;
+    }
     final String? userId = context.read<AuthProvider>().currentUser?.id;
     swipeProvider.setActiveUser(userId);
 
@@ -87,6 +91,11 @@ class _SwipesScreenState extends State<SwipesScreen> {
     }
 
     _isOpeningPreSwipe = true;
+    final CoupleProvider currentCoupleProvider = context.read<CoupleProvider>();
+    if (!currentCoupleProvider.hasCouple) {
+      _isOpeningPreSwipe = false;
+      return;
+    }
     final SwipeProvider swipeProvider = context.read<SwipeProvider>();
     final String? userId = context.read<AuthProvider>().currentUser?.id;
     swipeProvider.setActiveUser(userId);
@@ -327,6 +336,16 @@ class _SwipesScreenState extends State<SwipesScreen> {
                 ),
                 child: Consumer<SwipeProvider>(
                   builder: (BuildContext context, SwipeProvider provider, _) {
+                    if (!coupleProvider.hasCouple) {
+                      return EmptyState(
+                        icon: Icons.link,
+                        title: 'Connect with your partner',
+                        subtitle: 'Create or join a session to start matching dishes together.',
+                        buttonText: 'Connect',
+                        onButtonPressed: () => _showConnectSheet(context),
+                      );
+                    }
+
                     if (coupleProvider.hasCouple && !coupleProvider.bothConfirmed) {
                       if (provider.hasPreparedDeck || provider.deck.isNotEmpty) {
                         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -338,9 +357,11 @@ class _SwipesScreenState extends State<SwipesScreen> {
                       return EmptyState(
                         icon: Icons.hourglass_empty,
                         title: coupleProvider.isMyChoicesConfirmed
-                            ? 'Waiting for your partner to finish filters.'
+                            ? 'Waiting for your partner...'
                             : 'Complete your filters to prepare your shared deck.',
-                        subtitle: 'Your shared deck will be ready after both of you confirm filters.',
+                        subtitle: coupleProvider.isMyChoicesConfirmed
+                            ? 'Your choices are saved. We’ll start swiping when your partner finishes their filters.'
+                            : 'Your shared deck will be ready after both of you confirm filters.',
                         buttonText: 'Filter',
                         onButtonPressed: () => _runPreSwipeFlow(fromHeaderAction: true),
                       );
@@ -360,10 +381,10 @@ class _SwipesScreenState extends State<SwipesScreen> {
                     if (provider.isDeckEmpty) {
                       return EmptyState(
                         icon: Icons.restaurant,
-                        title: AppStrings.noMoreDishes,
-                        subtitle: AppStrings.refreshToLoad,
-                        buttonText: AppStrings.refresh,
-                        onButtonPressed: provider.loadDeck,
+                        title: 'No dishes found',
+                        subtitle: 'Try removing some filters or choosing more cuisines.',
+                        buttonText: 'Adjust filters',
+                        onButtonPressed: () => _runPreSwipeFlow(fromHeaderAction: true),
                       );
                     }
 
@@ -375,12 +396,16 @@ class _SwipesScreenState extends State<SwipesScreen> {
                         final dish = provider.deck[provider.currentIndex + index];
                         return SwipeCardWidget(
                           dish: dish,
-                          onLike: provider.isLoading || _isCardActionInProgress ? null : _handleLike,
-                          onDislike: provider.isLoading || _isCardActionInProgress ? null : _handleDislike,
-                          onBack: provider.canUndo && !_isCardActionInProgress
+                          onLike: provider.isLoading || provider.isSendingSwipe || _isCardActionInProgress
+                              ? null
+                              : _handleLike,
+                          onDislike: provider.isLoading || provider.isSendingSwipe || _isCardActionInProgress
+                              ? null
+                              : _handleDislike,
+                          onBack: provider.canUndo && !provider.isSendingSwipe && !_isCardActionInProgress
                               ? () => _handleBack(provider)
                               : null,
-                          onRefresh: provider.isLoading || _isCardActionInProgress
+                          onRefresh: provider.isLoading || provider.isSendingSwipe || _isCardActionInProgress
                               ? null
                               : () => _handleReload(provider),
                           onInfoTap: () => context.push('/recipe-detail/${dish.id}', extra: dish),

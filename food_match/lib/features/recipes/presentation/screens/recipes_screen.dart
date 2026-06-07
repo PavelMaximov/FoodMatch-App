@@ -1,15 +1,16 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/errors/error_messages.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/image_utils.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../data/repositories/dish_repository.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
+import '../../../../shared/widgets/safe_network_image.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
 import '../../../../shared/widgets/recipe_dish_card.dart';
 import '../../../favorites/logic/favorites_provider.dart';
@@ -121,7 +122,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
       if (!mounted) {
         return;
       }
-      setState(() => _error = e.toString());
+      setState(() => _error = ErrorMessages.fromException(e));
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -975,18 +976,11 @@ class _SavedDishTile extends StatelessWidget {
             children: <Widget>[
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: CachedNetworkImage(
+                child: SafeNetworkImage(
                   imageUrl: ImageUtils.getImageUrl(dish.imageUrl, usage: ImageUsage.dishCard),
                   width: 64,
                   height: 64,
                   fit: BoxFit.cover,
-                  errorWidget: (_, __, ___) => Container(
-                    width: 64,
-                    height: 64,
-                    color: Colors.black12,
-                    alignment: Alignment.center,
-                    child: const Icon(Icons.image_not_supported_outlined),
-                  ),
                 ),
               ),
               const SizedBox(width: 10),

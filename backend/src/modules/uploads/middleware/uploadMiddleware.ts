@@ -15,7 +15,7 @@ export const imageUpload = multer({
   fileFilter: (_req, file, callback) => {
     const extension = path.extname(file.originalname ?? '').toLowerCase();
     if (!allowedMimeTypes.has(file.mimetype) || !allowedExtensions.has(extension)) {
-      callback(new AppError('Only JPG, PNG, and WEBP images are allowed.', 400));
+      callback(new AppError('Only JPG, PNG, and WEBP images are allowed.', 400, 'INVALID_IMAGE_TYPE'));
       return;
     }
 
@@ -25,7 +25,7 @@ export const imageUpload = multer({
 
 export function requireUploadedImage(file?: Express.Multer.File): Express.Multer.File {
   if (!file) {
-    throw new AppError('Image file is required.', 400);
+    throw new AppError('Image file is required.', 400, 'IMAGE_REQUIRED');
   }
 
   return file;
@@ -33,7 +33,7 @@ export function requireUploadedImage(file?: Express.Multer.File): Express.Multer
 
 export function mapMulterError(error: unknown): AppError | unknown {
   if (error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE') {
-    return new AppError('Image file is too large. Maximum size is 5 MB.', 413);
+    return new AppError('Image file is too large. Maximum size is 5 MB.', 413, 'IMAGE_TOO_LARGE');
   }
 
   return error;

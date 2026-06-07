@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -42,21 +41,13 @@ class _SwipeCardWidgetState extends State<SwipeCardWidget> {
         children: <Widget>[
           Hero(
             tag: 'dish-image-${widget.dish.id}',
-            child: CachedNetworkImage(
+            child: SafeNetworkImage(
               imageUrl: ImageUtils.getImageUrl(widget.dish.imageUrl, usage: ImageUsage.dishHero),
               fit: BoxFit.cover,
               width: double.infinity,
               height: double.infinity,
-              placeholder: (_, __) => Container(
-                color: Colors.grey.shade200,
-                child: const Center(
-                  child: CircularProgressIndicator(color: AppColors.primary),
-                ),
-              ),
-              errorWidget: (_, __, ___) => Container(
-                color: Colors.grey.shade200,
-                child: const Icon(Icons.broken_image, size: 64),
-              ),
+
+
             ),
           ),
 

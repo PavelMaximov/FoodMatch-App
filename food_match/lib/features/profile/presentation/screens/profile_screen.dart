@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -9,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/errors/error_messages.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/image_utils.dart';
 import '../../../../core/utils/snackbar_utils.dart';
@@ -17,6 +17,10 @@ import '../../../../data/repositories/upload_repository.dart';
 import '../../../../data/services/api_service.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../couple/logic/couple_provider.dart';
+import '../../../matches/logic/match_provider.dart';
+import '../../../swipes/logic/pre_swipe_provider.dart';
+import '../../../swipes/logic/swipe_provider.dart';
+import '../../../../shared/widgets/safe_network_image.dart';
 import '../../../couple/presentation/widgets/connect_session_sheet.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -101,11 +105,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     } on ApiException catch (e) {
       if (mounted) {
-        SnackBarUtils.showError(context, e.message);
+        SnackBarUtils.showError(context, ErrorMessages.fromApiException(e, fallback: AppStrings.unableToUploadImage));
       }
     } catch (_) {
       if (mounted) {
-        SnackBarUtils.showError(context, 'Unable to upload avatar');
+        SnackBarUtils.showError(context, AppStrings.unableToUploadImage);
       }
     } finally {
       if (mounted) {
@@ -131,7 +135,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     } on ApiException catch (e) {
       if (mounted) {
-        SnackBarUtils.showError(context, e.message);
+        SnackBarUtils.showError(context, ErrorMessages.fromApiException(e));
       }
     } catch (_) {
       if (mounted) {
@@ -258,13 +262,13 @@ class _UserInfoCard extends StatelessWidget {
                   backgroundImage: null,
                   child: avatarUrl?.trim().isNotEmpty == true
                       ? ClipOval(
-                          child: CachedNetworkImage(
+                          child: SafeNetworkImage(
                             imageUrl: ImageUtils.getImageUrl(avatarUrl, usage: ImageUsage.avatar),
                             width: 68,
                             height: 68,
                             fit: BoxFit.cover,
-                            placeholder: (_, __) => const SizedBox(width: 68, height: 68),
-                            errorWidget: (_, __, ___) => Center(child: Text(displayName.characters.first.toUpperCase(), style: GoogleFonts.nunito(color: Colors.white, fontSize: 29, fontWeight: FontWeight.w800))),
+                            placeholderIcon: Icons.person,
+                            errorIcon: Icons.person,
                           ),
                         )
                       : Text(
@@ -618,6 +622,9 @@ class _SessionCard extends StatelessWidget {
                       if (!context.mounted) return;
                       final String? error = coupleProvider.error;
                       if (error == null) {
+                        context.read<SwipeProvider>().clearPreparedDeck();
+                        context.read<PreSwipeProvider>().clearForLogout();
+                        context.read<MatchProvider>().clearMatches();
                         SnackBarUtils.showSuccess(context, 'Leave');
                       } else {
                         SnackBarUtils.showError(context, error);

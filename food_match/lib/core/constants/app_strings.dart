@@ -116,10 +116,10 @@ class AppStrings {
 
   // Errors
   static const String unexpectedError = 'Unexpected error occurred';
-  static const String requestTimeout = 'Request timeout';
-  static const String noInternet = 'No internet connection';
-  static const String serverError = 'Server error';
-  static const String unknownError = 'Unknown error';
+  static const String requestTimeout = 'Connection is taking too long. Please try again.';
+  static const String noInternet = 'Server is not available right now. Please try again later.';
+  static const String serverError = 'Server is not available right now. Please try again later.';
+  static const String unknownError = 'Something went wrong. Please try again.';
   static const String error = 'Error';
   static const String retry = 'Retry';
   static const String failedToLoadDishes = 'Failed to load dishes';

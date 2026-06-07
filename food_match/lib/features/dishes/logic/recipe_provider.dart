@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-import '../../../core/constants/app_strings.dart';
+import '../../../core/errors/error_messages.dart';
 import '../../../data/models/dish.dart';
 import '../../../data/repositories/dish_repository.dart';
 import '../../../data/services/api_service.dart';
@@ -44,8 +44,8 @@ class RecipeProvider extends ChangeNotifier {
 
   String _mapError(Object e) {
     if (e is ApiException) {
-      return e.message;
+      return ErrorMessages.fromApiException(e);
     }
-    return AppStrings.unexpectedError;
+    return ErrorMessages.unexpected;
   }
 }

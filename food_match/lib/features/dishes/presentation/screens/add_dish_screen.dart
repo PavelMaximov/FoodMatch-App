@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/errors/error_messages.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/theme/app_text_styles.dart';
@@ -18,6 +19,7 @@ import '../../../../data/repositories/upload_repository.dart';
 import '../../../../data/services/api_service.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/dish_compact_card.dart';
+import '../../../../shared/widgets/empty_state.dart';
 
 class AddDishScreen extends StatefulWidget {
   const AddDishScreen({super.key});
@@ -172,9 +174,23 @@ class _AddDishScreenState extends State<AddDishScreen> {
   }
 
   Future<void> _submit() async {
+    if (_isSubmitting) return;
     final bool isValidForm = _formKey.currentState?.validate() ?? false;
-    if (!isValidForm || _selectedCuisine == null || _selectedMood == null || _ingredients.isEmpty) {
-      SnackBarUtils.showError(context, 'Please complete all required fields');
+    if (!isValidForm) return;
+    if (_selectedCuisine == null) {
+      SnackBarUtils.showError(context, 'Choose a cuisine.');
+      return;
+    }
+    if (_selectedMood == null) {
+      SnackBarUtils.showError(context, 'Choose a mood.');
+      return;
+    }
+    if (_ingredients.isEmpty) {
+      SnackBarUtils.showError(context, 'Add at least one ingredient.');
+      return;
+    }
+    if (_steps.isEmpty) {
+      SnackBarUtils.showError(context, 'Add at least one instruction.');
       return;
     }
 
@@ -187,9 +203,9 @@ class _AddDishScreenState extends State<AddDishScreen> {
         try {
           imageUpload = await context.read<UploadRepository>().uploadCustomDishImage(_selectedImageFile!);
           _uploadedDishImage = imageUpload;
-        } on ApiException catch (e) {
+        } on ApiException catch (_) {
           if (mounted) {
-            SnackBarUtils.showError(context, e.message);
+            SnackBarUtils.showError(context, AppStrings.unableToUploadImage);
           }
           return;
         } catch (_) {
@@ -238,7 +254,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
       }
     } on ApiException catch (e) {
       if (mounted) {
-        SnackBarUtils.showError(context, e.message);
+        SnackBarUtils.showError(context, ErrorMessages.fromApiException(e, fallback: AppStrings.failedToAddDish));
       }
     } catch (_) {
       if (mounted) {
@@ -258,7 +274,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
       }
     } on ApiException catch (e) {
       if (mounted) {
-        SnackBarUtils.showError(context, e.message);
+        SnackBarUtils.showError(context, ErrorMessages.fromApiException(e));
       }
     } catch (_) {
       if (mounted) {
@@ -300,7 +316,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
                   controller: _titleController,
                   hint: 'Name of the dish',
                   validator: (String? value) {
-                    if ((value ?? '').trim().isEmpty) return 'Required';
+                    if ((value ?? '').trim().isEmpty) return 'Dish name is required.';
                     return null;
                   },
                 ),
@@ -349,6 +365,14 @@ class _AddDishScreenState extends State<AddDishScreen> {
                             controller: _cookTimeController,
                             hint: '30 min.',
                             keyboardType: TextInputType.number,
+                            validator: (String? value) {
+                              final String trimmed = (value ?? '').trim();
+                              final int? minutes = int.tryParse(trimmed);
+                              if (trimmed.isEmpty || minutes == null || minutes <= 0) {
+                                return 'Enter a valid cooking time.';
+                              }
+                              return null;
+                            },
                           )
                         ],
                       ),
@@ -412,7 +436,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Cooking instructions (optional)',
+                  'Cooking instructions',
                   style: AppTextStyles.bodyLarge,
                 ),
                 const SizedBox(height: 8),
@@ -522,7 +546,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
                 AppButton(
                   text: AppStrings.saveToDeck,
                   icon: Icons.add_circle,
-                  onPressed: _submit,
+                  onPressed: _isSubmitting ? null : _submit,
                   isLoading: _isSubmitting,
                 ),
                 const SizedBox(height: AppDimensions.paddingXL),
@@ -547,12 +571,12 @@ class _AddDishScreenState extends State<AddDishScreen> {
                 else if (_myDishes.isEmpty)
                   Padding(
                     padding: const EdgeInsets.only(bottom: AppDimensions.paddingL),
-                    child: Center(
-                      child: Text(
-                        AppStrings.noDishesAdded,
-                        textAlign: TextAlign.center,
-                        style: AppTextStyles.bodyMedium,
-                      ),
+                    child: EmptyState(
+                      icon: Icons.add_circle_outline,
+                      title: 'No custom dishes yet',
+                      subtitle: 'Add your own dish and use it in your swipes.',
+                      buttonText: 'Add dish',
+                      onButtonPressed: () {},
                     ),
                   )
                 else
