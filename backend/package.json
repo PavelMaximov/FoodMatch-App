@@ -9,7 +9,8 @@
     "start": "node dist/server.js",
     "lint": "tsc --noEmit",
     "cleanup:mealdb": "ts-node src/scripts/cleanupMealDbDishes.ts",
-    "fix:sourceType": "ts-node src/scripts/fixMissingSourceType.ts"
+    "fix:sourceType": "ts-node src/scripts/fixMissingSourceType.ts",
+    "migrate:swipe-indexes": "ts-node src/scripts/migrateSwipeIndexes.ts"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

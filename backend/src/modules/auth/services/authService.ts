@@ -52,6 +52,7 @@ export class AuthService {
       email: user.email,
       displayName: user.displayName,
       avatarUrl: user.avatarUrl ?? null,
+      avatarPublicId: user.avatarPublicId ?? null,
       isActive: user.isActive,
       createdAt: user.createdAt
     };

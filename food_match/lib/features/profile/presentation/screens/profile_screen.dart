@@ -77,15 +77,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isUploadingAvatar = false;
 
   Future<void> _pickAndUploadAvatar() async {
-    final XFile? image = await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (image == null || !mounted) {
+    if (_isUploadingAvatar) {
       return;
     }
 
+    final UploadRepository uploadRepository = context.read<UploadRepository>();
+    final AuthProvider authProvider = context.read<AuthProvider>();
+
     setState(() => _isUploadingAvatar = true);
     try {
-      final AvatarUploadResult result = await context.read<UploadRepository>().uploadAvatar(File(image.path));
-      await context.read<AuthProvider>().updateCurrentUserAvatar(
+      final XFile? image = await ImagePicker().pickImage(source: ImageSource.gallery);
+      if (image == null || !mounted) {
+        return;
+      }
+
+      final AvatarUploadResult result = await uploadRepository.uploadAvatar(File(image.path));
+      await authProvider.updateCurrentUserAvatar(
             avatarUrl: result.avatarUrl,
             avatarPublicId: result.avatarPublicId,
           );
@@ -108,10 +115,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _deleteAvatar() async {
+    if (_isUploadingAvatar) {
+      return;
+    }
+
+    final UploadRepository uploadRepository = context.read<UploadRepository>();
+    final AuthProvider authProvider = context.read<AuthProvider>();
+
     setState(() => _isUploadingAvatar = true);
     try {
-      await context.read<UploadRepository>().deleteAvatar();
-      await context.read<AuthProvider>().clearCurrentUserAvatar();
+      await uploadRepository.deleteAvatar();
+      await authProvider.clearCurrentUserAvatar();
       if (mounted) {
         SnackBarUtils.showSuccess(context, 'Avatar deleted');
       }

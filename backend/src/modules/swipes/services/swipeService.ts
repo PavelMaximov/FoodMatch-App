@@ -1,7 +1,7 @@
 import { Types } from 'mongoose';
 import { AppError } from '../../../core/errors/AppError';
 import { CoupleSessionModel } from '../../couples/models/CoupleSession';
-import { toDishDto, toPublicDishId } from '../../dishes/dto/dishDto';
+import { DISH_DTO_SELECT, toDishDto, toPublicDishId } from '../../dishes/dto/dishDto';
 import { resolveDishByAnyId } from '../../dishes/utils/resolveDishByAnyId';
 import { MatchModel } from '../../matches/models/Match';
 import { SwipeModel } from '../models/Swipe';
@@ -64,7 +64,7 @@ export class SwipeService {
 
     const matches = await MatchModel.find({ coupleId: session._id })
       .sort({ createdAt: -1 })
-      .populate({ path: 'dishId', select: 'sourceId name description imageUrl imagePublicId cuisine type mood diet ingredients cookTime calories nutrition effort source servings season popular steps rawSourceData status' })
+      .populate({ path: 'dishId', select: DISH_DTO_SELECT })
       .lean();
     const validMatches = [];
 
@@ -97,7 +97,7 @@ export class SwipeService {
 
     const swipes = await SwipeModel.find({ userId: new Types.ObjectId(userId), coupleId: session._id })
       .select('direction createdAt dishId')
-      .populate({ path: 'dishId', select: 'sourceId name description imageUrl imagePublicId cuisine type mood diet ingredients cookTime calories nutrition effort source servings season popular steps rawSourceData status' })
+      .populate({ path: 'dishId', select: DISH_DTO_SELECT })
       .sort({ createdAt: -1 })
       .lean();
 

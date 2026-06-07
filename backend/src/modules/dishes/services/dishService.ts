@@ -1,13 +1,10 @@
 import { FilterQuery, Types } from 'mongoose';
 import { AppError } from '../../../core/errors/AppError';
 import { CoupleSessionModel } from '../../couples/models/CoupleSession';
-import { toDishDto, toPublicDishId } from '../dto/dishDto';
+import { DISH_DTO_SELECT, toDishDto, toPublicDishId } from '../dto/dishDto';
 import { resolveDishByAnyId } from '../utils/resolveDishByAnyId';
 import { DishDocument, DishModel } from '../models/Dish';
 import { CLOUDINARY_FOLDERS, deleteImage } from '../../uploads/services/cloudinaryService';
-
-const DISH_DTO_SELECT =
-  'sourceId name description imageUrl imagePublicId cuisine type mood diet ingredients cookTime calories nutrition effort source servings season popular steps rawSourceData status sourceType createdBy coupleId structuredIngredients createdAt updatedAt';
 
 interface CreateCustomDishInput {
   name: string;
