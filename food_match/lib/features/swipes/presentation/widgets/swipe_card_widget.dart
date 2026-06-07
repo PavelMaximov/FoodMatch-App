@@ -34,15 +34,16 @@ class SwipeCardWidget extends StatefulWidget {
 class _SwipeCardWidgetState extends State<SwipeCardWidget> {
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppDimensions.radiusL),
-      child: Stack(
+    return RepaintBoundary(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppDimensions.radiusL),
+        child: Stack(
         fit: StackFit.expand,
         children: <Widget>[
           Hero(
             tag: 'dish-image-${widget.dish.id}',
             child: CachedNetworkImage(
-              imageUrl: ImageUtils.getImageUrl(widget.dish.imageUrl),
+              imageUrl: ImageUtils.getImageUrl(widget.dish.imageUrl, usage: ImageUsage.dishHero),
               fit: BoxFit.cover,
               width: double.infinity,
               height: double.infinity,
@@ -175,6 +176,7 @@ class _SwipeCardWidgetState extends State<SwipeCardWidget> {
             ),
           ),
         ],
+        ),
       ),
     );
   }

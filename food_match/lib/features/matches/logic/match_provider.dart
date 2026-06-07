@@ -25,7 +25,11 @@ class MatchProvider extends ChangeNotifier {
 
   int get matchCount => matches.length;
 
-  Future<void> loadMatches() async {
+  Future<void> loadMatches({bool force = false}) async {
+    if (isLoading && !force) {
+      return;
+    }
+
     if (_activeCoupleId == null || _activeCoupleId!.isEmpty) {
       matches = <Dish>[];
       error = null;

@@ -1,12 +1,23 @@
 import '../constants/api_constants.dart';
+import 'cloudinary_image_url.dart';
+
+enum ImageUsage { dishCard, dishHero, avatar, original }
 
 class ImageUtils {
-  static const String placeholder =
-      'https://via.placeholder.com/400x300?text=No+Image';
+  static String getImageUrl(String? imageUrl, {ImageUsage usage = ImageUsage.original}) {
+    final String trimmed = (imageUrl ?? '').trim();
+    if (trimmed.isEmpty) return '';
 
-  static String getImageUrl(String? imageUrl) {
-    if (imageUrl == null || imageUrl.isEmpty) return placeholder;
-    if (imageUrl.startsWith('http')) return imageUrl;
-    return '${ApiConstants.baseUrl}/$imageUrl';
+    final String resolved = trimmed.startsWith('http') ? trimmed : '${ApiConstants.baseUrl}/$trimmed';
+    switch (usage) {
+      case ImageUsage.dishCard:
+        return CloudinaryImageUrl.getDishCardImageUrl(resolved);
+      case ImageUsage.dishHero:
+        return CloudinaryImageUrl.getDishHeroImageUrl(resolved);
+      case ImageUsage.avatar:
+        return CloudinaryImageUrl.getAvatarImageUrl(resolved);
+      case ImageUsage.original:
+        return resolved;
+    }
   }
 }

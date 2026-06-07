@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import { FilterQuery, Types } from 'mongoose';
 import { AppError } from '../../../core/errors/AppError';
 import { DishDocument, DishModel } from '../../dishes/models/Dish';
-import { toDishDto } from '../../dishes/dto/dishDto';
+import { DISH_DTO_SELECT, toDishDto } from '../../dishes/dto/dishDto';
 import { CoupleFilterUserChoice, CoupleSessionDocument, CoupleSessionModel } from '../models/CoupleSession';
 
 export interface EffectiveDeckFilters {
@@ -48,7 +48,7 @@ export class CoupleDeckService {
     console.log(`[PreparedDeck] Preparing deck session=${session.id}`);
 
     const visibilityFilter = this.buildVisibilityFilter(session);
-    const allDishes = await DishModel.find(visibilityFilter);
+    const allDishes = await DishModel.find(visibilityFilter).select(DISH_DTO_SELECT);
     const totalCatalogCount = allDishes.length;
 
     let candidateDishes = applyHardFilters(allDishes, filters);
@@ -101,7 +101,7 @@ export class CoupleDeckService {
       return this.emptyDeckResponse(deck?.status ?? 'idle', filters, filtersHash, deck?.reason ?? null);
     }
 
-    const dishes = await DishModel.find({ _id: { $in: deck.dishIds } });
+    const dishes = await DishModel.find({ _id: { $in: deck.dishIds } }).select(DISH_DTO_SELECT);
     const byId = new Map(dishes.map((dish) => [dish._id.toString(), dish]));
     const orderedDishes = deck.dishIds
       .map((id) => byId.get(id.toString()))

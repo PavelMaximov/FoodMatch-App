@@ -19,5 +19,6 @@ const swipeSchema = new Schema<SwipeDocument>(
 );
 
 swipeSchema.index({ userId: 1, coupleId: 1, dishId: 1 }, { unique: true });
+swipeSchema.index({ coupleId: 1, dishId: 1 });
 
 export const SwipeModel = model<SwipeDocument>('Swipe', swipeSchema);

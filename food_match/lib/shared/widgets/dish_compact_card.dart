@@ -127,7 +127,7 @@ class _CompactDishImage extends StatelessWidget {
         ClipRRect(
           borderRadius: BorderRadius.circular(20),
           child: CachedNetworkImage(
-            imageUrl: ImageUtils.getImageUrl(imageUrl),
+            imageUrl: ImageUtils.getImageUrl(imageUrl, usage: ImageUsage.dishCard),
             width: 100,
             height: 100,
             fit: BoxFit.cover,

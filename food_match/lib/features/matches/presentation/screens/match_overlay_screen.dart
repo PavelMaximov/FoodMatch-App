@@ -193,7 +193,7 @@ class _GlowingDishImage extends StatelessWidget {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(28),
             child: CachedNetworkImage(
-              imageUrl: ImageUtils.getImageUrl(dish.imageUrl),
+              imageUrl: ImageUtils.getImageUrl(dish.imageUrl, usage: ImageUsage.dishHero),
               width: imageWidth,
               height: imageWidth,
               fit: BoxFit.cover,

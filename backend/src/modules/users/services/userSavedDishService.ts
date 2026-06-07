@@ -1,6 +1,6 @@
 import { Types } from 'mongoose';
 import { AppError } from '../../../core/errors/AppError';
-import { toDishDto, type DishDto } from '../../dishes/dto/dishDto';
+import { DISH_DTO_SELECT, toDishDto, type DishDto } from '../../dishes/dto/dishDto';
 import { DishDocument, DishModel } from '../../dishes/models/Dish';
 import { resolveDishByAnyId } from '../../dishes/utils/resolveDishByAnyId';
 import { UserModel } from '../models/User';
@@ -32,9 +32,13 @@ export class UserSavedDishService {
 
   async listSavedDishes(userId: string): Promise<DishDto[]> {
     const user = await UserModel.findById(userId)
+      .select('savedDishes')
+      .lean()
       .orFail(() => new AppError('User not found', 404));
 
-    const dishes = await DishModel.find({ _id: { $in: user.savedDishes } });
+    const dishes = await DishModel.find({ _id: { $in: user.savedDishes } })
+      .select(DISH_DTO_SELECT)
+      .lean();
     const visibleDishes = dishes.filter((dish) => this.isVisibleDishStatus(dish.status));
 
     return visibleDishes
