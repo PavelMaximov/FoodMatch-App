@@ -197,7 +197,6 @@ class _GlowingDishImage extends StatelessWidget {
               width: imageWidth,
               height: imageWidth,
               fit: BoxFit.cover,
-              ),
             ),
           ),
         );
@@ -205,10 +204,6 @@ class _GlowingDishImage extends StatelessWidget {
     );
   }
 }
-
-
-
- 
 
 // ── Match info panel ─────────────────────────────────────────────────────────
 
@@ -310,7 +305,7 @@ class _MatchOverlayButton extends StatelessWidget {
           foregroundColor: foregroundColor,
           elevation: 0,
           shape: RoundedRectangleBorder(
-  borderRadius: BorderRadius.circular(AppDimensions.radiusM),
+            borderRadius: BorderRadius.circular(AppDimensions.radiusM),
           ),
         ),
         child: Text(
