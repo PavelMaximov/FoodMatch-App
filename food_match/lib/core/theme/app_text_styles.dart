@@ -7,16 +7,16 @@ class AppTextStyles {
   const AppTextStyles._();
 
   // Logo title
-  static TextStyle get logoTitle => GoogleFonts.pacifico(
+  static TextStyle get logoTitle => GoogleFonts.fredoka(
         fontSize: 32,
-        fontWeight: FontWeight.w400,
+        fontWeight: FontWeight.w700,
         color: AppColors.primary,
       );
 
   // Screen headers (Login, Sign Up, Forgot password?, etc.)
-  static TextStyle get screenHeader => GoogleFonts.pacifico(
+  static TextStyle get screenHeader => GoogleFonts.fredoka(
         fontSize: 28,
-        fontWeight: FontWeight.w400,
+        fontWeight: FontWeight.w700,
         color: AppColors.textPrimary,
       );
 
@@ -61,9 +61,9 @@ class AppTextStyles {
       );
 
   // Match congratulations
-  static TextStyle get matchCongrats => GoogleFonts.pacifico(
+  static TextStyle get matchCongrats => GoogleFonts.fredoka(
         fontSize: 36,
-        fontWeight: FontWeight.w400,
+        fontWeight: FontWeight.w700,
         color: AppColors.primary,
       );
 }

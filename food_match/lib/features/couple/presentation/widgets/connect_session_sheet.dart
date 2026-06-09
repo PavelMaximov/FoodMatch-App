@@ -377,8 +377,9 @@ class _SheetHeader extends StatelessWidget {
               const SizedBox(width: 10),
               Text(
                 'Create a session',
-                style: GoogleFonts.pacifico(
+                style: GoogleFonts.fredoka(
                   fontSize: 30,
+                  fontWeight: FontWeight.w700,
                   height: 1.15,
                   color: AppColors.textPrimary,
                 ),

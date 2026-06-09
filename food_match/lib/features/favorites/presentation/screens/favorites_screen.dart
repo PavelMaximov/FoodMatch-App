@@ -294,8 +294,9 @@ class _FavoritesHeader extends StatelessWidget {
             Expanded(
               child: Text(
                 'Favorites',
-                style: GoogleFonts.pacifico(
+                style: GoogleFonts.fredoka(
                   fontSize: 39,
+                  fontWeight: FontWeight.w700,
                   height: 1.18,
                   color: AppColors.textPrimary,
                 ),

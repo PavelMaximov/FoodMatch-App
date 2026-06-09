@@ -150,7 +150,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
               ),
               Text(
                 _title,
-                style: GoogleFonts.pacifico(fontSize: 42, color: const Color(0xFF1A1A1A)),
+                style: GoogleFonts.fredoka(fontWeight: FontWeight.w700, fontSize: 42, color: const Color(0xFF1A1A1A)),
               ),
               const SizedBox(height: 10),
               Text(_subtitle, style: GoogleFonts.nunito(fontSize: 18, color: AppColors.textSecondary)),
@@ -427,7 +427,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
                 Text(
                   _isPreparingSharedDeck ? 'Preparing your shared deck...' : 'Waiting for your partner...',
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.pacifico(fontSize: 38, color: const Color(0xFF1A1A1A)),
+                  style: GoogleFonts.fredoka(fontWeight: FontWeight.w700, fontSize: 38, color: const Color(0xFF1A1A1A)),
                 ),
                 const SizedBox(height: 14),
                 Text(
@@ -618,7 +618,7 @@ class PreSwipeIntroScreen extends StatelessWidget {
               Text(
                 'Before you start swiping...',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.pacifico(fontSize: 38, color: AppColors.textPrimary, height: 1.15),
+                style: GoogleFonts.fredoka(fontWeight: FontWeight.w700, fontSize: 38, color: AppColors.textPrimary, height: 1.15),
               ),
               const SizedBox(height: 18),
               Text(

@@ -48,8 +48,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 const AppLogoHeader(showSubtitle: false),
                 Text(
                   AppStrings.resetPasswordTitle,
-                  style: GoogleFonts.pacifico(
+                  style: GoogleFonts.fredoka(
                     fontSize: 28,
+                    fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary,
                   ),
                 ),

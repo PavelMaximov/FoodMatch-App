@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -21,13 +23,47 @@ class MainShell extends StatefulWidget {
 }
 
 class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
-  static const List<_NavItem> _navItems = <_NavItem>[
-    _NavItem(icon: Icons.restaurant_menu, label: 'Recipes'),
-    _NavItem(icon: Icons.favorite, label: 'Matches'),
-    _NavItem(icon: Icons.swipe, label: 'Swipes'),
-    _NavItem(icon: Icons.add_circle, label: 'Add dishes'),
-    _NavItem(icon: Icons.person, label: 'Profile'),
+  static const List<BottomNavItemData> _navItems = <BottomNavItemData>[
+    BottomNavItemData(
+      label: 'Recipes',
+      iconAsset: 'assets/icons/nav/recipes.svg',
+      fallbackIcon: Icons.restaurant_menu,
+    ),
+    BottomNavItemData(
+      label: 'Matches',
+      iconAsset: 'assets/icons/nav/matches.svg',
+      fallbackIcon: Icons.favorite,
+    ),
+    BottomNavItemData(
+      label: 'Swipes',
+      iconAsset: 'assets/icons/nav/connection.svg',
+      fallbackIcon: Icons.swipe,
+    ),
+    BottomNavItemData(
+      label: 'Add dishes',
+      iconAsset: 'assets/icons/nav/add_dish.svg',
+      fallbackIcon: Icons.add_circle,
+    ),
+    BottomNavItemData(
+      label: 'Profile',
+      iconAsset: 'assets/icons/nav/profile.svg',
+      fallbackIcon: Icons.person,
+    ),
   ];
+
+  final Map<String, Future<bool>> _iconAssetAvailability =
+      <String, Future<bool>>{};
+
+  Future<bool> _hasIconAsset(String assetPath) {
+    return _iconAssetAvailability.putIfAbsent(assetPath, () async {
+      try {
+        await rootBundle.load(assetPath);
+        return true;
+      } catch (_) {
+        return false;
+      }
+    });
+  }
 
   @override
   void initState() {
@@ -102,7 +138,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: List<Widget>.generate(_navItems.length, (int index) {
               final bool isActive = currentIndex == index;
-              final _NavItem item = _navItems[index];
+              final BottomNavItemData item = _navItems[index];
 
               return GestureDetector(
                 onTap: () => _onTabTap(index),
@@ -125,10 +161,10 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
                                   : Colors.transparent,
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: Icon(
-                              item.icon,
-                              size: 22,
-                              color: isActive ? AppColors.navActiveIcon : AppColors.navIcon,
+                            child: _BottomNavIcon(
+                              item: item,
+                              isActive: isActive,
+                              assetExists: _hasIconAsset(item.iconAsset),
                             ),
                           ),
                           if (index == 1 && matchCount > 0)
@@ -183,9 +219,50 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   }
 }
 
-class _NavItem {
-  final IconData icon;
-  final String label;
+class BottomNavItemData {
+  const BottomNavItemData({
+    required this.label,
+    required this.iconAsset,
+    required this.fallbackIcon,
+  });
 
-  const _NavItem({required this.icon, required this.label});
+  final String label;
+  final String iconAsset;
+  final IconData fallbackIcon;
+}
+
+class _BottomNavIcon extends StatelessWidget {
+  const _BottomNavIcon({
+    required this.item,
+    required this.isActive,
+    required this.assetExists,
+  });
+
+  final BottomNavItemData item;
+  final bool isActive;
+  final Future<bool> assetExists;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color iconColor = isActive ? AppColors.navActiveIcon : AppColors.navIcon;
+
+    return Center(
+      child: FutureBuilder<bool>(
+        future: assetExists,
+        builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
+          final bool useSvg = snapshot.data ?? false;
+          if (useSvg) {
+            return SvgPicture.asset(
+              item.iconAsset,
+              width: 24,
+              height: 24,
+              colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
+            );
+          }
+
+          return Icon(item.fallbackIcon, size: 22, color: iconColor);
+        },
+      ),
+    );
+  }
 }

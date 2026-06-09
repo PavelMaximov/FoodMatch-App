@@ -167,8 +167,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: <Widget>[
             Text(
               AppStrings.profile,
-              style: GoogleFonts.pacifico(
+              style: GoogleFonts.fredoka(
                 fontSize: 38,
+                fontWeight: FontWeight.w700,
                 height: 1.25,
                 color: AppColors.textPrimary,
               ),

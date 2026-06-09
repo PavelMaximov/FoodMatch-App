@@ -39,6 +39,7 @@ flutter:
   assets:
     - assets/media/
     - assets/icons/
+    - assets/icons/nav/
     - assets/logos/
     - assets/images/
     - assets/illustrations/

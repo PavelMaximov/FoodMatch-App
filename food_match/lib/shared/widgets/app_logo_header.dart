@@ -21,8 +21,9 @@ class AppLogoHeader extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           AppStrings.appName,
-          style: GoogleFonts.pacifico(
+          style: GoogleFonts.fredoka(
             fontSize: 32,
+            fontWeight: FontWeight.w700,
             color: AppColors.textPrimary,
           ),
         ),

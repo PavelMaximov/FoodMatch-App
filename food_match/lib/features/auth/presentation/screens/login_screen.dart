@@ -171,8 +171,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 const AppLogoHeader(showSubtitle: true),
                 Text(
                   AppStrings.login,
-                  style: GoogleFonts.pacifico(
+                  style: GoogleFonts.fredoka(
                     fontSize: 28,
+                    fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary,
                   ),
                 ),

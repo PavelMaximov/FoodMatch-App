@@ -151,8 +151,9 @@ class _Header extends StatelessWidget {
       children: <Widget>[
         Text(
           AppStrings.matches,
-          style: GoogleFonts.pacifico(
+          style: GoogleFonts.fredoka(
             fontSize: 38,
+            fontWeight: FontWeight.w700,
             color: AppColors.textPrimary,
           ),
         ),

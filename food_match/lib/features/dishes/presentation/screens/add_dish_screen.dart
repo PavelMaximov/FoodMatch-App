@@ -298,8 +298,9 @@ class _AddDishScreenState extends State<AddDishScreen> {
                 const SizedBox(height: AppDimensions.paddingS),
                 Text(
                   AppStrings.addYourDish,
-                  style: GoogleFonts.pacifico(
+                  style: GoogleFonts.fredoka(
                     fontSize: 38,
+                    fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary,
                     height: 0.95,
                   ),

@@ -216,37 +216,35 @@ class _RecipesScreenState extends State<RecipesScreen> {
           children: <Widget>[
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Column(
                 children: <Widget>[
-                  Expanded(
-                    child: Text(
-                      'Recipes',
-                      style: GoogleFonts.pacifico(
-                        fontSize: 36,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                  ),
                   Row(
                     children: <Widget>[
-                      _HeaderIconButton(
-                        icon: Icons.bookmark_border,
+                      Expanded(
+                        child: Text(
+                          'Recipes',
+                          style: GoogleFonts.fredoka(
+                            fontSize: 32,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                      _FavoritesPillButton(
+                        count: context.watch<FavoritesProvider>().savedDishes.length,
                         onTap: _openFavorites,
                       ),
-                      const SizedBox(width: 8),
-                      _HeaderIconButton(icon: Icons.search, onTap: _openSearch),
-                      const SizedBox(width: 8),
-                      _HeaderIconButton(
-                        icon: Icons.tune,
-                        onTap: _openFilters,
-                        isActive:
-                            _selectedCuisines.isNotEmpty ||
-                            _selectedMoods.isNotEmpty ||
-                            _selectedDiet.isNotEmpty ||
-                            _selectedTypes.isNotEmpty,
-                      ),
                     ],
+                  ),
+                  const SizedBox(height: 14),
+                  _RecipeSearchBar(
+                    onSearchTap: _openSearch,
+                    onFilterTap: _openFilters,
+                    isFilterActive:
+                        _selectedCuisines.isNotEmpty ||
+                        _selectedMoods.isNotEmpty ||
+                        _selectedDiet.isNotEmpty ||
+                        _selectedTypes.isNotEmpty,
                   ),
                 ],
               ),
@@ -639,47 +637,50 @@ class MealTabsBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 46,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: MealTabType.values.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (_, int index) {
-          final MealTabType tab = MealTabType.values[index];
-          final bool isActive = selected == tab;
-          return GestureDetector(
-            onTap: () => onSelected(tab),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(15),
-                border: Border.all(
-                  color: isActive ? AppColors.primary : const Color(0xFFE2DBD8),
-                  width: 1.6,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: SizedBox(
+        height: 46,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: MealTabType.values.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 8),
+          itemBuilder: (_, int index) {
+            final MealTabType tab = MealTabType.values[index];
+            final bool isActive = selected == tab;
+            return GestureDetector(
+              onTap: () => onSelected(tab),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(
+                    color: isActive ? AppColors.primary : const Color(0xFFE2DBD8),
+                    width: 1.6,
+                  ),
+                ),
+                child: Row(
+                  children: <Widget>[
+                    Icon(
+                      _iconForTab(tab),
+                      size: 18,
+                      color: AppColors.textPrimary,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _labelForTab(tab),
+                      style: GoogleFonts.nunito(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              child: Row(
-                children: <Widget>[
-                  Icon(
-                    _iconForTab(tab),
-                    size: 18,
-                    color: AppColors.textPrimary,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    _labelForTab(tab),
-                    style: GoogleFonts.nunito(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
@@ -915,34 +916,137 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
   }
 }
 
-class _HeaderIconButton extends StatelessWidget {
-  const _HeaderIconButton({
-    required this.icon,
-    required this.onTap,
-    this.isActive = false,
-  });
+class _FavoritesPillButton extends StatelessWidget {
+  const _FavoritesPillButton({required this.count, required this.onTap});
 
-  final IconData icon;
+  final int count;
   final VoidCallback onTap;
-  final bool isActive;
+
+  String get _badgeText => count > 9 ? '9+' : count.toString();
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: isActive ? const Color(0xFFFFEFE7) : Colors.white,
+      color: const Color(0xFFFFFEFC),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: isActive ? AppColors.primary : const Color(0xFFE2DBD8),
-        ),
+        borderRadius: BorderRadius.circular(20),
+        side: const BorderSide(color: Color(0xFFE9E1DD)),
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
         onTap: onTap,
-        child: SizedBox(
-          width: 40,
-          height: 40,
-          child: Icon(icon, size: 20, color: AppColors.textPrimary),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text(
+                'My Favorites',
+                style: GoogleFonts.nunito(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Stack(
+                clipBehavior: Clip.none,
+                children: <Widget>[
+                  const Icon(
+                    Icons.bookmark_border,
+                    size: 16,
+                    color: AppColors.textPrimary,
+                  ),
+                  if (count > 0)
+                    Positioned(
+                      top: -7,
+                      right: -7,
+                      child: Container(
+                        constraints: const BoxConstraints(
+                          minWidth: 10,
+                          minHeight: 10,
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          _badgeText,
+                          style: GoogleFonts.nunito(
+                            fontSize: 7,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                            height: 1,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RecipeSearchBar extends StatelessWidget {
+  const _RecipeSearchBar({
+    required this.onSearchTap,
+    required this.onFilterTap,
+    required this.isFilterActive,
+  });
+
+  final VoidCallback onSearchTap;
+  final VoidCallback onFilterTap;
+  final bool isFilterActive;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: const BorderSide(color: Color(0xFFE8E0DC)),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onSearchTap,
+        child: Padding(
+          padding: const EdgeInsets.only(left: 16, right: 8),
+          child: SizedBox(
+            height: 46,
+            child: Row(
+              children: <Widget>[
+                const Icon(Icons.search, color: Color(0xFF555555), size: 18),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Search any recipe',
+                    style: GoogleFonts.nunito(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w400,
+                      color: const Color(0xFFAAAAAA),
+                    ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Filter recipes',
+                  onPressed: onFilterTap,
+                  icon: Icon(
+                    Icons.tune,
+                    color: isFilterActive
+                        ? AppColors.primary
+                        : AppColors.textPrimary,
+                    size: 20,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -1026,7 +1130,7 @@ class _RecipeSearchDelegate extends SearchDelegate<Dish?> {
   final Future<void> Function(Dish) onFavoriteTap;
 
   @override
-  String get searchFieldLabel => 'Search dishes';
+  String get searchFieldLabel => 'Search any recipe';
 
   @override
   ThemeData appBarTheme(BuildContext context) {
