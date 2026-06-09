@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
-import '../../../core/constants/app_strings.dart';
+import '../../../core/errors/error_messages.dart';
 import '../../../core/utils/logger.dart';
 import '../../../data/models/couple.dart';
 import '../../../data/models/couple_filter_state.dart';
@@ -363,5 +363,5 @@ class CoupleProvider extends ChangeNotifier {
     if (!_disposed) notifyListeners();
   }
 
-  String _mapError(Object e) => e is ApiException ? e.message : AppStrings.unexpectedError;
+  String _mapError(Object e) => ErrorMessages.fromException(e);
 }

@@ -14,7 +14,7 @@ export class SwipeService {
 
     const session = await CoupleSessionModel.findOne({ members: new Types.ObjectId(userId), status: 'active' });
     if (!session) {
-      throw new AppError('User has no active session', 409);
+      throw new AppError('No active session', 409, 'NO_ACTIVE_SESSION');
     }
 
     const dish = await resolveDishByAnyId(dishId);
@@ -50,7 +50,8 @@ export class SwipeService {
           return this.buildSwipeResponse(duplicateSwipe, userId, session.id, toPublicDishId(dish), matchCreated, true);
         }
 
-        throw new AppError('Duplicate swipe index conflict. Run swipes index migration.', 409);
+        console.warn('[Swipes] duplicate index conflict without matching swipe; run swipes index migration', error);
+        throw new AppError('This dish was already swiped in this session.', 409, 'DUPLICATE_SWIPE');
       }
       throw error;
     }

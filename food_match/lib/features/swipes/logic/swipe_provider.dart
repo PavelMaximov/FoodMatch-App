@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../../../core/constants/app_strings.dart';
+import '../../../core/errors/error_messages.dart';
 import '../../../core/utils/logger.dart';
 import '../../../data/local/cache_service.dart';
 import '../../../data/local/user_profile_hive_service.dart';
@@ -53,6 +54,7 @@ class SwipeProvider extends ChangeNotifier {
   bool get hasPreparedDeck => _hasPreparedDeck;
   int get deckVersion => _deckVersion;
   PreparedDeckMeta? get preparedDeckMeta => _preparedDeckMeta;
+  bool get isSendingSwipe => _isSendingSwipe;
 
   bool isSeenDish(String dishId) => _seenDishIds.contains(dishId);
 
@@ -182,6 +184,8 @@ class SwipeProvider extends ChangeNotifier {
     }
 
     _isSendingSwipe = true;
+    error = null;
+    notifyListeners();
     _lastSwipedDish = dish;
     _lastSwipedIndex = currentIndex;
 
@@ -199,6 +203,7 @@ class SwipeProvider extends ChangeNotifier {
           await _applyLocalPostSwipe(dish, direction, null);
         } finally {
           _isSendingSwipe = false;
+          notifyListeners();
         }
         return null;
       }
@@ -217,6 +222,7 @@ class SwipeProvider extends ChangeNotifier {
       notifyListeners();
     } finally {
       _isSendingSwipe = false;
+      notifyListeners();
     }
     return result;
   }
@@ -278,9 +284,9 @@ class SwipeProvider extends ChangeNotifier {
 
   String _mapSwipeError(Object error) {
     if (error is ApiException) {
-      return error.message;
+      return ErrorMessages.fromApiException(error, fallback: ErrorMessages.swipeFailed);
     }
-    return AppStrings.unexpectedError;
+    return ErrorMessages.swipeFailed;
   }
 
   bool _shouldQueueOffline(Object error) {

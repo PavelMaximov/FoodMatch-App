@@ -8,6 +8,9 @@ import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/utils/snackbar_utils.dart';
 import '../../../../data/models/couple.dart';
 import '../../../auth/logic/auth_provider.dart';
+import '../../../matches/logic/match_provider.dart';
+import '../../../swipes/logic/pre_swipe_provider.dart';
+import '../../../swipes/logic/swipe_provider.dart';
 import '../../logic/couple_provider.dart';
 
 class ConnectSessionSheet extends StatefulWidget {
@@ -306,6 +309,9 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
       SnackBarUtils.showError(context, coupleProvider.error!);
       return;
     }
+    context.read<SwipeProvider>().clearPreparedDeck();
+    context.read<PreSwipeProvider>().clearForLogout();
+    context.read<MatchProvider>().clearMatches();
     Navigator.pop(context);
     messenger.showSnackBar(
       const SnackBar(

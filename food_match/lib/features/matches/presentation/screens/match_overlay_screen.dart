@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -13,6 +12,7 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/image_utils.dart';
 import '../../../../data/models/couple.dart';
 import '../../../../data/models/dish.dart';
+import '../../../../shared/widgets/safe_network_image.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../couple/logic/couple_provider.dart';
 
@@ -192,21 +192,11 @@ class _GlowingDishImage extends StatelessWidget {
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(28),
-            child: CachedNetworkImage(
+            child: SafeNetworkImage(
               imageUrl: ImageUtils.getImageUrl(dish.imageUrl, usage: ImageUsage.dishHero),
               width: imageWidth,
               height: imageWidth,
               fit: BoxFit.cover,
-              errorWidget: (_, __, ___) => Container(
-                width: imageWidth,
-                height: imageWidth,
-                color: const Color(0xFFF1EFEE),
-                alignment: Alignment.center,
-                child: const Icon(
-                  Icons.image_not_supported_outlined,
-                  color: AppColors.textSecondary,
-                ),
-              ),
             ),
           ),
         );
@@ -214,10 +204,6 @@ class _GlowingDishImage extends StatelessWidget {
     );
   }
 }
-
-
-
- 
 
 // ── Match info panel ─────────────────────────────────────────────────────────
 
@@ -319,7 +305,7 @@ class _MatchOverlayButton extends StatelessWidget {
           foregroundColor: foregroundColor,
           elevation: 0,
           shape: RoundedRectangleBorder(
-  borderRadius: BorderRadius.circular(AppDimensions.radiusM),
+            borderRadius: BorderRadius.circular(AppDimensions.radiusM),
           ),
         ),
         child: Text(

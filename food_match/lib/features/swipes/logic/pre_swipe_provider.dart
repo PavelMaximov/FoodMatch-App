@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../core/errors/error_messages.dart';
+
 import '../../../data/local/user_profile_hive_service.dart';
 import '../../../data/models/couple_filter_state.dart';
 import '../../../data/models/dish.dart';
@@ -246,7 +248,7 @@ class PreSwipeProvider extends ChangeNotifier {
         preparedDeckMeta: backendDeck.meta,
       );
     } on ApiException catch (e) {
-      backendDeckError = e.toString();
+      backendDeckError = ErrorMessages.fromApiException(e);
       debugPrint('[PreparedDeck] prepare failed $e');
       if (e.statusCode == 409 && e.message.toLowerCase().contains('filter')) {
         rethrow;

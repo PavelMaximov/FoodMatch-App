@@ -25,6 +25,8 @@ class ApiService {
 
   String? _token;
   DateTime? _lastRequestTime;
+  Future<void> Function()? onUnauthorized;
+  bool _handlingUnauthorized = false;
 
   String? get token => _token;
 
@@ -233,7 +235,8 @@ class ApiService {
 
     if (response.statusCode == 401) {
       _token = null;
-      throw ApiException(errorMessage, statusCode: 401);
+      _notifyUnauthorized();
+      throw const ApiException('Your session expired. Please log in again.', statusCode: 401);
     }
 
     if (response.statusCode == 404) {
@@ -261,6 +264,14 @@ class ApiService {
     }
 
     throw ApiException(errorMessage, statusCode: response.statusCode);
+  }
+
+  void _notifyUnauthorized() {
+    if (_handlingUnauthorized) return;
+    final Future<void> Function()? handler = onUnauthorized;
+    if (handler == null) return;
+    _handlingUnauthorized = true;
+    Future<void>.microtask(handler).whenComplete(() => _handlingUnauthorized = false);
   }
 
   String _extractErrorMessage(http.Response response) {

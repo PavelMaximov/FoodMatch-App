@@ -212,12 +212,14 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     if (favoritesProvider.savedDishes.isEmpty) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        children: const <Widget>[
-          SizedBox(height: 120),
+        children: <Widget>[
+          const SizedBox(height: 120),
           EmptyState(
             icon: Icons.bookmark_border,
-            title: 'No favorites yet',
-            subtitle: 'Save recipes you love and they will appear here.',
+            title: 'No saved dishes yet',
+            subtitle: 'Bookmark dishes you want to cook later.',
+            buttonText: 'Browse recipes',
+            onButtonPressed: () => context.go('/recipes'),
           ),
         ],
       );
@@ -230,8 +232,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           SizedBox(height: 120),
           EmptyState(
             icon: Icons.search_off,
-            title: 'No favorites found',
-            subtitle: 'Try another search or clear your filters.',
+            title: 'No dishes found',
+            subtitle: 'Try removing some filters or choosing more cuisines.',
           ),
         ],
       );

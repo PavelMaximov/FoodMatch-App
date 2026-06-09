@@ -25,6 +25,19 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _rememberMe = false;
+  String? _lastShownAuthError;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final String? authError = context.watch<AuthProvider>().error;
+    if (authError != null && authError != _lastShownAuthError) {
+      _lastShownAuthError = authError;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) SnackBarUtils.showError(context, authError);
+      });
+    }
+  }
 
   @override
   void dispose() {

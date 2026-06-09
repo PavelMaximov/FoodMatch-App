@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -10,6 +9,7 @@ import '../../../../core/utils/image_utils.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
+import '../../../../shared/widgets/safe_network_image.dart';
 import '../../../../shared/widgets/dish_compact_card.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../couple/logic/couple_provider.dart';
@@ -99,12 +99,14 @@ class _MatchesScreenState extends State<MatchesScreen> {
         onRefresh: () => context.read<MatchProvider>().loadMatches(force: true),
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          children: const <Widget>[
-            SizedBox(height: 120),
+          children: <Widget>[
+            const SizedBox(height: 120),
             EmptyState(
               icon: Icons.favorite_border,
-              title: AppStrings.noMatchesYet,
-              subtitle: AppStrings.swipeTogether,
+              title: 'No matches yet',
+              subtitle: 'Start swiping with your partner to find dishes you both like.',
+              buttonText: 'Start swiping',
+              onButtonPressed: () => context.go('/swipes'),
             ),
           ],
         ),
@@ -202,12 +204,13 @@ class _PartnerAvatar extends StatelessWidget {
     final String initials = partnerName.trim().isEmpty ? '?' : partnerName.trim()[0].toUpperCase();
     if (avatarUrl != null && avatarUrl!.trim().isNotEmpty) {
       return ClipOval(
-        child: CachedNetworkImage(
+        child: SafeNetworkImage(
           imageUrl: ImageUtils.getImageUrl(avatarUrl, usage: ImageUsage.avatar),
           width: 30,
           height: 30,
           fit: BoxFit.cover,
-          errorWidget: (_, __, ___) => _buildFallback(initials),
+          placeholderIcon: Icons.person,
+          errorIcon: Icons.person,
         ),
       );
     }

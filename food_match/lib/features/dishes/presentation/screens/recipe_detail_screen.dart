@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -13,6 +12,7 @@ import '../../../../core/utils/image_utils.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../data/models/recipe_step.dart';
 import '../../../../shared/widgets/error_state.dart';
+import '../../../../shared/widgets/safe_network_image.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
 import '../../../favorites/logic/favorites_provider.dart';
 import '../../logic/recipe_provider.dart';
@@ -176,19 +176,12 @@ class _HeroImage extends StatelessWidget {
         ),
         child: Hero(
           tag: 'dish-image-$dishId',
-          child: CachedNetworkImage(
+          child: SafeNetworkImage(
             imageUrl: ImageUtils.getImageUrl(dish.imageUrl, usage: ImageUsage.dishHero),
             fit: BoxFit.cover,
-            placeholder: (_, __) => const ColoredBox(
-              color: Color(0xFFF5EDE8),
-              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-            ),
-            errorWidget: (_, __, ___) => const ColoredBox(
-              color: Color(0xFFF5EDE8),
-              child: Center(
-                child: Icon(Icons.restaurant_menu, size: 72, color: AppColors.textSecondary),
-              ),
-            ),
+            backgroundColor: const Color(0xFFF5EDE8),
+            placeholderIcon: Icons.restaurant_menu,
+            errorIcon: Icons.restaurant_menu,
           ),
         ),
       ),
@@ -466,14 +459,14 @@ class _StatsRow extends StatelessWidget {
   }
 
   String _formatCookTime(int cookTime) {
-    final int minutes = cookTime <= 0 ? 0 : cookTime;
-    return '$minutes ${AppStrings.minutes}';
+    if (cookTime <= 0) return '— min';
+    return '$cookTime min';
   }
 
   String _formatServings(String servings) {
     final String trimmed = servings.trim();
     if (trimmed.isEmpty) {
-      return '2 ${AppStrings.servings}';
+      return '— servings';
     }
     if (trimmed.toLowerCase().contains(AppStrings.servings)) {
       return trimmed;
@@ -636,7 +629,10 @@ class _IngredientsContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (rows.isEmpty) {
-      return Text('No ingredients available.', style: AppTextStyles.bodyMedium);
+      return const _InlineEmptyState(
+        icon: Icons.shopping_basket_outlined,
+        message: 'No ingredients available yet.',
+      );
     }
 
     return Column(
@@ -693,7 +689,10 @@ class _InstructionsContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (steps.isEmpty) {
-      return Text('No instructions available.', style: AppTextStyles.bodyMedium);
+      return const _InlineEmptyState(
+        icon: Icons.menu_book_outlined,
+        message: 'No instructions available yet.',
+      );
     }
 
     return Column(
@@ -727,6 +726,28 @@ class _InstructionsContent extends StatelessWidget {
           ),
         );
       }).toList(),
+    );
+  }
+}
+
+
+class _InlineEmptyState extends StatelessWidget {
+  const _InlineEmptyState({required this.icon, required this.message});
+
+  final IconData icon;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 18),
+      child: Row(
+        children: <Widget>[
+          Icon(icon, color: AppColors.textSecondary),
+          const SizedBox(width: 10),
+          Expanded(child: Text(message, style: AppTextStyles.bodyMedium)),
+        ],
+      ),
     );
   }
 }

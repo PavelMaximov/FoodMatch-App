@@ -1,5 +1,6 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+
+import 'safe_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme/app_colors.dart';
@@ -126,18 +127,11 @@ class _CompactDishImage extends StatelessWidget {
       children: <Widget>[
         ClipRRect(
           borderRadius: BorderRadius.circular(20),
-          child: CachedNetworkImage(
+          child: SafeNetworkImage(
             imageUrl: ImageUtils.getImageUrl(imageUrl, usage: ImageUsage.dishCard),
             width: 100,
             height: 100,
             fit: BoxFit.cover,
-            errorWidget: (_, __, ___) => Container(
-              width: 100,
-              height: 100,
-              color: const Color(0xFFF1EFEE),
-              alignment: Alignment.center,
-              child: const Icon(Icons.image_not_supported_outlined, color: AppColors.textSecondary),
-            ),
           ),
         ),
         if (onBookmarkTap != null && isBookmarked != null)
