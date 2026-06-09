@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -26,27 +27,32 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   static const List<BottomNavItemData> _navItems = <BottomNavItemData>[
     BottomNavItemData(
       label: 'Recipes',
-      iconAsset: 'assets/icons/nav/recipes.svg',
+      inactiveIconAsset: 'assets/icons/nav/recipes_outline.svg',
+      activeIconAsset: 'assets/icons/nav/recipes_fill.svg',
       fallbackIcon: Icons.restaurant_menu,
     ),
     BottomNavItemData(
       label: 'Matches',
-      iconAsset: 'assets/icons/nav/matches.svg',
+      inactiveIconAsset: 'assets/icons/nav/matches_outline.svg',
+      activeIconAsset: 'assets/icons/nav/matches_fill.svg',
       fallbackIcon: Icons.favorite,
     ),
     BottomNavItemData(
       label: 'Swipes',
-      iconAsset: 'assets/icons/nav/connection.svg',
+      inactiveIconAsset: 'assets/icons/nav/swipes_outline.svg',
+      activeIconAsset: 'assets/icons/nav/swipes_fill.svg',
       fallbackIcon: Icons.swipe,
     ),
     BottomNavItemData(
       label: 'Add dishes',
-      iconAsset: 'assets/icons/nav/add_dish.svg',
+      inactiveIconAsset: 'assets/icons/nav/add_dish_outline.svg',
+      activeIconAsset: 'assets/icons/nav/add_dish_fill.svg',
       fallbackIcon: Icons.add_circle,
     ),
     BottomNavItemData(
       label: 'Profile',
-      iconAsset: 'assets/icons/nav/profile.svg',
+      inactiveIconAsset: 'assets/icons/nav/profile_outline.svg',
+      activeIconAsset: 'assets/icons/nav/profile_fill.svg',
       fallbackIcon: Icons.person,
     ),
   ];
@@ -60,6 +66,9 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
         await rootBundle.load(assetPath);
         return true;
       } catch (_) {
+        if (kDebugMode) {
+          debugPrint('[MainShell] Missing bottom nav SVG asset: $assetPath');
+        }
         return false;
       }
     });
@@ -164,7 +173,9 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
                             child: _BottomNavIcon(
                               item: item,
                               isActive: isActive,
-                              assetExists: _hasIconAsset(item.iconAsset),
+                              assetExists: _hasIconAsset(
+                                item.iconAssetFor(isActive: isActive),
+                              ),
                             ),
                           ),
                           if (index == 1 && matchCount > 0)
@@ -222,13 +233,18 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
 class BottomNavItemData {
   const BottomNavItemData({
     required this.label,
-    required this.iconAsset,
+    required this.inactiveIconAsset,
+    required this.activeIconAsset,
     required this.fallbackIcon,
   });
 
   final String label;
-  final String iconAsset;
+  final String inactiveIconAsset;
+  final String activeIconAsset;
   final IconData fallbackIcon;
+
+  String iconAssetFor({required bool isActive}) =>
+      isActive ? activeIconAsset : inactiveIconAsset;
 }
 
 class _BottomNavIcon extends StatelessWidget {
@@ -245,6 +261,7 @@ class _BottomNavIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Color iconColor = isActive ? AppColors.navActiveIcon : AppColors.navIcon;
+    final String iconAsset = item.iconAssetFor(isActive: isActive);
 
     return Center(
       child: FutureBuilder<bool>(
@@ -253,14 +270,16 @@ class _BottomNavIcon extends StatelessWidget {
           final bool useSvg = snapshot.data ?? false;
           if (useSvg) {
             return SvgPicture.asset(
-              item.iconAsset,
+              iconAsset,
               width: 24,
               height: 24,
               colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
+              placeholderBuilder: (_) =>
+                  Icon(item.fallbackIcon, size: 24, color: iconColor),
             );
           }
 
-          return Icon(item.fallbackIcon, size: 22, color: iconColor);
+          return Icon(item.fallbackIcon, size: 24, color: iconColor);
         },
       ),
     );
