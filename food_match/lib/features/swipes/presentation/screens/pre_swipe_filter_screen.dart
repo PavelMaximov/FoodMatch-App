@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_text_styles.dart';
 import '../../../../data/models/dish.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../couple/logic/couple_provider.dart';
@@ -134,7 +135,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
@@ -150,7 +151,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
               ),
               Text(
                 _title,
-                style: GoogleFonts.fredoka(fontWeight: FontWeight.w700, fontSize: 42, color: const Color(0xFF1A1A1A)),
+                style: AppTextStyles.pageTitle.copyWith(color: const Color(0xFF1A1A1A)),
               ),
               const SizedBox(height: 10),
               Text(_subtitle, style: GoogleFonts.nunito(fontSize: 18, color: AppColors.textSecondary)),

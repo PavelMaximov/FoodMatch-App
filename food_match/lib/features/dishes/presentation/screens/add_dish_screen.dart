@@ -295,15 +295,10 @@ class _AddDishScreenState extends State<AddDishScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                const SizedBox(height: AppDimensions.paddingS),
+                const SizedBox(height: 20),
                 Text(
                   AppStrings.addYourDish,
-                  style: GoogleFonts.fredoka(
-                    fontSize: 38,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                    height: 0.95,
-                  ),
+                  style: AppTextStyles.pageTitle.copyWith(height: 0.95),
                 ),
                 const SizedBox(height: 16),
                 Text(

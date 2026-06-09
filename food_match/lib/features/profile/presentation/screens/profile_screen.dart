@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/errors/error_messages.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/image_utils.dart';
 import '../../../../core/utils/snackbar_utils.dart';
 import '../../../../data/models/couple.dart';
@@ -163,16 +164,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: SafeArea(
         bottom: false,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(24, 12, 24, 28),
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
           children: <Widget>[
             Text(
               AppStrings.profile,
-              style: GoogleFonts.fredoka(
-                fontSize: 38,
-                fontWeight: FontWeight.w700,
-                height: 1.25,
-                color: AppColors.textPrimary,
-              ),
+              style: AppTextStyles.pageTitle,
             ),
             const SizedBox(height: 18),
             _UserInfoCard(

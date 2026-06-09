@@ -13,12 +13,15 @@ class AppTextStyles {
         color: AppColors.primary,
       );
 
-  // Screen headers (Login, Sign Up, Forgot password?, etc.)
-  static TextStyle get screenHeader => GoogleFonts.fredoka(
-        fontSize: 28,
+  // Page headers and auth screen titles.
+  static TextStyle get pageTitle => GoogleFonts.fredoka(
+        fontSize: 38,
         fontWeight: FontWeight.w700,
         color: AppColors.textPrimary,
       );
+
+  // Screen headers (Login, Sign Up, Forgot password?, etc.)
+  static TextStyle get screenHeader => pageTitle;
 
   // Section headers (Ingredients, Cooking)
   static TextStyle get sectionHeader => GoogleFonts.nunito(

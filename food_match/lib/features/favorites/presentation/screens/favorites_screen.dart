@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_text_styles.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
@@ -146,7 +147,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Padding(
-              padding: const EdgeInsets.fromLTRB(19, 16, 19, 0),
+              padding: const EdgeInsets.fromLTRB(19, 20, 19, 0),
               child: _FavoritesHeader(
                 isSearching: _isSearching,
                 query: _query,
@@ -294,12 +295,7 @@ class _FavoritesHeader extends StatelessWidget {
             Expanded(
               child: Text(
                 'Favorites',
-                style: GoogleFonts.fredoka(
-                  fontSize: 39,
-                  fontWeight: FontWeight.w700,
-                  height: 1.18,
-                  color: AppColors.textPrimary,
-                ),
+                style: AppTextStyles.pageTitle,
               ),
             ),
             Padding(

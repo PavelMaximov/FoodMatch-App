@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/errors/error_messages.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/image_utils.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../data/repositories/dish_repository.dart';
@@ -21,6 +22,11 @@ class RecipesScreen extends StatefulWidget {
   @override
   State<RecipesScreen> createState() => _RecipesScreenState();
 }
+
+const double kRecipeChipRadius = 15;
+const double kRecipeChipBorderWidth = 1.6;
+const Color kRecipeChipBorderColor = Color(0xFFE2DBD8);
+const Color kRecipeChipBackgroundColor = Colors.white;
 
 enum MealTabType { breakfast, lunch, dinner, snack }
 
@@ -215,7 +221,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
               child: Column(
                 children: <Widget>[
                   Row(
@@ -223,11 +229,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
                       Expanded(
                         child: Text(
                           'Recipes',
-                          style: GoogleFonts.fredoka(
-                            fontSize: 32,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
-                          ),
+                          style: AppTextStyles.pageTitle,
                         ),
                       ),
                       _FavoritesPillButton(
@@ -237,15 +239,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
                     ],
                   ),
                   const SizedBox(height: 14),
-                  _RecipeSearchBar(
-                    onSearchTap: _openSearch,
-                    onFilterTap: _openFilters,
-                    isFilterActive:
-                        _selectedCuisines.isNotEmpty ||
-                        _selectedMoods.isNotEmpty ||
-                        _selectedDiet.isNotEmpty ||
-                        _selectedTypes.isNotEmpty,
-                  ),
+                  _RecipeSearchBar(onSearchTap: _openSearch),
                 ],
               ),
             ),
@@ -653,11 +647,11 @@ class MealTabsBar extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(15),
+                  color: kRecipeChipBackgroundColor,
+                  borderRadius: BorderRadius.circular(kRecipeChipRadius),
                   border: Border.all(
-                    color: isActive ? AppColors.primary : const Color(0xFFE2DBD8),
-                    width: 1.6,
+                    color: isActive ? AppColors.primary : kRecipeChipBorderColor,
+                    width: kRecipeChipBorderWidth,
                   ),
                 ),
                 child: Row(
@@ -927,13 +921,16 @@ class _FavoritesPillButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: const Color(0xFFFFFEFC),
+      color: kRecipeChipBackgroundColor,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: const BorderSide(color: Color(0xFFE9E1DD)),
+        borderRadius: BorderRadius.circular(kRecipeChipRadius),
+        side: const BorderSide(
+          color: kRecipeChipBorderColor,
+          width: kRecipeChipBorderWidth,
+        ),
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(kRecipeChipRadius),
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -949,41 +946,47 @@ class _FavoritesPillButton extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Stack(
-                clipBehavior: Clip.none,
-                children: <Widget>[
-                  const Icon(
-                    Icons.bookmark_border,
-                    size: 16,
-                    color: AppColors.textPrimary,
-                  ),
-                  if (count > 0)
-                    Positioned(
-                      top: -7,
-                      right: -7,
-                      child: Container(
-                        constraints: const BoxConstraints(
-                          minWidth: 10,
-                          minHeight: 10,
-                        ),
-                        padding: const EdgeInsets.symmetric(horizontal: 2),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          _badgeText,
-                          style: GoogleFonts.nunito(
-                            fontSize: 7,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                            height: 1,
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: <Widget>[
+                    const Center(
+                      child: Icon(
+                        Icons.bookmark_border,
+                        size: 16,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    if (count > 0)
+                      Positioned(
+                        top: -3,
+                        right: -3,
+                        child: Container(
+                          constraints: const BoxConstraints(
+                            minWidth: 12,
+                            minHeight: 12,
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            _badgeText,
+                            style: GoogleFonts.nunito(
+                              fontSize: 7,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              height: 1,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),
@@ -994,29 +997,26 @@ class _FavoritesPillButton extends StatelessWidget {
 }
 
 class _RecipeSearchBar extends StatelessWidget {
-  const _RecipeSearchBar({
-    required this.onSearchTap,
-    required this.onFilterTap,
-    required this.isFilterActive,
-  });
+  const _RecipeSearchBar({required this.onSearchTap});
 
   final VoidCallback onSearchTap;
-  final VoidCallback onFilterTap;
-  final bool isFilterActive;
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: kRecipeChipBackgroundColor,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: const BorderSide(color: Color(0xFFE8E0DC)),
+        borderRadius: BorderRadius.circular(kRecipeChipRadius),
+        side: const BorderSide(
+          color: kRecipeChipBorderColor,
+          width: kRecipeChipBorderWidth,
+        ),
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(kRecipeChipRadius),
         onTap: onSearchTap,
         child: Padding(
-          padding: const EdgeInsets.only(left: 16, right: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: SizedBox(
             height: 46,
             child: Row(
@@ -1031,17 +1031,6 @@ class _RecipeSearchBar extends StatelessWidget {
                       fontWeight: FontWeight.w400,
                       color: const Color(0xFFAAAAAA),
                     ),
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Filter recipes',
-                  onPressed: onFilterTap,
-                  icon: Icon(
-                    Icons.tune,
-                    color: isFilterActive
-                        ? AppColors.primary
-                        : AppColors.textPrimary,
-                    size: 20,
                   ),
                 ),
               ],

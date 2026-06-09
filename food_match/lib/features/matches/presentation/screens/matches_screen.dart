@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimensions.dart';
+import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/image_utils.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
@@ -62,7 +63,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              const SizedBox(height: AppDimensions.paddingS),
+              const SizedBox(height: 20),
               _Header(
                 partnerName: partnerName,
                 partnerAvatarUrl: partnerAvatarUrl,
@@ -151,11 +152,7 @@ class _Header extends StatelessWidget {
       children: <Widget>[
         Text(
           AppStrings.matches,
-          style: GoogleFonts.fredoka(
-            fontSize: 38,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
-          ),
+          style: AppTextStyles.pageTitle,
         ),
         const SizedBox(height: 1),
         Row(
