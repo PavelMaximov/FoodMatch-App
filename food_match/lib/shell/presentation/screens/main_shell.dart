@@ -271,15 +271,15 @@ class _BottomNavIcon extends StatelessWidget {
           if (useSvg) {
             return SvgPicture.asset(
               iconAsset,
-              width: 24,
-              height: 24,
+              width: 20,
+              height: 20,
               colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
               placeholderBuilder: (_) =>
-                  Icon(item.fallbackIcon, size: 24, color: iconColor),
+                  Icon(item.fallbackIcon, size: 20, color: iconColor),
             );
           }
 
-          return Icon(item.fallbackIcon, size: 24, color: iconColor);
+          return Icon(item.fallbackIcon, size: 20, color: iconColor);
         },
       ),
     );
