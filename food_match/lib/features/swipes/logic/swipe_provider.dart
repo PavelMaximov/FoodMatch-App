@@ -37,6 +37,7 @@ class SwipeProvider extends ChangeNotifier {
   bool _hasPreparedDeck = false;
   int _deckVersion = 0;
   PreparedDeckMeta? _preparedDeckMeta;
+  Future<bool>? _existingPreparedDeckLoadFuture;
 
   List<Dish> deck = <Dish>[];
   int currentIndex = 0;
@@ -79,6 +80,7 @@ class SwipeProvider extends ChangeNotifier {
     _isSendingSwipe = false;
     _hasPreparedDeck = false;
     _preparedDeckMeta = null;
+    _existingPreparedDeckLoadFuture = null;
     _deckVersion++;
     if (notify) {
       notifyListeners();
@@ -90,7 +92,7 @@ class SwipeProvider extends ChangeNotifier {
     Set<String> seenDishIds = const <String>{},
     PreparedDeckMeta? preparedDeckMeta,
   }) {
-    deck = prepared;
+    deck = List<Dish>.from(prepared);
     _deckVersion++;
     _seenDishIds = Set<String>.from(seenDishIds);
     _hasPreparedDeck = true;
@@ -109,15 +111,34 @@ class SwipeProvider extends ChangeNotifier {
     applyPreparedDeck(preparedDeck.dishes, preparedDeckMeta: preparedDeck.meta);
   }
 
-  Future<bool> loadExistingPreparedDeck() async {
+  Future<bool> loadExistingPreparedDeck({bool force = false}) {
+    if (!force && _hasPreparedDeck && deck.isNotEmpty) {
+      debugPrint('[Cache] prepared deck hit count=${deck.length}');
+      return Future<bool>.value(true);
+    }
+    final Future<bool>? inFlight = _existingPreparedDeckLoadFuture;
+    if (inFlight != null) {
+      debugPrint('[RequestDedup] prepared deck load skipped: already in flight');
+      return inFlight;
+    }
+
+    _existingPreparedDeckLoadFuture = _loadExistingPreparedDeckFromApi();
+    return _existingPreparedDeckLoadFuture!;
+  }
+
+  Future<bool> _loadExistingPreparedDeckFromApi() async {
     try {
+      debugPrint('[Cache] prepared deck miss');
       final PreparedDeck preparedDeck = await _coupleRepository.getPreparedDeck();
       if (preparedDeck.isReady && preparedDeck.dishes.isNotEmpty) {
         applyBackendPreparedDeck(preparedDeck);
         return true;
       }
+      debugPrint('[Cache] prepared deck not ready; cache not used');
     } catch (e) {
       debugPrint('[PreparedDeck] load existing failed $e');
+    } finally {
+      _existingPreparedDeckLoadFuture = null;
     }
     return false;
   }
@@ -129,6 +150,7 @@ class SwipeProvider extends ChangeNotifier {
     _sentSwipeDishIds.clear();
     _hasPreparedDeck = false;
     _preparedDeckMeta = null;
+    _existingPreparedDeckLoadFuture = null;
     _lastSwipedDish = null;
     _lastSwipedIndex = null;
     error = null;
@@ -139,9 +161,14 @@ class SwipeProvider extends ChangeNotifier {
   void clearPreparedDeckFlag() {
     _hasPreparedDeck = false;
     _preparedDeckMeta = null;
+    _existingPreparedDeckLoadFuture = null;
   }
 
   Future<void> loadDeck({String? cuisine}) async {
+    if (isLoading) {
+      AppLogger.info('[RequestDedup] swipe deck load skipped: already in flight');
+      return;
+    }
     isLoading = true;
     error = null;
     notifyListeners();
@@ -168,6 +195,7 @@ class SwipeProvider extends ChangeNotifier {
     _deckVersion++;
     _hasPreparedDeck = false;
     _preparedDeckMeta = null;
+    _existingPreparedDeckLoadFuture = null;
     currentIndex = 0;
     _lastSwipedDish = null;
     _lastSwipedIndex = null;

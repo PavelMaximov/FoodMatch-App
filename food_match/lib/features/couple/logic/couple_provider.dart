@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../core/errors/error_messages.dart';
 import '../../../core/utils/logger.dart';
+import '../../../data/local/cache_policy.dart';
 import '../../../data/models/couple.dart';
 import '../../../data/models/couple_filter_state.dart';
 import '../../../data/repositories/couple_repository.dart';
@@ -21,7 +22,9 @@ class CoupleProvider extends ChangeNotifier {
   bool _disposed = false;
   bool _joinInFlight = false;
   bool _leaveInFlight = false;
+  bool _isRefreshingCurrentCouple = false;
   bool _isRefreshingFilterState = false;
+  DateTime? _currentCoupleLoadedAt;
   bool _isAuthenticated = false;
   String? _activeUserId;
 
@@ -45,6 +48,11 @@ class CoupleProvider extends ChangeNotifier {
   bool get isLeaving => _leaveInFlight;
   bool get hasActiveSessionConflict => error == activeSessionMessage;
   bool get _canPollFilterState => !_disposed && _isAuthenticated && (_activeUserId?.isNotEmpty ?? false) && hasCouple;
+  bool get _hasFreshCurrentCoupleCache {
+    final DateTime? loadedAt = _currentCoupleLoadedAt;
+    return loadedAt != null &&
+        DateTime.now().difference(loadedAt) < CachePolicy.currentCoupleTtl;
+  }
 
   void setAuthenticatedUser(String? userId, {required bool isAuthenticated}) {
     final String? normalized = userId?.trim().isEmpty == true ? null : userId?.trim();
@@ -74,17 +82,32 @@ class CoupleProvider extends ChangeNotifier {
     super.dispose();
   }
 
-  Future<void> loadCouple() async {
+  Future<void> loadCouple({bool force = false}) async {
     if (!_isAuthenticated || (_activeUserId?.isEmpty ?? true)) {
       clearSessionStateForLogout(notify: false);
       return;
     }
-    if (isLoading) return;
+    if (_isRefreshingCurrentCouple) {
+      AppLogger.info('[RequestDedup] couple/me refresh skipped: already in flight');
+      return;
+    }
+    if (!force && _hasFreshCurrentCoupleCache) {
+      final int age = DateTime.now().difference(_currentCoupleLoadedAt!).inSeconds;
+      AppLogger.info('[Cache] couple/me hit hasCouple=$hasCouple age=${age}s');
+      if (hasCouple) {
+        await refreshFilterState();
+      }
+      return;
+    }
+
+    _isRefreshingCurrentCouple = true;
     isLoading = true;
     error = null;
     _safeNotify();
     try {
+      AppLogger.info(force ? '[Cache] couple/me force refresh' : '[Cache] couple/me miss');
       currentCouple = await _repository.getMyCouple();
+      _currentCoupleLoadedAt = DateTime.now();
       if (hasCouple) {
         await refreshFilterState();
       } else {
@@ -99,6 +122,7 @@ class CoupleProvider extends ChangeNotifier {
         error = _mapError(e);
       }
     } finally {
+      _isRefreshingCurrentCouple = false;
       isLoading = false;
       _safeNotify();
     }
@@ -111,6 +135,7 @@ class CoupleProvider extends ChangeNotifier {
     _safeNotify();
     try {
       currentCouple = await _repository.create();
+      _currentCoupleLoadedAt = DateTime.now();
       _sessionStateVersion++;
       await refreshFilterState();
     } on ApiException catch (e) {
@@ -138,6 +163,7 @@ class CoupleProvider extends ChangeNotifier {
     _safeNotify();
     try {
       currentCouple = await _repository.join(inviteCode);
+      _currentCoupleLoadedAt = DateTime.now();
       _sessionStateVersion++;
       await refreshFilterState();
     } on ApiException catch (e) {
@@ -205,6 +231,7 @@ class CoupleProvider extends ChangeNotifier {
       CoupleFilterChoices(cuisines: cuisines, moods: moods, diet: diet, exclusions: exclusions),
     );
     AppLogger.info('[CoupleFilterState] saved my choices');
+    AppLogger.info('[Cache] prepared deck invalidated reason=filters-change');
     _safeNotify();
   }
 
@@ -223,7 +250,7 @@ class CoupleProvider extends ChangeNotifier {
       return;
     }
     if (_isRefreshingFilterState) {
-      AppLogger.info('[CoupleFilterState] refresh skipped: already in flight');
+      AppLogger.info('[RequestDedup] filter-state skipped: already in flight');
       return;
     }
 
@@ -294,6 +321,7 @@ class CoupleProvider extends ChangeNotifier {
   Future<void> _refreshCurrentCoupleAfterReset() async {
     try {
       currentCouple = await _repository.getMyCouple();
+      _currentCoupleLoadedAt = DateTime.now();
       _sessionStateVersion++;
       if (!hasCouple) {
         _clearSessionState();
@@ -312,6 +340,7 @@ class CoupleProvider extends ChangeNotifier {
   void clearSessionStateForLogout({bool notify = true}) {
     _clearSessionState();
     isLoading = false;
+    _isRefreshingCurrentCouple = false;
     _isRefreshingFilterState = false;
     AppLogger.info('[CoupleProvider] session state cleared for logout');
     if (notify) {
@@ -322,6 +351,7 @@ class CoupleProvider extends ChangeNotifier {
   void _clearSessionState({bool incrementVersion = true}) {
     stopFilterStatePolling();
     currentCouple = null;
+    _currentCoupleLoadedAt = null;
     _clearFilterState();
     error = null;
     _joinInFlight = false;
@@ -338,6 +368,7 @@ class CoupleProvider extends ChangeNotifier {
   Future<void> _refreshActiveSessionAfterConflict() async {
     try {
       currentCouple = await _repository.getMyCouple();
+      _currentCoupleLoadedAt = DateTime.now();
       if (hasCouple) {
         _sessionStateVersion++;
         await refreshFilterState();

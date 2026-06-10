@@ -35,8 +35,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadFavorites());
   }
 
-  Future<void> _loadFavorites() async {
-    await context.read<FavoritesProvider>().loadFavorites(force: true);
+  Future<void> _loadFavorites({bool force = false}) async {
+    await context.read<FavoritesProvider>().loadFavorites(force: force);
   }
 
   Future<void> _removeFavorite(Dish dish) async {
@@ -173,7 +173,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
               ),
             Expanded(
               child: RefreshIndicator(
-                onRefresh: _loadFavorites,
+                onRefresh: () => _loadFavorites(force: true),
                 child: _buildBody(favoritesProvider, visibleFavorites),
               ),
             ),

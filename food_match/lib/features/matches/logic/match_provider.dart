@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../core/errors/error_messages.dart';
 import '../../../core/utils/logger.dart';
+import '../../../data/local/cache_policy.dart';
 import '../../../data/local/cache_service.dart';
 import '../../../data/models/dish.dart';
 import '../../../data/repositories/swipe_repository.dart';
@@ -18,6 +19,8 @@ class MatchProvider extends ChangeNotifier {
   final CacheService _cacheService;
   String? _activeCoupleId;
   int _sessionStateVersion = 0;
+  DateTime? _matchesLoadedAt;
+  Future<void>? _matchesLoadFuture;
 
   List<Dish> matches = <Dish>[];
   bool isLoading = false;
@@ -25,25 +28,45 @@ class MatchProvider extends ChangeNotifier {
 
   int get matchCount => matches.length;
 
-  Future<void> loadMatches({bool force = false}) async {
-    if (isLoading && !force) {
-      return;
-    }
+  bool get _hasFreshMatchesCache {
+    final DateTime? loadedAt = _matchesLoadedAt;
+    return loadedAt != null &&
+        DateTime.now().difference(loadedAt) < CachePolicy.matchesTtl;
+  }
 
+  Future<void> loadMatches({bool force = false}) {
     if (_activeCoupleId == null || _activeCoupleId!.isEmpty) {
       matches = <Dish>[];
       error = null;
       isLoading = false;
+      _matchesLoadedAt = null;
       notifyListeners();
-      return;
+      return Future<void>.value();
+    }
+    if (!force && _hasFreshMatchesCache) {
+      final int age = DateTime.now().difference(_matchesLoadedAt!).inSeconds;
+      AppLogger.info('[Cache] matches hit count=${matches.length} age=${age}s');
+      return Future<void>.value();
+    }
+    final Future<void>? inFlight = _matchesLoadFuture;
+    if (inFlight != null) {
+      AppLogger.info('[RequestDedup] matches load skipped: already in flight');
+      return inFlight;
     }
 
+    _matchesLoadFuture = _loadMatchesFromApi(force: force);
+    return _matchesLoadFuture!;
+  }
+
+  Future<void> _loadMatchesFromApi({required bool force}) async {
+    AppLogger.info(force ? '[Cache] matches force refresh' : '[Cache] matches miss');
     isLoading = true;
     error = null;
     notifyListeners();
 
     try {
       matches = await _swipeRepository.getMatches();
+      _matchesLoadedAt = DateTime.now();
       await _cacheService.cacheMatches(matches, coupleId: _activeCoupleId);
       AppLogger.info('MatchProvider: loaded ${matches.length} matches');
     } catch (e) {
@@ -51,10 +74,12 @@ class MatchProvider extends ChangeNotifier {
       if (matches.isEmpty) {
         error = _mapError(e);
       } else {
+        _matchesLoadedAt ??= DateTime.now();
         AppLogger.info('MatchProvider: loaded ${matches.length} from cache');
       }
     } finally {
       isLoading = false;
+      _matchesLoadFuture = null;
       notifyListeners();
     }
   }
@@ -71,6 +96,8 @@ class MatchProvider extends ChangeNotifier {
     matches = <Dish>[];
     error = null;
     isLoading = false;
+    _matchesLoadedAt = null;
+    _matchesLoadFuture = null;
     notifyListeners();
     _cacheService.clearCachedMatches();
 
@@ -82,7 +109,10 @@ class MatchProvider extends ChangeNotifier {
   void clearMatches() {
     matches = <Dish>[];
     error = null;
+    _matchesLoadedAt = null;
+    _matchesLoadFuture = null;
     _cacheService.clearCachedMatches();
+    AppLogger.info('[Cache] matches invalidated reason=clear');
     notifyListeners();
   }
 
@@ -97,7 +127,10 @@ class MatchProvider extends ChangeNotifier {
     matches = <Dish>[];
     error = null;
     isLoading = false;
+    _matchesLoadedAt = null;
+    _matchesLoadFuture = null;
     _cacheService.clearCachedMatches();
+    AppLogger.info('[Cache] matches invalidated reason=logout');
     if (changed && notify) {
       notifyListeners();
     }

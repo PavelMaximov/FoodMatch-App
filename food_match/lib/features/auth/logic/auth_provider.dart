@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../../core/errors/error_messages.dart';
 import '../../../core/utils/logger.dart';
+import '../../../data/local/cache_policy.dart';
 import '../../../data/local/cache_service.dart';
 import '../../../data/models/user.dart';
 import '../../../data/repositories/auth_repository.dart';
@@ -30,10 +31,19 @@ class AuthProvider extends ChangeNotifier {
 
   User? currentUser;
   String? token;
+  DateTime? _currentUserLoadedAt;
+  Future<void>? _loadUserFuture;
   bool isLoading = false;
   String? error;
 
   bool get isAuthenticated => token != null;
+
+  bool get _hasFreshCurrentUser {
+    final DateTime? loadedAt = _currentUserLoadedAt;
+    return currentUser != null &&
+        loadedAt != null &&
+        DateTime.now().difference(loadedAt) < CachePolicy.authUserTtl;
+  }
 
   Future<void> register(String email, String password, String displayName) async {
     isLoading = true;
@@ -45,6 +55,7 @@ class AuthProvider extends ChangeNotifier {
       token = response.token;
       _apiService.setToken(response.token);
       currentUser = response.user ?? await _repository.getMe();
+      _currentUserLoadedAt = DateTime.now();
       await _secureStorage.write(key: 'foodmatch_token', value: response.token);
       await _cacheUserDataIfAvailable();
     } catch (e) {
@@ -65,6 +76,7 @@ class AuthProvider extends ChangeNotifier {
       token = response.token;
       _apiService.setToken(response.token);
       currentUser = response.user ?? await _repository.getMe();
+      _currentUserLoadedAt = DateTime.now();
       await _secureStorage.write(key: 'foodmatch_token', value: response.token);
       await _cacheUserDataIfAvailable();
     } catch (e) {
@@ -75,7 +87,24 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> loadUser() async {
+  Future<void> loadUser({bool force = false}) {
+    if (!force && _hasFreshCurrentUser) {
+      final int age = DateTime.now().difference(_currentUserLoadedAt!).inSeconds;
+      AppLogger.info('[Cache] auth user hit age=${age}s');
+      return Future<void>.value();
+    }
+    final Future<void>? inFlight = _loadUserFuture;
+    if (inFlight != null) {
+      AppLogger.info('[RequestDedup] auth user refresh skipped: already in flight');
+      return inFlight;
+    }
+
+    _loadUserFuture = _loadUserFromApi(force: force);
+    return _loadUserFuture!;
+  }
+
+  Future<void> _loadUserFromApi({required bool force}) async {
+    AppLogger.info(force ? '[Cache] auth user force refresh' : '[Cache] auth user miss');
     isLoading = true;
     error = null;
     notifyListeners();
@@ -87,6 +116,7 @@ class AuthProvider extends ChangeNotifier {
       if (loadedToken == null || loadedToken.isEmpty) {
         token = null;
         currentUser = null;
+        _currentUserLoadedAt = null;
         return;
       }
 
@@ -98,6 +128,7 @@ class AuthProvider extends ChangeNotifier {
 
       token = loadedToken;
       currentUser = await _repository.getMe();
+      _currentUserLoadedAt = DateTime.now();
       await _cacheUserDataIfAvailable();
     } on ApiException catch (e) {
       if (e.statusCode == 401) {
@@ -111,6 +142,7 @@ class AuthProvider extends ChangeNotifier {
       error = _mapError(e);
     } finally {
       isLoading = false;
+      _loadUserFuture = null;
       notifyListeners();
     }
   }
@@ -175,6 +207,8 @@ class AuthProvider extends ChangeNotifier {
     await _secureStorage.delete(key: 'foodmatch_token');
     token = null;
     currentUser = null;
+    _currentUserLoadedAt = null;
+    _loadUserFuture = null;
     _apiService.setToken(null);
     await _cacheService.clearAll();
   }
@@ -192,6 +226,7 @@ class AuthProvider extends ChangeNotifier {
       avatarUrl: avatarUrl,
       avatarPublicId: avatarPublicId,
     );
+    _currentUserLoadedAt = DateTime.now();
     await _cacheUserDataIfAvailable();
     notifyListeners();
   }
@@ -203,6 +238,7 @@ class AuthProvider extends ChangeNotifier {
     }
 
     currentUser = user.copyWith(clearAvatar: true);
+    _currentUserLoadedAt = DateTime.now();
     await _cacheUserDataIfAvailable();
     notifyListeners();
   }
