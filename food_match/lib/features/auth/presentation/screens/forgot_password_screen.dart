@@ -8,8 +8,8 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/snackbar_utils.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/app_button.dart';
-import '../../../../shared/widgets/app_logo_header.dart';
 import '../../../../shared/widgets/app_text_field.dart';
+import '../widgets/auth_logo.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -46,7 +46,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: <Widget>[
                 const SizedBox(height: 20),
-                const AppLogoHeader(showSubtitle: false),
+                const AuthLogo(),
                 Text(
                   AppStrings.resetPasswordTitle,
                   style: AppTextStyles.pageTitle,

@@ -10,8 +10,8 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/snackbar_utils.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/app_button.dart';
-import '../../../../shared/widgets/app_logo_header.dart';
 import '../../../../shared/widgets/app_text_field.dart';
+import '../widgets/auth_logo.dart';
 import '../../logic/auth_provider.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -161,7 +161,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: <Widget>[
                 const SizedBox(height: 20),
-                const AppLogoHeader(showSubtitle: true),
+                const AuthLogo(),
                 Text(
                   AppStrings.signUp,
                   style: AppTextStyles.pageTitle,
