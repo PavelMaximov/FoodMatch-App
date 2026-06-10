@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/errors/error_messages.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/image_utils.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../data/repositories/dish_repository.dart';
@@ -21,6 +22,11 @@ class RecipesScreen extends StatefulWidget {
   @override
   State<RecipesScreen> createState() => _RecipesScreenState();
 }
+
+const double kRecipeChipRadius = 15;
+const double kRecipeChipBorderWidth = 1.6;
+const Color kRecipeChipBorderColor = Color(0xFFE2DBD8);
+const Color kRecipeChipBackgroundColor = Colors.white;
 
 enum MealTabType { breakfast, lunch, dinner, snack }
 
@@ -215,39 +221,25 @@ class _RecipesScreenState extends State<RecipesScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+              child: Column(
                 children: <Widget>[
-                  Expanded(
-                    child: Text(
-                      'Recipes',
-                      style: GoogleFonts.pacifico(
-                        fontSize: 36,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                  ),
                   Row(
                     children: <Widget>[
-                      _HeaderIconButton(
-                        icon: Icons.bookmark_border,
-                        onTap: _openFavorites,
+                      Expanded(
+                        child: Text(
+                          'Recipes',
+                          style: AppTextStyles.pageTitle,
+                        ),
                       ),
-                      const SizedBox(width: 8),
-                      _HeaderIconButton(icon: Icons.search, onTap: _openSearch),
-                      const SizedBox(width: 8),
-                      _HeaderIconButton(
-                        icon: Icons.tune,
-                        onTap: _openFilters,
-                        isActive:
-                            _selectedCuisines.isNotEmpty ||
-                            _selectedMoods.isNotEmpty ||
-                            _selectedDiet.isNotEmpty ||
-                            _selectedTypes.isNotEmpty,
+                      _FavoritesPillButton(
+                        count: context.watch<FavoritesProvider>().savedDishes.length,
+                        onTap: _openFavorites,
                       ),
                     ],
                   ),
+                  const SizedBox(height: 14),
+                  _RecipeSearchBar(onSearchTap: _openSearch),
                 ],
               ),
             ),
@@ -258,6 +250,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
               ),
             ),
           ],
+          ),
         ),
       ),
     );
@@ -397,7 +390,6 @@ class _RecipesScreenState extends State<RecipesScreen> {
           dishes: baseDishes,
           initialTab: tab,
           onFavoriteTap: _toggleSaved,
-          onSearchTap: _openSearch,
           onFilterTap: _openFilters,
         ),
       ),
@@ -445,7 +437,6 @@ class _RecipesScreenState extends State<RecipesScreen> {
           title: category.title,
           dishes: dishes,
           onFavoriteTap: _toggleSaved,
-          onSearchTap: _openSearch,
           onFilterTap: _openFilters,
         ),
       ),
@@ -460,7 +451,6 @@ class _RecipesScreenState extends State<RecipesScreen> {
           title: 'All Recipes',
           dishes: dishes,
           onFavoriteTap: _toggleSaved,
-          onSearchTap: _openSearch,
           onFilterTap: _openFilters,
         ),
       ),
@@ -639,47 +629,50 @@ class MealTabsBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 46,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: MealTabType.values.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (_, int index) {
-          final MealTabType tab = MealTabType.values[index];
-          final bool isActive = selected == tab;
-          return GestureDetector(
-            onTap: () => onSelected(tab),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(15),
-                border: Border.all(
-                  color: isActive ? AppColors.primary : const Color(0xFFE2DBD8),
-                  width: 1.6,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: SizedBox(
+        height: 46,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: MealTabType.values.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 8),
+          itemBuilder: (_, int index) {
+            final MealTabType tab = MealTabType.values[index];
+            final bool isActive = selected == tab;
+            return GestureDetector(
+              onTap: () => onSelected(tab),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                decoration: BoxDecoration(
+                  color: kRecipeChipBackgroundColor,
+                  borderRadius: BorderRadius.circular(kRecipeChipRadius),
+                  border: Border.all(
+                    color: isActive ? AppColors.primary : kRecipeChipBorderColor,
+                    width: kRecipeChipBorderWidth,
+                  ),
+                ),
+                child: Row(
+                  children: <Widget>[
+                    Icon(
+                      _iconForTab(tab),
+                      size: 18,
+                      color: AppColors.textPrimary,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _labelForTab(tab),
+                      style: GoogleFonts.nunito(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              child: Row(
-                children: <Widget>[
-                  Icon(
-                    _iconForTab(tab),
-                    size: 18,
-                    color: AppColors.textPrimary,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    _labelForTab(tab),
-                    style: GoogleFonts.nunito(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
@@ -793,7 +786,6 @@ class RecipeResultsPage extends StatefulWidget {
     required this.dishes,
     this.initialTab,
     required this.onFavoriteTap,
-    required this.onSearchTap,
     required this.onFilterTap,
   });
 
@@ -801,7 +793,6 @@ class RecipeResultsPage extends StatefulWidget {
   final List<Dish> dishes;
   final MealTabType? initialTab;
   final Future<void> Function(Dish) onFavoriteTap;
-  final VoidCallback onSearchTap;
   final Future<void> Function() onFilterTap;
 
   @override
@@ -810,12 +801,30 @@ class RecipeResultsPage extends StatefulWidget {
 
 class _RecipeResultsPageState extends State<RecipeResultsPage> {
   late MealTabType? _selectedTab = widget.initialTab;
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+  bool _isSearching = false;
+  String _query = '';
 
-  List<Dish> get _displayedDishes {
+  List<Dish> get _tabDishes {
     if (_selectedTab == null) {
       return widget.dishes;
     }
     return widget.dishes.where((Dish dish) => matchesMealTab(dish, _selectedTab!)).toList();
+  }
+
+  List<Dish> get _displayedDishes {
+    final String normalizedQuery = _query.trim().toLowerCase();
+    final List<Dish> tabDishes = _tabDishes;
+    if (normalizedQuery.isEmpty) {
+      return tabDishes;
+    }
+    return tabDishes.where((Dish dish) {
+      return dish.name.toLowerCase().contains(normalizedQuery) ||
+          dish.cuisine.toLowerCase().contains(normalizedQuery) ||
+          dish.type.toLowerCase().contains(normalizedQuery) ||
+          dish.tags.any((String tag) => tag.toLowerCase().contains(normalizedQuery));
+    }).toList();
   }
 
   String get _pageTitle {
@@ -832,6 +841,35 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
     });
   }
 
+  void _toggleSearch() {
+    setState(() => _isSearching = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _searchFocusNode.requestFocus();
+      }
+    });
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    setState(() {
+      _query = '';
+      _isSearching = false;
+    });
+    _searchFocusNode.unfocus();
+  }
+
+  Future<void> _openFilters() async {
+    await widget.onFilterTap();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final Set<String> savedDishIds = context
@@ -841,82 +879,105 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        elevation: 0,
-        title: Text(
-          _pageTitle,
-          style: GoogleFonts.nunito(
-            fontWeight: FontWeight.w800,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        actions: <Widget>[
-          IconButton(
-            onPressed: widget.onSearchTap,
-            icon: const Icon(Icons.search, color: AppColors.textPrimary),
-          ),
-          IconButton(
-            onPressed: widget.onFilterTap,
-            icon: const Icon(Icons.tune, color: AppColors.textPrimary),
-          ),
-        ],
-      ),
-      body: Column(
-        children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-            child: MealTabsBar(
-              selected: _selectedTab,
-              onSelected: _changeTab,
-            ),
-          ),
-          Expanded(
-            child: dishes.isEmpty
-                ? const Center(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 24),
-                      child: EmptyState(
-                        icon: Icons.menu_book_outlined,
-                        title: 'No recipes found',
-                        subtitle: 'Try another meal tab or adjust filters.',
+      body: SafeArea(
+        child: Column(
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+              child: Column(
+                children: <Widget>[
+                  Row(
+                    children: <Widget>[
+                      _RecipeIconButton(
+                        icon: Icons.arrow_back,
+                        onTap: () => Navigator.of(context).pop(),
                       ),
-                    ),
-                  )
-                : GridView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      childAspectRatio: 0.84,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                    ),
-                    itemCount: dishes.length,
-                    itemBuilder: (_, int index) {
-                      final Dish dish = dishes[index];
-                      return RecipeDishCard(
-                        dish: dish,
-                        isSaved: savedDishIds.contains(dish.id),
-                        onFavoriteTap: () => widget.onFavoriteTap(dish),
-                        onOpen: () => context.push('/recipe-detail/${dish.id}', extra: dish),
-                        layout: RecipeDishCardLayout.grid,
-                      );
-                    },
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          _pageTitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTextStyles.pageTitle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      _RecipeIconButton(
+                        icon: Icons.search,
+                        onTap: _toggleSearch,
+                        isActive: _isSearching || _query.trim().isNotEmpty,
+                      ),
+                      const SizedBox(width: 8),
+                      _RecipeIconButton(
+                        icon: Icons.tune,
+                        onTap: _openFilters,
+                      ),
+                    ],
                   ),
+                  if (_isSearching) ...<Widget>[
+                    const SizedBox(height: 12),
+                    _InlineRecipeSearchField(
+                      controller: _searchController,
+                      focusNode: _searchFocusNode,
+                      onChanged: (String value) => setState(() => _query = value),
+                      onClear: _clearSearch,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: MealTabsBar(
+                selected: _selectedTab,
+                onSelected: _changeTab,
+              ),
+            ),
+            Expanded(
+              child: dishes.isEmpty
+                  ? const Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 24),
+                        child: EmptyState(
+                          icon: Icons.menu_book_outlined,
+                          title: 'No recipes found',
+                          subtitle: 'Try another meal tab or search term.',
+                        ),
+                      ),
+                    )
+                  : GridView.builder(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        childAspectRatio: 0.84,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                      ),
+                      itemCount: dishes.length,
+                      itemBuilder: (_, int index) {
+                        final Dish dish = dishes[index];
+                        return RecipeDishCard(
+                          dish: dish,
+                          isSaved: savedDishIds.contains(dish.id),
+                          onFavoriteTap: () => widget.onFavoriteTap(dish),
+                          onOpen: () => context.push('/recipe-detail/${dish.id}', extra: dish),
+                          layout: RecipeDishCardLayout.grid,
+                        );
+                      },
+                    ),
+            ),
+          ],
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _HeaderIconButton extends StatelessWidget {
-  const _HeaderIconButton({
+
+class _RecipeIconButton extends StatelessWidget {
+  const _RecipeIconButton({
     required this.icon,
     required this.onTap,
     this.isActive = false,
@@ -929,20 +990,208 @@ class _HeaderIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: isActive ? const Color(0xFFFFEFE7) : Colors.white,
+      color: kRecipeChipBackgroundColor,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(kRecipeChipRadius),
         side: BorderSide(
-          color: isActive ? AppColors.primary : const Color(0xFFE2DBD8),
+          color: isActive ? AppColors.primary : kRecipeChipBorderColor,
+          width: kRecipeChipBorderWidth,
         ),
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(kRecipeChipRadius),
         onTap: onTap,
         child: SizedBox(
           width: 40,
           height: 40,
           child: Icon(icon, size: 20, color: AppColors.textPrimary),
+        ),
+      ),
+    );
+  }
+}
+
+class _InlineRecipeSearchField extends StatelessWidget {
+  const _InlineRecipeSearchField({
+    required this.controller,
+    required this.focusNode,
+    required this.onChanged,
+    required this.onClear,
+  });
+
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      focusNode: focusNode,
+      onChanged: onChanged,
+      textInputAction: TextInputAction.search,
+      style: GoogleFonts.nunito(
+        fontSize: 16,
+        fontWeight: FontWeight.w500,
+        color: AppColors.textPrimary,
+      ),
+      decoration: InputDecoration(
+        filled: true,
+        fillColor: kRecipeChipBackgroundColor,
+        prefixIcon: const Icon(Icons.search, color: Color(0xFF555555), size: 18),
+        suffixIcon: controller.text.isEmpty
+            ? null
+            : IconButton(
+                onPressed: onClear,
+                icon: const Icon(Icons.close, color: AppColors.textPrimary, size: 18),
+              ),
+        hintText: 'Search any recipe',
+        hintStyle: GoogleFonts.nunito(
+          fontSize: 16,
+          fontWeight: FontWeight.w400,
+          color: const Color(0xFFAAAAAA),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(kRecipeChipRadius),
+          borderSide: const BorderSide(
+            color: kRecipeChipBorderColor,
+            width: kRecipeChipBorderWidth,
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(kRecipeChipRadius),
+          borderSide: const BorderSide(
+            color: AppColors.primary,
+            width: kRecipeChipBorderWidth,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FavoritesPillButton extends StatelessWidget {
+  const _FavoritesPillButton({required this.count, required this.onTap});
+
+  final int count;
+  final VoidCallback onTap;
+
+  String get _badgeText => count > 9 ? '9+' : count.toString();
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0xFFDCD6D3),
+      borderRadius: BorderRadius.circular(999),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              SizedBox(
+                width: 18,
+                height: 18,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: <Widget>[
+                    const Center(
+                      child: Icon(
+                        Icons.bookmark,
+                        size: 16,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    if (count > 0)
+                      Positioned(
+                        top: -4,
+                        right: -4,
+                        child: Container(
+                          constraints: const BoxConstraints(
+                            minWidth: 12,
+                            minHeight: 12,
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            _badgeText,
+                            style: GoogleFonts.nunito(
+                              fontSize: 7,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              height: 1,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'My Favorites',
+                style: GoogleFonts.nunito(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RecipeSearchBar extends StatelessWidget {
+  const _RecipeSearchBar({required this.onSearchTap});
+
+  final VoidCallback onSearchTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: kRecipeChipBackgroundColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(kRecipeChipRadius),
+        side: const BorderSide(
+          color: kRecipeChipBorderColor,
+          width: kRecipeChipBorderWidth,
+        ),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(kRecipeChipRadius),
+        onTap: onSearchTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: SizedBox(
+            height: 46,
+            child: Row(
+              children: <Widget>[
+                const Icon(Icons.search, color: Color(0xFF555555), size: 18),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Search any recipe',
+                    style: GoogleFonts.nunito(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w400,
+                      color: const Color(0xFFAAAAAA),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -1026,7 +1275,7 @@ class _RecipeSearchDelegate extends SearchDelegate<Dish?> {
   final Future<void> Function(Dish) onFavoriteTap;
 
   @override
-  String get searchFieldLabel => 'Search dishes';
+  String get searchFieldLabel => 'Search any recipe';
 
   @override
   ThemeData appBarTheme(BuildContext context) {
@@ -1158,93 +1407,96 @@ class _FilterSheetState extends State<_FilterSheet> {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 22),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Center(
-              child: Container(
-                width: 46,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: Colors.black12,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Filter recipes',
-              style: GoogleFonts.nunito(
-                fontSize: 24,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    _FilterGroup(
-                      title: 'Cuisine',
-                      options: widget.cuisines,
-                      selected: _cuisines,
-                      onToggle: (v) => _toggle(_cuisines, v),
-                    ),
-                    _FilterGroup(
-                      title: 'Mood',
-                      options: widget.moods,
-                      selected: _moods,
-                      onToggle: (v) => _toggle(_moods, v),
-                    ),
-                    _FilterGroup(
-                      title: 'Diet',
-                      options: widget.diet,
-                      selected: _diet,
-                      onToggle: (v) => _toggle(_diet, v),
-                    ),
-                    _FilterGroup(
-                      title: 'Tags',
-                      options: widget.types,
-                      selected: _types,
-                      onToggle: (v) => _toggle(_types, v),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: <Widget>[
-                TextButton(
-                  onPressed: () {
-                    setState(() {
-                      _cuisines.clear();
-                      _moods.clear();
-                      _diet.clear();
-                      _types.clear();
-                    });
-                  },
-                  child: const Text('Reset'),
-                ),
-                const Spacer(),
-                ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(
-                    _FilterSelection(
-                      cuisines: _cuisines,
-                      moods: _moods,
-                      diet: _diet,
-                      types: _types,
-                    ),
+      child: SizedBox(
+        height: MediaQuery.sizeOf(context).height * 0.82,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 22),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Center(
+                child: Container(
+                  width: 46,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.black12,
+                    borderRadius: BorderRadius.circular(999),
                   ),
-                  child: const Text('Apply'),
                 ),
-              ],
-            ),
-          ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Filters',
+                style: GoogleFonts.nunito(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      _FilterGroup(
+                        title: 'Cuisine',
+                        options: widget.cuisines,
+                        selected: _cuisines,
+                        onToggle: (v) => _toggle(_cuisines, v),
+                      ),
+                      _FilterGroup(
+                        title: 'Mood',
+                        options: widget.moods,
+                        selected: _moods,
+                        onToggle: (v) => _toggle(_moods, v),
+                      ),
+                      _FilterGroup(
+                        title: 'Diet',
+                        options: widget.diet,
+                        selected: _diet,
+                        onToggle: (v) => _toggle(_diet, v),
+                      ),
+                      _FilterGroup(
+                        title: 'Tags',
+                        options: widget.types,
+                        selected: _types,
+                        onToggle: (v) => _toggle(_types, v),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: <Widget>[
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _cuisines.clear();
+                        _moods.clear();
+                        _diet.clear();
+                        _types.clear();
+                      });
+                    },
+                    child: const Text('Reset'),
+                  ),
+                  const Spacer(),
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(
+                      _FilterSelection(
+                        cuisines: _cuisines,
+                        moods: _moods,
+                        diet: _diet,
+                        types: _types,
+                      ),
+                    ),
+                    child: const Text('Apply'),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

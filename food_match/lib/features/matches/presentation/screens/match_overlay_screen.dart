@@ -91,7 +91,7 @@ class _MatchOverlayScreenState extends State<MatchOverlayScreen>
                         textAlign: TextAlign.center,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.pacifico(
+                        style: GoogleFonts.fredoka(
                           fontSize: math.min(screenSize.width * 0.11, 44.0).toDouble(),
                           color: AppColors.primary,
                         ),

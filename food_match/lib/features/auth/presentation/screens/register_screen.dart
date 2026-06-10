@@ -6,11 +6,12 @@ import 'package:provider/provider.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimensions.dart';
+import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/snackbar_utils.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/app_button.dart';
-import '../../../../shared/widgets/app_logo_header.dart';
 import '../../../../shared/widgets/app_text_field.dart';
+import '../widgets/auth_logo.dart';
 import '../../logic/auth_provider.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -159,14 +160,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: <Widget>[
-                const SizedBox(height: 40),
-                const AppLogoHeader(showSubtitle: true),
+                const SizedBox(height: 20),
+                const AuthLogo(),
                 Text(
                   AppStrings.signUp,
-                  style: GoogleFonts.pacifico(
-                    fontSize: 28,
-                    color: AppColors.textPrimary,
-                  ),
+                  style: AppTextStyles.pageTitle,
                 ),
                 const SizedBox(height: 20),
                 GestureDetector(

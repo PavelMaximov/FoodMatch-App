@@ -7,18 +7,21 @@ class AppTextStyles {
   const AppTextStyles._();
 
   // Logo title
-  static TextStyle get logoTitle => GoogleFonts.pacifico(
+  static TextStyle get logoTitle => GoogleFonts.fredoka(
         fontSize: 32,
-        fontWeight: FontWeight.w400,
+        fontWeight: FontWeight.w700,
         color: AppColors.primary,
       );
 
-  // Screen headers (Login, Sign Up, Forgot password?, etc.)
-  static TextStyle get screenHeader => GoogleFonts.pacifico(
-        fontSize: 28,
-        fontWeight: FontWeight.w400,
+  // Page headers and auth screen titles.
+  static TextStyle get pageTitle => GoogleFonts.fredoka(
+        fontSize: 38,
+        fontWeight: FontWeight.w700,
         color: AppColors.textPrimary,
       );
+
+  // Screen headers (Login, Sign Up, Forgot password?, etc.)
+  static TextStyle get screenHeader => pageTitle;
 
   // Section headers (Ingredients, Cooking)
   static TextStyle get sectionHeader => GoogleFonts.nunito(
@@ -61,9 +64,9 @@ class AppTextStyles {
       );
 
   // Match congratulations
-  static TextStyle get matchCongrats => GoogleFonts.pacifico(
+  static TextStyle get matchCongrats => GoogleFonts.fredoka(
         fontSize: 36,
-        fontWeight: FontWeight.w400,
+        fontWeight: FontWeight.w700,
         color: AppColors.primary,
       );
 }

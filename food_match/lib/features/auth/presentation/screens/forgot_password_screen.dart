@@ -4,11 +4,12 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/snackbar_utils.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/app_button.dart';
-import '../../../../shared/widgets/app_logo_header.dart';
 import '../../../../shared/widgets/app_text_field.dart';
+import '../widgets/auth_logo.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -44,14 +45,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: <Widget>[
-                const SizedBox(height: 40),
-                const AppLogoHeader(showSubtitle: false),
+                const SizedBox(height: 20),
+                const AuthLogo(),
                 Text(
                   AppStrings.resetPasswordTitle,
-                  style: GoogleFonts.pacifico(
-                    fontSize: 28,
-                    color: AppColors.textPrimary,
-                  ),
+                  style: AppTextStyles.pageTitle,
                 ),
                 const SizedBox(height: 12),
                 Text(
