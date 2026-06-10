@@ -221,7 +221,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
               child: Column(
                 children: <Widget>[
                   Row(
@@ -252,8 +252,8 @@ class _RecipesScreenState extends State<RecipesScreen> {
           ],
           ),
         ),
-      ),
-    );
+      );
+    
   }
 
   Widget _buildBody() {
@@ -898,7 +898,7 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
                           _pageTitle,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.pageTitle,
+                          style: AppTextStyles.sectionHeader,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -970,8 +970,8 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
           ],
           ),
         ),
-      ),
-    );
+      );
+    
   }
 }
 
@@ -1089,7 +1089,7 @@ class _FavoritesPillButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[

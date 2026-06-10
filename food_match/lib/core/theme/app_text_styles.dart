@@ -25,8 +25,8 @@ class AppTextStyles {
 
   // Section headers (Ingredients, Cooking)
   static TextStyle get sectionHeader => GoogleFonts.nunito(
-        fontSize: 22,
-        fontWeight: FontWeight.w700,
+        fontSize: 28,
+        fontWeight: FontWeight.w800,
         color: AppColors.textPrimary,
       );
 

@@ -309,7 +309,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
                           const Icon(
                             Icons.tune,
                             size: 16,
-                            color: Color(0xFF1A1A1A),
+                            color: AppColors.textPrimary,
                           ),
                           const SizedBox(width: 6),
                           Text(
@@ -317,7 +317,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
                             style: GoogleFonts.nunito(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: const Color(0xFF1A1A1A),
+                              color:  AppColors.textPrimary,
                             ),
                           ),
                         ],
