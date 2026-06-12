@@ -103,7 +103,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
   }
 
-  Future<void> _loadData() async {
+  Future<void> _loadData({bool force = false}) async {
     setState(() {
       _isLoading = true;
       _error = null;
@@ -112,8 +112,8 @@ class _RecipesScreenState extends State<RecipesScreen> {
     final DishRepository repository = context.read<DishRepository>();
     final FavoritesProvider favoritesProvider = context.read<FavoritesProvider>();
     try {
-      final List<Dish> dishes = await repository.getCatalogDishes();
-      await favoritesProvider.loadFavorites();
+      final List<Dish> dishes = await repository.getCatalogDishes(force: force);
+      await favoritesProvider.loadFavorites(force: force);
       if (!mounted) {
         return;
       }
@@ -245,7 +245,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
             ),
             Expanded(
               child: RefreshIndicator(
-                onRefresh: _loadData,
+                onRefresh: () => _loadData(force: true),
                 child: _buildBody(),
               ),
             ),
