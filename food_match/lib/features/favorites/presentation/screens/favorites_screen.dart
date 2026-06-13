@@ -25,6 +25,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   Set<String> _selectedCuisines = <String>{};
   Set<String> _selectedMoods = <String>{};
   Set<String> _selectedDiet = <String>{};
+  List<Dish>? _lastFavoritesInput;
+  String? _lastFilterSignature;
+  List<Dish> _lastVisibleFavorites = const <Dish>[];
 
   bool get _hasActiveFilters =>
       _selectedCuisines.isNotEmpty || _selectedMoods.isNotEmpty || _selectedDiet.isNotEmpty;
@@ -89,7 +92,16 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
   List<Dish> _visibleFavorites(List<Dish> favorites) {
     final String query = _query.trim().toLowerCase();
-    return favorites.where((Dish dish) {
+    final String signature = <String>[
+      query,
+      _selectedCuisines.join('|'),
+      _selectedMoods.join('|'),
+      _selectedDiet.join('|'),
+    ].join('::');
+    if (identical(_lastFavoritesInput, favorites) && _lastFilterSignature == signature) {
+      return _lastVisibleFavorites;
+    }
+    final List<Dish> visible = favorites.where((Dish dish) {
       if (query.isNotEmpty && !dish.name.toLowerCase().contains(query)) {
         return false;
       }
@@ -108,7 +120,11 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         return false;
       }
       return true;
-    }).toList();
+    }).toList(growable: false);
+    _lastFavoritesInput = favorites;
+    _lastFilterSignature = signature;
+    _lastVisibleFavorites = visible;
+    return visible;
   }
 
   List<String> _uniqueSorted(Iterable<String> values) {

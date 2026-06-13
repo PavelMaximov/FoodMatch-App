@@ -263,7 +263,9 @@ class _SwipesScreenState extends State<SwipesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final CoupleProvider coupleProvider = context.watch<CoupleProvider>();
+    final bool hasCouple = context.select<CoupleProvider, bool>((CoupleProvider p) => p.hasCouple);
+    final bool bothConfirmed = context.select<CoupleProvider, bool>((CoupleProvider p) => p.bothConfirmed);
+    final bool isMyChoicesConfirmed = context.select<CoupleProvider, bool>((CoupleProvider p) => p.isMyChoicesConfirmed);
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -338,7 +340,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
                 ),
                 child: Consumer<SwipeProvider>(
                   builder: (BuildContext context, SwipeProvider provider, _) {
-                    if (!coupleProvider.hasCouple) {
+                    if (!hasCouple) {
                       return EmptyState(
                         icon: Icons.link,
                         title: 'Connect with your partner',
@@ -348,7 +350,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
                       );
                     }
 
-                    if (coupleProvider.hasCouple && !coupleProvider.bothConfirmed) {
+                    if (hasCouple && !bothConfirmed) {
                       if (provider.hasPreparedDeck || provider.deck.isNotEmpty) {
                         WidgetsBinding.instance.addPostFrameCallback((_) {
                           if (mounted) {
@@ -358,10 +360,10 @@ class _SwipesScreenState extends State<SwipesScreen> {
                       }
                       return EmptyState(
                         icon: Icons.hourglass_empty,
-                        title: coupleProvider.isMyChoicesConfirmed
+                        title: isMyChoicesConfirmed
                             ? 'Waiting for your partner...'
                             : 'Complete your filters to prepare your shared deck.',
-                        subtitle: coupleProvider.isMyChoicesConfirmed
+                        subtitle: isMyChoicesConfirmed
                             ? 'Your choices are saved. We’ll start swiping when your partner finishes their filters.'
                             : 'Your shared deck will be ready after both of you confirm filters.',
                         buttonText: 'Filter',
@@ -397,6 +399,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
                       cardBuilder: (BuildContext context, int index) {
                         final dish = provider.deck[provider.currentIndex + index];
                         return SwipeCardWidget(
+                          key: ValueKey<String>(dish.id),
                           dish: dish,
                           onLike: provider.isLoading || provider.isSendingSwipe || _isCardActionInProgress
                               ? null

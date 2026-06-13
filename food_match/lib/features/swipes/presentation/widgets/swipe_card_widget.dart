@@ -7,7 +7,7 @@ import '../../../../core/utils/image_utils.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../shared/widgets/safe_network_image.dart';
 
-class SwipeCardWidget extends StatefulWidget {
+class SwipeCardWidget extends StatelessWidget {
   const SwipeCardWidget({
     required this.dish,
     this.onLike,
@@ -27,13 +27,11 @@ class SwipeCardWidget extends StatefulWidget {
   final VoidCallback? onInfoTap;
   final bool showSeenBadge;
 
-  @override
-  State<SwipeCardWidget> createState() => _SwipeCardWidgetState();
-}
 
-class _SwipeCardWidgetState extends State<SwipeCardWidget> {
   @override
   Widget build(BuildContext context) {
+    final Dish dish = this.dish;
+    final String heroImageUrl = ImageUtils.getImageUrl(dish.imageUrl, usage: ImageUsage.dishHero);
     return RepaintBoundary(
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AppDimensions.radiusL),
@@ -41,9 +39,9 @@ class _SwipeCardWidgetState extends State<SwipeCardWidget> {
         fit: StackFit.expand,
         children: <Widget>[
           Hero(
-            tag: 'dish-image-${widget.dish.id}',
+            tag: 'dish-image-${dish.id}',
             child: SafeNetworkImage(
-              imageUrl: ImageUtils.getImageUrl(widget.dish.imageUrl, usage: ImageUsage.dishHero),
+              imageUrl: heroImageUrl,
               fit: BoxFit.cover,
               width: double.infinity,
               height: double.infinity,
@@ -52,7 +50,7 @@ class _SwipeCardWidgetState extends State<SwipeCardWidget> {
             ),
           ),
 
-          if (widget.showSeenBadge)
+          if (showSeenBadge)
             Positioned(
               top: 16,
               right: 16,
@@ -101,7 +99,7 @@ class _SwipeCardWidgetState extends State<SwipeCardWidget> {
                   children: <Widget>[
                     Expanded(
                       child: Text(
-                        widget.dish.name,
+                        dish.name,
                         style: GoogleFonts.nunito(
                           fontSize: 28,
                           fontWeight: FontWeight.w800,
@@ -116,7 +114,7 @@ class _SwipeCardWidgetState extends State<SwipeCardWidget> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  widget.dish.description,
+                  dish.description,
                   style: GoogleFonts.nunito(
                     fontSize: 14,
                     color: Colors.white.withValues(alpha: 0.85),
@@ -141,28 +139,28 @@ class _SwipeCardWidgetState extends State<SwipeCardWidget> {
                   bgColor: Colors.white.withValues(alpha: 0.15),
                   icon: Icons.chevron_left,
                   iconColor: Colors.white,
-                  onTap: widget.onBack,
+                  onTap: onBack,
                 ),
                 _buildCircleButton(
                   size: 56,
                   bgColor: Colors.white,
                   icon: Icons.close,
                   iconColor: AppColors.textPrimary,
-                  onTap: widget.onDislike,
+                  onTap: onDislike,
                 ),
                 _buildCircleButton(
                   size: 64,
                   bgColor: AppColors.primary,
                   icon: Icons.restaurant,
                   iconColor: Colors.white,
-                  onTap: widget.onLike,
+                  onTap: onLike,
                 ),
                 _buildCircleButton(
                   size: 44,
                   bgColor: Colors.white.withValues(alpha: 0.15),
                   icon: Icons.refresh,
                   iconColor: Colors.white,
-                  onTap: widget.onRefresh,
+                  onTap: onRefresh,
                 ),
               ],
             ),
@@ -176,7 +174,7 @@ class _SwipeCardWidgetState extends State<SwipeCardWidget> {
   Widget _buildInfoButton() {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: widget.onInfoTap,
+      onTap: onInfoTap,
       child: Container(
         width: 32,
         height: 32,
@@ -198,8 +196,8 @@ class _SwipeCardWidgetState extends State<SwipeCardWidget> {
       spacing: 8,
       runSpacing: 4,
       children: <Widget>[
-        if (widget.dish.cuisine.isNotEmpty) _buildTag(widget.dish.cuisine),
-        ...widget.dish.mood.take(3).map(_buildTag),
+        if (dish.cuisine.isNotEmpty) _buildTag(dish.cuisine),
+        ...dish.mood.take(3).map(_buildTag),
       ],
     );
   }

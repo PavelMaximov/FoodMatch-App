@@ -55,15 +55,18 @@ class DishCardGrid extends StatelessWidget {
       itemBuilder: (_, int index) {
         final Dish dish = dishes[index];
 
-        return RecipeDishCard(
-          dish: dish,
-          isSaved: savedDishIds.contains(dish.id),
-          onFavoriteTap: () => onFavoriteTap(dish),
-          onOpen: () => onDishTap(dish),
-          isFavoriteUpdating: isFavoriteUpdating?.call(dish.id) ?? false,
-          favoriteAlignment: favoriteAlignment,
-          cardBorderColor: cardBorderColor,
-          layout: RecipeDishCardLayout.grid,
+        return RepaintBoundary(
+          key: ValueKey<String>(dish.id),
+          child: RecipeDishCard(
+            dish: dish,
+            isSaved: savedDishIds.contains(dish.id),
+            onFavoriteTap: () => onFavoriteTap(dish),
+            onOpen: () => onDishTap(dish),
+            isFavoriteUpdating: isFavoriteUpdating?.call(dish.id) ?? false,
+            favoriteAlignment: favoriteAlignment,
+            cardBorderColor: cardBorderColor,
+            layout: RecipeDishCardLayout.grid,
+          ),
         );
       },
     );

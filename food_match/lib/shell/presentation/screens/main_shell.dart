@@ -128,7 +128,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    final int matchCount = context.watch<MatchProvider>().matchCount;
+    final int matchCount = context.select<MatchProvider, int>((MatchProvider p) => p.matchCount);
     final int currentIndex = widget.navigationShell.currentIndex;
 
     return Scaffold(

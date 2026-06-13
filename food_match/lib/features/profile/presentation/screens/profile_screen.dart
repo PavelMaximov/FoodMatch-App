@@ -15,6 +15,7 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/image_utils.dart';
 import '../../../../core/utils/snackbar_utils.dart';
 import '../../../../data/models/couple.dart';
+import '../../../../data/models/user.dart';
 import '../../../../data/repositories/upload_repository.dart';
 import '../../../../data/services/api_service.dart';
 import '../../../auth/logic/auth_provider.dart';
@@ -181,9 +182,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final AuthProvider auth = context.watch<AuthProvider>();
+    final User? user = context.select<AuthProvider, User?>((AuthProvider p) => p.currentUser);
     final CoupleProvider couple = context.watch<CoupleProvider>();
-    final user = auth.currentUser;
     final String displayName = user?.displayName.trim().isNotEmpty == true
         ? user!.displayName.trim()
         : 'Name';

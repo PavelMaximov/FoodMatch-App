@@ -304,7 +304,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
                         ),
                       ),
                       _FavoritesPillButton(
-                        count: context.watch<FavoritesProvider>().savedDishes.length,
+                        count: context.select<FavoritesProvider, int>((FavoritesProvider p) => p.savedDishes.length),
                         onTap: _openFavorites,
                       ),
                     ],
@@ -362,9 +362,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
     final List<Dish> preview = _previewRecipes(activePool);
     final bool hasPreview = preview.isNotEmpty;
 
-    final Set<String> savedDishIds = context
-        .watch<FavoritesProvider>()
-        .savedDishIds;
+    final Set<String> savedDishIds = context.select<FavoritesProvider, Set<String>>((FavoritesProvider p) => p.savedDishIds);
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
@@ -1204,7 +1202,7 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final Set<String> savedDishIds = context.watch<FavoritesProvider>().savedDishIds;
+    final Set<String> savedDishIds = context.select<FavoritesProvider, Set<String>>((FavoritesProvider p) => p.savedDishIds);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -1335,12 +1333,15 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
             return const Center(child: CircularProgressIndicator(strokeWidth: 2));
           }
           final Dish dish = _dishes[index];
-          return RecipeDishCard(
-            dish: dish,
-            isSaved: savedDishIds.contains(dish.id),
-            onFavoriteTap: () => widget.onFavoriteTap(dish),
-            onOpen: () => context.push('/recipe-detail/${dish.id}', extra: dish),
-            layout: RecipeDishCardLayout.grid,
+          return RepaintBoundary(
+            key: ValueKey<String>(dish.id),
+            child: RecipeDishCard(
+              dish: dish,
+              isSaved: savedDishIds.contains(dish.id),
+              onFavoriteTap: () => widget.onFavoriteTap(dish),
+              onOpen: () => context.push('/recipe-detail/${dish.id}', extra: dish),
+              layout: RecipeDishCardLayout.grid,
+            ),
           );
         },
       ),
