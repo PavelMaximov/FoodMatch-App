@@ -13,7 +13,7 @@ import '../../../../data/models/dish.dart';
 import '../../../../data/repositories/dish_repository.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
-import '../../../../shared/widgets/safe_network_image.dart';
+import '../../../../shared/widgets/media/safe_dish_image.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
 import '../../../../shared/widgets/recipe_dish_card.dart';
 import '../../../favorites/logic/favorites_provider.dart';
@@ -1598,7 +1598,7 @@ class _SavedDishTile extends StatelessWidget {
             children: <Widget>[
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: SafeNetworkImage(
+                child: SafeDishImage(
                   imageUrl: ImageUtils.getImageUrl(dish.imageUrl, usage: ImageUsage.dishCard),
                   width: 64,
                   height: 64,

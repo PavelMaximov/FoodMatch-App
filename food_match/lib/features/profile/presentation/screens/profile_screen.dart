@@ -23,7 +23,7 @@ import '../../../couple/logic/couple_provider.dart';
 import '../../../matches/logic/match_provider.dart';
 import '../../../swipes/logic/pre_swipe_provider.dart';
 import '../../../swipes/logic/swipe_provider.dart';
-import '../../../../shared/widgets/safe_network_image.dart';
+import '../../../../shared/widgets/media/safe_avatar_image.dart';
 import '../../../couple/presentation/widgets/connect_session_sheet.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -111,7 +111,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       final String optimizedAvatarUrl = ImageUtils.getImageUrl(
         result.avatarUrl,
-        usage: ImageUsage.avatar,
+        usage: ImageUsage.avatarLarge,
       );
       bool avatarPrecached = false;
       if (mounted && optimizedAvatarUrl.trim().isNotEmpty) {
@@ -441,32 +441,12 @@ class _AvatarContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final File? preview = localAvatarPreview;
-    if (preview != null) {
-      return ClipOval(
-        child: Image.file(
-          preview,
-          width: 68,
-          height: 68,
-          fit: BoxFit.cover,
-        ),
-      );
-    }
-
-    final String optimizedAvatarUrl = ImageUtils.getImageUrl(
-      avatarUrl,
-      usage: ImageUsage.avatar,
-    );
-    if (optimizedAvatarUrl.trim().isNotEmpty) {
-      return ClipOval(
-        child: SafeNetworkImage(
-          imageUrl: optimizedAvatarUrl,
-          width: 68,
-          height: 68,
-          fit: BoxFit.cover,
-          placeholderIcon: Icons.person,
-          errorIcon: Icons.person,
-        ),
+    final bool hasImage = localAvatarPreview != null || (avatarUrl ?? '').trim().isNotEmpty;
+    if (hasImage) {
+      return SafeAvatarImage(
+        imageUrl: avatarUrl,
+        localPreview: localAvatarPreview,
+        size: 68,
       );
     }
 

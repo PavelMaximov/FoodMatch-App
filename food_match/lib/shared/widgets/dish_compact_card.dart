@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'safe_network_image.dart';
+import 'media/safe_dish_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme/app_colors.dart';
@@ -127,7 +127,7 @@ class _CompactDishImage extends StatelessWidget {
       children: <Widget>[
         ClipRRect(
           borderRadius: BorderRadius.circular(20),
-          child: SafeNetworkImage(
+          child: SafeDishImage(
             imageUrl: ImageUtils.getImageUrl(imageUrl, usage: ImageUsage.dishCard),
             width: 100,
             height: 100,

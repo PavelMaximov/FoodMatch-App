@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 120" role="img" aria-label="FoodMatch logo">
+  <rect width="420" height="120" rx="32" fill="#FFFBF9"/>
+  <circle cx="70" cy="60" r="38" fill="#FF5B1C"/>
+  <path d="M54 42c0-5 7-5 7 0v18h6V42c0-5 7-5 7 0v18h6V42c0-5 7-5 7 0v25c0 12-8 21-18 21S51 79 51 67V42z" fill="#fff"/>
+  <path d="M91 37c14 8 22 20 22 36 0 10-5 16-12 16-6 0-10-5-10-12V37z" fill="#fff" opacity=".92"/>
+  <text x="130" y="70" font-family="Fredoka, Nunito, Arial, sans-serif" font-size="44" font-weight="700" fill="#2A211D">FoodMatch</text>
+</svg>

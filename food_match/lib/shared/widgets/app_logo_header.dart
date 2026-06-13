@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants/app_strings.dart';
@@ -13,20 +14,17 @@ class AppLogoHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: <Widget>[
-        const Icon(
-          Icons.restaurant_menu,
-          size: 64,
-          color: AppColors.textPrimary,
-        ),
-        const SizedBox(height: 4),
-        Text(
-          AppStrings.appName,
-          style: GoogleFonts.fredoka(
-            fontSize: 32,
-            fontWeight: FontWeight.w700,
+        SvgPicture.asset(
+          'assets/logos/foodmatch_logo.svg',
+          width: 260,
+          height: 78,
+          placeholderBuilder: (_) => const Icon(
+            Icons.restaurant_menu,
+            size: 64,
             color: AppColors.textPrimary,
           ),
         ),
+        const SizedBox(height: 12),
         if (showSubtitle) ...<Widget>[
           const SizedBox(height: 12),
           Padding(
