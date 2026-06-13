@@ -6,6 +6,22 @@ import '../local/cache_policy.dart';
 import '../models/dish.dart';
 import '../services/api_service.dart';
 
+class PaginatedDishesResult {
+  const PaginatedDishesResult({
+    required this.items,
+    required this.total,
+    required this.limit,
+    required this.offset,
+    required this.hasMore,
+  });
+
+  final List<Dish> items;
+  final int total;
+  final int limit;
+  final int offset;
+  final bool hasMore;
+}
+
 class DishRepository {
   DishRepository(this._apiService);
 
@@ -35,6 +51,109 @@ class DishRepository {
     return list
         .map((item) => Dish.fromJson(Map<String, dynamic>.from(item as Map)))
         .toList();
+  }
+
+  Future<PaginatedDishesResult> getDishesPage({
+    int limit = 20,
+    int offset = 0,
+    String? search,
+    String? cuisine,
+    String? type,
+    String? mealType,
+    List<String>? mood,
+    List<String>? diet,
+    String? effort,
+    bool? popular,
+    String? source,
+    List<String>? season,
+    int? maxCookTime,
+    int? minCalories,
+    int? maxCalories,
+    String? sort,
+    bool force = false,
+  }) async {
+    final Map<String, String> query = <String, String>{
+      'limit': limit.clamp(1, 50).toString(),
+      'offset': offset.clamp(0, 1 << 31).toString(),
+      if (search?.trim().isNotEmpty == true) 'search': search!.trim(),
+      if (cuisine?.trim().isNotEmpty == true) 'cuisine': cuisine!.trim(),
+      if (type?.trim().isNotEmpty == true) 'type': type!.trim(),
+      if (mealType?.trim().isNotEmpty == true) 'mealType': mealType!.trim(),
+      if (mood != null && mood.where((String v) => v.trim().isNotEmpty).isNotEmpty)
+        'mood': mood.where((String v) => v.trim().isNotEmpty).join(','),
+      if (diet != null && diet.where((String v) => v.trim().isNotEmpty).isNotEmpty)
+        'diet': diet.where((String v) => v.trim().isNotEmpty).join(','),
+      if (effort?.trim().isNotEmpty == true) 'effort': effort!.trim(),
+      if (popular != null) 'popular': popular.toString(),
+      if (source?.trim().isNotEmpty == true) 'source': source!.trim(),
+      if (season != null && season.where((String v) => v.trim().isNotEmpty).isNotEmpty)
+        'season': season.where((String v) => v.trim().isNotEmpty).join(','),
+      if (maxCookTime != null) 'maxCookTime': maxCookTime.toString(),
+      if (minCalories != null) 'minCalories': minCalories.toString(),
+      if (maxCalories != null) 'maxCalories': maxCalories.toString(),
+      if (sort?.trim().isNotEmpty == true) 'sort': sort!.trim(),
+      if (force) '_refresh': DateTime.now().millisecondsSinceEpoch.toString(),
+    };
+    final String endpoint = Uri(path: ApiConstants.dishes, queryParameters: query).toString();
+    final data = await _apiService.get(endpoint);
+    return _parsePaginatedDishes(data, fallbackLimit: limit, fallbackOffset: offset);
+  }
+
+  PaginatedDishesResult _parsePaginatedDishes(
+    dynamic data, {
+    required int fallbackLimit,
+    required int fallbackOffset,
+  }) {
+    if (data is Map<String, dynamic>) {
+      final dynamic rawItems = data['items'] ?? data['dishes'];
+      final dynamic rawMeta = data['meta'];
+      final Map<String, dynamic> meta = rawMeta is Map<String, dynamic> ? rawMeta : data;
+      final List<dynamic> list = rawItems is List<dynamic> ? rawItems : <dynamic>[];
+      final List<Dish> items = list
+          .map((item) => Dish.fromJson(Map<String, dynamic>.from(item as Map)))
+          .toList();
+      final int limit = _readInt(meta['limit'], fallbackLimit);
+      final int offset = _readInt(meta['offset'], fallbackOffset);
+      final int total = _readInt(meta['total'], items.length);
+      final bool hasMore = meta['hasMore'] is bool
+          ? meta['hasMore'] as bool
+          : offset + items.length < total;
+      return PaginatedDishesResult(
+        items: items,
+        total: total,
+        limit: limit,
+        offset: offset,
+        hasMore: hasMore,
+      );
+    }
+
+    if (data is List<dynamic>) {
+      final List<Dish> items = data
+          .map((item) => Dish.fromJson(Map<String, dynamic>.from(item as Map)))
+          .toList();
+      return PaginatedDishesResult(
+        items: items,
+        total: items.length,
+        limit: fallbackLimit,
+        offset: fallbackOffset,
+        hasMore: false,
+      );
+    }
+
+    throw const FormatException('Unexpected paginated dishes response format.');
+  }
+
+  int _readInt(dynamic value, int fallback) {
+    if (value is int) {
+      return value;
+    }
+    if (value is num) {
+      return value.toInt();
+    }
+    if (value is String) {
+      return int.tryParse(value) ?? fallback;
+    }
+    return fallback;
   }
 
   Future<List<Dish>> getCatalogDishes({bool force = false}) async {

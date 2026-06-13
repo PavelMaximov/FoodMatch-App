@@ -6,6 +6,37 @@ import { resolveDishByAnyId } from '../utils/resolveDishByAnyId';
 import { DishDocument, DishModel } from '../models/Dish';
 import { CLOUDINARY_FOLDERS, deleteImage } from '../../uploads/services/cloudinaryService';
 
+
+export interface DishListFilters {
+  search?: string;
+  cuisine?: string[];
+  type?: string[];
+  mood?: string[];
+  diet?: string[];
+  effort?: string;
+  popular?: boolean;
+  source?: string;
+  season?: string[];
+  mealType?: string[];
+  maxCookTime?: number;
+  minCalories?: number;
+  maxCalories?: number;
+}
+
+export interface DishListOptions extends DishListFilters {
+  limit: number;
+  offset: number;
+  sort?: string;
+}
+
+export interface PaginatedDishResult {
+  items: NonNullable<ReturnType<typeof toDishDto>>[];
+  total: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
+}
+
 interface CreateCustomDishInput {
   name: string;
   cuisine: string;
@@ -20,12 +51,9 @@ interface CreateCustomDishInput {
 
 export class DishService {
   async listDishes(userId: string, query?: string, returnAll = false) {
-    if (query?.trim()) {
-      return this.searchDishes(userId, query.trim());
-    }
-
-    const visibilityFilter = await this.buildVisibilityFilter(userId);
-    const dishQuery = DishModel.find(visibilityFilter).select(DISH_DTO_SELECT).sort({ updatedAt: -1 }).lean();
+    const filters: DishListFilters = { search: query?.trim() || undefined };
+    const filter = await this.buildDishListFilter(userId, filters);
+    const dishQuery = DishModel.find(filter).select(DISH_DTO_SELECT).sort({ updatedAt: -1 }).lean();
 
     if (!returnAll) {
       dishQuery.limit(50);
@@ -35,7 +63,29 @@ export class DishService {
     console.log(
       `[Dishes] listDishes limit=${returnAll ? 'all' : '50'} returned ${dishes.length} dishes`
     );
-    return dishes.map((dish) => toDishDto(dish)).filter((dish): dish is NonNullable<ReturnType<typeof toDishDto>> => Boolean(dish));
+    return this.mapDishDtos(dishes);
+  }
+
+  async listDishesPage(userId: string, options: DishListOptions): Promise<PaginatedDishResult> {
+    const filter = await this.buildDishListFilter(userId, options);
+    const [total, dishes] = await Promise.all([
+      DishModel.countDocuments(filter),
+      DishModel.find(filter)
+        .select(DISH_DTO_SELECT)
+        .sort(this.sortFor(options.sort))
+        .skip(options.offset)
+        .limit(options.limit)
+        .lean()
+    ]);
+    const items = this.mapDishDtos(dishes);
+
+    return {
+      items,
+      total,
+      limit: options.limit,
+      offset: options.offset,
+      hasMore: options.offset + items.length < total
+    };
   }
 
   async searchDishes(userId: string, query: string) {
@@ -44,17 +94,9 @@ export class DishService {
       return [];
     }
 
-    const queryRegex = new RegExp(this.escapeRegex(normalizedQuery), 'i');
-    const visibilityFilter = await this.buildVisibilityFilter(userId);
-    const filter: FilterQuery<DishDocument> = {
-      $and: [
-        visibilityFilter,
-        { $or: [{ name: queryRegex }, { description: queryRegex }, { cuisine: queryRegex }, { type: queryRegex }, { ingredients: queryRegex }] }
-      ]
-    };
-
+    const filter = await this.buildDishListFilter(userId, { search: normalizedQuery });
     const dishes = await DishModel.find(filter).select(DISH_DTO_SELECT).sort({ updatedAt: -1 }).limit(50).lean();
-    return dishes.map((dish) => toDishDto(dish)).filter((dish): dish is NonNullable<ReturnType<typeof toDishDto>> => Boolean(dish));
+    return this.mapDishDtos(dishes);
   }
 
   async getDishById(userId: string, id: string) {
@@ -188,6 +230,159 @@ export class DishService {
 
   private isCustomDishPublicId(publicId?: string): publicId is string {
     return Boolean(publicId?.startsWith(`${CLOUDINARY_FOLDERS.customDishes}/`));
+  }
+
+  private async buildDishListFilter(userId: string, filters: DishListFilters): Promise<FilterQuery<DishDocument>> {
+    const visibilityFilter = await this.buildVisibilityFilter(userId);
+    const clauses: FilterQuery<DishDocument>[] = [visibilityFilter];
+
+    const search = filters.search?.trim();
+    if (search) {
+      const queryRegex = new RegExp(this.escapeRegex(search), 'i');
+      clauses.push({
+        $or: [
+          { name: queryRegex },
+          { description: queryRegex },
+          { cuisine: queryRegex },
+          { type: queryRegex },
+          { ingredients: queryRegex }
+        ]
+      });
+    }
+
+    this.addStringInFilter(clauses, 'cuisine', filters.cuisine);
+    this.addStringInFilter(clauses, 'type', filters.type);
+    this.addStringInFilter(clauses, 'mood', filters.mood);
+    this.addStringInFilter(clauses, 'diet', filters.diet);
+    this.addStringInFilter(clauses, 'season', filters.season);
+    this.addMealTypeFilter(clauses, filters.mealType);
+
+    if (filters.effort?.trim()) {
+      clauses.push({ effort: this.exactNormalizedRegex(filters.effort) });
+    }
+
+    if (typeof filters.popular === 'boolean') {
+      clauses.push({ popular: filters.popular });
+    }
+
+    if (filters.source?.trim()) {
+      clauses.push({ source: this.containsNormalizedRegex(filters.source) });
+    }
+
+    if (typeof filters.maxCookTime === 'number') {
+      clauses.push({ cookTime: { $lte: filters.maxCookTime } });
+    }
+
+    const calorieClauses: FilterQuery<DishDocument>[] = [];
+    if (typeof filters.minCalories === 'number') {
+      calorieClauses.push({ 'nutrition.calories': { $gte: filters.minCalories } });
+    }
+    if (typeof filters.maxCalories === 'number') {
+      calorieClauses.push({ 'nutrition.calories': { $lte: filters.maxCalories } });
+    }
+    clauses.push(...calorieClauses);
+
+    return clauses.length === 1 ? visibilityFilter : { $and: clauses };
+  }
+
+  private addStringInFilter(clauses: FilterQuery<DishDocument>[], field: string, values?: string[]) {
+    const normalizedValues = (values ?? []).map((value) => value.trim()).filter(Boolean);
+    if (normalizedValues.length === 0) {
+      return;
+    }
+
+    clauses.push({ [field]: { $in: normalizedValues.map((value) => this.exactNormalizedRegex(value)) } });
+  }
+
+
+  private addMealTypeFilter(clauses: FilterQuery<DishDocument>[], values?: string[]) {
+    const aliases = this.mealTypeAliases(values);
+    if (aliases.length === 0) {
+      return;
+    }
+
+    const exactAliases = aliases.map((value) => this.exactNormalizedRegex(value));
+    const containsAliases = aliases.map((value) => this.containsNormalizedRegex(value));
+    clauses.push({
+      $or: [
+        { mealType: { $in: exactAliases } },
+        { mealTypes: { $in: exactAliases } },
+        { meal: { $in: exactAliases } },
+        { meals: { $in: exactAliases } },
+        { timeOfDay: { $in: exactAliases } },
+        { mood: { $in: exactAliases } },
+        { tags: { $in: exactAliases } },
+        { 'tags.name': { $in: exactAliases } },
+        { 'tags.slug': { $in: exactAliases } },
+        { 'tags.value': { $in: exactAliases } },
+        { 'rawSourceData.mealType': { $in: exactAliases } },
+        { 'rawSourceData.mealTypes': { $in: exactAliases } },
+        { 'rawSourceData.tags': { $in: exactAliases } },
+        { 'rawSourceData.tags.name': { $in: exactAliases } },
+        { 'rawSourceData.tags.slug': { $in: exactAliases } },
+        { 'rawSourceData.tags.value': { $in: exactAliases } },
+        { type: { $in: exactAliases } },
+        { category: { $in: exactAliases } },
+        { name: { $in: containsAliases } }
+      ]
+    });
+  }
+
+  private mealTypeAliases(values?: string[]) {
+    const aliases = new Set<string>();
+    for (const rawValue of values ?? []) {
+      const normalized = rawValue.trim().toLowerCase();
+      if (!normalized) continue;
+      aliases.add(normalized);
+      if (normalized === 'breakfast') {
+        aliases.add('brunch');
+        aliases.add('morning');
+      }
+      if (normalized === 'lunch') {
+        aliases.add('midday');
+      }
+      if (normalized === 'dinner') {
+        aliases.add('supper');
+        aliases.add('main');
+        aliases.add('main course');
+      }
+      if (normalized === 'snack') {
+        aliases.add('snacks');
+        aliases.add('appetizer');
+        aliases.add('appetiser');
+        aliases.add('starter');
+      }
+    }
+    return [...aliases];
+  }
+
+  private sortFor(sort?: string): Record<string, 1 | -1> {
+    switch ((sort ?? 'default').trim().toLowerCase()) {
+      case 'popular':
+        return { popular: -1, quality_score: -1, qualityScore: -1, name: 1, _id: 1 };
+      case 'newest':
+        return { createdAt: -1, _id: -1 };
+      case 'name':
+        return { name: 1, _id: 1 };
+      case 'cooktime':
+        return { cookTime: 1, total_time_minutes: 1, name: 1, _id: 1 };
+      case 'quality':
+        return { quality_score: -1, qualityScore: -1, name: 1, _id: 1 };
+      default:
+        return { popular: -1, quality_score: -1, qualityScore: -1, name: 1, _id: 1 };
+    }
+  }
+
+  private mapDishDtos(dishes: any[]) {
+    return dishes.map((dish) => toDishDto(dish)).filter((dish): dish is NonNullable<ReturnType<typeof toDishDto>> => Boolean(dish));
+  }
+
+  private exactNormalizedRegex(value: string) {
+    return new RegExp(`^${this.escapeRegex(value.trim())}$`, 'i');
+  }
+
+  private containsNormalizedRegex(value: string) {
+    return new RegExp(this.escapeRegex(value.trim()), 'i');
   }
 
   private async buildVisibilityFilter(userId: string): Promise<FilterQuery<DishDocument>> {

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -80,36 +81,62 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _isUploadingAvatar = false;
+  File? _localAvatarPreview;
 
   Future<void> _pickAndUploadAvatar() async {
     if (_isUploadingAvatar) {
       return;
     }
 
+    final XFile? image = await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (image == null || !mounted) {
+      return;
+    }
+
+    final File previewFile = File(image.path);
     final UploadRepository uploadRepository = context.read<UploadRepository>();
     final AuthProvider authProvider = context.read<AuthProvider>();
 
-    setState(() => _isUploadingAvatar = true);
+    setState(() {
+      _localAvatarPreview = previewFile;
+      _isUploadingAvatar = true;
+    });
     try {
-      final XFile? image = await ImagePicker().pickImage(source: ImageSource.gallery);
-      if (image == null || !mounted) {
-        return;
+      final AvatarUploadResult result = await uploadRepository.uploadAvatar(previewFile);
+      await authProvider.updateCurrentUserAvatar(
+        avatarUrl: result.avatarUrl,
+        avatarPublicId: result.avatarPublicId,
+      );
+
+      final String optimizedAvatarUrl = ImageUtils.getImageUrl(
+        result.avatarUrl,
+        usage: ImageUsage.avatar,
+      );
+      bool avatarPrecached = false;
+      if (mounted && optimizedAvatarUrl.trim().isNotEmpty) {
+        try {
+          await precacheImage(CachedNetworkImageProvider(optimizedAvatarUrl), context);
+          avatarPrecached = true;
+        } catch (_) {
+          // Keep the local preview visible if precache fails; the persisted user URL
+          // will be used on the next rebuild/session without blocking upload success.
+        }
       }
 
-      final AvatarUploadResult result = await uploadRepository.uploadAvatar(File(image.path));
-      await authProvider.updateCurrentUserAvatar(
-            avatarUrl: result.avatarUrl,
-            avatarPublicId: result.avatarPublicId,
-          );
       if (mounted) {
+        if (avatarPrecached) {
+          setState(() => _localAvatarPreview = null);
+        }
         SnackBarUtils.showSuccess(context, 'Avatar updated');
       }
     } on ApiException catch (e) {
       if (mounted) {
+        setState(() => _localAvatarPreview = null);
         SnackBarUtils.showError(context, ErrorMessages.fromApiException(e, fallback: AppStrings.unableToUploadImage));
       }
     } catch (_) {
       if (mounted) {
+        setState(() => _localAvatarPreview = null);
         SnackBarUtils.showError(context, AppStrings.unableToUploadImage);
       }
     } finally {
@@ -131,6 +158,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       await uploadRepository.deleteAvatar();
       await authProvider.clearCurrentUserAvatar();
+      if (mounted) {
+        setState(() => _localAvatarPreview = null);
+      }
       if (mounted) {
         SnackBarUtils.showSuccess(context, 'Avatar deleted');
       }
@@ -175,6 +205,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               displayName: displayName,
               email: email,
               avatarUrl: user?.avatarUrl,
+              localAvatarPreview: _localAvatarPreview,
               isUploadingAvatar: _isUploadingAvatar,
               onAvatarTap: _pickAndUploadAvatar,
               onDeleteAvatar: user?.avatarUrl?.trim().isNotEmpty == true ? _deleteAvatar : null,
@@ -229,12 +260,14 @@ class _UserInfoCard extends StatelessWidget {
     required this.onAvatarTap,
     required this.isUploadingAvatar,
     this.avatarUrl,
+    this.localAvatarPreview,
     this.onDeleteAvatar,
   });
 
   final String displayName;
   final String email;
   final String? avatarUrl;
+  final File? localAvatarPreview;
   final bool isUploadingAvatar;
   final VoidCallback onEdit;
   final VoidCallback onAvatarTap;
@@ -257,25 +290,11 @@ class _UserInfoCard extends StatelessWidget {
                   radius: 34,
                   backgroundColor: AppColors.primary,
                   backgroundImage: null,
-                  child: avatarUrl?.trim().isNotEmpty == true
-                      ? ClipOval(
-                          child: SafeNetworkImage(
-                            imageUrl: ImageUtils.getImageUrl(avatarUrl, usage: ImageUsage.avatar),
-                            width: 68,
-                            height: 68,
-                            fit: BoxFit.cover,
-                            placeholderIcon: Icons.person,
-                            errorIcon: Icons.person,
-                          ),
-                        )
-                      : Text(
-                          displayName.characters.first.toUpperCase(),
-                          style: GoogleFonts.nunito(
-                            color: Colors.white,
-                            fontSize: 29,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
+                  child: _AvatarContent(
+                    displayName: displayName,
+                    avatarUrl: avatarUrl,
+                    localAvatarPreview: localAvatarPreview,
+                  ),
                 ),
                 if (isUploadingAvatar)
                   const SizedBox(
@@ -403,6 +422,60 @@ class _PremiumCta extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+
+class _AvatarContent extends StatelessWidget {
+  const _AvatarContent({
+    required this.displayName,
+    this.avatarUrl,
+    this.localAvatarPreview,
+  });
+
+  final String displayName;
+  final String? avatarUrl;
+  final File? localAvatarPreview;
+
+  @override
+  Widget build(BuildContext context) {
+    final File? preview = localAvatarPreview;
+    if (preview != null) {
+      return ClipOval(
+        child: Image.file(
+          preview,
+          width: 68,
+          height: 68,
+          fit: BoxFit.cover,
+        ),
+      );
+    }
+
+    final String optimizedAvatarUrl = ImageUtils.getImageUrl(
+      avatarUrl,
+      usage: ImageUsage.avatar,
+    );
+    if (optimizedAvatarUrl.trim().isNotEmpty) {
+      return ClipOval(
+        child: SafeNetworkImage(
+          imageUrl: optimizedAvatarUrl,
+          width: 68,
+          height: 68,
+          fit: BoxFit.cover,
+          placeholderIcon: Icons.person,
+          errorIcon: Icons.person,
+        ),
+      );
+    }
+
+    return Text(
+      displayName.characters.first.toUpperCase(),
+      style: GoogleFonts.nunito(
+        color: Colors.white,
+        fontSize: 29,
+        fontWeight: FontWeight.w800,
       ),
     );
   }

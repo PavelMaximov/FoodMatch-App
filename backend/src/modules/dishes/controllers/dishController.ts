@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import { AppError } from '../../../core/errors/AppError';
 import { AuthRequest } from '../../../core/middleware/authMiddleware';
-import { DishService } from '../services/dishService';
+import { DishListOptions, DishService } from '../services/dishService';
 
 const dishService = new DishService();
 
@@ -10,15 +10,84 @@ function queryToString(value: string | string[] | undefined): string {
   return Array.isArray(value) ? value[0] : value;
 }
 
+function queryToValues(value: string | string[] | undefined): string[] {
+  if (!value) return [];
+  const rawValues = Array.isArray(value) ? value : [value];
+  return rawValues
+    .flatMap((rawValue) => String(rawValue).split(','))
+    .map((rawValue) => rawValue.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function queryToOptionalNumber(value: string | string[] | undefined): number | undefined {
+  const rawValue = queryToString(value);
+  if (!rawValue.trim()) return undefined;
+  const parsed = Number(rawValue);
+  if (!Number.isFinite(parsed)) return undefined;
+  return Math.max(0, Math.trunc(parsed));
+}
+
+function queryToBoolean(value: string | string[] | undefined): boolean | undefined {
+  const normalized = queryToString(value).trim().toLowerCase();
+  if (['true', '1', 'yes'].includes(normalized)) return true;
+  if (['false', '0', 'no'].includes(normalized)) return false;
+  return undefined;
+}
+
+function parsePageOptions(query: AuthRequest['query']): DishListOptions {
+  const limitRaw = Number(queryToString(query.limit as string | string[] | undefined));
+  const limit = Number.isFinite(limitRaw) ? Math.min(50, Math.max(1, Math.trunc(limitRaw))) : 20;
+  const offsetRaw = Number(queryToString(query.offset as string | string[] | undefined));
+  const pageRaw = Number(queryToString(query.page as string | string[] | undefined));
+  const offset = Number.isFinite(offsetRaw)
+    ? Math.max(0, Math.trunc(offsetRaw))
+    : Number.isFinite(pageRaw)
+      ? Math.max(0, (Math.max(1, Math.trunc(pageRaw)) - 1) * limit)
+      : 0;
+
+  return {
+    limit,
+    offset,
+    search: queryToString((query.search ?? query.q) as string | string[] | undefined).trim() || undefined,
+    cuisine: queryToValues(query.cuisine as string | string[] | undefined),
+    type: queryToValues(query.type as string | string[] | undefined),
+    mood: queryToValues(query.mood as string | string[] | undefined),
+    diet: queryToValues(query.diet as string | string[] | undefined),
+    effort: queryToString(query.effort as string | string[] | undefined).trim().toLowerCase() || undefined,
+    popular: queryToBoolean(query.popular as string | string[] | undefined),
+    source: queryToString(query.source as string | string[] | undefined).trim().toLowerCase() || undefined,
+    season: queryToValues(query.season as string | string[] | undefined),
+    mealType: queryToValues(query.mealType as string | string[] | undefined),
+    maxCookTime: queryToOptionalNumber(query.maxCookTime as string | string[] | undefined),
+    minCalories: queryToOptionalNumber(query.minCalories as string | string[] | undefined),
+    maxCalories: queryToOptionalNumber(query.maxCalories as string | string[] | undefined),
+    sort: queryToString(query.sort as string | string[] | undefined).trim() || 'default'
+  };
+}
+
 export class DishController {
   async list(req: AuthRequest, res: Response) {
     const userId = this.requireUserId(req);
-    const dishes = await dishService.listDishes(
-      userId,
-      queryToString(req.query.q as string | string[] | undefined),
-      queryToString(req.query.limit as string | string[] | undefined) === 'all'
-    );
-    res.json({ dishes });
+    const limit = queryToString(req.query.limit as string | string[] | undefined).trim().toLowerCase();
+
+    // Backward-compatible full catalog response used by pre-swipe, catalog cache, and deck fallback flows.
+    // Examples for paginated clients:
+    // GET /api/dishes?limit=20&offset=0
+    // GET /api/dishes?search=pizza&limit=20
+    // GET /api/dishes?mealType=breakfast&sort=popular&limit=20
+    // GET /api/dishes?cuisine=italian,mexican&diet=vegetarian&limit=20
+    if (limit === 'all') {
+      const dishes = await dishService.listDishes(
+        userId,
+        queryToString((req.query.search ?? req.query.q) as string | string[] | undefined),
+        true
+      );
+      res.json({ dishes });
+      return;
+    }
+
+    const result = await dishService.listDishesPage(userId, parsePageOptions(req.query));
+    res.json(result);
   }
 
   async getById(req: AuthRequest, res: Response) {
