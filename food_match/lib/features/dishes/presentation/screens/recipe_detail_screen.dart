@@ -62,11 +62,11 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final RecipeProvider recipeProvider = context.watch<RecipeProvider>();
-    final FavoritesProvider favoritesProvider = context.watch<FavoritesProvider>();
-    final Dish? dish = recipeProvider.currentDish;
+    final Dish? dish = context.select<RecipeProvider, Dish?>((RecipeProvider p) => p.currentDish);
+    final bool isLoading = context.select<RecipeProvider, bool>((RecipeProvider p) => p.isLoading);
+    final String? error = context.select<RecipeProvider, String?>((RecipeProvider p) => p.error);
 
-    if (recipeProvider.isLoading) {
+    if (isLoading) {
       return const Scaffold(
         backgroundColor: AppColors.background,
         body: Padding(
@@ -76,12 +76,12 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       );
     }
 
-    if (recipeProvider.error != null && dish == null) {
+    if (error != null && dish == null) {
       return Scaffold(
         backgroundColor: AppColors.background,
         body: SafeArea(
           child: ErrorState(
-            message: recipeProvider.error!,
+            message: error,
             onRetry: () => context.read<RecipeProvider>().loadRecipeForDish(
                   dishId: widget.dishId,
                   dish: widget.dish,
@@ -120,7 +120,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       math.max(MediaQuery.sizeOf(context).height * 0.40, 280.0),
       380.0,
     );
-    final bool isFavorite = favoritesProvider.isFavorite(dish.id);
+    final bool isFavorite = context.select<FavoritesProvider, bool>((FavoritesProvider p) => p.savedDishIds.contains(dish.id));
 
     return Scaffold(
       backgroundColor: AppColors.background,

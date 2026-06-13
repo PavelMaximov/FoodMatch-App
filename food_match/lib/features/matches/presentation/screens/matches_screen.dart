@@ -7,6 +7,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/image_utils.dart';
+import '../../../../data/models/dish.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
@@ -40,16 +41,19 @@ class _MatchesScreenState extends State<MatchesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final MatchProvider matchProvider = context.watch<MatchProvider>();
-    final CoupleProvider coupleProvider = context.watch<CoupleProvider>();
-    final FavoritesProvider favoritesProvider = context.watch<FavoritesProvider>();
-    final String? currentUserId = context.watch<AuthProvider>().currentUser?.id;
+    final List<Dish> matches = context.select<MatchProvider, List<Dish>>((MatchProvider p) => p.matches);
+    final bool isLoading = context.select<MatchProvider, bool>((MatchProvider p) => p.isLoading);
+    final String? error = context.select<MatchProvider, String?>((MatchProvider p) => p.error);
+    final Set<String> savedDishIds = context.select<FavoritesProvider, Set<String>>((FavoritesProvider p) => p.savedDishIds);
+    final bool Function(String) isFavoriteUpdating = context.read<FavoritesProvider>().isUpdating;
+    final Couple? currentCouple = context.select<CoupleProvider, Couple?>((CoupleProvider p) => p.currentCouple);
+    final String? currentUserId = context.select<AuthProvider, String?>((AuthProvider p) => p.currentUser?.id);
     final CoupleMemberProfile? partner = resolvePartnerProfile(
-      couple: coupleProvider.currentCouple,
+      couple: currentCouple,
       currentUserId: currentUserId,
     );
     final String partnerName = resolvePartnerDisplayName(
-      couple: coupleProvider.currentCouple,
+      couple: currentCouple,
       currentUserId: currentUserId,
       fallback: AppStrings.yourPartner,
     );
@@ -69,7 +73,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
                 partnerAvatarUrl: partnerAvatarUrl,
               ),
               const SizedBox(height: AppDimensions.paddingL),
-              Expanded(child: _buildBody(matchProvider, favoritesProvider)),
+              Expanded(child: _buildBody(matches, isLoading, error, savedDishIds, isFavoriteUpdating)),
             ],
           ),
         ),
@@ -77,8 +81,8 @@ class _MatchesScreenState extends State<MatchesScreen> {
     );
   }
 
-  Widget _buildBody(MatchProvider matchProvider, FavoritesProvider favoritesProvider) {
-    if (matchProvider.isLoading && matchProvider.matches.isEmpty) {
+  Widget _buildBody(List<Dish> matches, bool isLoading, String? error, Set<String> savedDishIds, bool Function(String) isFavoriteUpdating) {
+    if (isLoading && matches.isEmpty) {
       return ListView.builder(
         itemCount: 4,
         itemBuilder: (_, __) => const Padding(
@@ -88,14 +92,14 @@ class _MatchesScreenState extends State<MatchesScreen> {
       );
     }
 
-    if (matchProvider.error != null && matchProvider.matches.isEmpty) {
+    if (error != null && matches.isEmpty) {
       return ErrorState(
-        message: matchProvider.error!,
+        message: error,
         onRetry: () => context.read<MatchProvider>().loadMatches(force: true),
       );
     }
 
-    if (matchProvider.matches.isEmpty) {
+    if (matches.isEmpty) {
       return RefreshIndicator(
         onRefresh: () => context.read<MatchProvider>().loadMatches(force: true),
         child: ListView(
@@ -118,16 +122,17 @@ class _MatchesScreenState extends State<MatchesScreen> {
       onRefresh: () => context.read<MatchProvider>().loadMatches(force: true),
       child: ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
-        itemCount: matchProvider.matches.length,
+        itemCount: matches.length,
         itemBuilder: (BuildContext context, int index) {
-          final dish = matchProvider.matches[index];
+          final dish = matches[index];
           return Padding(
             padding: const EdgeInsets.only(bottom: AppDimensions.paddingS),
             child: DishCompactCard(
+              key: ValueKey<String>(dish.id),
               dish: dish,
-              isSaved: favoritesProvider.isFavorite(dish.id),
+              isSaved: savedDishIds.contains(dish.id),
               onTap: () => context.push('/recipe-detail/${dish.id}', extra: dish),
-              onFavoriteTap: () => context.read<FavoritesProvider>().toggleFavorite(dish),
+              onFavoriteTap: isFavoriteUpdating(dish.id) ? null : () => context.read<FavoritesProvider>().toggleFavorite(dish),
             ),
           );
         },
