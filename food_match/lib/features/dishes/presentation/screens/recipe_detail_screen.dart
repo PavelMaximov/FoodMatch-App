@@ -121,6 +121,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       380.0,
     );
     final bool isFavorite = context.select<FavoritesProvider, bool>((FavoritesProvider p) => p.savedDishIds.contains(dish.id));
+    final bool isFavoriteUpdating = context.select<FavoritesProvider, bool>((FavoritesProvider p) => p.isUpdating(dish.id));
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -145,7 +146,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           _StickyOverlayButtons(
             isScrolled: _isScrolled,
             isFavorite: isFavorite,
-            isFavoriteUpdating: favoritesProvider.isUpdating(dish.id),
+            isFavoriteUpdating: isFavoriteUpdating,
             onBackTap: () => Navigator.of(context).pop(),
             onFavoriteTap: () => context.read<FavoritesProvider>().toggleFavorite(dish),
           ),
