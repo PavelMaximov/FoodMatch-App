@@ -59,6 +59,7 @@ class DishRepository {
     String? search,
     String? cuisine,
     String? type,
+    String? mealType,
     List<String>? mood,
     List<String>? diet,
     String? effort,
@@ -77,6 +78,7 @@ class DishRepository {
       if (search?.trim().isNotEmpty == true) 'search': search!.trim(),
       if (cuisine?.trim().isNotEmpty == true) 'cuisine': cuisine!.trim(),
       if (type?.trim().isNotEmpty == true) 'type': type!.trim(),
+      if (mealType?.trim().isNotEmpty == true) 'mealType': mealType!.trim(),
       if (mood != null && mood.where((String v) => v.trim().isNotEmpty).isNotEmpty)
         'mood': mood.where((String v) => v.trim().isNotEmpty).join(','),
       if (diet != null && diet.where((String v) => v.trim().isNotEmpty).isNotEmpty)

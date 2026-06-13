@@ -57,6 +57,7 @@ function parsePageOptions(query: AuthRequest['query']): DishListOptions {
     popular: queryToBoolean(query.popular as string | string[] | undefined),
     source: queryToString(query.source as string | string[] | undefined).trim().toLowerCase() || undefined,
     season: queryToValues(query.season as string | string[] | undefined),
+    mealType: queryToValues(query.mealType as string | string[] | undefined),
     maxCookTime: queryToOptionalNumber(query.maxCookTime as string | string[] | undefined),
     minCalories: queryToOptionalNumber(query.minCalories as string | string[] | undefined),
     maxCalories: queryToOptionalNumber(query.maxCalories as string | string[] | undefined),
@@ -73,7 +74,7 @@ export class DishController {
     // Examples for paginated clients:
     // GET /api/dishes?limit=20&offset=0
     // GET /api/dishes?search=pizza&limit=20
-    // GET /api/dishes?type=breakfast&sort=popular&limit=20
+    // GET /api/dishes?mealType=breakfast&sort=popular&limit=20
     // GET /api/dishes?cuisine=italian,mexican&diet=vegetarian&limit=20
     if (limit === 'all') {
       const dishes = await dishService.listDishes(

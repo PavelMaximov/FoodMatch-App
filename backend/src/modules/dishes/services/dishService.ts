@@ -17,6 +17,7 @@ export interface DishListFilters {
   popular?: boolean;
   source?: string;
   season?: string[];
+  mealType?: string[];
   maxCookTime?: number;
   minCalories?: number;
   maxCalories?: number;
@@ -254,6 +255,7 @@ export class DishService {
     this.addStringInFilter(clauses, 'mood', filters.mood);
     this.addStringInFilter(clauses, 'diet', filters.diet);
     this.addStringInFilter(clauses, 'season', filters.season);
+    this.addMealTypeFilter(clauses, filters.mealType);
 
     if (filters.effort?.trim()) {
       clauses.push({ effort: this.exactNormalizedRegex(filters.effort) });
@@ -290,6 +292,68 @@ export class DishService {
     }
 
     clauses.push({ [field]: { $in: normalizedValues.map((value) => this.exactNormalizedRegex(value)) } });
+  }
+
+
+  private addMealTypeFilter(clauses: FilterQuery<DishDocument>[], values?: string[]) {
+    const aliases = this.mealTypeAliases(values);
+    if (aliases.length === 0) {
+      return;
+    }
+
+    const exactAliases = aliases.map((value) => this.exactNormalizedRegex(value));
+    const containsAliases = aliases.map((value) => this.containsNormalizedRegex(value));
+    clauses.push({
+      $or: [
+        { mealType: { $in: exactAliases } },
+        { mealTypes: { $in: exactAliases } },
+        { meal: { $in: exactAliases } },
+        { meals: { $in: exactAliases } },
+        { timeOfDay: { $in: exactAliases } },
+        { mood: { $in: exactAliases } },
+        { tags: { $in: exactAliases } },
+        { 'tags.name': { $in: exactAliases } },
+        { 'tags.slug': { $in: exactAliases } },
+        { 'tags.value': { $in: exactAliases } },
+        { 'rawSourceData.mealType': { $in: exactAliases } },
+        { 'rawSourceData.mealTypes': { $in: exactAliases } },
+        { 'rawSourceData.tags': { $in: exactAliases } },
+        { 'rawSourceData.tags.name': { $in: exactAliases } },
+        { 'rawSourceData.tags.slug': { $in: exactAliases } },
+        { 'rawSourceData.tags.value': { $in: exactAliases } },
+        { type: { $in: exactAliases } },
+        { category: { $in: exactAliases } },
+        { name: { $in: containsAliases } }
+      ]
+    });
+  }
+
+  private mealTypeAliases(values?: string[]) {
+    const aliases = new Set<string>();
+    for (const rawValue of values ?? []) {
+      const normalized = rawValue.trim().toLowerCase();
+      if (!normalized) continue;
+      aliases.add(normalized);
+      if (normalized === 'breakfast') {
+        aliases.add('brunch');
+        aliases.add('morning');
+      }
+      if (normalized === 'lunch') {
+        aliases.add('midday');
+      }
+      if (normalized === 'dinner') {
+        aliases.add('supper');
+        aliases.add('main');
+        aliases.add('main course');
+      }
+      if (normalized === 'snack') {
+        aliases.add('snacks');
+        aliases.add('appetizer');
+        aliases.add('appetiser');
+        aliases.add('starter');
+      }
+    }
+    return [...aliases];
   }
 
   private sortFor(sort?: string): Record<string, 1 | -1> {

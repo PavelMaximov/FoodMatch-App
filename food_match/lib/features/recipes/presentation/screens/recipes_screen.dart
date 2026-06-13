@@ -36,6 +36,7 @@ class RecipeResultsQuery {
   const RecipeResultsQuery({
     this.cuisine,
     this.type,
+    this.mealType,
     this.mood = const <String>[],
     this.diet = const <String>[],
     this.effort,
@@ -46,6 +47,7 @@ class RecipeResultsQuery {
 
   final String? cuisine;
   final String? type;
+  final String? mealType;
   final List<String> mood;
   final List<String> diet;
   final String? effort;
@@ -56,6 +58,7 @@ class RecipeResultsQuery {
   RecipeResultsQuery copyWith({
     String? cuisine,
     String? type,
+    String? mealType,
     List<String>? mood,
     List<String>? diet,
     String? effort,
@@ -66,6 +69,7 @@ class RecipeResultsQuery {
     return RecipeResultsQuery(
       cuisine: cuisine ?? this.cuisine,
       type: type ?? this.type,
+      mealType: mealType ?? this.mealType,
       mood: mood ?? this.mood,
       diet: diet ?? this.diet,
       effort: effort ?? this.effort,
@@ -223,6 +227,17 @@ class _RecipesScreenState extends State<RecipesScreen> {
   }
 
   Future<void> _openFilters() async {
+    final bool hasFilterOptions = _availableCuisines.isNotEmpty ||
+        _availableMoods.isNotEmpty ||
+        _availableDiet.isNotEmpty ||
+        _availableTypes.isNotEmpty;
+    if (!hasFilterOptions) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Filters are coming soon')),
+      );
+      return;
+    }
+
     final _FilterSelection? next = await showModalBottomSheet<_FilterSelection>(
       context: context,
       isScrollControlled: true,
@@ -230,15 +245,21 @@ class _RecipesScreenState extends State<RecipesScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (BuildContext context) => _FilterSheet(
-        cuisines: _availableCuisines,
-        moods: _availableMoods,
-        diet: _availableDiet,
-        types: _availableTypes,
-        selectedCuisines: _selectedCuisines,
-        selectedMoods: _selectedMoods,
-        selectedDiet: _selectedDiet,
-        selectedTypes: _selectedTypes,
+      builder: (BuildContext context) => Container(
+        decoration: const BoxDecoration(
+          color: AppColors.background,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: _FilterSheet(
+          cuisines: _availableCuisines,
+          moods: _availableMoods,
+          diet: _availableDiet,
+          types: _availableTypes,
+          selectedCuisines: _selectedCuisines,
+          selectedMoods: _selectedMoods,
+          selectedDiet: _selectedDiet,
+          selectedTypes: _selectedTypes,
+        ),
       ),
     );
 
@@ -437,7 +458,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
         builder: (_) => RecipeResultsPage(
           title: title,
           initialTab: tab,
-          initialQuery: RecipeResultsQuery(type: tab.name, sort: 'default'),
+          initialQuery: RecipeResultsQuery(mealType: tab.name, sort: 'default'),
           onFavoriteTap: _toggleSaved,
           availableCuisines: _availableCuisines,
           availableMoods: _availableMoods,
@@ -919,6 +940,7 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
   String? _loadMoreError;
   String _query = '';
   int _offset = 0;
+  int _requestGeneration = 0;
 
   @override
   void initState() {
@@ -944,16 +966,19 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
   }
 
   Future<void> _loadFirstPage({bool force = false}) async {
+    final int generation = ++_requestGeneration;
     setState(() {
-      _isInitialLoading = !force;
+      _isInitialLoading = true;
       _error = null;
       _loadMoreError = null;
       _offset = 0;
+      _hasMore = false;
+      _dishes = <Dish>[];
     });
 
     try {
       final PaginatedDishesResult page = await _fetchPage(offset: 0, force: force);
-      if (!mounted) {
+      if (!mounted || generation != _requestGeneration) {
         return;
       }
       setState(() {
@@ -962,12 +987,12 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
         _hasMore = page.hasMore;
       });
     } catch (e) {
-      if (!mounted) {
+      if (!mounted || generation != _requestGeneration) {
         return;
       }
       setState(() => _error = ErrorMessages.fromException(e));
     } finally {
-      if (mounted) {
+      if (mounted && generation == _requestGeneration) {
         setState(() {
           _isInitialLoading = false;
         });
@@ -981,7 +1006,8 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
           offset: offset,
           search: _query.trim().isEmpty ? null : _query.trim(),
           cuisine: _mergedCsv(widget.initialQuery.cuisine, _selectedCuisines),
-          type: _mergedCsv(_selectedTab?.name ?? widget.initialQuery.type, _selectedTypes),
+          type: _mergedCsv(widget.initialQuery.type, _selectedTypes),
+          mealType: _selectedTab?.name ?? widget.initialQuery.mealType,
           mood: _mergedList(widget.initialQuery.mood, _selectedMoods),
           diet: _mergedList(widget.initialQuery.diet, _selectedDiet),
           effort: widget.initialQuery.effort,
@@ -1039,13 +1065,14 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
     if (_isLoadingMore || !_hasMore) {
       return;
     }
+    final int generation = _requestGeneration;
     setState(() {
       _isLoadingMore = true;
       _loadMoreError = null;
     });
     try {
       final PaginatedDishesResult page = await _fetchPage(offset: _offset);
-      if (!mounted) {
+      if (!mounted || generation != _requestGeneration) {
         return;
       }
       final Set<String> existingIds = _dishes.map((Dish dish) => dish.id).toSet();
@@ -1058,7 +1085,7 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
         _hasMore = page.hasMore;
       });
     } catch (e) {
-      if (!mounted) {
+      if (!mounted || generation != _requestGeneration) {
         return;
       }
       setState(() => _loadMoreError = ErrorMessages.fromException(e));
@@ -1069,7 +1096,7 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
         ),
       );
     } finally {
-      if (mounted) {
+      if (mounted && generation == _requestGeneration) {
         setState(() => _isLoadingMore = false);
       }
     }
@@ -1117,6 +1144,17 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
   }
 
   Future<void> _openFilters() async {
+    final bool hasFilterOptions = widget.availableCuisines.isNotEmpty ||
+        widget.availableMoods.isNotEmpty ||
+        widget.availableDiet.isNotEmpty ||
+        widget.availableTypes.isNotEmpty;
+    if (!hasFilterOptions) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Filters are coming soon')),
+      );
+      return;
+    }
+
     final _FilterSelection? next = await showModalBottomSheet<_FilterSelection>(
       context: context,
       isScrollControlled: true,
@@ -1124,15 +1162,21 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (BuildContext context) => _FilterSheet(
-        cuisines: widget.availableCuisines,
-        moods: widget.availableMoods,
-        diet: widget.availableDiet,
-        types: widget.availableTypes,
-        selectedCuisines: _selectedCuisines,
-        selectedMoods: _selectedMoods,
-        selectedDiet: _selectedDiet,
-        selectedTypes: _selectedTypes,
+      builder: (BuildContext context) => Container(
+        decoration: const BoxDecoration(
+          color: AppColors.background,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: _FilterSheet(
+          cuisines: widget.availableCuisines,
+          moods: widget.availableMoods,
+          diet: widget.availableDiet,
+          types: widget.availableTypes,
+          selectedCuisines: _selectedCuisines,
+          selectedMoods: _selectedMoods,
+          selectedDiet: _selectedDiet,
+          selectedTypes: _selectedTypes,
+        ),
       ),
     );
 
@@ -1595,8 +1639,8 @@ class _RecipeSearchDelegate extends SearchDelegate<Dish?> {
     required List<Dish> dishes,
     required Set<String> savedDishIds,
     required this.onFavoriteTap,
-  }) : _dishes = dishes,
-       _savedDishIds = savedDishIds;
+  }) : _dishes = List<Dish>.from(dishes),
+       _savedDishIds = Set<String>.from(savedDishIds);
 
   final List<Dish> _dishes;
   final Set<String> _savedDishIds;
@@ -1642,16 +1686,16 @@ class _RecipeSearchDelegate extends SearchDelegate<Dish?> {
 
   Widget _buildList() {
     final String q = query.trim().toLowerCase();
-    final List<Dish> results =
-        q.isEmpty
-              ? _dishes
-              : _dishes
-                    .where((Dish dish) => dish.name.toLowerCase().contains(q))
-                    .toList()
-          ..sort(
-            (Dish a, Dish b) =>
-                a.name.toLowerCase().compareTo(b.name.toLowerCase()),
-          );
+    final List<Dish> source = q.isEmpty
+        ? List<Dish>.from(_dishes)
+        : _dishes
+            .where((Dish dish) => dish.name.toLowerCase().contains(q))
+            .toList();
+    final List<Dish> results = List<Dish>.from(source)
+      ..sort(
+        (Dish a, Dish b) =>
+            a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+      );
 
     if (results.isEmpty) {
       return const Center(
@@ -1799,14 +1843,14 @@ class _FilterSheetState extends State<_FilterSheet> {
               Row(
                 children: <Widget>[
                   TextButton(
-                    onPressed: () {
-                      setState(() {
-                        _cuisines.clear();
-                        _moods.clear();
-                        _diet.clear();
-                        _types.clear();
-                      });
-                    },
+                    onPressed: () => Navigator.of(context).pop(
+                      const _FilterSelection(
+                        cuisines: <String>{},
+                        moods: <String>{},
+                        diet: <String>{},
+                        types: <String>{},
+                      ),
+                    ),
                     child: const Text('Reset'),
                   ),
                   const Spacer(),
