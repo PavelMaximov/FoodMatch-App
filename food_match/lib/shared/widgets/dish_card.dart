@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'safe_network_image.dart';
+import 'media/safe_dish_image.dart';
 import 'package:food_match/core/theme/app_colors.dart';
 import 'package:food_match/core/theme/app_dimensions.dart';
 import 'package:food_match/core/utils/image_utils.dart';
@@ -64,7 +64,7 @@ class DishCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(_DishCardTokens.imageRadius),
                       child: AspectRatio(
                         aspectRatio: 1,
-                        child: SafeNetworkImage(
+                        child: SafeDishImage(
                           imageUrl: ImageUtils.getImageUrl(dish.imageUrl, usage: ImageUsage.dishCard),
                           fit: BoxFit.cover,
 

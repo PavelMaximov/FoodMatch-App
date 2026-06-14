@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -5,6 +6,8 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimensions.dart';
+import '../../../../core/utils/cloudinary_image_url.dart';
+import '../../../../core/utils/image_utils.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../data/models/prepared_deck.dart';
 import '../../../../shared/widgets/empty_state.dart';
@@ -32,6 +35,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
   bool _isOpeningPreSwipe = false;
   bool _isCardActionInProgress = false;
   CoupleProvider? _coupleProvider;
+  final Set<String> _preloadedImageUrls = <String>{};
 
   @override
   void initState() {
@@ -152,6 +156,31 @@ class _SwipesScreenState extends State<SwipesScreen> {
     _isOpeningPreSwipe = false;
   }
 
+
+  void _preloadVisibleDishImages(SwipeProvider provider) {
+    if (!mounted || provider.deck.isEmpty) return;
+
+    final int start = provider.currentIndex;
+    final int end = start + 3 < provider.deck.length ? start + 3 : provider.deck.length - 1;
+    for (int index = start; index <= end; index += 1) {
+      final String optimizedUrl = ImageUtils.getImageUrl(
+        provider.deck[index].imageUrl,
+        usage: ImageUsage.swipeCard,
+      );
+      if (optimizedUrl.isEmpty ||
+          !CloudinaryImageUrl.isNetworkUrl(optimizedUrl) ||
+          !_preloadedImageUrls.add(optimizedUrl)) {
+        continue;
+      }
+      precacheImage(CachedNetworkImageProvider(optimizedUrl), context).catchError((_) {});
+    }
+
+    if (_preloadedImageUrls.length > 24) {
+      _preloadedImageUrls.removeWhere((String url) =>
+          !provider.deck.skip(provider.currentIndex).take(8).any((Dish dish) =>
+              ImageUtils.getImageUrl(dish.imageUrl, usage: ImageUsage.swipeCard) == url));
+    }
+  }
 
   String? _partnerWaitingMessage({
     required CoupleProvider coupleProvider,
@@ -382,6 +411,8 @@ class _SwipesScreenState extends State<SwipesScreen> {
                       );
                     }
 
+                    _preloadVisibleDishImages(provider);
+
                     if (provider.isDeckEmpty) {
                       return EmptyState(
                         icon: Icons.restaurant,
@@ -419,6 +450,9 @@ class _SwipesScreenState extends State<SwipesScreen> {
                       },
                       onSwipe: (int index, SwipeDirection direction) {
                         _handleSwipe(direction);
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted) _preloadVisibleDishImages(provider);
+                        });
                       },
                     );
                   },

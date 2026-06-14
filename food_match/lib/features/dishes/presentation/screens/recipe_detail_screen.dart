@@ -12,7 +12,7 @@ import '../../../../core/utils/image_utils.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../data/models/recipe_step.dart';
 import '../../../../shared/widgets/error_state.dart';
-import '../../../../shared/widgets/safe_network_image.dart';
+import '../../../../shared/widgets/media/safe_dish_image.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
 import '../../../favorites/logic/favorites_provider.dart';
 import '../../logic/recipe_provider.dart';
@@ -177,12 +177,9 @@ class _HeroImage extends StatelessWidget {
         ),
         child: Hero(
           tag: 'dish-image-$dishId',
-          child: SafeNetworkImage(
+          child: SafeDishImage(
             imageUrl: ImageUtils.getImageUrl(dish.imageUrl, usage: ImageUsage.dishHero),
             fit: BoxFit.cover,
-            backgroundColor: const Color(0xFFF5EDE8),
-            placeholderIcon: Icons.restaurant_menu,
-            errorIcon: Icons.restaurant_menu,
           ),
         ),
       ),

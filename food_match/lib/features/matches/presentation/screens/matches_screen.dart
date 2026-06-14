@@ -6,12 +6,11 @@ import 'package:provider/provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/theme/app_text_styles.dart';
-import '../../../../core/utils/image_utils.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
-import '../../../../shared/widgets/safe_network_image.dart';
+import '../../../../shared/widgets/media/safe_avatar_image.dart';
 import '../../../../shared/widgets/dish_compact_card.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../couple/logic/couple_provider.dart';
@@ -206,15 +205,9 @@ class _PartnerAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final String initials = partnerName.trim().isEmpty ? '?' : partnerName.trim()[0].toUpperCase();
     if (avatarUrl != null && avatarUrl!.trim().isNotEmpty) {
-      return ClipOval(
-        child: SafeNetworkImage(
-          imageUrl: ImageUtils.getImageUrl(avatarUrl, usage: ImageUsage.avatar),
-          width: 30,
-          height: 30,
-          fit: BoxFit.cover,
-          placeholderIcon: Icons.person,
-          errorIcon: Icons.person,
-        ),
+      return SafeAvatarImage(
+        imageUrl: avatarUrl,
+        size: 30,
       );
     }
     return _buildFallback(initials);

@@ -5,7 +5,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/utils/image_utils.dart';
 import '../../../../data/models/dish.dart';
-import '../../../../shared/widgets/safe_network_image.dart';
+import '../../../../shared/widgets/media/safe_dish_image.dart';
 
 class SwipeCardWidget extends StatelessWidget {
   const SwipeCardWidget({
@@ -31,7 +31,7 @@ class SwipeCardWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Dish dish = this.dish;
-    final String heroImageUrl = ImageUtils.getImageUrl(dish.imageUrl, usage: ImageUsage.dishHero);
+    final String heroImageUrl = ImageUtils.getImageUrl(dish.imageUrl, usage: ImageUsage.swipeCard);
     return RepaintBoundary(
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AppDimensions.radiusL),
@@ -40,7 +40,7 @@ class SwipeCardWidget extends StatelessWidget {
         children: <Widget>[
           Hero(
             tag: 'dish-image-${dish.id}',
-            child: SafeNetworkImage(
+            child: SafeDishImage(
               imageUrl: heroImageUrl,
               fit: BoxFit.cover,
               width: double.infinity,
