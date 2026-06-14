@@ -28,6 +28,7 @@ class CoupleProvider extends ChangeNotifier {
   bool _leaveInFlight = false;
   bool _isRefreshingCurrentCouple = false;
   bool _isRefreshingFilterState = false;
+  Future<CoupleFilterState?>? _filterStateRefreshFuture;
   DateTime? _currentCoupleLoadedAt;
   bool _isAuthenticated = false;
   String? _activeUserId;
@@ -253,6 +254,32 @@ class CoupleProvider extends ChangeNotifier {
     _safeNotify();
   }
 
+  Future<void> saveAndConfirmMyChoices({
+    required List<String> cuisines,
+    required List<String> moods,
+    required List<String> diet,
+    required List<String> exclusions,
+  }) async {
+    final int requestVersion = _sessionStateVersion;
+    final String? requestUserId = _activeUserId;
+    AppLogger.info(
+      '[FilterState] saving choices cuisines=$cuisines moods=$moods diet=$diet exclusions=$exclusions',
+    );
+    final CoupleFilterState savedState = await _repository.updateMyFilterState(
+      CoupleFilterChoices(cuisines: cuisines, moods: moods, diet: diet, exclusions: exclusions),
+    );
+    if (!_isCurrentSession(requestVersion, requestUserId)) return;
+    _filterState = savedState;
+
+    final CoupleFilterState confirmedState = await _repository.confirmMyFilterState();
+    if (!_isCurrentSession(requestVersion, requestUserId)) return;
+    _filterState = confirmedState;
+    _sessionStateVersion++;
+    AppLogger.info('[CoupleFilterState] saved and confirmed my choices');
+    AppLogger.info('[Cache] prepared deck invalidated reason=filters-change');
+    _safeNotify();
+  }
+
   Future<void> confirmMyChoices() async {
     if (_isRefreshingFilterState) {
       AppLogger.info('[RequestDedup] confirm filter-state waits for refresh in flight');
@@ -264,20 +291,32 @@ class CoupleProvider extends ChangeNotifier {
     _safeNotify();
   }
 
-  Future<void> refreshFilterState() async {
+  Future<CoupleFilterState?> refreshFilterState({String reason = 'manual'}) {
     if (!_isAuthenticated || (_activeUserId?.isEmpty ?? true)) {
       stopFilterStatePolling(reason: 'unauthenticated');
-      return;
+      return Future<CoupleFilterState?>.value(null);
     }
     if (!hasCouple) {
       stopFilterStatePolling(reason: 'no active couple');
-      return;
+      return Future<CoupleFilterState?>.value(null);
     }
-    if (_isRefreshingFilterState) {
-      AppLogger.info('[RequestDedup] filter-state skipped: already in flight');
-      return;
+    final Future<CoupleFilterState?>? existing = _filterStateRefreshFuture;
+    if (existing != null) {
+      AppLogger.info('[RequestDedup] filter-state reused existing request reason=$reason');
+      return existing;
     }
 
+    final Future<CoupleFilterState?> future = _refreshFilterStateInternal(reason: reason);
+    _filterStateRefreshFuture = future;
+    future.whenComplete(() {
+      if (identical(_filterStateRefreshFuture, future)) {
+        _filterStateRefreshFuture = null;
+      }
+    });
+    return future;
+  }
+
+  Future<CoupleFilterState?> _refreshFilterStateInternal({required String reason}) async {
     _isRefreshingFilterState = true;
     final int requestVersion = _sessionStateVersion;
     final String? requestUserId = _activeUserId;
@@ -287,35 +326,39 @@ class CoupleProvider extends ChangeNotifier {
       final CoupleFilterState nextState = await _repository.getFilterState();
       if (!_isCurrentSession(requestVersion, requestUserId, coupleId: requestCoupleId)) {
         AppLogger.info('[SessionSync] stale response ignored sessionVersion=$requestVersion current=$_sessionStateVersion');
-        return;
+        return null;
       }
       _pollErrorStreak = 0;
       error = null;
       _filterState = nextState;
-      AppLogger.info('[CoupleFilterState] loaded status=${nextState.status} bothConfirmed=${nextState.bothConfirmed}');
+      AppLogger.info('[CoupleFilterState] loaded reason=$reason status=${nextState.status} bothConfirmed=${nextState.bothConfirmed}');
       if (!previousPartnerConfirmed && (nextState.partnerChoices?.confirmed == true)) {
         AppLogger.info('[CoupleFilterState] partner confirmed=true');
       }
       _safeNotify();
       _restartPollingIfIntervalChanged();
+      return nextState;
     } on ApiException catch (e) {
       _pollErrorStreak++;
       if (e.statusCode == 404) {
         AppLogger.info('[SessionSync] no active couple while refreshing; clearing session state');
         _clearSessionState();
         _safeNotify();
-        return;
+        return null;
       }
       error = _syncErrorMessage(e);
       AppLogger.error('[SessionSync] refresh failed', e);
       _restartPollingIfNeeded(reason: 'error_backoff');
+      return null;
     } catch (e) {
       _pollErrorStreak++;
       error = _syncErrorMessage(e);
       AppLogger.error('[SessionSync] refresh failed', e);
       _restartPollingIfNeeded(reason: 'error_backoff');
+      return null;
     } finally {
       _isRefreshingFilterState = false;
+    _filterStateRefreshFuture = null;
     }
   }
 
@@ -348,7 +391,7 @@ class CoupleProvider extends ChangeNotifier {
         stopFilterStatePolling(reason: !_isAuthenticated ? 'unauthenticated' : !_isAppActive ? 'app_background' : 'no active couple');
         return;
       }
-      refreshFilterState();
+      refreshFilterState(reason: 'poll_tick');
     });
   }
 
@@ -407,8 +450,6 @@ class CoupleProvider extends ChangeNotifier {
     }
   }
 
-
-
   Future<void> _refreshCurrentCoupleAfterReset() async {
     final int requestVersion = _sessionStateVersion;
     final String? requestUserId = _activeUserId;
@@ -437,6 +478,7 @@ class CoupleProvider extends ChangeNotifier {
     isLoading = false;
     _isRefreshingCurrentCouple = false;
     _isRefreshingFilterState = false;
+    _filterStateRefreshFuture = null;
     AppLogger.info('[CoupleProvider] session state cleared for logout');
     if (notify) {
       _safeNotify();
@@ -448,6 +490,7 @@ class CoupleProvider extends ChangeNotifier {
     currentCouple = null;
     _currentCoupleLoadedAt = null;
     _clearFilterState();
+    _filterStateRefreshFuture = null;
     error = null;
     _joinInFlight = false;
     _leaveInFlight = false;

@@ -577,9 +577,8 @@ class _RecipesScreenState extends State<RecipesScreen> {
       id: 'quick_easy',
       title: 'Quick & Easy',
       assetName: 'Quick & Easy.png',
-      query: const RecipeResultsQuery(effort: 'easy', maxCookTime: 30, sort: 'cookTime'),
-      filter: (Dish d) =>
-          d.effort.trim().toLowerCase() == 'easy' && d.cookTime <= 30,
+      query: const RecipeResultsQuery(maxCookTime: 30, sort: 'cookTime'),
+      filter: (Dish d) => d.cookTime > 0 && d.cookTime <= 30,
     ),
     RecipeCategoryConfig(
       id: 'comfort_food',

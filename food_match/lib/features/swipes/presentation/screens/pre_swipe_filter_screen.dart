@@ -79,7 +79,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       }
 
       _coupleProvider.startFilterStatePolling(reason: 'pre_swipe_init');
-      await _coupleProvider.refreshFilterState();
+      await _coupleProvider.refreshFilterState(reason: 'pre_swipe_init');
       if (!mounted) {
         return;
       }
@@ -369,7 +369,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     final CoupleProvider coupleProvider = context.read<CoupleProvider>();
 
     setState(() => _loading = true);
-    await preSwipeProvider.saveChoices(
+    await preSwipeProvider.saveAndConfirmChoices(
       userId: userId,
       coupleProvider: coupleProvider,
       cuisines: _cuisines.toList(),
@@ -381,8 +381,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     if (!mounted) {
       return;
     }
-    await coupleProvider.confirmMyChoices();
-    await coupleProvider.refreshFilterState();
+    await coupleProvider.refreshFilterState(reason: 'after_confirm_filters');
 
     if (!mounted) {
       return;
@@ -524,7 +523,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         throw const _FiltersNotReadyException();
       }
       result = await preSwipeProvider.prepareBackendDeckWithFallback(localResult);
-      await coupleProvider.refreshFilterState();
+      await coupleProvider.refreshFilterState(reason: 'after_prepare_deck');
     } catch (e) {
       debugPrint('[PreSwipe] shared deck prepare deferred $e');
       if (!mounted) {

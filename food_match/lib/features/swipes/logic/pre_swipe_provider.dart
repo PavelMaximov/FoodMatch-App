@@ -160,6 +160,29 @@ class PreSwipeProvider extends ChangeNotifier {
     await coupleProvider.saveMyChoices(cuisines: cuisines, moods: moods, diet: diet, exclusions: blocked);
   }
 
+
+  Future<void> saveAndConfirmChoices({
+    required String userId,
+    required CoupleProvider coupleProvider,
+    required List<String> cuisines,
+    required List<String> moods,
+    required List<String> blocked,
+    required List<String> diet,
+  }) async {
+    await _profileService.saveSessionChoices(
+      userId,
+      cuisines: cuisines,
+      moods: moods,
+      blocked: blocked,
+    );
+    await coupleProvider.saveAndConfirmMyChoices(
+      cuisines: cuisines,
+      moods: moods,
+      diet: diet,
+      exclusions: blocked,
+    );
+  }
+
   Future<PreparedPoolResult> prepare({
     required String userId,
     required CoupleProvider coupleProvider,

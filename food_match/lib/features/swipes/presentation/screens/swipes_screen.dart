@@ -69,7 +69,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
 
     final CoupleProvider coupleProvider = context.read<CoupleProvider>();
     if (coupleProvider.hasCouple) {
-      await coupleProvider.refreshFilterState();
+      await coupleProvider.refreshFilterState(reason: 'swipes_load_existing_deck');
       if (!mounted) {
         return;
       }

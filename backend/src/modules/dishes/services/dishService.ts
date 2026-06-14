@@ -258,7 +258,7 @@ export class DishService {
     this.addMealTypeFilter(clauses, filters.mealType);
 
     if (filters.effort?.trim()) {
-      clauses.push({ effort: this.exactNormalizedRegex(filters.effort) });
+      clauses.push(this.effortFilter(filters.effort));
     }
 
     if (typeof filters.popular === 'boolean') {
@@ -270,7 +270,7 @@ export class DishService {
     }
 
     if (typeof filters.maxCookTime === 'number') {
-      clauses.push({ cookTime: { $lte: filters.maxCookTime } });
+      clauses.push(this.maxCookTimeFilter(filters.maxCookTime));
     }
 
     const calorieClauses: FilterQuery<DishDocument>[] = [];
@@ -294,6 +294,25 @@ export class DishService {
     clauses.push({ [field]: { $in: normalizedValues.map((value) => this.exactNormalizedRegex(value)) } });
   }
 
+
+  private effortFilter(effort: string): FilterQuery<DishDocument> {
+    const normalized = effort.trim().toLowerCase();
+    const aliases = normalized === 'easy'
+      ? ['easy', 'simple', 'low', 'beginner', 'quick']
+      : [normalized];
+    return { effort: { $in: aliases.map((alias) => this.exactNormalizedRegex(alias)) } };
+  }
+
+  private maxCookTimeFilter(maxCookTime: number): FilterQuery<DishDocument> {
+    return {
+      $or: [
+        { cookTime: { $gt: 0, $lte: maxCookTime } },
+        { $and: [{ cookTime: { $in: [null, 0] } }, { totalTime: { $gt: 0, $lte: maxCookTime } }] },
+        { $and: [{ cookTime: { $in: [null, 0] } }, { 'rawSourceData.totalTime': { $gt: 0, $lte: maxCookTime } }] },
+        { $and: [{ cookTime: { $in: [null, 0] } }, { 'rawSourceData.total_time_minutes': { $gt: 0, $lte: maxCookTime } }] }
+      ]
+    };
+  }
 
   private addMealTypeFilter(clauses: FilterQuery<DishDocument>[], values?: string[]) {
     const aliases = this.mealTypeAliases(values);
