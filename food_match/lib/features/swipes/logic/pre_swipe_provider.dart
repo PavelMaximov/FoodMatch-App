@@ -160,6 +160,29 @@ class PreSwipeProvider extends ChangeNotifier {
     await coupleProvider.saveMyChoices(cuisines: cuisines, moods: moods, diet: diet, exclusions: blocked);
   }
 
+
+  Future<void> saveAndConfirmChoices({
+    required String userId,
+    required CoupleProvider coupleProvider,
+    required List<String> cuisines,
+    required List<String> moods,
+    required List<String> blocked,
+    required List<String> diet,
+  }) async {
+    await _profileService.saveSessionChoices(
+      userId,
+      cuisines: cuisines,
+      moods: moods,
+      blocked: blocked,
+    );
+    await coupleProvider.saveAndConfirmMyChoices(
+      cuisines: cuisines,
+      moods: moods,
+      diet: diet,
+      exclusions: blocked,
+    );
+  }
+
   Future<PreparedPoolResult> prepare({
     required String userId,
     required CoupleProvider coupleProvider,
@@ -224,6 +247,10 @@ class PreSwipeProvider extends ChangeNotifier {
   }
 
   Future<PreparedPoolResult> prepareBackendDeckWithFallback(PreparedPoolResult fallback) async {
+    if (isPreparingBackendDeck) {
+      debugPrint('[RequestDedup] prepared deck prepare skipped: already in flight');
+      return fallback;
+    }
     isPreparingBackendDeck = true;
     backendDeckError = null;
     notifyListeners();
@@ -248,9 +275,11 @@ class PreSwipeProvider extends ChangeNotifier {
         preparedDeckMeta: backendDeck.meta,
       );
     } on ApiException catch (e) {
-      backendDeckError = ErrorMessages.fromApiException(e);
+      final bool filtersNotReady = e.statusCode == 409 && e.message.toLowerCase().contains('filter');
+      backendDeckError = filtersNotReady ? 'Waiting for partner choices' : ErrorMessages.fromApiException(e);
       debugPrint('[PreparedDeck] prepare failed $e');
-      if (e.statusCode == 409 && e.message.toLowerCase().contains('filter')) {
+      if (filtersNotReady) {
+        debugPrint('[Deck] prepare skipped: filters not ready');
         rethrow;
       }
       debugPrint('[PreparedDeck] Backend prepare failed, using local fallback');

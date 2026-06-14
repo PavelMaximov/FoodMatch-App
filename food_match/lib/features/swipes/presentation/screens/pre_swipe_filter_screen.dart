@@ -78,8 +78,8 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         return;
       }
 
-      _coupleProvider.startFilterStatePolling();
-      await _coupleProvider.refreshFilterState();
+      _coupleProvider.startFilterStatePolling(reason: 'pre_swipe_init');
+      await _coupleProvider.refreshFilterState(reason: 'pre_swipe_init');
       if (!mounted) {
         return;
       }
@@ -108,7 +108,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
 
   @override
   void dispose() {
-    _coupleProvider.stopFilterStatePolling();
+    _coupleProvider.stopFilterStatePolling(reason: 'pre_swipe_dispose');
     super.dispose();
   }
 
@@ -369,7 +369,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     final CoupleProvider coupleProvider = context.read<CoupleProvider>();
 
     setState(() => _loading = true);
-    await preSwipeProvider.saveChoices(
+    await preSwipeProvider.saveAndConfirmChoices(
       userId: userId,
       coupleProvider: coupleProvider,
       cuisines: _cuisines.toList(),
@@ -381,8 +381,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     if (!mounted) {
       return;
     }
-    await coupleProvider.confirmMyChoices();
-    await coupleProvider.refreshFilterState();
+    await coupleProvider.refreshFilterState(reason: 'after_confirm_filters');
 
     if (!mounted) {
       return;
@@ -405,6 +404,22 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
 
 
   Widget _buildWaitingForPartnerScreen() {
+    final CoupleProvider coupleProvider = context.read<CoupleProvider>();
+    final String title = !coupleProvider.hasCouple
+        ? 'Create or join a session'
+        : !coupleProvider.hasPartner
+            ? 'Waiting for your partner to join'
+            : _isPreparingSharedDeck
+                ? 'Preparing your shared deck'
+                : 'Waiting for partner choices';
+    final String subtitle = coupleProvider.syncMessage ??
+        (!coupleProvider.hasCouple
+            ? 'Start a couple session to swipe together.'
+            : !coupleProvider.hasPartner
+                ? 'Share your invite code. We’ll keep checking at a slower pace.'
+                : _isPreparingSharedDeck
+                    ? 'Both filter sets are ready. We’re preparing your shared deck now.'
+                    : 'Your choices are saved. We’ll start swiping when your partner finishes their filters.');
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -425,15 +440,13 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
                 ),
                 const SizedBox(height: 28),
                 Text(
-                  _isPreparingSharedDeck ? 'Preparing your shared deck...' : 'Waiting for your partner...',
+                  title,
                   textAlign: TextAlign.center,
                   style: GoogleFonts.fredoka(fontWeight: FontWeight.w700, fontSize: 38, color: const Color(0xFF1A1A1A)),
                 ),
                 const SizedBox(height: 14),
                 Text(
-                  _isPreparingSharedDeck
-                      ? 'Both filter sets are ready. We’re preparing your shared deck now.'
-                      : 'Your choices are saved. We’ll start swiping when your partner finishes their filters.',
+                  subtitle,
                   textAlign: TextAlign.center,
                   style: GoogleFonts.nunito(fontSize: 17, color: AppColors.textSecondary, height: 1.35),
                 ),
@@ -453,7 +466,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   }
 
   void _startWaitingPolling() {
-    _coupleProvider.startFilterStatePolling();
+    _coupleProvider.startFilterStatePolling(reason: 'waiting_partner_choices');
   }
 
   void _schedulePrepareIfBothConfirmed(CoupleProvider coupleProvider) {
@@ -479,6 +492,13 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     if (_isPreparingSharedDeck) {
       return;
     }
+    final CoupleProvider currentCoupleProvider = context.read<CoupleProvider>();
+    if (!currentCoupleProvider.bothConfirmed) {
+      debugPrint('[Deck] prepare skipped: filters not ready');
+      setState(() => _waitingForPartner = true);
+      _startWaitingPolling();
+      return;
+    }
 
     setState(() {
       _loading = true;
@@ -498,8 +518,12 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         diet: _diet.toList(),
         saveChoicesFirst: false,
       );
+      if (!coupleProvider.bothConfirmed) {
+        debugPrint('[Deck] prepare skipped: filters not ready');
+        throw const _FiltersNotReadyException();
+      }
       result = await preSwipeProvider.prepareBackendDeckWithFallback(localResult);
-      await coupleProvider.refreshFilterState();
+      await coupleProvider.refreshFilterState(reason: 'after_prepare_deck');
     } catch (e) {
       debugPrint('[PreSwipe] shared deck prepare deferred $e');
       if (!mounted) {
@@ -888,4 +912,8 @@ class _EmptyPoolScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+class _FiltersNotReadyException implements Exception {
+  const _FiltersNotReadyException();
 }

@@ -42,6 +42,9 @@ class RecipeResultsQuery {
     this.effort,
     this.popular,
     this.maxCookTime,
+    this.maxTotalTime,
+    this.timeTier,
+    this.maxIngredients,
     this.sort = 'default',
   });
 
@@ -53,6 +56,9 @@ class RecipeResultsQuery {
   final String? effort;
   final bool? popular;
   final int? maxCookTime;
+  final int? maxTotalTime;
+  final String? timeTier;
+  final int? maxIngredients;
   final String sort;
 
   RecipeResultsQuery copyWith({
@@ -64,6 +70,9 @@ class RecipeResultsQuery {
     String? effort,
     bool? popular,
     int? maxCookTime,
+    int? maxTotalTime,
+    String? timeTier,
+    int? maxIngredients,
     String? sort,
   }) {
     return RecipeResultsQuery(
@@ -75,6 +84,9 @@ class RecipeResultsQuery {
       effort: effort ?? this.effort,
       popular: popular ?? this.popular,
       maxCookTime: maxCookTime ?? this.maxCookTime,
+      maxTotalTime: maxTotalTime ?? this.maxTotalTime,
+      timeTier: timeTier ?? this.timeTier,
+      maxIngredients: maxIngredients ?? this.maxIngredients,
       sort: sort ?? this.sort,
     );
   }
@@ -577,9 +589,8 @@ class _RecipesScreenState extends State<RecipesScreen> {
       id: 'quick_easy',
       title: 'Quick & Easy',
       assetName: 'Quick & Easy.png',
-      query: const RecipeResultsQuery(effort: 'easy', maxCookTime: 30, sort: 'cookTime'),
-      filter: (Dish d) =>
-          d.effort.trim().toLowerCase() == 'easy' && d.cookTime <= 30,
+      query: const RecipeResultsQuery(maxTotalTime: 30, sort: 'cookTime'),
+      filter: (Dish d) => d.cookTime > 0 && d.cookTime <= 30,
     ),
     RecipeCategoryConfig(
       id: 'comfort_food',
@@ -615,13 +626,14 @@ class _RecipesScreenState extends State<RecipesScreen> {
       id: 'under_30',
       title: 'Under 30 Minutes',
       assetName: 'Under 30 Minutes.png',
-      query: const RecipeResultsQuery(maxCookTime: 29, sort: 'cookTime'),
-      filter: (Dish d) => d.cookTime < 30,
+      query: const RecipeResultsQuery(timeTier: 'under_30_minutes', sort: 'cookTime'),
+      filter: (Dish d) => d.cookTime > 0 && d.cookTime <= 30,
     ),
     RecipeCategoryConfig(
       id: 'five_ingredients',
       title: '5 Ingredients',
       assetName: '5 Ingredients.png',
+      query: const RecipeResultsQuery(maxIngredients: 5),
       postFilter: (Dish d) {
         if (d.sections.isNotEmpty) {
           return d.sections.first.components.length <= 5;
@@ -1011,6 +1023,9 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
           effort: widget.initialQuery.effort,
           popular: widget.initialQuery.popular,
           maxCookTime: widget.initialQuery.maxCookTime,
+          maxTotalTime: widget.initialQuery.maxTotalTime,
+          timeTier: widget.initialQuery.timeTier,
+          maxIngredients: widget.initialQuery.maxIngredients,
           sort: widget.initialQuery.sort,
           force: force,
         );

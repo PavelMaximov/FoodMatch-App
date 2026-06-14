@@ -19,6 +19,9 @@ export interface DishListFilters {
   season?: string[];
   mealType?: string[];
   maxCookTime?: number;
+  maxTotalTime?: number;
+  timeTier?: string[];
+  maxIngredients?: number;
   minCalories?: number;
   maxCalories?: number;
 }
@@ -68,16 +71,29 @@ export class DishService {
 
   async listDishesPage(userId: string, options: DishListOptions): Promise<PaginatedDishResult> {
     const filter = await this.buildDishListFilter(userId, options);
+    const usesCookTimeSort = (options.sort ?? '').trim().toLowerCase() === 'cooktime';
+    const querySummary = this.summarizeListOptions(options);
+    console.log(`[Dishes] list page filters query=${JSON.stringify(querySummary)} mongoMode=${usesCookTimeSort ? 'aggregation' : 'find'}`);
+
     const [total, dishes] = await Promise.all([
       DishModel.countDocuments(filter),
-      DishModel.find(filter)
-        .select(DISH_DTO_SELECT)
-        .sort(this.sortFor(options.sort))
-        .skip(options.offset)
-        .limit(options.limit)
-        .lean()
+      usesCookTimeSort
+        ? DishModel.aggregate([
+            { $match: filter },
+            { $addFields: { _sortTime: this.sortTimeExpression() } },
+            { $sort: { _sortTime: 1, name: 1, _id: 1 } },
+            { $skip: options.offset },
+            { $limit: options.limit }
+          ])
+        : DishModel.find(filter)
+            .select(DISH_DTO_SELECT)
+            .sort(this.sortFor(options.sort))
+            .skip(options.offset)
+            .limit(options.limit)
+            .lean()
     ]);
     const items = this.mapDishDtos(dishes);
+    console.log(`[Dishes] result total=${total} limit=${options.limit} offset=${options.offset}`);
 
     return {
       items,
@@ -258,7 +274,7 @@ export class DishService {
     this.addMealTypeFilter(clauses, filters.mealType);
 
     if (filters.effort?.trim()) {
-      clauses.push({ effort: this.exactNormalizedRegex(filters.effort) });
+      clauses.push(this.effortFilter(filters.effort));
     }
 
     if (typeof filters.popular === 'boolean') {
@@ -269,8 +285,20 @@ export class DishService {
       clauses.push({ source: this.containsNormalizedRegex(filters.source) });
     }
 
+    if (typeof filters.maxTotalTime === 'number') {
+      clauses.push(this.maxTotalTimeFilter(filters.maxTotalTime));
+    }
+
     if (typeof filters.maxCookTime === 'number') {
-      clauses.push({ cookTime: { $lte: filters.maxCookTime } });
+      clauses.push(this.maxCookTimeFilter(filters.maxCookTime));
+    }
+
+    if ((filters.timeTier ?? []).length > 0) {
+      clauses.push(this.timeTierFilter(filters.timeTier));
+    }
+
+    if (typeof filters.maxIngredients === 'number') {
+      clauses.push({ $expr: { $lte: [this.ingredientCountExpression(), filters.maxIngredients] } });
     }
 
     const calorieClauses: FilterQuery<DishDocument>[] = [];
@@ -294,6 +322,113 @@ export class DishService {
     clauses.push({ [field]: { $in: normalizedValues.map((value) => this.exactNormalizedRegex(value)) } });
   }
 
+
+  private effortFilter(effort: string): FilterQuery<DishDocument> {
+    const normalized = effort.trim().toLowerCase();
+    const aliases = normalized === 'easy'
+      ? ['easy', 'simple', 'low', 'beginner', 'quick']
+      : [normalized];
+    return { effort: { $in: aliases.map((alias) => this.exactNormalizedRegex(alias)) } };
+  }
+
+  private maxCookTimeFilter(maxCookTime: number): FilterQuery<DishDocument> {
+    return {
+      $or: [
+        { cookTime: { $gt: 0, $lte: maxCookTime } },
+        { cook_time_minutes: { $gt: 0, $lte: maxCookTime } },
+        ...this.timeClauses(maxCookTime)
+      ]
+    };
+  }
+
+  private maxTotalTimeFilter(maxTotalTime: number): FilterQuery<DishDocument> {
+    return { $or: this.timeClauses(maxTotalTime) };
+  }
+
+  private timeTierFilter(values?: string[]): FilterQuery<DishDocument> {
+    const tiers = (values ?? []).map((value) => value.trim().toLowerCase()).filter(Boolean);
+    if (tiers.length === 0) return {};
+    const tierRegexes = tiers.map((tier) => this.exactNormalizedRegex(tier));
+    const under30Requested = tiers.includes('under_30_minutes');
+    const under15Requested = tiers.includes('under_15_minutes');
+    return {
+      $or: [
+        { 'total_time_tier.tier': { $in: tierRegexes } },
+        { 'tags.name': { $in: tierRegexes } },
+        ...(under30Requested ? this.timeClauses(30) : []),
+        ...(under15Requested ? this.timeClauses(15) : [])
+      ]
+    };
+  }
+
+  private timeClauses(maxMinutes: number): FilterQuery<DishDocument>[] {
+    const tierNames = maxMinutes >= 30
+      ? ['under_15_minutes', 'under_30_minutes']
+      : maxMinutes >= 15
+        ? ['under_15_minutes']
+        : [];
+    const tierRegexes = tierNames.map((tier) => this.exactNormalizedRegex(tier));
+    return [
+      { totalTime: { $gt: 0, $lte: maxMinutes } },
+      { total_time_minutes: { $gt: 0, $lte: maxMinutes } },
+      ...(tierRegexes.length > 0 ? [
+        { 'total_time_tier.tier': { $in: tierRegexes } },
+        { 'tags.name': { $in: tierRegexes } }
+      ] : [])
+    ];
+  }
+
+  private sortTimeExpression() {
+    return {
+      $ifNull: [
+        '$totalTime',
+        { $ifNull: ['$total_time_minutes', { $ifNull: ['$cookTime', { $ifNull: ['$cook_time_minutes', 999999] }] }] }
+      ]
+    };
+  }
+
+  private ingredientCountExpression() {
+    return {
+      $ifNull: [
+        '$ingredientCount',
+        {
+          $cond: [
+            { $isArray: '$ingredients' },
+            { $size: '$ingredients' },
+            {
+              $sum: {
+                $map: {
+                  input: { $ifNull: ['$sections', []] },
+                  as: 'section',
+                  in: { $size: { $ifNull: ['$$section.components', []] } }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    };
+  }
+
+  private summarizeListOptions(options: DishListOptions) {
+    return {
+      search: options.search,
+      cuisine: options.cuisine,
+      type: options.type,
+      mealType: options.mealType,
+      mood: options.mood,
+      diet: options.diet,
+      effort: options.effort,
+      popular: options.popular,
+      maxCookTime: options.maxCookTime,
+      maxTotalTime: options.maxTotalTime,
+      timeTier: options.timeTier,
+      maxIngredients: options.maxIngredients,
+      sort: options.sort,
+      limit: options.limit,
+      offset: options.offset
+    };
+  }
 
   private addMealTypeFilter(clauses: FilterQuery<DishDocument>[], values?: string[]) {
     const aliases = this.mealTypeAliases(values);

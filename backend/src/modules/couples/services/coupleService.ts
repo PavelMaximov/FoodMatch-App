@@ -115,6 +115,9 @@ export class CoupleService {
     entry.moods = this.normalizeList(payload.moods);
     entry.diet = this.normalizeList(payload.diet);
     entry.exclusions = this.normalizeList(payload.exclusions);
+    console.log(
+      `[FilterState] normalized choices cuisines=${entry.cuisines.join(',')} moods=${entry.moods.join(',')} diet=${entry.diet.join(',')} exclusions=${entry.exclusions.join(',')}`
+    );
     entry.confirmed = false;
     entry.updatedAt = now;
 

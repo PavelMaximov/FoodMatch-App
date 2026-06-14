@@ -144,6 +144,7 @@ class SwipeProvider extends ChangeNotifier {
   }
 
   void clearPreparedDeck() {
+    debugPrint('[Deck] local deck cleared');
     deck = <Dish>[];
     currentIndex = 0;
     _seenDishIds = <String>{};

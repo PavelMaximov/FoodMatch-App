@@ -15,9 +15,11 @@ export const DISH_DTO_SELECT = [
   'ingredients',
   'ingredientCount',
   'cookTime',
+  'prep_time_minutes',
   'cook_time_minutes',
   'totalTime',
   'total_time_minutes',
+  'total_time_tier',
   'servings',
   'num_servings',
   'yields',
@@ -85,7 +87,13 @@ export function toDishDto(dish: any): DishDto | null {
   }
 
   const ingredients = readIngredients(raw);
-  const cookTime = firstNumber(raw.total_time_minutes, raw.cook_time_minutes, raw.cookTime);
+  const cookTime = firstNumber(raw.cookTime, raw.cook_time_minutes, raw.total_time_minutes);
+  const totalTime = firstNumber(
+    raw.totalTime,
+    raw.total_time_minutes,
+    firstNumber(raw.prep_time_minutes) + firstNumber(raw.cook_time_minutes),
+    cookTime,
+  );
 
   return {
     id: firstString(raw.id, raw.sourceId, raw._id?.toString()),
@@ -99,9 +107,9 @@ export function toDishDto(dish: any): DishDto | null {
     mood: asStringList(raw.mood),
     diet: asStringList(raw.diet),
     ingredients,
-    ingredientCount: ingredients.length,
+    ingredientCount: firstNumber(raw.ingredientCount, ingredients.length),
     cookTime,
-    totalTime: firstNumber(raw.total_time_minutes, cookTime),
+    totalTime,
     servings: firstString(raw.num_servings, raw.servings, raw.yields),
     qualityScore: firstNumber(raw.quality_score, raw.qualityScore),
     calories: firstString(raw.calories_level, raw.calories),
@@ -142,7 +150,7 @@ function readIngredients(rawDish: any): string[] {
   const fromSections = Array.isArray(rawDish.sections)
     ? rawDish.sections.flatMap((section: any) =>
         Array.isArray(section?.components)
-          ? section.components.map((component: any) => component?.ingredient?.name)
+          ? section.components.map((component: any) => firstString(component?.raw_text, component?.ingredient?.name))
           : []
       )
     : [];
