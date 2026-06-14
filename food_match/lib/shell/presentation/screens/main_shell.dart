@@ -111,7 +111,14 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      context.read<CoupleProvider>().handleAppResumed();
       context.read<SwipeProvider>().syncPendingSwipes();
+      return;
+    }
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      context.read<CoupleProvider>().handleAppPaused();
     }
   }
 

@@ -19,6 +19,10 @@ class CoupleProvider extends ChangeNotifier {
   Couple? currentCouple;
   CoupleFilterState? _filterState;
   Timer? _pollTimer;
+  Duration? _activePollInterval;
+  bool _pollingWanted = false;
+  bool _isAppActive = true;
+  int _pollErrorStreak = 0;
   bool _disposed = false;
   bool _joinInFlight = false;
   bool _leaveInFlight = false;
@@ -44,10 +48,12 @@ class CoupleProvider extends ChangeNotifier {
   int get compatibility => _filterState?.compatibility ?? 0;
   bool get isPartnerReady => _filterState?.partnerChoices?.confirmed == true;
   bool get isMyChoicesConfirmed => _filterState?.myChoices.confirmed ?? false;
+  bool get hasPartner => (currentCouple?.members.length ?? 0) >= 2;
+  String? get syncMessage => error;
   bool get isJoining => _joinInFlight;
   bool get isLeaving => _leaveInFlight;
   bool get hasActiveSessionConflict => error == activeSessionMessage;
-  bool get _canPollFilterState => !_disposed && _isAuthenticated && (_activeUserId?.isNotEmpty ?? false) && hasCouple;
+  bool get _canPollFilterState => !_disposed && _isAppActive && _isAuthenticated && (_activeUserId?.isNotEmpty ?? false) && hasCouple;
   bool get _hasFreshCurrentCoupleCache {
     final DateTime? loadedAt = _currentCoupleLoadedAt;
     return loadedAt != null &&
@@ -78,7 +84,7 @@ class CoupleProvider extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
-    stopFilterStatePolling();
+    stopFilterStatePolling(reason: 'dispose');
     super.dispose();
   }
 
@@ -91,6 +97,8 @@ class CoupleProvider extends ChangeNotifier {
       AppLogger.info('[RequestDedup] couple/me refresh skipped: already in flight');
       return;
     }
+    final int requestVersion = _sessionStateVersion;
+    final String? requestUserId = _activeUserId;
     if (!force && _hasFreshCurrentCoupleCache) {
       final int age = DateTime.now().difference(_currentCoupleLoadedAt!).inSeconds;
       AppLogger.info('[Cache] couple/me hit hasCouple=$hasCouple age=${age}s');
@@ -106,14 +114,16 @@ class CoupleProvider extends ChangeNotifier {
     _safeNotify();
     try {
       AppLogger.info(force ? '[Cache] couple/me force refresh' : '[Cache] couple/me miss');
-      currentCouple = await _repository.getMyCouple();
+      final Couple? loadedCouple = await _repository.getMyCouple();
+      if (!_isCurrentSession(requestVersion, requestUserId)) return;
+      currentCouple = loadedCouple;
       _currentCoupleLoadedAt = DateTime.now();
       if (hasCouple) {
         await refreshFilterState();
       } else {
         currentCouple = null;
         _clearFilterState();
-        stopFilterStatePolling();
+        stopFilterStatePolling(reason: 'no active couple');
       }
     } catch (e) {
       if (e is ApiException && e.statusCode == 404) {
@@ -205,8 +215,12 @@ class CoupleProvider extends ChangeNotifier {
     isLoading = true;
     error = null;
     _safeNotify();
+    stopFilterStatePolling(reason: 'leave');
+    final int requestVersion = _sessionStateVersion;
+    final String? requestUserId = _activeUserId;
     try {
       await _repository.leave();
+      if (!_isCurrentSession(requestVersion, requestUserId)) return;
       _clearSessionState();
     } catch (e) {
       if (e is ApiException && e.statusCode == 404) {
@@ -227,16 +241,26 @@ class CoupleProvider extends ChangeNotifier {
     required List<String> diet,
     required List<String> exclusions,
   }) async {
+    final int requestVersion = _sessionStateVersion;
+    final String? requestUserId = _activeUserId;
     _filterState = await _repository.updateMyFilterState(
       CoupleFilterChoices(cuisines: cuisines, moods: moods, diet: diet, exclusions: exclusions),
     );
+    if (!_isCurrentSession(requestVersion, requestUserId)) return;
+    _sessionStateVersion++;
     AppLogger.info('[CoupleFilterState] saved my choices');
     AppLogger.info('[Cache] prepared deck invalidated reason=filters-change');
     _safeNotify();
   }
 
   Future<void> confirmMyChoices() async {
+    if (_isRefreshingFilterState) {
+      AppLogger.info('[RequestDedup] confirm filter-state waits for refresh in flight');
+    }
+    final int requestVersion = _sessionStateVersion;
+    final String? requestUserId = _activeUserId;
     _filterState = await _repository.confirmMyFilterState();
+    if (!_isCurrentSession(requestVersion, requestUserId)) return;
     _safeNotify();
   }
 
@@ -255,35 +279,48 @@ class CoupleProvider extends ChangeNotifier {
     }
 
     _isRefreshingFilterState = true;
+    final int requestVersion = _sessionStateVersion;
+    final String? requestUserId = _activeUserId;
+    final String? requestCoupleId = currentCouple?.id;
     try {
       final previousPartnerConfirmed = _filterState?.partnerChoices?.confirmed == true;
       final CoupleFilterState nextState = await _repository.getFilterState();
-      if (!hasCouple) {
-        AppLogger.info('[CoupleFilterState] discarded response after session cleared');
+      if (!_isCurrentSession(requestVersion, requestUserId, coupleId: requestCoupleId)) {
+        AppLogger.info('[SessionSync] stale response ignored sessionVersion=$requestVersion current=$_sessionStateVersion');
         return;
       }
+      _pollErrorStreak = 0;
+      error = null;
       _filterState = nextState;
       AppLogger.info('[CoupleFilterState] loaded status=${nextState.status} bothConfirmed=${nextState.bothConfirmed}');
       if (!previousPartnerConfirmed && (nextState.partnerChoices?.confirmed == true)) {
         AppLogger.info('[CoupleFilterState] partner confirmed=true');
       }
       _safeNotify();
+      _restartPollingIfIntervalChanged();
     } on ApiException catch (e) {
+      _pollErrorStreak++;
       if (e.statusCode == 404) {
-        AppLogger.info('[CoupleFilterState] no active couple while refreshing; clearing session state');
+        AppLogger.info('[SessionSync] no active couple while refreshing; clearing session state');
         _clearSessionState();
         _safeNotify();
         return;
       }
-      AppLogger.error('[CoupleFilterState] refresh failed', e);
+      error = _syncErrorMessage(e);
+      AppLogger.error('[SessionSync] refresh failed', e);
+      _restartPollingIfNeeded(reason: 'error_backoff');
     } catch (e) {
-      AppLogger.error('[CoupleFilterState] refresh failed', e);
+      _pollErrorStreak++;
+      error = _syncErrorMessage(e);
+      AppLogger.error('[SessionSync] refresh failed', e);
+      _restartPollingIfNeeded(reason: 'error_backoff');
     } finally {
       _isRefreshingFilterState = false;
     }
   }
 
-  void startFilterStatePolling() {
+  void startFilterStatePolling({String reason = 'screen_request'}) {
+    _pollingWanted = true;
     if (!_isAuthenticated || (_activeUserId?.isEmpty ?? true)) {
       stopFilterStatePolling(reason: 'unauthenticated');
       return;
@@ -292,14 +329,23 @@ class CoupleProvider extends ChangeNotifier {
       stopFilterStatePolling(reason: 'no active couple');
       return;
     }
-    if (_pollTimer != null) {
-      AppLogger.info('[CoupleFilterState] polling already active, skip');
+    if (!_isAppActive) {
+      AppLogger.info('[SessionSync] polling deferred reason=app_background');
       return;
     }
-    AppLogger.info('[CoupleFilterState] polling started');
-    _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+    final Duration interval = _pollInterval;
+    if (_pollTimer != null) {
+      if (_activePollInterval == interval) {
+        AppLogger.info('[SessionSync] polling already active, skip');
+        return;
+      }
+      _stopPollingTimer(reason: 'interval_change');
+    }
+    AppLogger.info('[SessionSync] polling started interval=${interval.inSeconds}s reason=$reason');
+    _activePollInterval = interval;
+    _pollTimer = Timer.periodic(interval, (_) {
       if (!_canPollFilterState) {
-        stopFilterStatePolling(reason: !_isAuthenticated ? 'unauthenticated' : 'no active couple');
+        stopFilterStatePolling(reason: !_isAuthenticated ? 'unauthenticated' : !_isAppActive ? 'app_background' : 'no active couple');
         return;
       }
       refreshFilterState();
@@ -307,20 +353,69 @@ class CoupleProvider extends ChangeNotifier {
   }
 
   void stopFilterStatePolling({String? reason}) {
+    _pollingWanted = false;
+    _stopPollingTimer(reason: reason);
+  }
+
+  Future<void> handleAppPaused() async {
+    _isAppActive = false;
+    _stopPollingTimer(reason: 'app_paused');
+    AppLogger.info('[SessionSync] app paused: polling stopped');
+  }
+
+  Future<void> handleAppResumed() async {
+    _isAppActive = true;
+    if (!_isAuthenticated || (_activeUserId?.isEmpty ?? true)) return;
+    AppLogger.info('[SessionSync] app resumed: refreshing couple/filter-state');
+    await loadCouple(force: true);
+    if (_pollingWanted && hasCouple) {
+      startFilterStatePolling(reason: 'app_resumed');
+    }
+  }
+
+  Duration get _pollInterval {
+    if (_pollErrorStreak > 0) return const Duration(seconds: 10);
+    if (!hasPartner) return const Duration(seconds: 6);
+    if (bothConfirmed) return const Duration(seconds: 20);
+    if (isMyChoicesConfirmed && !isPartnerReady) return const Duration(seconds: 3);
+    return const Duration(seconds: 5);
+  }
+
+  void _restartPollingIfNeeded({required String reason}) {
+    if (!_pollingWanted || !_canPollFilterState) return;
+    _stopPollingTimer(reason: reason);
+    startFilterStatePolling(reason: reason);
+  }
+
+  void _restartPollingIfIntervalChanged() {
+    if (!_pollingWanted || !_canPollFilterState || _pollTimer == null) return;
+    if (_activePollInterval != _pollInterval) {
+      _stopPollingTimer(reason: 'interval_change');
+      startFilterStatePolling(reason: 'interval_change');
+    }
+  }
+
+  void _stopPollingTimer({String? reason}) {
     final bool hadTimer = _pollTimer != null;
     _pollTimer?.cancel();
     _pollTimer = null;
-    if (reason != null) {
-      AppLogger.info('[CoupleFilterState] polling stopped: $reason');
+    _activePollInterval = null;
+    if (reason != null && hadTimer) {
+      AppLogger.info('[SessionSync] polling stopped reason=$reason');
     } else if (hadTimer) {
-      AppLogger.info('[CoupleFilterState] polling stopped');
+      AppLogger.info('[SessionSync] polling stopped');
     }
   }
 
 
+
   Future<void> _refreshCurrentCoupleAfterReset() async {
+    final int requestVersion = _sessionStateVersion;
+    final String? requestUserId = _activeUserId;
     try {
-      currentCouple = await _repository.getMyCouple();
+      final Couple? loadedCouple = await _repository.getMyCouple();
+      if (!_isCurrentSession(requestVersion, requestUserId)) return;
+      currentCouple = loadedCouple;
       _currentCoupleLoadedAt = DateTime.now();
       _sessionStateVersion++;
       if (!hasCouple) {
@@ -349,7 +444,7 @@ class CoupleProvider extends ChangeNotifier {
   }
 
   void _clearSessionState({bool incrementVersion = true}) {
-    stopFilterStatePolling();
+    stopFilterStatePolling(reason: 'session_clear');
     currentCouple = null;
     _currentCoupleLoadedAt = null;
     _clearFilterState();
@@ -366,8 +461,12 @@ class CoupleProvider extends ChangeNotifier {
   }
 
   Future<void> _refreshActiveSessionAfterConflict() async {
+    final int requestVersion = _sessionStateVersion;
+    final String? requestUserId = _activeUserId;
     try {
-      currentCouple = await _repository.getMyCouple();
+      final Couple? loadedCouple = await _repository.getMyCouple();
+      if (!_isCurrentSession(requestVersion, requestUserId)) return;
+      currentCouple = loadedCouple;
       _currentCoupleLoadedAt = DateTime.now();
       if (hasCouple) {
         _sessionStateVersion++;
@@ -392,6 +491,25 @@ class CoupleProvider extends ChangeNotifier {
 
   void _safeNotify() {
     if (!_disposed) notifyListeners();
+  }
+
+  bool _isCurrentSession(int version, String? userId, {String? coupleId}) {
+    final bool matches = !_disposed &&
+        version == _sessionStateVersion &&
+        userId == _activeUserId &&
+        (coupleId == null || coupleId == currentCouple?.id);
+    if (!matches) {
+      AppLogger.info('[SessionSync] stale response ignored sessionVersion=$version current=$_sessionStateVersion');
+    }
+    return matches;
+  }
+
+  String _syncErrorMessage(Object e) {
+    if (e is ApiException && e.statusCode == 404) return 'Create or join a session';
+    if (e is ApiException && (e.message.toLowerCase().contains('timeout') || e.message.toLowerCase().contains('internet'))) {
+      return 'Connection is slow. We’ll keep checking.';
+    }
+    return 'We’re having trouble syncing. We’ll keep checking.';
   }
 
   String _mapError(Object e) => ErrorMessages.fromException(e);

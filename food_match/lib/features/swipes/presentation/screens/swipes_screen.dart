@@ -46,14 +46,14 @@ class _SwipesScreenState extends State<SwipesScreen> {
       }
       final CoupleProvider coupleProvider = context.read<CoupleProvider>();
       _coupleProvider = coupleProvider;
-      coupleProvider.startFilterStatePolling();
+      coupleProvider.startFilterStatePolling(reason: 'swipes_screen');
       _loadExistingBackendDeckOrStart();
     });
   }
 
   @override
   void dispose() {
-    _coupleProvider?.stopFilterStatePolling();
+    _coupleProvider?.stopFilterStatePolling(reason: 'swipes_dispose');
     super.dispose();
   }
 
@@ -74,6 +74,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
         return;
       }
       if (!coupleProvider.bothConfirmed) {
+        debugPrint('[Deck] local deck cleared reason=filters_not_ready');
         swipeProvider.clearPreparedDeck();
         await _runPreSwipeFlow();
         return;
@@ -121,6 +122,9 @@ class _SwipesScreenState extends State<SwipesScreen> {
       _isOpeningPreSwipe = false;
       return;
     }
+
+    (_coupleProvider ?? context.read<CoupleProvider>())
+        .startFilterStatePolling(reason: 'swipes_resumed_after_pre_swipe');
 
     if (result == null) {
       final CoupleProvider coupleProvider = _coupleProvider ?? context.read<CoupleProvider>();
