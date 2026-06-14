@@ -59,6 +59,9 @@ function parsePageOptions(query: AuthRequest['query']): DishListOptions {
     season: queryToValues(query.season as string | string[] | undefined),
     mealType: queryToValues(query.mealType as string | string[] | undefined),
     maxCookTime: queryToOptionalNumber(query.maxCookTime as string | string[] | undefined),
+    maxTotalTime: queryToOptionalNumber(query.maxTotalTime as string | string[] | undefined),
+    timeTier: queryToValues(query.timeTier as string | string[] | undefined),
+    maxIngredients: queryToOptionalNumber(query.maxIngredients as string | string[] | undefined),
     minCalories: queryToOptionalNumber(query.minCalories as string | string[] | undefined),
     maxCalories: queryToOptionalNumber(query.maxCalories as string | string[] | undefined),
     sort: queryToString(query.sort as string | string[] | undefined).trim() || 'default'
