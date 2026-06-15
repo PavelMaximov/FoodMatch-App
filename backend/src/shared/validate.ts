@@ -5,7 +5,7 @@ export function validateBody(schema: ZodSchema) {
   return (req: Request, res: Response, next: NextFunction): void => {
     const parsed = schema.safeParse(req.body);
     if (process.env.DEBUG_SWIPE_PIPELINE === '1' && req.originalUrl.includes('/api/swipes')) {
-      console.log('[debug][validateBody] url=%s body=%o success=%s', req.originalUrl, req.body, parsed.success);
+      console.log('[debug][validateBody] url=%s success=%s', req.originalUrl, parsed.success);
     }
     if (!parsed.success) {
       if (process.env.DEBUG_SWIPE_PIPELINE === '1') {

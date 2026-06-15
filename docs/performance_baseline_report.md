@@ -30,3 +30,10 @@ Use debug backend `[API]` / `[API:SLOW]` logs and Flutter API timing logs to fil
 - `GET /api/dishes?search=...`: regex/text-like matching can be slower as catalog grows; verify debounce prevents request storms.
 - `POST /api/couples/deck/prepare`: expected hotspot because it evaluates filters and writes a prepared deck; slow threshold is 1500ms.
 - `POST /api/uploads/avatar` and `POST /api/uploads/custom-dish-image`: expected network-bound uploads; slow threshold is 3000ms.
+
+
+## Known hotspot: full catalog pre-swipe request
+
+| Endpoint | Current observation | Reason | Mitigation | Future improvement |
+| --- | --- | --- | --- | --- |
+| `GET /api/dishes?limit=all` | Around 2.5s on a dev/local real-device run | Full catalog endpoint returns 203 full DTO dishes | Keep client cache and request dedupe, avoid repeated calls, and never log the full response body | Replace pre-swipe full catalog dependency with backend-provided filter metadata or a deck-only flow |
