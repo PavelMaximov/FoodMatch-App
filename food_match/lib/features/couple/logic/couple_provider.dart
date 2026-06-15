@@ -24,6 +24,7 @@ class CoupleProvider extends ChangeNotifier {
   bool _isAppActive = true;
   int _pollErrorStreak = 0;
   bool _disposed = false;
+  bool _pollingSuspendedForDeckPrepare = false;
   bool _joinInFlight = false;
   bool _leaveInFlight = false;
   bool _isRefreshingCurrentCouple = false;
@@ -358,12 +359,16 @@ class CoupleProvider extends ChangeNotifier {
       return null;
     } finally {
       _isRefreshingFilterState = false;
-    _filterStateRefreshFuture = null;
+      _filterStateRefreshFuture = null;
     }
   }
 
   void startFilterStatePolling({String reason = 'screen_request'}) {
     _pollingWanted = true;
+    if (_pollingSuspendedForDeckPrepare) {
+      AppLogger.info('[SessionSync] polling deferred reason=deck_prepare');
+      return;
+    }
     if (!_isAuthenticated || (_activeUserId?.isEmpty ?? true)) {
       stopFilterStatePolling(reason: 'unauthenticated');
       return;
@@ -384,11 +389,19 @@ class CoupleProvider extends ChangeNotifier {
       }
       _stopPollingTimer(reason: 'interval_change');
     }
-    AppLogger.info('[SessionSync] polling started interval=${interval.inSeconds}s reason=$reason');
+    AppLogger.info(
+      '[SessionSync] polling started interval=${interval.inSeconds}s reason=$reason',
+    );
     _activePollInterval = interval;
     _pollTimer = Timer.periodic(interval, (_) {
       if (!_canPollFilterState) {
-        stopFilterStatePolling(reason: !_isAuthenticated ? 'unauthenticated' : !_isAppActive ? 'app_background' : 'no active couple');
+        stopFilterStatePolling(
+          reason: !_isAuthenticated
+              ? 'unauthenticated'
+              : !_isAppActive
+                  ? 'app_background'
+                  : 'no active couple',
+        );
         return;
       }
       refreshFilterState(reason: 'poll_tick');
@@ -397,7 +410,29 @@ class CoupleProvider extends ChangeNotifier {
 
   void stopFilterStatePolling({String? reason}) {
     _pollingWanted = false;
+    _pollingSuspendedForDeckPrepare = false;
     _stopPollingTimer(reason: reason);
+  }
+
+  void pauseFilterStatePollingForDeckPrepare() {
+    if (_pollingSuspendedForDeckPrepare) return;
+    _pollingSuspendedForDeckPrepare = true;
+    _stopPollingTimer(reason: 'deck_prepare');
+    AppLogger.info('[SessionSync] polling paused reason=deck_prepare');
+  }
+
+  void resumeFilterStatePollingAfterDeckPrepare({required bool succeeded}) {
+    if (!_pollingSuspendedForDeckPrepare) return;
+    _pollingSuspendedForDeckPrepare = false;
+    if (!_pollingWanted || !_canPollFilterState) return;
+    if (succeeded && bothConfirmed) {
+      AppLogger.info(
+        '[SessionSync] polling resumed at confirmed interval after deck_prepare',
+      );
+    }
+    startFilterStatePolling(
+      reason: succeeded ? 'deck_prepare_success' : 'deck_prepare_failed',
+    );
   }
 
   Future<void> handleAppPaused() async {
@@ -431,7 +466,7 @@ class CoupleProvider extends ChangeNotifier {
   }
 
   void _restartPollingIfIntervalChanged() {
-    if (!_pollingWanted || !_canPollFilterState || _pollTimer == null) return;
+    if (_pollingSuspendedForDeckPrepare || !_pollingWanted || !_canPollFilterState || _pollTimer == null) return;
     if (_activePollInterval != _pollInterval) {
       _stopPollingTimer(reason: 'interval_change');
       startFilterStatePolling(reason: 'interval_change');

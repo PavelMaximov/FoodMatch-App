@@ -9,6 +9,7 @@ class ErrorMessages {
   static const String swipeFailed = 'Couldn’t save your swipe. Please try again.';
   static const String alreadySwiped = 'This dish was already swiped in this session.';
   static const String noActiveCouple = 'You’re not connected to a partner yet.';
+  static const String filtersNotReady = 'Waiting for your partner to finish choices.';
   static const String noFilteredDishes = 'No dishes found for these filters. Try changing your choices.';
   static const String unexpected = 'Something went wrong. Please try again.';
 
@@ -36,6 +37,7 @@ class ErrorMessages {
         lower.contains('duplicate swipe')) {
       return alreadySwiped;
     }
+    if (lower.contains('filters_not_ready') || lower.contains('partner choices')) return filtersNotReady;
     if (lower.contains('no active session') || lower.contains('active couple')) return noActiveCouple;
     if (lower.contains('filter') && (error.statusCode == 409 || lower.contains('no dishes'))) {
       return noFilteredDishes;

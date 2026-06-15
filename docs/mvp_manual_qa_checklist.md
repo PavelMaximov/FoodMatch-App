@@ -1,93 +1,114 @@
-# FoodMatch MVP Manual QA Checklist
+# MVP Manual QA Checklist
 
-Use this light checklist before demo/release. Test with two accounts when a partner flow is involved.
+Run this checklist before every FoodMatch MVP test build. Record device, build mode, backend commit, tester, and date at the top of each test run.
 
 ## Auth
-- [ ] Login succeeds with a valid account.
-- [ ] Register succeeds and lands in the app.
-- [ ] Reset password screen shows a loading state and friendly errors.
-- [ ] Logout returns to login and clears user-specific state.
-- [ ] An expired or invalid token returns to login with: "Your session expired. Please log in again."
 
-## Profile avatar
-- [ ] Avatar upload succeeds.
-- [ ] Duplicate avatar taps are ignored while upload is running.
-- [ ] Missing, empty, slow, or broken avatar URL shows fallback initials/person icon.
-- [ ] Avatar delete leaves the profile usable.
+- [ ] Register with valid email/password and display name.
+- [ ] Register validation handles missing/invalid fields without red screens.
+- [ ] Login with valid credentials.
+- [ ] Login failure shows a friendly message.
+- [ ] Logout clears private state and returns to auth flow.
+- [ ] Token restore keeps a valid user signed in after app restart.
+- [ ] Expired/invalid token triggers 401/session expired handling and returns to login.
+- [ ] Account switch does not leak previous user's favorites, couple state, profile, or deck.
 
 ## Recipes
-- [ ] Recipes list loads.
-- [ ] Search/filter with results renders cards normally.
-- [ ] Search/filter with no results shows a friendly empty state.
-- [ ] Broken or missing recipe images show placeholders without layout shift.
 
-## Recipe detail
-- [ ] Recipe detail opens from recipes, swipes, favorites, matches, and custom dishes.
-- [ ] Empty image URL shows a local placeholder.
-- [ ] Missing cook time, servings, calories, description, ingredients, or steps does not crash.
-- [ ] Empty ingredients and instructions show safe in-tab empty states.
+- [ ] Main recipes screen loads first page.
+- [ ] Search returns matching dishes and clears back to default list.
+- [ ] Meal tabs load the expected meal type filters.
+- [ ] Category pages open from visible category cards.
+- [ ] Quick & Easy sends `maxTotalTime=30&sort=cookTime`.
+- [ ] Under 30 minutes sends `timeTier=under_30_minutes&sort=cookTime`.
+- [ ] 5 Ingredients sends `maxIngredients=5`.
+- [ ] Breakfast sends `mealType=breakfast`.
+- [ ] Lunch sends `mealType=lunch`.
+- [ ] Dinner sends `mealType=dinner`.
+- [ ] Vegetarian sends `diet=vegetarian`.
+- [ ] Popular sends `popular=true&sort=popular`.
+- [ ] Dessert sends `type=dessert`.
+- [ ] Pagination loads next page once and stops when no more pages exist.
+- [ ] Filter button behavior is intentional for MVP and does not expose broken UI.
+- [ ] Recipe detail opens from list/category/search/swipe info.
+- [ ] Favorite toggle saves and unsaves with friendly errors on failure.
 
 ## Favorites
-- [ ] Empty Favorites shows "No saved dishes yet" and a Browse recipes CTA.
-- [ ] Save and unsave work from list/detail cards.
-- [ ] Double taps do not create stuck save state.
 
-## Add custom dish
-- [ ] Required field validation messages are clear.
-- [ ] Create custom dish without image succeeds.
-- [ ] Create custom dish with image succeeds.
-- [ ] Failed upload keeps all form input and allows retry.
-- [ ] Failed dish creation after upload keeps the uploaded image URL and allows retry.
-- [ ] Double tapping submit does not create duplicate custom dishes.
-- [ ] Empty My dishes shows "No custom dishes yet".
+- [ ] Empty state appears for a user with no saved dishes.
+- [ ] Save a dish from recipe list/detail.
+- [ ] Unsave a dish from favorites and detail.
+- [ ] Favorites persist after app restart/relogin.
+- [ ] Duplicate save/conflict shows friendly copy, not raw backend text.
 
-## Couple session
-- [ ] Create session succeeds and shows a real invite code.
-- [ ] Join session succeeds with a valid partner code.
-- [ ] Create/join buttons show loading and ignore repeated taps.
-- [ ] Invalid invite code shows a friendly error.
+## Custom dishes
 
-## Pre-swipe filters
-- [ ] User can select filters and confirm.
-- [ ] Submitting filters shows loading while saving/preparing.
-- [ ] Filters with no matching dishes show a friendly no-dishes state.
-- [ ] Prepared deck is not requested repeatedly.
+- [ ] Create custom dish without image.
+- [ ] Create custom dish with image.
+- [ ] Required-field validation blocks invalid custom dish.
+- [ ] Delete a custom dish owned by the current user.
+- [ ] Custom dish visibility is scoped as expected for active session/user.
 
-## Waiting for partner
-- [ ] User A sees "Waiting for your partner..." after confirming while User B is not ready.
-- [ ] User A cannot swipe while partner filters are incomplete.
-- [ ] No raw backend status/error appears while waiting.
+## Profile
 
-## Shared deck
-- [ ] Shared deck appears after both partners confirm filters.
-- [ ] Deck preparation loading state is visible.
-- [ ] Empty prepared deck shows "No dishes found" with Adjust filters CTA.
+- [ ] Avatar placeholder appears when no avatar exists.
+- [ ] Avatar upload succeeds and updates UI.
+- [ ] Avatar remains after relogin.
+- [ ] Avatar delete/reset path shows friendly success/error message.
+
+## Couple
+
+- [ ] Create session.
+- [ ] Join session with valid invite code.
+- [ ] Already in session path shows friendly conflict message.
+- [ ] Leave session clears couple/session state.
+- [ ] No active session state is friendly and actionable.
+- [ ] Partner display name appears after both users connect.
+
+## Pre-swipe
+
+- [ ] Cuisine choices save correctly.
+- [ ] Exclusions save correctly.
+- [ ] Any cuisine path remains valid.
+- [ ] Save-before-confirm works and survives navigation.
+- [ ] Partner waiting state appears when only one user confirmed.
+- [ ] Both confirmed transitions toward shared deck preparation.
 
 ## Swipes
-- [ ] Like and dislike work.
-- [ ] Swipe controls are disabled while a swipe request is in flight.
-- [ ] Duplicate/already-swiped response is non-fatal and friendly.
-- [ ] Temporary swipe failure does not reset the deck.
-- [ ] Info button opens recipe detail and back returns to the same card.
-- [ ] Match overlay appears when both partners like the same dish.
+
+- [ ] Deck loads from prepared deck endpoint/cache.
+- [ ] Like sends one swipe request.
+- [ ] Dislike sends one swipe request.
+- [ ] Duplicate swipe prevention avoids repeated requests and raw duplicate-key messages.
+- [ ] Info opens recipe detail.
+- [ ] Back navigation preserves the current card/deck position where intended.
 
 ## Matches
-- [ ] Empty Matches shows "No matches yet" and Start swiping CTA.
-- [ ] Matches list loads after a mutual like.
-- [ ] Broken match dish images show placeholders.
 
-## Leave session
-- [ ] Leave session clears local couple, filters, deck, swipes, and session matches.
-- [ ] Leaving when already left/no active session still returns to a clean no-session UI.
-- [ ] Auth user remains logged in after leaving.
+- [ ] Mutual like creates a match.
+- [ ] Match overlay appears once.
+- [ ] Match list updates after mutual like.
+- [ ] Duplicate match is not displayed twice.
+- [ ] Empty matches state appears only when no matches exist.
 
-## Offline/backend unavailable
-- [ ] Stop backend temporarily during list loads.
-- [ ] App shows friendly server/timeout error.
-- [ ] App does not crash or spam requests.
-- [ ] Restart backend and retry recovers.
+## Offline/error
 
-## Account switch
-- [ ] Log out as User A, then log in as User B.
-- [ ] User A couple, deck, swipes, matches, favorites, and custom dish state do not appear for User B.
-- [ ] Old couple/filter polling stops after logout/account switch.
+- [ ] Backend off shows friendly connection/server error.
+- [ ] Slow network shows timeout/slow connection message.
+- [ ] Broken image URL shows placeholder/fallback.
+- [ ] Empty API response shows correct empty state.
+- [ ] No red screens during normal error paths.
+- [ ] No raw stack, Mongo, duplicate key, `ApiException:`, or `SocketException` text appears in UI.
+
+## Observability and release readiness
+
+- [ ] Backend development logs show `[API]` timing.
+- [ ] Backend slow endpoints show `[API:SLOW]`.
+- [ ] Flutter debug logs show request method/path/status/duration.
+- [ ] Long response bodies are truncated in logs.
+- [ ] No tokens/secrets/passwords/full upload bodies are logged.
+- [ ] Debug build succeeds.
+- [ ] Release build succeeds.
+- [ ] Release run works on target device/emulator.
+- [ ] No debug banner in release or debug app shell.
+- [ ] No fake/mock mode is active in release path.

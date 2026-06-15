@@ -53,10 +53,19 @@ class ApiService {
     try {
       await _throttle();
       AppLogger.api('GET', uri.toString());
+      final stopwatch = Stopwatch()..start();
       final response = await _requestWithRetry(
         () => _client.get(uri, headers: _getHeaders()),
       );
-      AppLogger.api('GET', uri.toString(), statusCode: response.statusCode, body: response.body);
+      stopwatch.stop();
+      AppLogger.api(
+        'GET',
+        uri.toString(),
+        statusCode: response.statusCode,
+        durationMs: stopwatch.elapsedMilliseconds,
+        body: response.body,
+        errorType: _friendlyErrorType(response),
+      );
       return _handleResponse(response);
     } on TimeoutException {
       throw const ApiException(AppStrings.requestTimeout);
@@ -72,7 +81,8 @@ class ApiService {
     final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint');
     try {
       await _throttle();
-      AppLogger.api('POST', uri.toString(), body: jsonEncode(body));
+      AppLogger.api('POST', uri.toString());
+      final stopwatch = Stopwatch()..start();
       final response = await _requestWithRetry(
         () => _client.post(
           uri,
@@ -80,7 +90,15 @@ class ApiService {
           body: jsonEncode(body),
         ),
       );
-      AppLogger.api('POST', uri.toString(), statusCode: response.statusCode, body: response.body);
+      stopwatch.stop();
+      AppLogger.api(
+        'POST',
+        uri.toString(),
+        statusCode: response.statusCode,
+        durationMs: stopwatch.elapsedMilliseconds,
+        body: response.body,
+        errorType: _friendlyErrorType(response),
+      );
       return _handleResponse(response);
     } on TimeoutException {
       throw const ApiException(AppStrings.requestTimeout);
@@ -92,14 +110,28 @@ class ApiService {
     }
   }
 
-
   Future<dynamic> put(String endpoint, Map<String, dynamic> body) async {
     final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint');
     try {
       await _throttle();
-      AppLogger.api('PUT', uri.toString(), body: jsonEncode(body));
-      final response = await _requestWithRetry(() => _client.put(uri, headers: _getHeaders(), body: jsonEncode(body)));
-      AppLogger.api('PUT', uri.toString(), statusCode: response.statusCode, body: response.body);
+      AppLogger.api('PUT', uri.toString());
+      final stopwatch = Stopwatch()..start();
+      final response = await _requestWithRetry(
+        () => _client.put(
+          uri,
+          headers: _getHeaders(),
+          body: jsonEncode(body),
+        ),
+      );
+      stopwatch.stop();
+      AppLogger.api(
+        'PUT',
+        uri.toString(),
+        statusCode: response.statusCode,
+        durationMs: stopwatch.elapsedMilliseconds,
+        body: response.body,
+        errorType: _friendlyErrorType(response),
+      );
       return _handleResponse(response);
     } on TimeoutException {
       throw const ApiException(AppStrings.requestTimeout);
@@ -117,10 +149,19 @@ class ApiService {
     try {
       await _throttle();
       AppLogger.api('DELETE', uri.toString());
+      final stopwatch = Stopwatch()..start();
       final response = await _requestWithRetry(
         () => _client.delete(uri, headers: _getHeaders()),
       );
-      AppLogger.api('DELETE', uri.toString(), statusCode: response.statusCode, body: response.body);
+      stopwatch.stop();
+      AppLogger.api(
+        'DELETE',
+        uri.toString(),
+        statusCode: response.statusCode,
+        durationMs: stopwatch.elapsedMilliseconds,
+        body: response.body,
+        errorType: _friendlyErrorType(response),
+      );
       return _handleResponse(response);
     } on TimeoutException {
       throw const ApiException(AppStrings.requestTimeout);
@@ -142,6 +183,7 @@ class ApiService {
     try {
       await _throttle();
       AppLogger.api('POST-MULTIPART', uri.toString());
+      final stopwatch = Stopwatch()..start();
       final response = await _requestWithRetry(() async {
         final headers = _getHeaders(withAuth: true)..remove('Content-Type');
         final request = http.MultipartRequest('POST', uri)
@@ -159,11 +201,14 @@ class ApiService {
         return http.Response.fromStream(streamed);
       });
 
+      stopwatch.stop();
       AppLogger.api(
         'POST-MULTIPART',
         uri.toString(),
         statusCode: response.statusCode,
+        durationMs: stopwatch.elapsedMilliseconds,
         body: response.body,
+        errorType: _friendlyErrorType(response),
       );
       final dynamic data = _handleResponse(response);
       if (data is Map<String, dynamic>) {
@@ -183,7 +228,6 @@ class ApiService {
   Future<dynamic> postMultipart(String endpoint, File file) {
     return uploadFile(endpoint: endpoint, file: file);
   }
-
 
 
   MediaType _mediaTypeForFile(File file) {
@@ -223,6 +267,16 @@ class ApiService {
         await Future<void>.delayed(const Duration(seconds: 1));
       }
     }
+  }
+
+  String? _friendlyErrorType(http.Response response) {
+    if (response.statusCode >= 200 && response.statusCode < 300) return null;
+    if (response.statusCode == 401) return 'session_expired';
+    if (response.statusCode == 404) return 'not_found';
+    if (response.statusCode == 409) return 'conflict';
+    if (response.statusCode == 413) return 'payload_too_large';
+    if (response.statusCode >= 500) return 'server_error';
+    return 'http_${response.statusCode}';
   }
 
   dynamic _handleResponse(http.Response response) {

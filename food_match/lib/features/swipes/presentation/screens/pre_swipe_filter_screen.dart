@@ -522,8 +522,16 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         debugPrint('[Deck] prepare skipped: filters not ready');
         throw const _FiltersNotReadyException();
       }
-      result = await preSwipeProvider.prepareBackendDeckWithFallback(localResult);
-      await coupleProvider.refreshFilterState(reason: 'after_prepare_deck');
+      coupleProvider.pauseFilterStatePollingForDeckPrepare();
+      var deckPrepareSucceeded = false;
+      try {
+        result = await preSwipeProvider.prepareBackendDeckWithFallback(localResult);
+        deckPrepareSucceeded = true;
+      } finally {
+        coupleProvider.resumeFilterStatePollingAfterDeckPrepare(
+          succeeded: deckPrepareSucceeded,
+        );
+      }
     } catch (e) {
       debugPrint('[PreSwipe] shared deck prepare deferred $e');
       if (!mounted) {
