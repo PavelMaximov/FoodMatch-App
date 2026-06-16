@@ -13,9 +13,13 @@ export interface UserDocument extends Document {
   updatedAt: Date;
 }
 
+function normalizeEmailValue(value: string): string {
+  return value.trim().toLowerCase();
+}
+
 const userSchema = new Schema<UserDocument>(
   {
-    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true, set: normalizeEmailValue },
     passwordHash: { type: String, required: true },
     displayName: { type: String, required: true, trim: true },
     avatarUrl: { type: String },

@@ -107,6 +107,15 @@ dishSchema.index({ type: 1 });
 dishSchema.index({ popular: 1 });
 dishSchema.index({ createdBy: 1 });
 dishSchema.index({ status: 1, cuisine: 1, type: 1 });
+dishSchema.index({ status: 1, popular: -1 });
+dishSchema.index({ status: 1, cookTime: 1 });
+dishSchema.index({ status: 1, total_time_minutes: 1 });
+dishSchema.index({ status: 1, 'total_time_tier.tier': 1 });
+dishSchema.index({ status: 1, 'tags.name': 1 });
+dishSchema.index({ status: 1, diet: 1 });
+dishSchema.index({ status: 1, mood: 1 });
+dishSchema.index({ status: 1, effort: 1 });
+dishSchema.index({ status: 1, quality_score: -1 });
 
 // Virtual field for public ID: prioritizes sourceId, falls back to _id
 dishSchema.virtual('id').get(function() {
