@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 
@@ -30,8 +31,16 @@ class ApiService {
 
   String? get token => _token;
 
+  static const String _tokenKey = 'foodmatch_token';
+
   Future<void> loadToken() async {
-    _token = await _secureStorage.read(key: 'foodmatch_token');
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? legacyToken = prefs.getString(_tokenKey);
+    if (legacyToken != null && legacyToken.isNotEmpty) {
+      await _secureStorage.write(key: _tokenKey, value: legacyToken);
+      await prefs.remove(_tokenKey);
+    }
+    _token = await _secureStorage.read(key: _tokenKey);
   }
 
   void setToken(String? token) {
@@ -321,6 +330,7 @@ class ApiService {
   }
 
   void _notifyUnauthorized() {
+    unawaited(_secureStorage.delete(key: _tokenKey));
     if (_handlingUnauthorized) return;
     final Future<void> Function()? handler = onUnauthorized;
     if (handler == null) return;

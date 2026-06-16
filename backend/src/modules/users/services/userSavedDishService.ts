@@ -3,11 +3,12 @@ import { AppError } from '../../../core/errors/AppError';
 import { DISH_DTO_SELECT, toDishDto, type DishDto } from '../../dishes/dto/dishDto';
 import { DishDocument, DishModel } from '../../dishes/models/Dish';
 import { resolveDishByAnyId } from '../../dishes/utils/resolveDishByAnyId';
+import { CoupleSessionModel } from '../../couples/models/CoupleSession';
 import { UserModel } from '../models/User';
 
 export class UserSavedDishService {
   async addSavedDish(userId: string, dishId: string): Promise<void> {
-    const dish = await this.findVisibleDish(dishId);
+    const dish = await this.findVisibleDish(userId, dishId);
     if (!dish) {
       throw new AppError('Dish not found', 404);
     }
@@ -19,7 +20,7 @@ export class UserSavedDishService {
   }
 
   async removeSavedDish(userId: string, dishId: string): Promise<void> {
-    const dish = await this.findVisibleDish(dishId);
+    const dish = await this.findVisibleDish(userId, dishId);
     if (!dish) {
       throw new AppError('Dish not found', 404);
     }
@@ -46,10 +47,17 @@ export class UserSavedDishService {
       .filter((dish): dish is DishDto => Boolean(dish));
   }
 
-  private async findVisibleDish(dishId: string): Promise<DishDocument | null> {
-    const dish = await resolveDishByAnyId(dishId);
+  private async findVisibleDish(userId: string, dishId: string): Promise<DishDocument | null> {
+    const dish = await resolveDishByAnyId(dishId.trim());
     if (!dish || !this.isVisibleDishStatus(dish.status)) {
       return null;
+    }
+
+    if (dish.sourceType === 'custom') {
+      const activeSession = await CoupleSessionModel.findOne({ members: new Types.ObjectId(userId), status: 'active' });
+      if (!activeSession || !dish.coupleId || dish.coupleId.toString() !== activeSession._id.toString()) {
+        return null;
+      }
     }
 
     return dish;

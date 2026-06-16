@@ -1,4 +1,5 @@
 import { NextFunction, Router, Response } from 'express';
+import { uploadRateLimiter } from '../../core/middleware/rateLimiters';
 import { authMiddleware, AuthRequest } from '../../core/middleware/authMiddleware';
 import { asyncHandler } from '../../core/utils/asyncHandler';
 import { imageUpload, mapMulterError, uploadFieldName } from './middleware/uploadMiddleware';
@@ -14,8 +15,8 @@ function singleImage(req: AuthRequest, res: Response, next: NextFunction): void 
   });
 }
 
-router.post('/avatar', singleImage, asyncHandler(uploadController.uploadAvatar.bind(uploadController)));
+router.post('/avatar', uploadRateLimiter, singleImage, asyncHandler(uploadController.uploadAvatar.bind(uploadController)));
 router.delete('/avatar', asyncHandler(uploadController.deleteAvatar.bind(uploadController)));
-router.post('/custom-dish-image', singleImage, asyncHandler(uploadController.uploadCustomDishImage.bind(uploadController)));
+router.post('/custom-dish-image', uploadRateLimiter, singleImage, asyncHandler(uploadController.uploadCustomDishImage.bind(uploadController)));
 
 export default router;
