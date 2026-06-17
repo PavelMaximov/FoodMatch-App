@@ -9,7 +9,7 @@ import { loginSchema, registerSchema } from '../dto/authSchemas';
 const router = Router();
 
 router.post('/register', authRateLimiter, validateBody(registerSchema), asyncHandler(authController.register.bind(authController)));
-router.post('/login', authRateLimiter, loginRateLimiter, validateBody(loginSchema), asyncHandler(authController.login.bind(authController)));
+router.post('/login', loginRateLimiter, validateBody(loginSchema), asyncHandler(authController.login.bind(authController)));
 router.post('/refresh', authRateLimiter, asyncHandler(authController.refresh.bind(authController)));
 router.post('/logout', asyncHandler(authController.logout.bind(authController)));
 router.post('/logout-all', authMiddleware, asyncHandler(authController.logoutAll.bind(authController)));

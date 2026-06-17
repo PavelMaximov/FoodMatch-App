@@ -38,20 +38,28 @@ export class TokenService {
   async rotateRefreshToken(rawRefreshToken: string, metadata: TokenMetadata = {}) {
     const tokenHash = hashToken(rawRefreshToken);
     const existing = await RefreshTokenModel.findOne({ tokenHash });
-    if (!existing) throw new AppError('Invalid refresh token', 401);
+    if (!existing) {
+      console.warn('[AuthRefresh] refresh failed reason=token_not_found');
+      throw new AppError('Invalid refresh token', 401);
+    }
     if (existing.revokedAt) {
+      console.warn('[AuthRefresh] refresh failed reason=revoked_or_reused');
       existing.reusedAt = existing.reusedAt ?? new Date();
       await existing.save();
       await this.revokeRefreshTokenFamily(existing.familyId, 'reuse');
       throw new AppError('Invalid refresh token', 401);
     }
     if (existing.expiresAt <= new Date()) {
+      console.warn('[AuthRefresh] refresh failed reason=expired');
       existing.revokedAt = new Date();
       await existing.save();
       throw new AppError('Invalid refresh token', 401);
     }
     const user = await UserModel.findById(existing.userId);
-    if (!user) throw new AppError('Invalid refresh token', 401);
+    if (!user) {
+      console.warn('[AuthRefresh] refresh failed reason=token_not_found');
+      throw new AppError('Invalid refresh token', 401);
+    }
     const pair = await this.issueTokenPair(user, metadata, existing.familyId);
     existing.revokedAt = new Date();
     existing.replacedByTokenHash = hashToken(pair.refreshToken);

@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
+import { env } from '../../config/env';
 
 const tooManyAttempts = 'Too many attempts. Please wait a bit and try again.';
 
@@ -27,8 +28,8 @@ export const authRateLimiter = rateLimit({
 });
 
 export const loginRateLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 5,
+  windowMs: env.AUTH_LOGIN_RATE_LIMIT_WINDOW_MS,
+  limit: env.NODE_ENV === 'production' ? env.AUTH_LOGIN_RATE_LIMIT_MAX : env.AUTH_LOGIN_RATE_LIMIT_MAX_DEV,
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true,

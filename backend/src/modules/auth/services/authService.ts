@@ -33,8 +33,14 @@ export class AuthService {
   }
 
   async refresh(refreshToken: string, metadata: TokenMetadata = {}) {
-    if (!refreshToken) throw new AppError('Refresh token is required', 400);
-    return this.authResponse(await tokenService.rotateRefreshToken(refreshToken, metadata));
+    console.log('[AuthRefresh] refresh request received');
+    if (!refreshToken) {
+      console.warn('[AuthRefresh] refresh failed reason=missing_token');
+      throw new AppError('Refresh token is required', 400);
+    }
+    const pair = await tokenService.rotateRefreshToken(refreshToken, metadata);
+    console.log(`[AuthRefresh] refresh success userId=${pair.user.id}`);
+    return this.authResponse(pair);
   }
 
   async logout(refreshToken?: string) { await tokenService.revokeRefreshToken(refreshToken); return { success: true }; }

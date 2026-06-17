@@ -50,16 +50,18 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       final response = await _repository.register(email, password, displayName);
+      final String? refreshToken = response.refreshToken;
+      if (refreshToken == null || refreshToken.isEmpty) {
+        throw const FormatException('Missing refresh token');
+      }
+      await _apiService.saveTokenPair(
+        accessToken: response.effectiveAccessToken,
+        refreshToken: refreshToken,
+      );
       token = response.effectiveAccessToken;
       requireEmailVerification = response.requireEmailVerification;
-      _apiService.setToken(response.effectiveAccessToken);
-      _apiService.setRefreshToken(response.refreshToken);
       currentUser = response.user ?? await _repository.getMe();
       _currentUserLoadedAt = DateTime.now();
-      await _apiService.saveAccessToken(response.effectiveAccessToken);
-      if (response.refreshToken != null) {
-        await _apiService.saveRefreshToken(response.refreshToken!);
-      }
       await _cacheUserDataIfAvailable();
     } catch (e) {
       error = _mapError(e);
@@ -76,16 +78,18 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       final response = await _repository.login(email, password);
+      final String? refreshToken = response.refreshToken;
+      if (refreshToken == null || refreshToken.isEmpty) {
+        throw const FormatException('Missing refresh token');
+      }
+      await _apiService.saveTokenPair(
+        accessToken: response.effectiveAccessToken,
+        refreshToken: refreshToken,
+      );
       token = response.effectiveAccessToken;
       requireEmailVerification = response.requireEmailVerification;
-      _apiService.setToken(response.effectiveAccessToken);
-      _apiService.setRefreshToken(response.refreshToken);
       currentUser = response.user ?? await _repository.getMe();
       _currentUserLoadedAt = DateTime.now();
-      await _apiService.saveAccessToken(response.effectiveAccessToken);
-      if (response.refreshToken != null) {
-        await _apiService.saveRefreshToken(response.refreshToken!);
-      }
       await _cacheUserDataIfAvailable();
     } catch (e) {
       error = _mapError(e);
@@ -122,13 +126,22 @@ class AuthProvider extends ChangeNotifier {
       final String? loadedToken = _apiService.token;
 
       if (loadedToken == null || loadedToken.isEmpty) {
-        token = null;
-        currentUser = null;
-        _currentUserLoadedAt = null;
+        final bool refreshed = await _apiService.refreshTokens();
+        if (!refreshed) {
+          token = null;
+          currentUser = null;
+          _currentUserLoadedAt = null;
+          return;
+        }
+      }
+
+      final String? currentAccessToken = await _apiService.getAccessToken();
+      if (currentAccessToken == null || currentAccessToken.isEmpty) {
+        await handleSessionExpired();
         return;
       }
 
-      if (_isTokenExpired(loadedToken)) {
+      if (_isTokenExpired(currentAccessToken)) {
         final bool refreshed = await _apiService.refreshTokens();
         if (!refreshed) {
           await handleSessionExpired();

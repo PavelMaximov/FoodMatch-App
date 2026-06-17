@@ -54,8 +54,22 @@ class ApiService {
 
   void setToken(String? token) { _token = token; }
   void setRefreshToken(String? refreshToken) { _refreshToken = refreshToken; }
-  Future<void> saveAccessToken(String token) async { _token = token; await _secureStorage.write(key: _accessTokenKey, value: token); }
-  Future<void> saveRefreshToken(String token) async { _refreshToken = token; await _secureStorage.write(key: _refreshTokenKey, value: token); }
+  Future<void> saveAccessToken(String token) async {
+    _token = token;
+    await _secureStorage.write(key: _accessTokenKey, value: token);
+    await _secureStorage.delete(key: _tokenKey);
+  }
+  Future<void> saveRefreshToken(String token) async {
+    _refreshToken = token;
+    await _secureStorage.write(key: _refreshTokenKey, value: token);
+  }
+  Future<void> saveTokenPair({required String accessToken, required String refreshToken}) async {
+    _token = accessToken;
+    _refreshToken = refreshToken;
+    await _secureStorage.write(key: _accessTokenKey, value: accessToken);
+    await _secureStorage.write(key: _refreshTokenKey, value: refreshToken);
+    await _secureStorage.delete(key: _tokenKey);
+  }
   Future<String?> getAccessToken() async => _token ?? _secureStorage.read(key: _accessTokenKey);
   Future<String?> getRefreshToken() async => _refreshToken ?? _secureStorage.read(key: _refreshTokenKey);
   Future<void> clearTokens() async { _token = null; _refreshToken = null; await _secureStorage.delete(key: _accessTokenKey); await _secureStorage.delete(key: _refreshTokenKey); await _secureStorage.delete(key: _tokenKey); }
@@ -333,7 +347,12 @@ class ApiService {
     if (refreshToken == null || refreshToken.isEmpty) return response;
     final bool refreshed = await refreshTokens();
     if (!refreshed) return response;
-    return retry().timeout(_timeout);
+    AppLogger.info('[AuthRefresh] original request retry started');
+    final retryResponse = await retry().timeout(_timeout);
+    if (retryResponse.statusCode >= 200 && retryResponse.statusCode < 300) {
+      AppLogger.info('[AuthRefresh] original request retry success');
+    }
+    return retryResponse;
   }
 
   bool _isAuthEndpoint(String endpoint) {
@@ -396,13 +415,17 @@ class ApiService {
 
   Future<bool> _performRefresh() async {
     final String? refreshToken = await getRefreshToken();
-    if (refreshToken == null || refreshToken.isEmpty) return false;
+    if (refreshToken == null || refreshToken.isEmpty) {
+      AppLogger.info('[AuthRefresh] refresh skipped: missing refresh token');
+      return false;
+    }
     AppLogger.info('[AuthRefresh] refresh started');
     try {
       final uri = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.refresh}');
+      AppLogger.info('[AuthRefresh] refresh request sent');
       final response = await _client.post(uri, headers: _getHeaders(withAuth: false), body: jsonEncode({'refreshToken': refreshToken})).timeout(_timeout);
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        AppLogger.info('[AuthRefresh] refresh failed: session expired');
+        AppLogger.info('[AuthRefresh] refresh failed status=${response.statusCode} message=${_extractErrorMessage(response)}');
         await clearTokens();
         _notifyUnauthorized();
         return false;
@@ -411,8 +434,7 @@ class ApiService {
       final accessToken = (data['accessToken'] ?? data['token']) as String?;
       final newRefreshToken = data['refreshToken'] as String?;
       if (accessToken == null || newRefreshToken == null) throw const FormatException('Missing refreshed token pair');
-      await saveAccessToken(accessToken);
-      await saveRefreshToken(newRefreshToken);
+      await saveTokenPair(accessToken: accessToken, refreshToken: newRefreshToken);
       AppLogger.info('[AuthRefresh] refresh success');
       return true;
     } catch (e) {
