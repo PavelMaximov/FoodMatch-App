@@ -87,7 +87,7 @@ class ApiService {
         statusCode: response.statusCode,
         durationMs: stopwatch.elapsedMilliseconds,
         body: response.body,
-        errorType: _friendlyErrorType(response),
+        errorType: _friendlyErrorType(endpoint, response),
       );
       return _handleResponse(response);
     } on TimeoutException {
@@ -121,7 +121,7 @@ class ApiService {
         statusCode: response.statusCode,
         durationMs: stopwatch.elapsedMilliseconds,
         body: response.body,
-        errorType: _friendlyErrorType(response),
+        errorType: _friendlyErrorType(endpoint, response),
       );
       return _handleResponse(response);
     } on TimeoutException {
@@ -155,7 +155,7 @@ class ApiService {
         statusCode: response.statusCode,
         durationMs: stopwatch.elapsedMilliseconds,
         body: response.body,
-        errorType: _friendlyErrorType(response),
+        errorType: _friendlyErrorType(endpoint, response),
       );
       return _handleResponse(response);
     } on TimeoutException {
@@ -186,7 +186,7 @@ class ApiService {
         statusCode: response.statusCode,
         durationMs: stopwatch.elapsedMilliseconds,
         body: response.body,
-        errorType: _friendlyErrorType(response),
+        errorType: _friendlyErrorType(endpoint, response),
       );
       return _handleResponse(response);
     } on TimeoutException {
@@ -210,7 +210,7 @@ class ApiService {
       await _throttle();
       AppLogger.api('POST-MULTIPART', uri.toString());
       final stopwatch = Stopwatch()..start();
-      final response = await _requestWithRetry(() async {
+      var response = await _requestWithRetry(() async {
         final headers = _getHeaders(withAuth: true)..remove('Content-Type');
         final request = http.MultipartRequest('POST', uri)
           ..headers.addAll(headers)
@@ -226,6 +226,21 @@ class ApiService {
         final streamed = await request.send();
         return http.Response.fromStream(streamed);
       });
+      response = await _refreshAndRetryIfUnauthorized(endpoint, response, () async {
+        final headers = _getHeaders(withAuth: true)..remove('Content-Type');
+        final request = http.MultipartRequest('POST', uri)
+          ..headers.addAll(headers)
+          ..fields.addAll(fields ?? const <String, String>{})
+          ..files.add(
+            await http.MultipartFile.fromPath(
+              fieldName,
+              file.path,
+              contentType: _mediaTypeForFile(file),
+            ),
+          );
+        final streamed = await request.send();
+        return http.Response.fromStream(streamed);
+      });
 
       stopwatch.stop();
       AppLogger.api(
@@ -234,7 +249,7 @@ class ApiService {
         statusCode: response.statusCode,
         durationMs: stopwatch.elapsedMilliseconds,
         body: response.body,
-        errorType: _friendlyErrorType(response),
+        errorType: _friendlyErrorType(endpoint, response),
       );
       final dynamic data = _handleResponse(response);
       if (data is Map<String, dynamic>) {
@@ -295,9 +310,9 @@ class ApiService {
     }
   }
 
-  String? _friendlyErrorType(http.Response response) {
+  String? _friendlyErrorType(String endpoint, http.Response response) {
     if (response.statusCode >= 200 && response.statusCode < 300) return null;
-    if (response.statusCode == 401) return 'session_expired';
+    if (response.statusCode == 401) return _isAuthEndpoint(endpoint) ? _extractErrorMessage(response) : 'session_expired';
     if (response.statusCode == 404) return 'not_found';
     if (response.statusCode == 409) return 'conflict';
     if (response.statusCode == 413) return 'payload_too_large';
@@ -311,12 +326,23 @@ class ApiService {
     http.Response response,
     Future<http.Response> Function() retry,
   ) async {
-    if (response.statusCode != 401 || endpoint == ApiConstants.refresh) {
+    if (response.statusCode != 401 || _isAuthEndpoint(endpoint)) {
       return response;
     }
+    final String? refreshToken = await getRefreshToken();
+    if (refreshToken == null || refreshToken.isEmpty) return response;
     final bool refreshed = await refreshTokens();
     if (!refreshed) return response;
     return retry().timeout(_timeout);
+  }
+
+  bool _isAuthEndpoint(String endpoint) {
+    return endpoint == ApiConstants.login ||
+        endpoint == ApiConstants.register ||
+        endpoint == ApiConstants.refresh ||
+        endpoint == ApiConstants.logout ||
+        endpoint == ApiConstants.resendVerification ||
+        endpoint == ApiConstants.verifyEmail;
   }
 
   dynamic _handleResponse(http.Response response) {

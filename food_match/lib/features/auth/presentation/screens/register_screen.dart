@@ -26,6 +26,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
@@ -216,8 +217,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   hint: AppStrings.password,
                   required: true,
                   controller: _passwordController,
-                  obscureText: true,
+                  obscureText: _obscurePassword,
                   validator: Validators.password,
+                  suffixIcon: IconButton(
+                    icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
+                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                  ),
                 ),
                 const SizedBox(height: 24),
                 Consumer<AuthProvider>(

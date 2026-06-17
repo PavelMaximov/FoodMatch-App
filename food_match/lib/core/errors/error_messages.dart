@@ -12,6 +12,10 @@ class ErrorMessages {
   static const String filtersNotReady = 'Waiting for your partner to finish choices.';
   static const String noFilteredDishes = 'No dishes found for these filters. Try changing your choices.';
   static const String unexpected = 'Something went wrong. Please try again.';
+  static const String invalidCredentials = 'Invalid email or password';
+  static const String emailAlreadyRegistered = 'This email is already registered.';
+  static const String invalidVerificationLink = 'Verification link is invalid or expired.';
+  static const String tooManyAttempts = 'Too many attempts. Please wait a bit and try again.';
 
   static String fromException(Object error, {String? fallback}) {
     if (error is ApiException) {
@@ -21,6 +25,19 @@ class ErrorMessages {
   }
 
   static String fromApiException(ApiException error, {String? fallback}) {
+    final String raw = error.message.trim();
+    final String lower = raw.toLowerCase();
+
+    if (lower.contains('invalid credentials')) return invalidCredentials;
+    if (lower.contains('email already in use') || lower.contains('already registered')) {
+      return emailAlreadyRegistered;
+    }
+    if (lower.contains('invalid or expired verification') || lower.contains('verification token')) {
+      return invalidVerificationLink;
+    }
+    if (error.statusCode == 429 || lower.contains('too many attempts') || lower.contains('rate_limited')) {
+      return tooManyAttempts;
+    }
     if (error.statusCode == 401) return sessionExpired;
     if (error.statusCode == null) {
       final String message = error.message.toLowerCase();
@@ -29,8 +46,6 @@ class ErrorMessages {
     }
     if (error.statusCode != null && error.statusCode! >= 500) return serverUnavailable;
 
-    final String raw = error.message.trim();
-    final String lower = raw.toLowerCase();
     if (lower.contains('e11000') ||
         lower.contains('mongo') ||
         lower.contains('duplicate key') ||

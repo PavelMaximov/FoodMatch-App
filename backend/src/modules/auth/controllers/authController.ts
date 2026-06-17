@@ -17,7 +17,7 @@ export class AuthController {
   async refresh(req: Request, res: Response) { res.json(await authService.refresh(req.body.refreshToken, metadata(req))); }
   async logout(req: Request, res: Response) { res.json(await authService.logout(req.body?.refreshToken)); }
   async logoutAll(req: AuthRequest, res: Response) { res.json(await authService.logoutAll(req.userId!)); }
-  async me(req: AuthRequest, res: Response) { res.json({ user: await authService.me(req.userId!) }); }
+  async me(req: AuthRequest, res: Response) { res.json(await authService.me(req.userId!)); }
   async resendVerification(req: AuthRequest, res: Response) { res.json(await authService.resendVerification(req.userId!)); }
   async verifyEmail(req: Request, res: Response) { res.json(await authService.verifyEmail(req.body.token ?? req.query.token)); }
 }

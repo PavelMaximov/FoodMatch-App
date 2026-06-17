@@ -31,9 +31,17 @@ class AuthRepository {
   }
 
   Future<User> getMe() async {
+    final result = await getMeWithVerificationRequirement();
+    return result.user;
+  }
+
+  Future<({User user, bool requireEmailVerification})> getMeWithVerificationRequirement() async {
     final data = await _apiService.get(ApiConstants.me);
     if (data is Map<String, dynamic>) {
-      return User.fromJson(data['user'] as Map<String, dynamic>);
+      return (
+        user: User.fromJson(data['user'] as Map<String, dynamic>),
+        requireEmailVerification: data['requireEmailVerification'] as bool? ?? false,
+      );
     }
     throw const FormatException('Unexpected auth me response format.');
   }

@@ -137,8 +137,9 @@ class AuthProvider extends ChangeNotifier {
       }
 
       token = await _apiService.getAccessToken();
-      currentUser = await _repository.getMe();
-      requireEmailVerification = currentUser?.emailVerified == false;
+      final me = await _repository.getMeWithVerificationRequirement();
+      currentUser = me.user;
+      requireEmailVerification = me.requireEmailVerification;
       _currentUserLoadedAt = DateTime.now();
       await _cacheUserDataIfAvailable();
     } on ApiException catch (e) {
@@ -275,8 +276,9 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> checkVerificationStatus() async {
-    currentUser = await _repository.getMe();
-    requireEmailVerification = currentUser?.emailVerified == false;
+    final me = await _repository.getMeWithVerificationRequirement();
+    currentUser = me.user;
+    requireEmailVerification = me.requireEmailVerification;
     notifyListeners();
   }
 

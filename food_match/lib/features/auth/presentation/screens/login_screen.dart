@@ -26,6 +26,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _rememberMe = false;
+  bool _obscurePassword = true;
   String? _lastShownAuthError;
 
   @override
@@ -187,8 +188,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   hint: AppStrings.password,
                   required: true,
                   controller: _passwordController,
-                  obscureText: true,
+                  obscureText: _obscurePassword,
                   validator: Validators.password,
+                  suffixIcon: IconButton(
+                    icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
+                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Row(

@@ -43,7 +43,8 @@ export class AuthService {
   async me(userId: string) {
     const user = await UserModel.findById(userId);
     if (!user) throw new AppError('User not found', 404);
-    return this.toPublicUser(user);
+    const publicUser = this.toPublicUser(user);
+    return { user: publicUser, requireEmailVerification: env.REQUIRE_EMAIL_VERIFICATION && !publicUser.emailVerified };
   }
 
   async resendVerification(userId: string) {

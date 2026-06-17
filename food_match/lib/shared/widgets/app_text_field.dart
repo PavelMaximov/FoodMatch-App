@@ -11,6 +11,7 @@ class AppTextField extends StatelessWidget {
   final String? Function(String?)? validator;
   final bool required;
   final int maxLines;
+  final Widget? suffixIcon;
 
   const AppTextField({
     super.key,
@@ -21,6 +22,7 @@ class AppTextField extends StatelessWidget {
     this.validator,
     this.required = false,
     this.maxLines = 1,
+    this.suffixIcon,
   });
 
   @override
@@ -52,6 +54,7 @@ class AppTextField extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppDimensions.radiusM),
           borderSide: const BorderSide(color: AppColors.primary, width: 2),
         ),
+        suffixIcon: suffixIcon,
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppDimensions.radiusM),
           borderSide: const BorderSide(color: AppColors.error),
