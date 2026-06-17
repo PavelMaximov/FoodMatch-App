@@ -1,8 +1,24 @@
 import { NextFunction, Request, Response } from 'express';
 import mongoose from 'mongoose';
+import { ZodError } from 'zod';
 import { AppError } from '../errors/AppError';
 
 export function errorHandler(err: Error, _req: Request, res: Response, _next: NextFunction): void {
+  if (err instanceof SyntaxError && 'body' in err) {
+    res.status(400).json({ error: 'Invalid JSON payload.', message: 'Invalid JSON payload.', code: 'INVALID_JSON' });
+    return;
+  }
+
+  if ('type' in err && (err as { type?: string }).type === 'entity.too.large') {
+    res.status(413).json({ error: 'This file is too large.', message: 'This file is too large.', code: 'PAYLOAD_TOO_LARGE' });
+    return;
+  }
+
+  if (err instanceof ZodError) {
+    res.status(400).json({ error: 'Validation error', message: 'Please check your input and try again.', code: 'VALIDATION_ERROR', details: err.flatten().fieldErrors });
+    return;
+  }
+
   if (err instanceof AppError) {
     res.status(err.statusCode).json({
       error: err.message,
@@ -29,6 +45,11 @@ export function errorHandler(err: Error, _req: Request, res: Response, _next: Ne
       message: 'This item already exists.',
       code: 'CONFLICT'
     });
+    return;
+  }
+
+  if (err.message === 'CORS origin not allowed') {
+    res.status(403).json({ error: 'You do not have permission to do this.', message: 'You do not have permission to do this.', code: 'CORS_ORIGIN_DENIED' });
     return;
   }
 

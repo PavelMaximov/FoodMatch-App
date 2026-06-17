@@ -3,23 +3,26 @@ import jwt from 'jsonwebtoken';
 import { env } from '../../../config/env';
 import { AppError } from '../../../core/errors/AppError';
 import { UserDocument, UserModel } from '../../users/models/User';
+import { normalizeEmail } from '../utils/normalizeEmail';
 
 export class AuthService {
   async register(email: string, password: string, displayName: string) {
-    const existing = await UserModel.findOne({ email });
+    const normalizedEmail = normalizeEmail(email);
+    const existing = await UserModel.findOne({ email: normalizedEmail });
     if (existing) {
       throw new AppError('Email already in use', 409);
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const user = await UserModel.create({ email, passwordHash, displayName });
+    const user = await UserModel.create({ email: normalizedEmail, passwordHash, displayName });
     const token = this.signToken(user.id);
 
     return { token, user: this.toPublicUser(user) };
   }
 
   async login(email: string, password: string) {
-    const user = await UserModel.findOne({ email });
+    const normalizedEmail = normalizeEmail(email);
+    const user = await UserModel.findOne({ email: normalizedEmail });
     if (!user) {
       throw new AppError('Invalid credentials', 401);
     }
