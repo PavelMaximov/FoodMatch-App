@@ -1,4 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
@@ -39,6 +42,50 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   List<Dish> _allDishes = <Dish>[];
 
   List<String> _cuisineOptions = <String>['Any'];
+
+  final Map<String, Future<bool>> _filterIconAssetAvailability = <String, Future<bool>>{};
+
+  static const Map<String, String> _filterIconNameOverrides = <String, String>{
+    'Any': 'any',
+    'Comfort': 'mood_comfort',
+    'Healthy': 'mood_healthy',
+    'Exotic': 'mood_exotic',
+    'Indulgent': 'mood_indulgent',
+    'Quick': 'mood_quick',
+    'Light': 'mood_light',
+    'Vegetarian': 'diet_vegetarian',
+    'Vegan': 'diet_vegan',
+    'Halal': 'diet_halal',
+    'no_meat': 'no_meat',
+    'no_dairy': 'no_dairy',
+    'no_gluten': 'no_gluten',
+    'no_nuts': 'no_nuts',
+    'no_seafood': 'no_seafood',
+  };
+
+  Future<bool> _hasFilterIconAsset(String assetPath) =>
+      _filterIconAssetAvailability.putIfAbsent(
+        assetPath,
+        () async {
+          try {
+            await rootBundle.load(assetPath);
+            return true;
+          } catch (_) {
+            if (kDebugMode) {
+              debugPrint('[PreSwipeFilterScreen] Missing filter SVG asset: $assetPath');
+            }
+            return false;
+          }
+        },
+      );
+
+  String _filterIconAssetPath(String option) {
+    final String normalized = option.trim();
+    final String fileName = _filterIconNameOverrides[normalized] ??
+        normalized.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '_');
+
+    return 'assets/icons/filters/$fileName.svg';
+  }
 
   static const List<String> _moodOptions = <String>[
     'Comfort',
@@ -278,6 +325,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       spacing: 10,
       runSpacing: 10,
       children: options.map((String option) {
+        final String assetPath = _filterIconAssetPath(option);
         final FilterChipState? chipState = _chipStateFor(option, chipStates);
         final bool isAny = option == 'Any';
         final bool isSelected = anyWhenEmpty && isAny ? selected.isEmpty : selected.contains(option);
@@ -285,7 +333,10 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         final bool highlighted = options == _cuisineOptions && !_cuisines.contains(option) && _favoriteCuisines.contains(option);
 
         return _FilterOptionChip(
+          option: option,
           label: _chipLabel(option),
+          assetPath: assetPath,
+          assetExists: _hasFilterIconAsset(assetPath),
           selected: isSelected,
           enabled: isEnabled,
           highlighted: highlighted,
@@ -685,6 +736,9 @@ class PreSwipeIntroScreen extends StatelessWidget {
 
 class _FilterOptionChip extends StatelessWidget {
   const _FilterOptionChip({
+    required this.option,
+    required this.assetPath,
+    required this.assetExists,
     required this.label,
     required this.selected,
     required this.enabled,
@@ -692,6 +746,9 @@ class _FilterOptionChip extends StatelessWidget {
     required this.onTap,
   });
 
+  final String option;
+  final String assetPath;
+  final Future<bool> assetExists;
   final String label;
   final bool selected;
   final bool enabled;
@@ -732,8 +789,31 @@ class _FilterOptionChip extends StatelessWidget {
                 color: AppColors.primary,
               )
             else
-              // TODO: replace placeholder option icon with per-category assets.
-              const Icon(Icons.restaurant_menu, size: 18, color: AppColors.textSecondary),
+              FutureBuilder<bool>(
+                future: assetExists,
+                builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
+                  final bool showSvg = snapshot.data == true;
+                  if (showSvg) {
+                    return SvgPicture.asset(
+                      assetPath,
+                      width: 18,
+                      height: 18,
+                      colorFilter: ColorFilter.mode(AppColors.textSecondary, BlendMode.srcIn),
+                      placeholderBuilder: (_) => const Icon(
+                        Icons.restaurant_menu,
+                        size: 18,
+                        color: AppColors.textSecondary,
+                      ),
+                    );
+                  }
+
+                  return const Icon(
+                    Icons.restaurant_menu,
+                    size: 18,
+                    color: AppColors.textSecondary,
+                  );
+                },
+              ),
             const SizedBox(width: 8),
             Text(
               label,
