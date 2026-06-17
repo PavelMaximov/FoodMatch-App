@@ -33,3 +33,12 @@ Set these in backend runtime environments and keep `.env` files out of Git:
 - [ ] Review Cloudinary upload presets and disable unsigned/public presets not needed by the app.
 - [ ] Confirm auth tokens, passwords, MongoDB URIs, and Cloudinary secrets are not logged.
 - [ ] Confirm CORS origins match only deployed web/admin URLs plus approved local dev URLs.
+
+## Sprint 17 deferred hardening items
+
+The following items remain intentionally deferred after Auth Security v2:
+
+- Certificate pinning for mobile API calls.
+- Android/iOS `FLAG_SECURE` or equivalent screen-capture protections.
+- UGC moderation and admin approval workflows.
+- Deeper production infrastructure hardening such as WAF tuning, centralized audit log retention, secret rotation automation, and SIEM alerting.

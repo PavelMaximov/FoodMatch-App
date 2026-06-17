@@ -19,7 +19,6 @@ class AuthRepository {
       'password': password,
       'displayName': displayName,
     });
-    AppLogger.info('Response data: $data');
     return AuthResponse.fromJson(_extractAuthResponse(data));
   }
 
@@ -28,7 +27,6 @@ class AuthRepository {
       'email': email,
       'password': password,
     });
-    AppLogger.info('Response data: $data');
     return AuthResponse.fromJson(_extractAuthResponse(data));
   }
 
@@ -40,15 +38,25 @@ class AuthRepository {
     throw const FormatException('Unexpected auth me response format.');
   }
 
+  Future<void> logout({String? refreshToken}) async {
+    try {
+      await _apiService.post(ApiConstants.logout, {
+        if (refreshToken != null) 'refreshToken': refreshToken,
+      });
+    } catch (e) {
+      AppLogger.info('[Auth] server logout skipped: local cleanup will continue');
+    }
+  }
+
+  Future<void> resendVerification() async {
+    await _apiService.post(ApiConstants.resendVerification, const <String, dynamic>{});
+  }
+
   Map<String, dynamic> _extractAuthResponse(dynamic data) {
     if (data is Map<String, dynamic>) {
-      final token = data['token'];
-      final user = data['user'];
+      final token = data['accessToken'] ?? data['token'];
       if (token is String) {
-        if (user is Map<String, dynamic>) {
-          return <String, dynamic>{'token': token, 'user': user};
-        }
-        return <String, dynamic>{'token': token};
+        return <String, dynamic>{...data, 'token': token};
       }
     }
     throw const FormatException('Unexpected auth response format.');

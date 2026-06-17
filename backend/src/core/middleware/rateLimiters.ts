@@ -60,3 +60,21 @@ export const uploadRateLimiter = rateLimit({
 export function applyWriteRateLimiter(req: Request, res: Response, next: NextFunction): void {
   writeRateLimiter(req, res, next);
 }
+
+
+export const resendVerificationRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => `${req.ip}:${(req as any).userId ?? 'anonymous'}`,
+  handler: jsonHandler
+});
+
+export const verifyEmailRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: jsonHandler
+});

@@ -7,6 +7,9 @@ class ApiConstants {
   static const String register = '/api/auth/register';
   static const String login = '/api/auth/login';
   static const String me = '/api/auth/me';
+  static const String refresh = '/api/auth/refresh';
+  static const String logout = '/api/auth/logout';
+  static const String resendVerification = '/api/auth/resend-verification';
   static const String coupleCreate = '/api/couples/create';
   static const String coupleJoin = '/api/couples/join';
   static const String coupleMe = '/api/couples/me';

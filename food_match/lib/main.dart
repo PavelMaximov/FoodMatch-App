@@ -47,7 +47,6 @@ Future<void> main() async {
         ChangeNotifierProvider<AuthProvider>(
           create: (_) => AuthProvider(
             repository: authRepo,
-            secureStorage: secureStorage,
             apiService: apiService,
             cacheService: cacheService,
           ),
