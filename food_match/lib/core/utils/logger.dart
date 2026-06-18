@@ -64,6 +64,21 @@ class AppLogger {
       final dynamic decoded = jsonDecode(body);
       if (decoded is! Map<String, dynamic>) return null;
 
+      if (path.contains('/api/auth/login') ||
+          path.contains('/api/auth/register') ||
+          path.contains('/api/auth/refresh')) {
+        final bool hasUser = decoded['user'] is Map<String, dynamic>;
+        final bool hasTokens = decoded.containsKey('refreshToken') ||
+            decoded.containsKey('accessToken') ||
+            decoded.containsKey('token');
+        return 'authResponse user=${hasUser ? 'present' : 'missing'} tokens=${hasTokens ? 'present_masked' : 'absent'}';
+      }
+
+      if (path.contains('/api/auth/me')) {
+        final dynamic user = decoded['user'] ?? decoded;
+        return user is Map<String, dynamic> ? 'authMe user=present' : 'authMe user=unknown';
+      }
+
       final dynamic dishes = decoded['dishes'];
       if (dishes is List<dynamic>) return 'dishes=${dishes.length}';
 
@@ -111,7 +126,10 @@ class AppLogger {
           r'$1[MASKED]"',
         )
         .replaceAll(
-          RegExp(r'("token"\s*:\s*").*?"', caseSensitive: false),
+          RegExp(
+            r'("(?:accessToken|refreshToken|token|authorization)"\s*:\s*").*?"',
+            caseSensitive: false,
+          ),
           r'$1[MASKED]"',
         );
     if (masked.length <= _maxBodyLogChars) return masked;

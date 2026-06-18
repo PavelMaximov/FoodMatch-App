@@ -210,6 +210,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   required: true,
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
+                  autofillHints: const <String>[AutofillHints.email],
                   validator: Validators.email,
                 ),
                 const SizedBox(height: 12),
@@ -218,6 +219,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   required: true,
                   controller: _passwordController,
                   obscureText: _obscurePassword,
+                  autofillHints: const <String>[AutofillHints.newPassword],
                   validator: Validators.password,
                   suffixIcon: IconButton(
                     icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),

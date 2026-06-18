@@ -34,11 +34,16 @@ Set these in backend runtime environments and keep `.env` files out of Git:
 - [ ] Confirm auth tokens, passwords, MongoDB URIs, and Cloudinary secrets are not logged.
 - [ ] Confirm CORS origins match only deployed web/admin URLs plus approved local dev URLs.
 
-## Sprint 17 deferred hardening items
+## Sprint 18 completed Flutter client protection items
 
-The following items remain intentionally deferred after Auth Security v2:
+- [x] Android sensitive-route screen security using `FLAG_SECURE` via a Flutter platform channel.
+- [x] App switcher privacy overlay for inactive/paused/hidden/detached lifecycle states.
+- [x] Production HTTPS guard that blocks `http://` API URLs in release builds by default.
+- [x] Certificate pinning foundation with local-dev HTTP disabled from pinning and production-only enablement gates.
 
-- Certificate pinning for mobile API calls.
-- Android/iOS `FLAG_SECURE` or equivalent screen-capture protections.
+## Still deferred
+
+- Final production certificate pins after a real production domain/certificate chain exists.
 - UGC moderation and admin approval workflows.
 - Deeper production infrastructure hardening such as WAF tuning, centralized audit log retention, secret rotation automation, and SIEM alerting.
+- Production email provider.

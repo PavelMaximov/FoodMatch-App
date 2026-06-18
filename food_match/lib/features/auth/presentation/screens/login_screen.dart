@@ -181,6 +181,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   required: true,
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
+                  autofillHints: const <String>[AutofillHints.email],
                   validator: Validators.email,
                 ),
                 const SizedBox(height: 12),
@@ -189,6 +190,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   required: true,
                   controller: _passwordController,
                   obscureText: _obscurePassword,
+                  autofillHints: const <String>[AutofillHints.password],
                   validator: Validators.password,
                   suffixIcon: IconButton(
                     icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
