@@ -1,8 +1,6 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-
 import '../../../core/errors/error_messages.dart';
 import '../../../core/utils/logger.dart';
 import '../../../data/local/cache_policy.dart';
@@ -14,18 +12,15 @@ import '../../../data/services/api_service.dart';
 class AuthProvider extends ChangeNotifier {
   AuthProvider({
     required AuthRepository repository,
-    required FlutterSecureStorage secureStorage,
     required ApiService apiService,
     CacheService? cacheService,
   })  : _repository = repository,
-        _secureStorage = secureStorage,
         _apiService = apiService,
         _cacheService = cacheService ?? CacheService() {
     _apiService.onUnauthorized = handleSessionExpired;
   }
 
   final AuthRepository _repository;
-  final FlutterSecureStorage _secureStorage;
   final ApiService _apiService;
   final CacheService _cacheService;
 
@@ -36,7 +31,10 @@ class AuthProvider extends ChangeNotifier {
   bool isLoading = false;
   String? error;
 
+  bool requireEmailVerification = false;
+
   bool get isAuthenticated => token != null;
+  bool get needsEmailVerification => requireEmailVerification && currentUser?.emailVerified == false;
 
   bool get _hasFreshCurrentUser {
     final DateTime? loadedAt = _currentUserLoadedAt;
@@ -52,11 +50,18 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       final response = await _repository.register(email, password, displayName);
-      token = response.token;
-      _apiService.setToken(response.token);
+      final String? refreshToken = response.refreshToken;
+      if (refreshToken == null || refreshToken.isEmpty) {
+        throw const FormatException('Missing refresh token');
+      }
+      await _apiService.saveTokenPair(
+        accessToken: response.effectiveAccessToken,
+        refreshToken: refreshToken,
+      );
+      token = response.effectiveAccessToken;
+      requireEmailVerification = response.requireEmailVerification;
       currentUser = response.user ?? await _repository.getMe();
       _currentUserLoadedAt = DateTime.now();
-      await _secureStorage.write(key: 'foodmatch_token', value: response.token);
       await _cacheUserDataIfAvailable();
     } catch (e) {
       error = _mapError(e);
@@ -73,11 +78,18 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       final response = await _repository.login(email, password);
-      token = response.token;
-      _apiService.setToken(response.token);
+      final String? refreshToken = response.refreshToken;
+      if (refreshToken == null || refreshToken.isEmpty) {
+        throw const FormatException('Missing refresh token');
+      }
+      await _apiService.saveTokenPair(
+        accessToken: response.effectiveAccessToken,
+        refreshToken: refreshToken,
+      );
+      token = response.effectiveAccessToken;
+      requireEmailVerification = response.requireEmailVerification;
       currentUser = response.user ?? await _repository.getMe();
       _currentUserLoadedAt = DateTime.now();
-      await _secureStorage.write(key: 'foodmatch_token', value: response.token);
       await _cacheUserDataIfAvailable();
     } catch (e) {
       error = _mapError(e);
@@ -114,26 +126,39 @@ class AuthProvider extends ChangeNotifier {
       final String? loadedToken = _apiService.token;
 
       if (loadedToken == null || loadedToken.isEmpty) {
-        token = null;
-        currentUser = null;
-        _currentUserLoadedAt = null;
+        final bool refreshed = await _apiService.refreshTokens();
+        if (!refreshed) {
+          token = null;
+          currentUser = null;
+          _currentUserLoadedAt = null;
+          return;
+        }
+      }
+
+      final String? currentAccessToken = await _apiService.getAccessToken();
+      if (currentAccessToken == null || currentAccessToken.isEmpty) {
+        await handleSessionExpired();
         return;
       }
 
-      if (_isTokenExpired(loadedToken)) {
-        AppLogger.info('Token expired, logging out');
-        await logout();
-        return;
+      if (_isTokenExpired(currentAccessToken)) {
+        final bool refreshed = await _apiService.refreshTokens();
+        if (!refreshed) {
+          await handleSessionExpired();
+          return;
+        }
       }
 
-      token = loadedToken;
-      currentUser = await _repository.getMe();
+      token = await _apiService.getAccessToken();
+      final me = await _repository.getMeWithVerificationRequirement();
+      currentUser = me.user;
+      requireEmailVerification = me.requireEmailVerification;
       _currentUserLoadedAt = DateTime.now();
       await _cacheUserDataIfAvailable();
     } on ApiException catch (e) {
       if (e.statusCode == 401) {
-        AppLogger.info('Token invalid (401), logging out');
-        await logout();
+        AppLogger.info('Token invalid (401), clearing session');
+        await handleSessionExpired();
       } else {
         error = _mapError(e);
       }
@@ -192,6 +217,8 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      final String? refreshToken = await _apiService.getRefreshToken();
+      await _repository.logout(refreshToken: refreshToken);
       await _clearAuthState();
       AppLogger.info('[Auth] logout cleanup complete');
     } catch (e) {
@@ -204,12 +231,14 @@ class AuthProvider extends ChangeNotifier {
 
 
   Future<void> _clearAuthState() async {
-    await _secureStorage.delete(key: 'foodmatch_token');
+    await _apiService.clearTokens();
     token = null;
     currentUser = null;
     _currentUserLoadedAt = null;
     _loadUserFuture = null;
     _apiService.setToken(null);
+    _apiService.setRefreshToken(null);
+    requireEmailVerification = false;
     await _cacheService.clearAll();
   }
 
@@ -253,6 +282,17 @@ class AuthProvider extends ChangeNotifier {
       email: currentUser!.email,
       coupleId: currentUser!.coupleId,
     );
+  }
+
+  Future<void> resendVerification() async {
+    await _repository.resendVerification();
+  }
+
+  Future<void> checkVerificationStatus() async {
+    final me = await _repository.getMeWithVerificationRequirement();
+    currentUser = me.user;
+    requireEmailVerification = me.requireEmailVerification;
+    notifyListeners();
   }
 
   void clearError() {

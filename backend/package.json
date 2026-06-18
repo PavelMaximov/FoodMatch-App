@@ -11,7 +11,8 @@
     "cleanup:mealdb": "ts-node src/scripts/cleanupMealDbDishes.ts",
     "fix:sourceType": "ts-node src/scripts/fixMissingSourceType.ts",
     "migrate:swipe-indexes": "ts-node src/scripts/migrateSwipeIndexes.ts",
-    "audit:user-emails": "ts-node src/scripts/auditUserEmails.ts"
+    "audit:user-emails": "ts-node src/scripts/auditUserEmails.ts",
+    "migrate:mark-existing-users-verified": "ts-node src/scripts/migrateMarkExistingUsersVerified.ts"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

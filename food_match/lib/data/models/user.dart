@@ -11,6 +11,7 @@ class User {
     this.coupleId,
     this.avatarUrl,
     this.avatarPublicId,
+    this.emailVerified = true,
   });
 
   @JsonKey(name: '_id', readValue: _readId)
@@ -21,6 +22,7 @@ class User {
   final String? coupleId;
   final String? avatarUrl;
   final String? avatarPublicId;
+  final bool emailVerified;
 
   static Object? _readId(Map<dynamic, dynamic> json, String _) {
     return json['_id'] ?? json['id'];
@@ -37,6 +39,7 @@ class User {
     String? coupleId,
     String? avatarUrl,
     String? avatarPublicId,
+    bool? emailVerified,
     bool clearAvatar = false,
   }) {
     return User(
@@ -46,6 +49,7 @@ class User {
       coupleId: coupleId ?? this.coupleId,
       avatarUrl: clearAvatar ? null : avatarUrl ?? this.avatarUrl,
       avatarPublicId: clearAvatar ? null : avatarPublicId ?? this.avatarPublicId,
+      emailVerified: emailVerified ?? this.emailVerified,
     );
   }
 }

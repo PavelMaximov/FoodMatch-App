@@ -9,6 +9,8 @@ export interface UserDocument extends Document {
   authProvider?: 'local';
   savedDishes: Types.ObjectId[];
   isActive: boolean;
+  emailVerified?: boolean;
+  emailVerifiedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -26,7 +28,9 @@ const userSchema = new Schema<UserDocument>(
     avatarPublicId: { type: String },
     authProvider: { type: String, default: 'local' },
     savedDishes: { type: [{ type: Schema.Types.ObjectId, ref: 'Dish' }], default: [] },
-    isActive: { type: Boolean, default: true }
+    isActive: { type: Boolean, default: true },
+    emailVerified: { type: Boolean, default: false },
+    emailVerifiedAt: { type: Date }
   },
   { timestamps: true }
 );

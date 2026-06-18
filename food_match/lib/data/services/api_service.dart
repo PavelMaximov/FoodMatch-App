@@ -25,6 +25,8 @@ class ApiService {
   static const Duration _minRequestInterval = Duration(milliseconds: 300);
 
   String? _token;
+  String? _refreshToken;
+  Future<bool>? _refreshFuture;
   DateTime? _lastRequestTime;
   Future<void> Function()? onUnauthorized;
   bool _handlingUnauthorized = false;
@@ -32,6 +34,8 @@ class ApiService {
   String? get token => _token;
 
   static const String _tokenKey = 'foodmatch_token';
+  static const String _accessTokenKey = 'foodmatch_access_token';
+  static const String _refreshTokenKey = 'foodmatch_refresh_token';
 
   Future<void> loadToken() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -40,12 +44,35 @@ class ApiService {
       await _secureStorage.write(key: _tokenKey, value: legacyToken);
       await prefs.remove(_tokenKey);
     }
-    _token = await _secureStorage.read(key: _tokenKey);
+    _token = await _secureStorage.read(key: _accessTokenKey) ?? await _secureStorage.read(key: _tokenKey);
+    _refreshToken = await _secureStorage.read(key: _refreshTokenKey);
+    if (_token != null) {
+      await _secureStorage.write(key: _accessTokenKey, value: _token);
+      await _secureStorage.delete(key: _tokenKey);
+    }
   }
 
-  void setToken(String? token) {
+  void setToken(String? token) { _token = token; }
+  void setRefreshToken(String? refreshToken) { _refreshToken = refreshToken; }
+  Future<void> saveAccessToken(String token) async {
     _token = token;
+    await _secureStorage.write(key: _accessTokenKey, value: token);
+    await _secureStorage.delete(key: _tokenKey);
   }
+  Future<void> saveRefreshToken(String token) async {
+    _refreshToken = token;
+    await _secureStorage.write(key: _refreshTokenKey, value: token);
+  }
+  Future<void> saveTokenPair({required String accessToken, required String refreshToken}) async {
+    _token = accessToken;
+    _refreshToken = refreshToken;
+    await _secureStorage.write(key: _accessTokenKey, value: accessToken);
+    await _secureStorage.write(key: _refreshTokenKey, value: refreshToken);
+    await _secureStorage.delete(key: _tokenKey);
+  }
+  Future<String?> getAccessToken() async => _token ?? _secureStorage.read(key: _accessTokenKey);
+  Future<String?> getRefreshToken() async => _refreshToken ?? _secureStorage.read(key: _refreshTokenKey);
+  Future<void> clearTokens() async { _token = null; _refreshToken = null; await _secureStorage.delete(key: _accessTokenKey); await _secureStorage.delete(key: _refreshTokenKey); await _secureStorage.delete(key: _tokenKey); }
 
   Future<void> _throttle() async {
     if (_lastRequestTime != null) {
@@ -63,9 +90,10 @@ class ApiService {
       await _throttle();
       AppLogger.api('GET', uri.toString());
       final stopwatch = Stopwatch()..start();
-      final response = await _requestWithRetry(
+      var response = await _requestWithRetry(
         () => _client.get(uri, headers: _getHeaders()),
       );
+      response = await _refreshAndRetryIfUnauthorized(endpoint, response, () => _client.get(uri, headers: _getHeaders()));
       stopwatch.stop();
       AppLogger.api(
         'GET',
@@ -73,7 +101,7 @@ class ApiService {
         statusCode: response.statusCode,
         durationMs: stopwatch.elapsedMilliseconds,
         body: response.body,
-        errorType: _friendlyErrorType(response),
+        errorType: _friendlyErrorType(endpoint, response),
       );
       return _handleResponse(response);
     } on TimeoutException {
@@ -92,13 +120,14 @@ class ApiService {
       await _throttle();
       AppLogger.api('POST', uri.toString());
       final stopwatch = Stopwatch()..start();
-      final response = await _requestWithRetry(
+      var response = await _requestWithRetry(
         () => _client.post(
           uri,
           headers: _getHeaders(),
           body: jsonEncode(body),
         ),
       );
+      response = await _refreshAndRetryIfUnauthorized(endpoint, response, () => _client.post(uri, headers: _getHeaders(), body: jsonEncode(body)));
       stopwatch.stop();
       AppLogger.api(
         'POST',
@@ -106,7 +135,7 @@ class ApiService {
         statusCode: response.statusCode,
         durationMs: stopwatch.elapsedMilliseconds,
         body: response.body,
-        errorType: _friendlyErrorType(response),
+        errorType: _friendlyErrorType(endpoint, response),
       );
       return _handleResponse(response);
     } on TimeoutException {
@@ -125,13 +154,14 @@ class ApiService {
       await _throttle();
       AppLogger.api('PUT', uri.toString());
       final stopwatch = Stopwatch()..start();
-      final response = await _requestWithRetry(
+      var response = await _requestWithRetry(
         () => _client.put(
           uri,
           headers: _getHeaders(),
           body: jsonEncode(body),
         ),
       );
+      response = await _refreshAndRetryIfUnauthorized(endpoint, response, () => _client.put(uri, headers: _getHeaders(), body: jsonEncode(body)));
       stopwatch.stop();
       AppLogger.api(
         'PUT',
@@ -139,7 +169,7 @@ class ApiService {
         statusCode: response.statusCode,
         durationMs: stopwatch.elapsedMilliseconds,
         body: response.body,
-        errorType: _friendlyErrorType(response),
+        errorType: _friendlyErrorType(endpoint, response),
       );
       return _handleResponse(response);
     } on TimeoutException {
@@ -159,9 +189,10 @@ class ApiService {
       await _throttle();
       AppLogger.api('DELETE', uri.toString());
       final stopwatch = Stopwatch()..start();
-      final response = await _requestWithRetry(
+      var response = await _requestWithRetry(
         () => _client.delete(uri, headers: _getHeaders()),
       );
+      response = await _refreshAndRetryIfUnauthorized(endpoint, response, () => _client.delete(uri, headers: _getHeaders()));
       stopwatch.stop();
       AppLogger.api(
         'DELETE',
@@ -169,7 +200,7 @@ class ApiService {
         statusCode: response.statusCode,
         durationMs: stopwatch.elapsedMilliseconds,
         body: response.body,
-        errorType: _friendlyErrorType(response),
+        errorType: _friendlyErrorType(endpoint, response),
       );
       return _handleResponse(response);
     } on TimeoutException {
@@ -193,7 +224,7 @@ class ApiService {
       await _throttle();
       AppLogger.api('POST-MULTIPART', uri.toString());
       final stopwatch = Stopwatch()..start();
-      final response = await _requestWithRetry(() async {
+      var response = await _requestWithRetry(() async {
         final headers = _getHeaders(withAuth: true)..remove('Content-Type');
         final request = http.MultipartRequest('POST', uri)
           ..headers.addAll(headers)
@@ -209,6 +240,21 @@ class ApiService {
         final streamed = await request.send();
         return http.Response.fromStream(streamed);
       });
+      response = await _refreshAndRetryIfUnauthorized(endpoint, response, () async {
+        final headers = _getHeaders(withAuth: true)..remove('Content-Type');
+        final request = http.MultipartRequest('POST', uri)
+          ..headers.addAll(headers)
+          ..fields.addAll(fields ?? const <String, String>{})
+          ..files.add(
+            await http.MultipartFile.fromPath(
+              fieldName,
+              file.path,
+              contentType: _mediaTypeForFile(file),
+            ),
+          );
+        final streamed = await request.send();
+        return http.Response.fromStream(streamed);
+      });
 
       stopwatch.stop();
       AppLogger.api(
@@ -217,7 +263,7 @@ class ApiService {
         statusCode: response.statusCode,
         durationMs: stopwatch.elapsedMilliseconds,
         body: response.body,
-        errorType: _friendlyErrorType(response),
+        errorType: _friendlyErrorType(endpoint, response),
       );
       final dynamic data = _handleResponse(response);
       if (data is Map<String, dynamic>) {
@@ -278,14 +324,44 @@ class ApiService {
     }
   }
 
-  String? _friendlyErrorType(http.Response response) {
+  String? _friendlyErrorType(String endpoint, http.Response response) {
     if (response.statusCode >= 200 && response.statusCode < 300) return null;
-    if (response.statusCode == 401) return 'session_expired';
+    if (response.statusCode == 401) return _isAuthEndpoint(endpoint) ? _extractErrorMessage(response) : 'session_expired';
     if (response.statusCode == 404) return 'not_found';
     if (response.statusCode == 409) return 'conflict';
     if (response.statusCode == 413) return 'payload_too_large';
     if (response.statusCode >= 500) return 'server_error';
     return 'http_${response.statusCode}';
+  }
+
+
+  Future<http.Response> _refreshAndRetryIfUnauthorized(
+    String endpoint,
+    http.Response response,
+    Future<http.Response> Function() retry,
+  ) async {
+    if (response.statusCode != 401 || _isAuthEndpoint(endpoint)) {
+      return response;
+    }
+    final String? refreshToken = await getRefreshToken();
+    if (refreshToken == null || refreshToken.isEmpty) return response;
+    final bool refreshed = await refreshTokens();
+    if (!refreshed) return response;
+    AppLogger.info('[AuthRefresh] original request retry started');
+    final retryResponse = await retry().timeout(_timeout);
+    if (retryResponse.statusCode >= 200 && retryResponse.statusCode < 300) {
+      AppLogger.info('[AuthRefresh] original request retry success');
+    }
+    return retryResponse;
+  }
+
+  bool _isAuthEndpoint(String endpoint) {
+    return endpoint == ApiConstants.login ||
+        endpoint == ApiConstants.register ||
+        endpoint == ApiConstants.refresh ||
+        endpoint == ApiConstants.logout ||
+        endpoint == ApiConstants.resendVerification ||
+        endpoint == ApiConstants.verifyEmail;
   }
 
   dynamic _handleResponse(http.Response response) {
@@ -297,9 +373,7 @@ class ApiService {
     final String errorMessage = _extractErrorMessage(response);
 
     if (response.statusCode == 401) {
-      _token = null;
-      _notifyUnauthorized();
-      throw const ApiException('Your session expired. Please log in again.', statusCode: 401);
+      throw ApiException(errorMessage, statusCode: 401);
     }
 
     if (response.statusCode == 404) {
@@ -329,8 +403,50 @@ class ApiService {
     throw ApiException(errorMessage, statusCode: response.statusCode);
   }
 
+  Future<bool> refreshTokens() {
+    final Future<bool>? inFlight = _refreshFuture;
+    if (inFlight != null) {
+      AppLogger.info('[RequestDedup] refresh reused existing request');
+      return inFlight;
+    }
+    _refreshFuture = _performRefresh().whenComplete(() => _refreshFuture = null);
+    return _refreshFuture!;
+  }
+
+  Future<bool> _performRefresh() async {
+    final String? refreshToken = await getRefreshToken();
+    if (refreshToken == null || refreshToken.isEmpty) {
+      AppLogger.info('[AuthRefresh] refresh skipped: missing refresh token');
+      return false;
+    }
+    AppLogger.info('[AuthRefresh] refresh started');
+    try {
+      final uri = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.refresh}');
+      AppLogger.info('[AuthRefresh] refresh request sent');
+      final response = await _client.post(uri, headers: _getHeaders(withAuth: false), body: jsonEncode({'refreshToken': refreshToken})).timeout(_timeout);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        AppLogger.info('[AuthRefresh] refresh failed status=${response.statusCode} message=${_extractErrorMessage(response)}');
+        await clearTokens();
+        _notifyUnauthorized();
+        return false;
+      }
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final accessToken = (data['accessToken'] ?? data['token']) as String?;
+      final newRefreshToken = data['refreshToken'] as String?;
+      if (accessToken == null || newRefreshToken == null) throw const FormatException('Missing refreshed token pair');
+      await saveTokenPair(accessToken: accessToken, refreshToken: newRefreshToken);
+      AppLogger.info('[AuthRefresh] refresh success');
+      return true;
+    } catch (e) {
+      AppLogger.info('[AuthRefresh] refresh failed: session expired');
+      await clearTokens();
+      _notifyUnauthorized();
+      return false;
+    }
+  }
+
   void _notifyUnauthorized() {
-    unawaited(_secureStorage.delete(key: _tokenKey));
+    unawaited(clearTokens());
     if (_handlingUnauthorized) return;
     final Future<void> Function()? handler = onUnauthorized;
     if (handler == null) return;

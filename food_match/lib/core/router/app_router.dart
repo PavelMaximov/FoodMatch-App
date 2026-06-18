@@ -6,6 +6,7 @@ import '../../features/auth/logic/auth_provider.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
+import '../../features/auth/presentation/screens/verify_email_screen.dart';
 import '../../features/couple/presentation/widgets/connect_session_sheet.dart';
 import '../../features/dishes/presentation/screens/add_dish_screen.dart';
 import '../../features/dishes/presentation/screens/recipe_detail_screen.dart';
@@ -27,9 +28,16 @@ class AppRouter {
             final bool isAuthRoute = state.matchedLocation == '/login' ||
                 state.matchedLocation == '/register' ||
                 state.matchedLocation == '/forgot-password';
+            final bool isVerifyRoute = state.matchedLocation == '/verify-email';
 
             if (!isLoggedIn && !isAuthRoute) {
               return '/login';
+            }
+            if (isLoggedIn && authProvider.needsEmailVerification && !isVerifyRoute) {
+              return '/verify-email';
+            }
+            if (isLoggedIn && !authProvider.needsEmailVerification && isVerifyRoute) {
+              return '/swipes';
             }
             if (isLoggedIn && isAuthRoute) {
               return '/swipes';
@@ -43,6 +51,7 @@ class AppRouter {
               path: '/forgot-password',
               builder: (_, __) => const ForgotPasswordScreen(),
             ),
+            GoRoute(path: '/verify-email', builder: (_, __) => const VerifyEmailScreen()),
             GoRoute(
               path: '/connect-couple',
               builder: (_, __) => const Scaffold(
