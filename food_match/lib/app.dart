@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'core/router/app_router.dart';
+import 'core/security/api_security_config.dart';
 import 'core/security/privacy_overlay.dart';
 import 'core/security/screen_security_service.dart';
 import 'core/theme/app_theme.dart';
@@ -50,10 +51,11 @@ class _FoodMatchAppState extends State<FoodMatchApp> with WidgetsBindingObserver
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    final bool shouldHide = state == AppLifecycleState.inactive ||
-        state == AppLifecycleState.paused ||
-        state == AppLifecycleState.hidden ||
-        state == AppLifecycleState.detached;
+    final bool shouldHide = ClientProtectionConfig.enablePrivacyOverlay &&
+        (state == AppLifecycleState.inactive ||
+            state == AppLifecycleState.paused ||
+            state == AppLifecycleState.hidden ||
+            state == AppLifecycleState.detached);
     if (shouldHide != _showPrivacyOverlay && mounted) {
       setState(() => _showPrivacyOverlay = shouldHide);
     }
@@ -67,21 +69,27 @@ class _FoodMatchAppState extends State<FoodMatchApp> with WidgetsBindingObserver
   }
 
   void _handleSensitiveRouteChanged(bool isSensitive) {
-    ScreenSecurityService.instance.setSecureScreenEnabled(isSensitive);
+    ScreenSecurityService.instance.setSecureScreenEnabled(
+      ClientProtectionConfig.enableScreenSecurity && isSensitive,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: <Widget>[
-        MaterialApp.router(
-          title: 'FoodMatch',
-          debugShowCheckedModeBanner: false,
-          theme: AppTheme.light,
-          routerConfig: _router,
-        ),
-        if (_showPrivacyOverlay) const PrivacyOverlay(),
-      ],
+    return MaterialApp.router(
+      title: 'FoodMatch',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.light,
+      routerConfig: _router,
+      builder: (BuildContext context, Widget? child) {
+        return Stack(
+          alignment: Alignment.topLeft,
+          children: <Widget>[
+            child ?? const SizedBox.shrink(),
+            if (_showPrivacyOverlay) const PrivacyOverlay(),
+          ],
+        );
+      },
     );
   }
 }

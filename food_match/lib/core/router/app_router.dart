@@ -122,12 +122,7 @@ class AppRouter {
       '/register',
       '/verify-email',
       '/connect-couple',
-      '/matches',
-      '/swipes',
-      '/add-dish',
       '/profile',
-      '/favorites',
-      '/match-overlay',
     }.contains(location);
   }
 }

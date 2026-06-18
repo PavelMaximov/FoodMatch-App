@@ -10,7 +10,7 @@
 
 ## Android screenshot and recording protection
 
-Android sensitive routes now toggle `FLAG_SECURE` through the `foodmatch/screen_security` platform channel. Protected routes include login, register, verify email, couple connection, matches, swipes, add dish, profile, favorites, and match overlay.
+Android can toggle `FLAG_SECURE` through the `foodmatch/screen_security` platform channel, but it is gated behind `ENABLE_SCREEN_SECURITY=false` by default. When enabled, protected routes are limited to login, register, verify email, couple connection/invite, and profile. Recipes, dish detail, swipes, matches, favorites, and add dish are not protected by default so users can still screenshot shareable food content during MVP development.
 
 Expected Android behavior: screenshots are blocked or blacked out, and screen recordings do not capture protected content where the OS honors `FLAG_SECURE`.
 
@@ -18,7 +18,7 @@ Expected Android behavior: screenshots are blocked or blacked out, and screen re
 
 iOS does not expose a direct `FLAG_SECURE` equivalent for general screenshot prevention. FoodMatch does not claim full iOS screenshot blocking.
 
-The app now uses a Flutter lifecycle privacy overlay for inactive, paused, hidden, and detached states. The overlay contains only neutral FoodMatch branding and no user data, tokens, dishes, matches, or session details. It is removed when the app resumes.
+The app now uses a Flutter lifecycle privacy overlay for inactive, paused, hidden, and detached states. `ENABLE_PRIVACY_OVERLAY=true` by default. The overlay contains only neutral FoodMatch branding and no user data, tokens, dishes, matches, or session details. It is removed when the app resumes.
 
 ## Development HTTP exception
 
@@ -33,6 +33,8 @@ Relevant build-time switches:
 - `ALLOW_INSECURE_HTTP_FOR_DEV=true` by default for debug/local development.
 - `REQUIRE_HTTPS_IN_RELEASE=true` by default.
 - `PRODUCTION_API_HOST=api.foodmatch.app` placeholder.
+- `ENABLE_SCREEN_SECURITY=false` by default, including development.
+- `ENABLE_PRIVACY_OVERLAY=true` by default.
 
 ## Certificate pinning foundation
 
@@ -61,8 +63,10 @@ The intended strategy is SPKI/public-key hash pinning, not leaf certificate pinn
 - [ ] Login works.
 - [ ] Token refresh works after access token expiry.
 - [ ] Recipes, favorites, profile, couple flow, swipes, and matches still work.
-- [ ] Android login screenshots are blocked/blank.
-- [ ] Android profile screenshots are blocked/blank.
+- [ ] With `ENABLE_SCREEN_SECURITY=false`, Android screenshots are still allowed in development.
+- [ ] With `ENABLE_SCREEN_SECURITY=true`, Android login screenshots are blocked/blank.
+- [ ] With `ENABLE_SCREEN_SECURITY=true`, Android profile screenshots are blocked/blank.
+- [ ] Recipes, swipes, matches, favorites, and dish detail remain screenshot-friendly by default.
 - [ ] App does not crash when switching tabs/routes.
 - [ ] Backgrounding Profile or Matches shows the privacy overlay in the app switcher.
 - [ ] Returning to the app removes the privacy overlay.

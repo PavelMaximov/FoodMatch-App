@@ -36,7 +36,7 @@ Set these in backend runtime environments and keep `.env` files out of Git:
 
 ## Sprint 18 completed Flutter client protection items
 
-- [x] Android sensitive-route screen security using `FLAG_SECURE` via a Flutter platform channel.
+- [x] Config-gated Android sensitive-route screen security using `FLAG_SECURE` via a Flutter platform channel.
 - [x] App switcher privacy overlay for inactive/paused/hidden/detached lifecycle states.
 - [x] Production HTTPS guard that blocks `http://` API URLs in release builds by default.
 - [x] Certificate pinning foundation with local-dev HTTP disabled from pinning and production-only enablement gates.

@@ -54,3 +54,17 @@ class ApiSecurityConfig {
     }
   }
 }
+
+class ClientProtectionConfig {
+  const ClientProtectionConfig._();
+
+  static const bool enableScreenSecurity = bool.fromEnvironment(
+    'ENABLE_SCREEN_SECURITY',
+    defaultValue: false,
+  );
+
+  static const bool enablePrivacyOverlay = bool.fromEnvironment(
+    'ENABLE_PRIVACY_OVERLAY',
+    defaultValue: true,
+  );
+}
