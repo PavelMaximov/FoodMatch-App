@@ -46,8 +46,11 @@ export interface DishDocument extends Document {
   rawSourceData?: Record<string, unknown>;
   createdBy?: Types.ObjectId | null;
   coupleId?: Types.ObjectId | null;
+  visibility: 'public' | 'session' | 'private';
+  isCustom: boolean;
   structuredIngredients: StructuredIngredient[];
-  status: 'active' | 'approved' | 'deleted';
+  status: 'active' | 'approved' | 'hidden' | 'deleted';
+  hiddenAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -94,14 +97,18 @@ const dishSchema = new Schema<DishDocument>(
     rawSourceData: { type: Schema.Types.Mixed },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
     coupleId: { type: Schema.Types.ObjectId, ref: 'CoupleSession', default: null, index: true },
+    visibility: { type: String, enum: ['public', 'session', 'private'], default: 'public', index: true },
+    isCustom: { type: Boolean, default: false, index: true },
     structuredIngredients: { type: [structuredIngredientSchema], default: [] },
-    status: { type: String, enum: ['active', 'approved', 'deleted'], default: 'active', index: true }
+    status: { type: String, enum: ['active', 'approved', 'hidden', 'deleted'], default: 'approved', index: true },
+    hiddenAt: { type: Date, default: null }
   },
   { timestamps: true }
 );
 
 dishSchema.index({ sourceType: 1, sourceId: 1 }, { unique: true, partialFilterExpression: { sourceId: { $exists: true } } });
 dishSchema.index({ sourceType: 1, coupleId: 1, status: 1 });
+dishSchema.index({ visibility: 1, status: 1, isCustom: 1 });
 dishSchema.index({ cuisine: 1 });
 dishSchema.index({ type: 1 });
 dishSchema.index({ popular: 1 });

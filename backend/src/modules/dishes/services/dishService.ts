@@ -5,6 +5,8 @@ import { DISH_DTO_SELECT, toDishDto, toPublicDishId } from '../dto/dishDto';
 import { resolveDishByAnyId } from '../utils/resolveDishByAnyId';
 import { DishDocument, DishModel } from '../models/Dish';
 import { CLOUDINARY_FOLDERS, deleteImage } from '../../uploads/services/cloudinaryService';
+import { SwipeModel } from '../../swipes/models/Swipe';
+import { MatchModel } from '../../matches/models/Match';
 
 
 export interface DishListFilters {
@@ -43,7 +45,12 @@ export interface PaginatedDishResult {
 interface CreateCustomDishInput {
   name: string;
   cuisine: string;
-  mood: string;
+  mood: string | string[];
+  type?: string;
+  description?: string;
+  diet?: string[];
+  source?: string[];
+  season?: string[];
   ingredients: Array<{ name: string; quantity?: string; unit?: string }>;
   cookTime: number;
   servings: string;
@@ -140,9 +147,6 @@ export class DishService {
 
   async createCustomDish(userId: string, input: CreateCustomDishInput) {
     const activeSession = await this.getActiveSessionForUser(userId);
-    if (!activeSession) {
-      throw new AppError('User has no active session', 409);
-    }
 
     const sanitizedIngredients = input.ingredients
       .map((ingredient) => ({
@@ -152,52 +156,95 @@ export class DishService {
       }))
       .filter((ingredient) => ingredient.name.length > 0);
 
+    const imagePublicId = this.safeCustomDishPublicId(input.imagePublicId, userId);
+    const imageUrl = this.safeCustomDishImageUrl(input.imageUrl, imagePublicId);
+    const mood = Array.isArray(input.mood) ? input.mood : [input.mood];
+
     const dish = await DishModel.create({
       sourceType: 'custom',
+      isCustom: true,
+      visibility: activeSession ? 'session' : 'private',
       name: input.name.trim(),
-      description: '',
-      imageUrl: (input.imageUrl ?? '').trim(),
-      imagePublicId: this.safeCustomDishPublicId(input.imagePublicId),
+      description: (input.description ?? '').trim(),
+      imageUrl,
+      imagePublicId,
       cuisine: input.cuisine.trim(),
-      type: '',
-      mood: [input.mood.trim()],
-      diet: [],
+      type: (input.type ?? '').trim(),
+      mood: mood.map((value) => value.trim()).filter(Boolean).slice(0, 10),
+      diet: (input.diet ?? []).map((value) => value.trim()).filter(Boolean).slice(0, 10),
       ingredients: sanitizedIngredients.map((ingredient) => ingredient.name),
       cookTime: Number.isFinite(input.cookTime) ? Math.max(0, Math.trunc(input.cookTime)) : 0,
       calories: '',
       effort: '',
       source: ['user'],
       servings: input.servings.trim(),
-      season: [],
+      season: (input.season ?? []).map((value) => value.trim()).filter(Boolean).slice(0, 10),
       popular: false,
       steps: input.steps
         .map((step, index) => ({ step: typeof step.step === 'number' ? step.step : index + 1, text: step.text.trim() }))
         .filter((step) => step.text.length > 0),
       createdBy: new Types.ObjectId(userId),
-      coupleId: activeSession._id,
+      coupleId: activeSession?._id ?? null,
       structuredIngredients: sanitizedIngredients,
-      status: 'active',
+      status: 'approved',
       rawSourceData: {
         origin: 'user-created',
-        sessionScoped: true
+        sessionScoped: Boolean(activeSession)
       }
     });
 
     return toDishDto(dish);
   }
 
-  async listMyCustomDishes(userId: string) {
-    const activeSession = await this.getActiveSessionForUser(userId);
 
+  async updateMyCustomDish(userId: string, dishId: string, input: CreateCustomDishInput) {
+    const candidate = await resolveDishByAnyId(dishId.trim());
+    if (!candidate || candidate.sourceType !== 'custom' || candidate.status !== 'approved') {
+      throw new AppError('This dish is not available.', 404);
+    }
+    if (!candidate.createdBy || candidate.createdBy.toString() !== userId) {
+      throw new AppError('You can only edit your own dishes.', 403);
+    }
+
+    const sanitizedIngredients = input.ingredients
+      .map((ingredient) => ({
+        name: ingredient.name.trim(),
+        quantity: (ingredient.quantity ?? '').trim(),
+        unit: (ingredient.unit ?? '').trim()
+      }))
+      .filter((ingredient) => ingredient.name.length > 0);
+    const imagePublicId = this.safeCustomDishPublicId(input.imagePublicId, userId);
+    const imageUrl = this.safeCustomDishImageUrl(input.imageUrl, imagePublicId);
+    const mood = Array.isArray(input.mood) ? input.mood : [input.mood];
+
+    candidate.name = input.name.trim();
+    candidate.description = (input.description ?? '').trim();
+    candidate.cuisine = input.cuisine.trim();
+    candidate.type = (input.type ?? '').trim();
+    candidate.mood = mood.map((value) => value.trim()).filter(Boolean).slice(0, 10);
+    candidate.diet = (input.diet ?? []).map((value) => value.trim()).filter(Boolean).slice(0, 10);
+    candidate.ingredients = sanitizedIngredients.map((ingredient) => ingredient.name);
+    candidate.structuredIngredients = sanitizedIngredients;
+    candidate.cookTime = Number.isFinite(input.cookTime) ? Math.max(0, Math.trunc(input.cookTime)) : 0;
+    candidate.servings = input.servings.trim();
+    candidate.season = (input.season ?? []).map((value) => value.trim()).filter(Boolean).slice(0, 10);
+    candidate.steps = input.steps
+      .map((step, index) => ({ step: typeof step.step === 'number' ? step.step : index + 1, text: step.text.trim() }))
+      .filter((step) => step.text.length > 0);
+    candidate.imageUrl = imageUrl;
+    candidate.imagePublicId = imagePublicId;
+
+    await candidate.save();
+    return toDishDto(candidate);
+  }
+
+  async listMyCustomDishes(userId: string) {
     const filter: FilterQuery<DishDocument> = {
       sourceType: 'custom',
       createdBy: new Types.ObjectId(userId),
-      status: 'active'
+      status: 'approved'
     };
 
-    if (activeSession) {
-      filter.coupleId = activeSession._id;
-    }
 
     const dishes = await DishModel.find(filter).select(DISH_DTO_SELECT).sort({ createdAt: -1 }).lean();
 
@@ -209,12 +256,12 @@ export class DishService {
 
     const candidate = await resolveDishByAnyId(normalizedId);
 
-    if (!candidate || candidate.sourceType !== 'custom' || candidate.status !== 'active') {
-      throw new AppError('Dish not found', 404);
+    if (!candidate || candidate.sourceType !== 'custom' || candidate.status !== 'approved') {
+      throw new AppError('This dish is not available.', 404);
     }
 
     if (!candidate.createdBy || candidate.createdBy.toString() !== userId) {
-      throw new AppError('You can delete only your own dishes', 403);
+      throw new AppError('You can only delete your own dishes.', 403);
     }
 
     if (this.isCustomDishPublicId(candidate.imagePublicId)) {
@@ -229,19 +276,55 @@ export class DishService {
       }
     }
 
+    const hasReferences = await this.customDishHasReferences(candidate._id as Types.ObjectId);
+    if (hasReferences) {
+      candidate.status = 'hidden';
+      candidate.hiddenAt = new Date();
+      await candidate.save();
+      return { id: toPublicDishId(candidate), deleted: true, hidden: true };
+    }
+
     await DishModel.deleteOne({ _id: candidate._id });
 
     return { id: toPublicDishId(candidate), deleted: true };
   }
 
 
-  private safeCustomDishPublicId(publicId?: string): string | undefined {
+  private async customDishHasReferences(dishId: Types.ObjectId): Promise<boolean> {
+    const [swipe, match] = await Promise.all([
+      SwipeModel.exists({ dishId }),
+      MatchModel.exists({ dishId })
+    ]);
+    return Boolean(swipe || match);
+  }
+
+  private safeCustomDishPublicId(publicId: string | undefined, userId: string): string | undefined {
     const normalizedPublicId = publicId?.trim();
     if (!normalizedPublicId) {
       return undefined;
     }
 
-    return this.isCustomDishPublicId(normalizedPublicId) ? normalizedPublicId : undefined;
+    if (!this.isCustomDishPublicId(normalizedPublicId) || !normalizedPublicId.includes(`user-${userId}-custom-dish`)) {
+      throw new AppError('Please upload a valid JPG, PNG, or WebP image.', 400, 'INVALID_IMAGE');
+    }
+    return normalizedPublicId;
+  }
+
+  private safeCustomDishImageUrl(imageUrl: string | undefined, imagePublicId?: string): string {
+    const normalizedUrl = imageUrl?.trim() ?? '';
+    if (!normalizedUrl) return '';
+    if (!imagePublicId) {
+      throw new AppError('Please upload a valid JPG, PNG, or WebP image.', 400, 'INVALID_IMAGE');
+    }
+    try {
+      const parsed = new URL(normalizedUrl);
+      if (parsed.protocol !== 'https:' || !/res\.cloudinary\.com$/i.test(parsed.hostname)) {
+        throw new Error('not cloudinary');
+      }
+      return normalizedUrl;
+    } catch {
+      throw new AppError('Please upload a valid JPG, PNG, or WebP image.', 400, 'INVALID_IMAGE');
+    }
   }
 
   private isCustomDishPublicId(publicId?: string): publicId is string {
@@ -520,55 +603,28 @@ export class DishService {
     return new RegExp(this.escapeRegex(value.trim()), 'i');
   }
 
-  private async buildVisibilityFilter(userId: string): Promise<FilterQuery<DishDocument>> {
-    const activeSession = await this.getActiveSessionForUser(userId);
-
-    const globalDishesFilter: FilterQuery<DishDocument> = {
-      sourceType: { $ne: 'custom' }
-    };
-
-    if (!activeSession) {
-      return {
-        $or: [
-          globalDishesFilter,
-          {
-            sourceType: 'custom',
-            createdBy: new Types.ObjectId(userId),
-            status: 'active'
-          }
-        ]
-      };
-    }
-
+  private async buildVisibilityFilter(_userId: string): Promise<FilterQuery<DishDocument>> {
     return {
-      $or: [
-        globalDishesFilter,
-        {
-          sourceType: 'custom',
-          coupleId: activeSession._id,
-          status: 'active'
-        }
-      ]
+      visibility: 'public',
+      status: 'approved'
     };
   }
 
   private async assertCanAccessDish(userId: string, dish: DishDocument) {
-    if (dish.sourceType !== 'custom') {
-      return;
+    if (dish.visibility === 'public' && dish.status === 'approved') return;
+
+    if (dish.status !== 'approved') {
+      throw new AppError('This dish is not available.', 404);
     }
 
-    if (dish.status !== 'active') {
-      throw new AppError('Dish not found', 404);
+    if (dish.createdBy?.toString() === userId) return;
+
+    if (dish.visibility === 'session' && dish.coupleId) {
+      const activeSession = await this.getActiveSessionForUser(userId);
+      if (activeSession && activeSession._id.toString() === dish.coupleId.toString()) return;
     }
 
-    if (!dish.coupleId) {
-      throw new AppError('Dish not found', 404);
-    }
-
-    const activeSession = await this.getActiveSessionForUser(userId);
-    if (!activeSession || activeSession._id.toString() !== dish.coupleId.toString()) {
-      throw new AppError('Dish not found', 404);
-    }
+    throw new AppError('This dish is not available.', 404);
   }
 
   private async getActiveSessionForUser(userId: string) {

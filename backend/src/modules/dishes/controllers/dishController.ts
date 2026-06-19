@@ -116,7 +116,12 @@ export class DishController {
     const dish = await dishService.createCustomDish(userId, {
       name: String(req.body?.name ?? ''),
       cuisine: String(req.body?.cuisine ?? ''),
-      mood: String(req.body?.mood ?? ''),
+      mood: req.body?.mood ?? '',
+      type: String(req.body?.type ?? ''),
+      description: String(req.body?.description ?? ''),
+      diet: Array.isArray(req.body?.diet) ? req.body.diet : [],
+      source: Array.isArray(req.body?.source) ? req.body.source : [],
+      season: Array.isArray(req.body?.season) ? req.body.season : [],
       ingredients: Array.isArray(req.body?.ingredients) ? req.body.ingredients : [],
       cookTime: Number(req.body?.cookTime ?? 0),
       servings: String(req.body?.servings ?? ''),
@@ -126,6 +131,27 @@ export class DishController {
     });
 
     res.status(201).json({ dish });
+  }
+
+  async updateMine(req: AuthRequest, res: Response) {
+    const userId = this.requireUserId(req);
+    const dish = await dishService.updateMyCustomDish(userId, queryToString(req.params.id as string | string[] | undefined), {
+      name: String(req.body?.name ?? ''),
+      cuisine: String(req.body?.cuisine ?? ''),
+      mood: req.body?.mood ?? '',
+      type: String(req.body?.type ?? ''),
+      description: String(req.body?.description ?? ''),
+      diet: Array.isArray(req.body?.diet) ? req.body.diet : [],
+      source: Array.isArray(req.body?.source) ? req.body.source : [],
+      season: Array.isArray(req.body?.season) ? req.body.season : [],
+      ingredients: Array.isArray(req.body?.ingredients) ? req.body.ingredients : [],
+      cookTime: Number(req.body?.cookTime ?? 0),
+      servings: String(req.body?.servings ?? ''),
+      steps: Array.isArray(req.body?.steps) ? req.body.steps : [],
+      imageUrl: req.body?.imageUrl ? String(req.body.imageUrl) : '',
+      imagePublicId: req.body?.imagePublicId ? String(req.body.imagePublicId) : undefined
+    });
+    res.json({ dish });
   }
 
   async listMine(req: AuthRequest, res: Response) {

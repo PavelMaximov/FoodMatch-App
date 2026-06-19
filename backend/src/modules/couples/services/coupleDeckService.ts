@@ -145,8 +145,8 @@ export class CoupleDeckService {
   private buildVisibilityFilter(session: CoupleSessionDocument): FilterQuery<DishDocument> {
     return {
       $or: [
-        { sourceType: { $ne: 'custom' }, status: { $ne: 'deleted' } },
-        { sourceType: 'custom', coupleId: session._id, status: 'active' }
+        { visibility: 'public', status: 'approved' },
+        { isCustom: true, visibility: 'session', coupleId: session._id, status: 'approved' }
       ]
     };
   }
