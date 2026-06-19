@@ -163,7 +163,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Padding(
-              padding: const EdgeInsets.fromLTRB(19, 20, 19, 0),
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
               child: _FavoritesHeader(
                 isSearching: _isSearching,
                 query: _query,
@@ -176,7 +176,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             ),
             if (_hasActiveFilters || _query.trim().isNotEmpty)
               Padding(
-                padding: const EdgeInsets.fromLTRB(19, 10, 19, 8),
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
                 child: _ResultSummary(
                   count: visibleFavorites.length,
                   onClear: () => setState(() {
