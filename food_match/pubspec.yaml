@@ -41,6 +41,7 @@ flutter:
     - assets/icons/
     - assets/icons/nav/
     - assets/icons/filters/
+    - assets/icons/swipe/
     - assets/logos/
     - assets/images/
     - assets/illustrations/

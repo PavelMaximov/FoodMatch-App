@@ -9,13 +9,14 @@ import 'package:http_parser/http_parser.dart';
 
 import '../../core/constants/api_constants.dart';
 import '../../core/constants/app_strings.dart';
+import '../../core/security/certificate_pinning_http_client.dart';
 import '../../core/utils/logger.dart';
 
 class ApiService {
   ApiService({
     http.Client? client,
     FlutterSecureStorage? secureStorage,
-  })  : _client = client ?? http.Client(),
+  })  : _client = client ?? CertificatePinningHttpClient.create(),
         _secureStorage = secureStorage ?? const FlutterSecureStorage();
 
   final http.Client _client;

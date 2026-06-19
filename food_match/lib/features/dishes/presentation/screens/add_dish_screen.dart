@@ -288,13 +288,13 @@ class _AddDishScreenState extends State<AddDishScreen> {
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingL),
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                const SizedBox(height: 20),
+                const SizedBox(height: 10),
                 Text(
                   AppStrings.addYourDish,
                   style: AppTextStyles.pageTitle.copyWith(height: 0.95),

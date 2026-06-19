@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -134,32 +135,29 @@ class SwipeCardWidget extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: <Widget>[
-                _buildCircleButton(
-                  size: 44,
+                _buildCircleSvgButton(
+                  size: 50,
                   bgColor: Colors.white.withValues(alpha: 0.15),
-                  icon: Icons.chevron_left,
-                  iconColor: Colors.white,
+                  assetPath: 'assets/icons/swipe/back_swipe.svg',
                   onTap: onBack,
                 ),
-                _buildCircleButton(
-                  size: 56,
+                _buildCircleSvgButton(
+                  size: 64,
                   bgColor: Colors.white,
-                  icon: Icons.close,
-                  iconColor: AppColors.textPrimary,
+                  assetPath: 'assets/icons/swipe/dislike_swipe.svg',
+                  iconColor: const Color(0xFF1A1A1A),
                   onTap: onDislike,
                 ),
-                _buildCircleButton(
+                _buildCircleSvgButton(
                   size: 64,
                   bgColor: AppColors.primary,
-                  icon: Icons.restaurant,
-                  iconColor: Colors.white,
+                  assetPath: 'assets/icons/swipe/like_swipe.svg',
                   onTap: onLike,
                 ),
-                _buildCircleButton(
-                  size: 44,
+                _buildCircleSvgButton(
+                  size: 50,
                   bgColor: Colors.white.withValues(alpha: 0.15),
-                  icon: Icons.refresh,
-                  iconColor: Colors.white,
+                  assetPath: 'assets/icons/swipe/reset_swipe.svg',
                   onTap: onRefresh,
                 ),
               ],
@@ -221,11 +219,11 @@ class SwipeCardWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildCircleButton({
+  Widget _buildCircleSvgButton({
     required double size,
     required Color bgColor,
-    required IconData icon,
-    required Color iconColor,
+    required String assetPath,
+    Color iconColor = Colors.white,
     VoidCallback? onTap,
   }) {
     return GestureDetector(
@@ -244,7 +242,14 @@ class SwipeCardWidget extends StatelessWidget {
             ),
           ],
         ),
-        child: Icon(icon, color: iconColor, size: size * 0.45),
+        child: Center(
+          child: SvgPicture.asset(
+            assetPath,
+            width: size * 0.30,
+            height: size * 0.30,
+            colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
+          ),
+        ),
       ),
     );
   }

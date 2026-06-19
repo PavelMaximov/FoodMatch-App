@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -266,21 +267,13 @@ class _SwipeableStackState extends State<SwipeableStack>
                                     horizontal: 24,
                                     vertical: 10,
                                   ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.9),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: offset.dx > 0 ? AppColors.primary : AppColors.textSecondary,
-                                      width: 2,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    offset.dx > 0 ? 'Like' : 'Dislike',
-                                    style: GoogleFonts.nunito(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.w800,
-                                      color: offset.dx > 0 ? AppColors.primary : AppColors.textSecondary,
-                                    ),
+                                  
+                                  child: SvgPicture.asset(
+                                    offset.dx > 0
+                                        ? 'assets/icons/confirmed_swipe.svg'
+                                        : 'assets/icons/declined_swipe.svg',
+                                    width: 90,
+                                    height: 90,
                                   ),
                                 ),
                               ),

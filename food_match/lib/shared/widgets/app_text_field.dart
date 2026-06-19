@@ -12,6 +12,7 @@ class AppTextField extends StatelessWidget {
   final bool required;
   final int maxLines;
   final Widget? suffixIcon;
+  final Iterable<String>? autofillHints;
 
   const AppTextField({
     super.key,
@@ -23,6 +24,7 @@ class AppTextField extends StatelessWidget {
     this.required = false,
     this.maxLines = 1,
     this.suffixIcon,
+    this.autofillHints,
   });
 
   @override
@@ -33,6 +35,7 @@ class AppTextField extends StatelessWidget {
       keyboardType: keyboardType,
       validator: validator,
       maxLines: maxLines,
+      autofillHints: autofillHints,
       decoration: InputDecoration(
         hintText: required ? '* $hint' : hint,
         hintStyle: const TextStyle(color: AppColors.textHint),

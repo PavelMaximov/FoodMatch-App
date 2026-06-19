@@ -367,8 +367,8 @@ class _SwipesScreenState extends State<SwipesScreen> {
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.only(
-                  left: 7,
-                  right: 7,
+                  left: 10,
+                  right: 10,
                   bottom: 13,
                 ),
                 child: Consumer<SwipeProvider>(

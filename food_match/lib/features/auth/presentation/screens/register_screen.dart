@@ -167,37 +167,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   AppStrings.signUp,
                   style: AppTextStyles.pageTitle,
                 ),
-                const SizedBox(height: 20),
-                GestureDetector(
-                  onTap: () => SnackBarUtils.showError(context, AppStrings.photoUploadComingSoon),
-                  child: Column(
-                    children: <Widget>[
-                      Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppColors.chipBg,
-                          border: Border.all(color: AppColors.divider),
-                        ),
-                        child: const Icon(
-                          Icons.add,
-                          size: 28,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        AppStrings.uploadPhoto,
-                        style: GoogleFonts.nunito(
-                          fontSize: 12,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
                 AppTextField(
                   hint: AppStrings.name,
                   required: true,
@@ -210,6 +180,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   required: true,
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
+                  autofillHints: const <String>[AutofillHints.email],
                   validator: Validators.email,
                 ),
                 const SizedBox(height: 12),
@@ -218,6 +189,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   required: true,
                   controller: _passwordController,
                   obscureText: _obscurePassword,
+                  autofillHints: const <String>[AutofillHints.newPassword],
                   validator: Validators.password,
                   suffixIcon: IconButton(
                     icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
