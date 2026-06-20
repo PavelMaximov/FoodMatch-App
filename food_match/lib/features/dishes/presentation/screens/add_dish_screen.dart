@@ -16,6 +16,7 @@ import '../../../../data/models/dish.dart';
 import '../../../../data/repositories/dish_repository.dart';
 import '../../../../data/repositories/upload_repository.dart';
 import '../../../../data/services/api_service.dart';
+import '../../../swipes/logic/swipe_provider.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/dish_compact_card.dart';
 import '../../../../shared/widgets/empty_state.dart';
@@ -247,6 +248,8 @@ class _AddDishScreenState extends State<AddDishScreen> {
         _uploadedDishImage = null;
       });
 
+      _invalidateSwipeDeckCacheIfAvailable();
+
       await _loadMyDishes();
       if (mounted) {
         SnackBarUtils.showSuccess(context, AppStrings.dishAdded);
@@ -264,9 +267,20 @@ class _AddDishScreenState extends State<AddDishScreen> {
     }
   }
 
+
+  void _invalidateSwipeDeckCacheIfAvailable() {
+    try {
+      context.read<SwipeProvider>().clearPreparedDeck();
+    } catch (_) {
+      // Add Dish can be used without an active swipe provider in some test/shell contexts.
+    }
+  }
+
   Future<void> _deleteDish(Dish dish) async {
     try {
       await context.read<DishRepository>().deleteMyDish(dish.id);
+      _invalidateSwipeDeckCacheIfAvailable();
+
       await _loadMyDishes();
       if (mounted) {
         SnackBarUtils.showSuccess(context, 'Dish deleted');

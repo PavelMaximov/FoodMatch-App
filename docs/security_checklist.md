@@ -53,6 +53,7 @@ Set these in backend runtime environments and keep `.env` files out of Git:
 Completed:
 - [x] Session custom dish ownership.
 - [x] Session visibility filtering.
+- [x] Prepared deck updates after session custom dish changes.
 - [x] Custom image upload safety.
 - [x] Custom dish validation.
 

@@ -1,6 +1,7 @@
 import { FilterQuery, Types } from 'mongoose';
 import { AppError } from '../../../core/errors/AppError';
 import { CoupleSessionModel } from '../../couples/models/CoupleSession';
+import { addSessionCustomDishToPreparedDeck, removeSessionCustomDishFromPreparedDeck } from '../../couples/services/coupleDeckService';
 import { DISH_DTO_SELECT, toDishDto, toPublicDishId } from '../dto/dishDto';
 import { resolveDishByAnyId } from '../utils/resolveDishByAnyId';
 import { DishDocument, DishModel } from '../models/Dish';
@@ -193,6 +194,8 @@ export class DishService {
       }
     });
 
+    await this.addToPreparedDeckIfSessionCustom(dish, 'session_custom_dish_added');
+
     return toDishDto(dish);
   }
 
@@ -205,6 +208,7 @@ export class DishService {
     if (!candidate.createdBy || candidate.createdBy.toString() !== userId) {
       throw new AppError('You can only edit your own dishes.', 403);
     }
+    const originalCoupleId = candidate.coupleId;
 
     const sanitizedIngredients = input.ingredients
       .map((ingredient) => ({
@@ -235,6 +239,9 @@ export class DishService {
     candidate.imagePublicId = imagePublicId;
 
     await candidate.save();
+    if (originalCoupleId) {
+      await this.addToPreparedDeckIfSessionCustom(candidate, 'session_custom_dish_updated');
+    }
     return toDishDto(candidate);
   }
 
@@ -276,19 +283,32 @@ export class DishService {
       }
     }
 
+    const originalCoupleId = candidate.coupleId;
     const hasReferences = await this.customDishHasReferences(candidate._id as Types.ObjectId);
     if (hasReferences) {
       candidate.status = 'hidden';
       candidate.hiddenAt = new Date();
       await candidate.save();
+      if (originalCoupleId) {
+        await removeSessionCustomDishFromPreparedDeck(originalCoupleId, candidate, 'session_custom_dish_removed');
+      }
       return { id: toPublicDishId(candidate), deleted: true, hidden: true };
     }
 
     await DishModel.deleteOne({ _id: candidate._id });
+    if (originalCoupleId) {
+      await removeSessionCustomDishFromPreparedDeck(originalCoupleId, candidate, 'session_custom_dish_removed');
+    }
 
     return { id: toPublicDishId(candidate), deleted: true };
   }
 
+
+  private async addToPreparedDeckIfSessionCustom(dish: DishDocument, reason: string) {
+    if (dish.visibility === 'session' && dish.coupleId) {
+      await addSessionCustomDishToPreparedDeck(dish.coupleId, dish, reason);
+    }
+  }
 
   private async customDishHasReferences(dishId: Types.ObjectId): Promise<boolean> {
     const [swipe, match] = await Promise.all([

@@ -71,3 +71,16 @@ Friendly errors are used for missing names, ingredients, steps, invalid images, 
 ## Deferred public moderation/admin flow
 
 The following remain intentionally deferred: public dish submission, admin roles/endpoints, Retool moderation, public approval queues, AI moderation, report systems, and a full admin dashboard.
+
+## Sprint 19.1 prepared deck invalidation hotfix
+
+Root cause: prepared decks are persisted on the couple session. When a session custom dish was created after the shared deck was already ready, the dish was saved correctly but the existing `preparedDeck.dishIds` list was not updated, so both partners continued loading the old deck.
+
+Hotfix strategy:
+
+- On session custom dish create/update, if the active couple session has a ready prepared deck with existing dish ids, insert the custom dish id at the front of the persisted deck without duplicating it.
+- On session custom dish delete/hide, remove the custom dish id from the persisted deck without deleting swipes, matches, filters, confirmations, or the couple session.
+- Session custom dishes are included in prepared deck candidate generation even when they do not match cuisine filters, because the creator explicitly added them to the current session.
+- Session custom dishes receive high deterministic scoring priority in the prepared deck while preserving no-duplicate ordering.
+- Existing deck GET responses filter out hidden/deleted or no-longer-visible dishes defensively.
+- The Flutter Add Dish flow clears local prepared deck state after a successful add so the Swipe screen reloads the updated backend prepared deck instead of reusing stale in-memory state.
