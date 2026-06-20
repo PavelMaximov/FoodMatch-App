@@ -47,3 +47,20 @@ Set these in backend runtime environments and keep `.env` files out of Git:
 - UGC moderation and admin approval workflows.
 - Deeper production infrastructure hardening such as WAF tuning, centralized audit log retention, secret rotation automation, and SIEM alerting.
 - Production email provider.
+
+## Sprint 19 session custom dish safety
+
+Completed:
+- [x] Session custom dish ownership.
+- [x] Session visibility filtering.
+- [x] Prepared deck updates after session custom dish changes.
+- [x] Custom image upload safety.
+- [x] Custom dish validation.
+
+Deferred:
+- [ ] Public dish submission.
+- [ ] Admin moderation.
+- [ ] Report content.
+- [ ] Retool admin.
+- [ ] AI moderation.
+

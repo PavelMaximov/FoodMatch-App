@@ -19,7 +19,12 @@ export class SwipeService {
 
     const dish = await resolveDishByAnyId(dishId);
     if (!dish) {
-      throw new AppError('Dish not found', 404);
+      throw new AppError('This dish is not available.', 404);
+    }
+    if (dish.visibility === 'public' && dish.status === 'approved') {
+      // Public approved dishes are swipeable.
+    } else if (!(dish.isCustom && dish.visibility === 'session' && dish.status === 'approved' && dish.coupleId?.toString() === session._id.toString())) {
+      throw new AppError('This dish is not available.', 404);
     }
 
     const swipeFilter = {
