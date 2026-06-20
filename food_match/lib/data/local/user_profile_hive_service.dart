@@ -44,6 +44,38 @@ class UserProfileHiveService {
     );
   }
 
+  Future<void> markPreSwipeFilterIntroSeen(String userId) async {
+    final UserProfile profile = await getProfile(userId);
+    await saveProfile(
+      userId,
+      profile.copyWith(preSwipeFilterIntroSeenAt: DateTime.now()),
+    );
+  }
+
+  Future<void> saveLastFilterPreset(
+    String userId, {
+    required List<String> cuisines,
+    required List<String> moods,
+    required List<String> diet,
+    required List<String> exclusions,
+    required int matchedLastTime,
+  }) async {
+    final UserProfile profile = await getProfile(userId);
+    await saveProfile(
+      userId,
+      profile.copyWith(
+        lastFilterPreset: LastFilterPreset(
+          cuisines: cuisines,
+          moods: moods,
+          diet: diet,
+          exclusions: exclusions,
+          matchedLastTime: matchedLastTime,
+          usedAt: DateTime.now(),
+        ),
+      ),
+    );
+  }
+
   Future<void> clearSessionChoices(String userId) async {
     final UserProfile profile = await getProfile(userId);
     await saveProfile(

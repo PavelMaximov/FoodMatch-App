@@ -35,6 +35,8 @@ class PreparedPoolResult {
 }
 
 class FilterAvailabilitySummary {
+  static const int idealDeckTarget = 50;
+
   const FilterAvailabilitySummary({
     required this.totalCount,
     required this.availableCount,
@@ -49,12 +51,7 @@ class FilterAvailabilitySummary {
   final bool usedCuisineUnionFallback;
   final bool wouldWidenSearch;
 
-  double get progress {
-    if (totalCount <= 0) {
-      return 0;
-    }
-    return (availableCount / totalCount).clamp(0, 1).toDouble();
-  }
+  double get progress => (availableCount / idealDeckTarget).clamp(0, 1).toDouble();
 
   String get helperText {
     if (totalCount <= 0) {
@@ -100,6 +97,25 @@ class PreSwipeProvider extends ChangeNotifier {
   String? backendDeckError;
 
   Future<UserProfile> loadProfile(String userId) => _profileService.getProfile(userId);
+
+  Future<void> markIntroSeen(String userId) => _profileService.markPreSwipeFilterIntroSeen(userId);
+
+  Future<void> saveLastFilterPreset({
+    required String userId,
+    required List<String> cuisines,
+    required List<String> moods,
+    required List<String> blocked,
+    required List<String> diet,
+    required int matchedLastTime,
+  }) =>
+      _profileService.saveLastFilterPreset(
+        userId,
+        cuisines: cuisines,
+        moods: moods,
+        diet: diet,
+        exclusions: blocked,
+        matchedLastTime: matchedLastTime,
+      );
 
   void clearForLogout({bool notify = true}) {
     final bool changed = isPreparingBackendDeck || preparedDeckMeta != null || backendDeckError != null;
@@ -309,6 +325,7 @@ class PreSwipeProvider extends ChangeNotifier {
     required List<String> diet,
     CoupleFilterChoices? partnerChoices,
   }) {
+    final bool hasUserSelections = cuisines.isNotEmpty || moods.isNotEmpty || blocked.isNotEmpty || diet.isNotEmpty;
     final bool partnerHasChoices = partnerChoices != null;
     final List<String> partnerCuisines = partnerHasChoices ? partnerChoices.cuisines : const <String>[];
     final bool usedCuisineUnionFallback = _scoringService.shouldShowPairCuisineFallback(cuisines, partnerCuisines);
@@ -322,7 +339,7 @@ class PreSwipeProvider extends ChangeNotifier {
       partnerBlocked: partnerHasChoices ? partnerChoices.exclusions : const <String>[],
       partnerDiet: partnerHasChoices ? partnerChoices.diet : const <String>[],
     );
-    final int availableCount = _scoringService.applyHardFilters(allDishes, config).length;
+    final int availableCount = hasUserSelections ? _scoringService.applyHardFilters(allDishes, config).length : 0;
 
     return FilterAvailabilitySummary(
       totalCount: allDishes.length,
@@ -331,6 +348,28 @@ class PreSwipeProvider extends ChangeNotifier {
       usedCuisineUnionFallback: usedCuisineUnionFallback,
       wouldWidenSearch: availableCount > 0 && availableCount < 5,
     );
+  }
+
+  int countMatchingDishes({
+    required List<Dish> allDishes,
+    required List<String> cuisines,
+    required List<String> moods,
+    required List<String> blocked,
+    required List<String> diet,
+    CoupleFilterChoices? partnerChoices,
+  }) {
+    final bool partnerHasChoices = partnerChoices != null;
+    final FilterConfig config = _scoringService.buildConfig(
+      myCuisines: cuisines,
+      myMoods: moods,
+      myBlocked: blocked,
+      myDiet: diet,
+      partnerCuisines: partnerHasChoices ? partnerChoices.cuisines : const <String>[],
+      partnerMoods: partnerHasChoices ? partnerChoices.moods : const <String>[],
+      partnerBlocked: partnerHasChoices ? partnerChoices.exclusions : const <String>[],
+      partnerDiet: partnerHasChoices ? partnerChoices.diet : const <String>[],
+    );
+    return _scoringService.applyHardFilters(allDishes, config).length;
   }
 
   List<FilterChipState> buildCuisineChipStates(List<String> options, List<Dish> allDishes) {

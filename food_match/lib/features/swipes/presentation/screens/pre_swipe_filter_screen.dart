@@ -8,10 +8,12 @@ import 'package:provider/provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../data/models/dish.dart';
+import '../../../../data/models/user_profile.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../couple/logic/couple_provider.dart';
 import '../../logic/filter_scoring_service.dart';
 import '../../logic/pre_swipe_provider.dart';
+import 'previous_filter_choice_screen.dart';
 
 class PreSwipeFilterScreen extends StatefulWidget {
   const PreSwipeFilterScreen({super.key});
@@ -26,12 +28,14 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   static const double _chipFontSize = 17;
 
   int _step = 1;
-  bool _showIntro = true;
+  bool _showIntro = false;
+  bool _showPreviousChoice = false;
   bool _loading = false;
   bool _waitingForPartner = false;
   bool _isPreparingSharedDeck = false;
   bool _hasStartedPrepareAfterBothConfirmed = false;
   String? _pendingUserId;
+  LastFilterPreset? _lastFilterPreset;
   late final CoupleProvider _coupleProvider;
 
   final Set<String> _cuisines = <String>{};
@@ -115,10 +119,15 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         return;
       }
       final String? userId = context.read<AuthProvider>().currentUser?.id;
+      UserProfile? profile;
       if (userId != null) {
-        final profile = await context.read<PreSwipeProvider>().loadProfile(userId);
+        profile = await context.read<PreSwipeProvider>().loadProfile(userId);
         if (mounted) {
-          setState(() => _favoriteCuisines = profile.favoriteCuisines.toSet());
+          setState(() {
+            _favoriteCuisines = profile!.favoriteCuisines.toSet();
+            _showIntro = profile.preSwipeFilterIntroSeenAt == null;
+            _lastFilterPreset = profile.lastFilterPreset;
+          });
         }
       }
       if (!mounted) {
@@ -149,6 +158,9 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       setState(() {
         _allDishes = dishes;
         _cuisineOptions = cuisines;
+        if (!_showIntro && _lastFilterPreset != null && !_coupleProvider.isMyChoicesConfirmed) {
+          _showPreviousChoice = true;
+        }
       });
     });
   }
@@ -164,7 +176,16 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     if (_showIntro) {
       return PreSwipeIntroScreen(
         onClose: () => Navigator.of(context).pop(),
-        onCustomize: () => setState(() => _showIntro = false),
+        onCustomize: _continueFromIntro,
+      );
+    }
+
+    if (_showPreviousChoice && _lastFilterPreset != null) {
+      return PreviousFilterChoiceScreen(
+        preset: _lastFilterPreset!,
+        onUsePreset: _usePreviousPreset,
+        onChangeFilters: _startFreshFilters,
+        onClose: _startFreshFilters,
       );
     }
 
@@ -405,12 +426,64 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     });
   }
 
+  Future<void> _continueFromIntro() async {
+    final String? userId = context.read<AuthProvider>().currentUser?.id;
+    if (userId != null) {
+      await context.read<PreSwipeProvider>().markIntroSeen(userId);
+    }
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _showIntro = false;
+      _showPreviousChoice = _lastFilterPreset != null && !_coupleProvider.isMyChoicesConfirmed;
+    });
+  }
+
+  void _startFreshFilters() {
+    setState(() {
+      _showPreviousChoice = false;
+      _step = 1;
+      _cuisines.clear();
+      _moods.clear();
+      _blocked.clear();
+      _diet.clear();
+    });
+  }
+
+  Future<void> _usePreviousPreset() async {
+    final LastFilterPreset? preset = _lastFilterPreset;
+    if (preset == null) {
+      _startFreshFilters();
+      return;
+    }
+    setState(() {
+      _showPreviousChoice = false;
+      _cuisines
+        ..clear()
+        ..addAll(preset.cuisines);
+      _moods
+        ..clear()
+        ..addAll(preset.moods);
+      _blocked
+        ..clear()
+        ..addAll(preset.exclusions);
+      _diet
+        ..clear()
+        ..addAll(preset.diet);
+    });
+    await _confirmCurrentFilters();
+  }
+
   Future<void> _next() async {
     if (_step < 3) {
       setState(() => _step++);
       return;
     }
+    await _confirmCurrentFilters();
+  }
 
+  Future<void> _confirmCurrentFilters() async {
     final String? userId = context.read<AuthProvider>().currentUser?.id;
     if (userId == null) {
       Navigator.pop(context);
@@ -418,6 +491,14 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     }
     final PreSwipeProvider preSwipeProvider = context.read<PreSwipeProvider>();
     final CoupleProvider coupleProvider = context.read<CoupleProvider>();
+    final int matchedLastTime = preSwipeProvider.countMatchingDishes(
+      allDishes: _allDishes,
+      cuisines: _cuisines.toList(),
+      moods: _moods.toList(),
+      blocked: _blocked.toList(),
+      diet: _diet.toList(),
+      partnerChoices: coupleProvider.partnerChoices,
+    );
 
     setState(() => _loading = true);
     await preSwipeProvider.saveAndConfirmChoices(
@@ -427,6 +508,22 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       moods: _moods.toList(),
       blocked: _blocked.toList(),
       diet: _diet.toList(),
+    );
+    await preSwipeProvider.saveLastFilterPreset(
+      userId: userId,
+      cuisines: _cuisines.toList(),
+      moods: _moods.toList(),
+      blocked: _blocked.toList(),
+      diet: _diet.toList(),
+      matchedLastTime: matchedLastTime,
+    );
+    _lastFilterPreset = LastFilterPreset(
+      cuisines: _cuisines.toList(),
+      moods: _moods.toList(),
+      diet: _diet.toList(),
+      exclusions: _blocked.toList(),
+      matchedLastTime: matchedLastTime,
+      usedAt: DateTime.now(),
     );
 
     if (!mounted) {
@@ -699,13 +796,13 @@ class PreSwipeIntroScreen extends StatelessWidget {
               ),
               const SizedBox(height: 13),
               Text(
-                'Before you start swiping...',
+                'Let’s tune your food vibe.',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.fredoka(fontWeight: FontWeight.w700, fontSize: 38, color: AppColors.textPrimary, height: 1.15),
               ),
               const SizedBox(height: 18),
               Text(
-                'We have over 200 dishes in our database. Without filters, that\'s a lot of swiping. Answer a few quick questions about your food preferences and we\'ll show you dishes that better match your taste and your partner\'s choice.',
+                'FoodMatch has a large dish database. A few quick filters help us build a deck that feels closer to what you actually want today.',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.nunito(fontSize: 17, height: 1.45, color: AppColors.textSecondary),
               ),
@@ -903,7 +1000,7 @@ class _FilterBottomPanel extends StatelessWidget {
             borderRadius: BorderRadius.circular(99),
             child: LinearProgressIndicator(
               minHeight: 10,
-              value: availability.totalCount <= 0 ? 0 : availability.progress,
+              value: availability.progress,
               backgroundColor: const Color(0xFFE8E0DC),
               valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
             ),
