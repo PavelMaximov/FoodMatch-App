@@ -1,5 +1,41 @@
 import 'swipe_record.dart';
 
+class LastFilterPreset {
+  const LastFilterPreset({
+    required this.cuisines,
+    required this.moods,
+    required this.diet,
+    required this.exclusions,
+    required this.matchedLastTime,
+    required this.usedAt,
+  });
+
+  final List<String> cuisines;
+  final List<String> moods;
+  final List<String> diet;
+  final List<String> exclusions;
+  final int matchedLastTime;
+  final DateTime usedAt;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'cuisines': cuisines,
+        'moods': moods,
+        'diet': diet,
+        'exclusions': exclusions,
+        'matchedLastTime': matchedLastTime,
+        'usedAt': usedAt.toIso8601String(),
+      };
+
+  factory LastFilterPreset.fromJson(Map<dynamic, dynamic> json) => LastFilterPreset(
+        cuisines: List<String>.from(json['cuisines'] as List<dynamic>? ?? <dynamic>[]),
+        moods: List<String>.from(json['moods'] as List<dynamic>? ?? <dynamic>[]),
+        diet: List<String>.from(json['diet'] as List<dynamic>? ?? <dynamic>[]),
+        exclusions: List<String>.from(json['exclusions'] as List<dynamic>? ?? <dynamic>[]),
+        matchedLastTime: (json['matchedLastTime'] as num?)?.toInt() ?? 0,
+        usedAt: DateTime.tryParse(json['usedAt']?.toString() ?? '') ?? DateTime.now(),
+      );
+}
+
 class UserProfile {
   const UserProfile({
     required this.favoriteCuisines,
@@ -13,6 +49,8 @@ class UserProfile {
     required this.cuisineWeights,
     required this.sessionCount,
     required this.preferredEffort,
+    this.preSwipeFilterIntroSeenAt,
+    this.lastFilterPreset,
   });
 
   final List<String> favoriteCuisines;
@@ -26,6 +64,8 @@ class UserProfile {
   final Map<String, int> cuisineWeights;
   final int sessionCount;
   final String preferredEffort;
+  final DateTime? preSwipeFilterIntroSeenAt;
+  final LastFilterPreset? lastFilterPreset;
 
   factory UserProfile.empty() => const UserProfile(
         favoriteCuisines: <String>[],
@@ -39,6 +79,8 @@ class UserProfile {
         cuisineWeights: <String, int>{},
         sessionCount: 0,
         preferredEffort: '',
+        preSwipeFilterIntroSeenAt: null,
+        lastFilterPreset: null,
       );
 
   UserProfile copyWith({
@@ -53,6 +95,8 @@ class UserProfile {
     Map<String, int>? cuisineWeights,
     int? sessionCount,
     String? preferredEffort,
+    DateTime? preSwipeFilterIntroSeenAt,
+    LastFilterPreset? lastFilterPreset,
   }) {
     return UserProfile(
       favoriteCuisines: favoriteCuisines ?? this.favoriteCuisines,
@@ -66,6 +110,8 @@ class UserProfile {
       cuisineWeights: cuisineWeights ?? this.cuisineWeights,
       sessionCount: sessionCount ?? this.sessionCount,
       preferredEffort: preferredEffort ?? this.preferredEffort,
+      preSwipeFilterIntroSeenAt: preSwipeFilterIntroSeenAt ?? this.preSwipeFilterIntroSeenAt,
+      lastFilterPreset: lastFilterPreset ?? this.lastFilterPreset,
     );
   }
 
@@ -81,6 +127,8 @@ class UserProfile {
         'cuisineWeights': cuisineWeights,
         'sessionCount': sessionCount,
         'preferredEffort': preferredEffort,
+        'preSwipeFilterIntroSeenAt': preSwipeFilterIntroSeenAt?.toIso8601String(),
+        'lastFilterPreset': lastFilterPreset?.toJson(),
       };
 
   factory UserProfile.fromJson(Map<dynamic, dynamic> json) => UserProfile(
@@ -102,5 +150,9 @@ class UserProfile {
         ),
         sessionCount: (json['sessionCount'] as num?)?.toInt() ?? 0,
         preferredEffort: json['preferredEffort']?.toString() ?? '',
+        preSwipeFilterIntroSeenAt: DateTime.tryParse(json['preSwipeFilterIntroSeenAt']?.toString() ?? ''),
+        lastFilterPreset: json['lastFilterPreset'] is Map
+            ? LastFilterPreset.fromJson(Map<dynamic, dynamic>.from(json['lastFilterPreset'] as Map))
+            : null,
       );
 }
