@@ -24,7 +24,7 @@ class PreviousFilterChoiceScreen extends StatelessWidget {
       backgroundColor: const Color(0xFFFFFBF9),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
@@ -35,25 +35,40 @@ class PreviousFilterChoiceScreen extends StatelessWidget {
                   Expanded(
                     child: Text(
                       lastUsedLabel(preset.usedAt),
-                      style: GoogleFonts.nunito(fontSize: 13, color: const Color(0xFF7A7270)),
+                      style: GoogleFonts.nunito(
+                        fontSize: 13,
+                        color: const Color(0xFF7A7270),
+                      ),
                     ),
                   ),
-                  IconButton(onPressed: onClose, icon: const Icon(Icons.close, color: Color(0xFF2B2725))),
+                  IconButton(
+                    onPressed: onClose,
+                    icon: const Icon(Icons.close, color: Color(0xFF2B2725)),
+                  ),
                 ],
               ),
               const SizedBox(height: 20),
               const _FilterHeroIllustration(),
               const SizedBox(height: 18),
               Text(
-                'Your previous choice\nwas this.',
-                style: GoogleFonts.fredoka(fontSize: 28, fontWeight: FontWeight.w700, height: 1.08, color: Colors.black),
+                'Feeling it again\ntoday?',
+                style: GoogleFonts.fredoka(
+                  fontSize: 36,
+                  fontWeight: FontWeight.w700,
+                  height: 1.05,
+                  color: Colors.black,
+                ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               Text(
-                'Feeling it again today?',
-                style: GoogleFonts.nunito(fontSize: 16, color: const Color(0xFF7A7270)),
+                'Here\'s what you picked last time.\nJump back in or start fresh.',
+                style: GoogleFonts.nunito(
+                  fontSize: 18,
+                  height: 1.35,
+                  color: const Color(0xFF7A7270),
+                ),
               ),
-              const SizedBox(height: 22),
+              const SizedBox(height: 24),
               _PresetCard(preset: preset),
               const SizedBox(height: 14),
               _MatchedCard(count: preset.matchedLastTime),
@@ -68,8 +83,13 @@ class PreviousFilterChoiceScreen extends StatelessWidget {
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    textStyle: GoogleFonts.nunito(fontSize: 17, fontWeight: FontWeight.w800),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    textStyle: GoogleFonts.nunito(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
               ),
@@ -82,8 +102,13 @@ class PreviousFilterChoiceScreen extends StatelessWidget {
                     foregroundColor: AppColors.primary,
                     side: const BorderSide(color: AppColors.primary, width: 2),
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    textStyle: GoogleFonts.nunito(fontSize: 17, fontWeight: FontWeight.w800),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    textStyle: GoogleFonts.nunito(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   child: const Text('No, let me change filters'),
                 ),
@@ -105,7 +130,20 @@ String lastUsedLabel(DateTime usedAt) {
   if (days == 1) return 'Last used yesterday';
   if (days < 7) return 'Last used $days days ago';
   if (days < 14) return 'Last used last week';
-  const List<String> months = <String>['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const List<String> months = <String>[
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
   return 'Last used on ${months[usedAt.month - 1]} ${usedAt.day}';
 }
 
@@ -119,16 +157,31 @@ class _FilterHeroIllustration extends StatelessWidget {
       child: Container(
         width: 168,
         height: 130,
-        decoration: BoxDecoration(color: const Color(0xFFFFEDDE), borderRadius: BorderRadius.circular(36)),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFEDDE),
+          borderRadius: BorderRadius.circular(36),
+        ),
         child: Stack(
           alignment: Alignment.center,
           children: <Widget>[
             Transform.rotate(
               angle: -0.08,
-              child: Icon(Icons.filter_alt_rounded, size: 92, color: AppColors.primary.withValues(alpha: 0.9)),
+              child: Icon(
+                Icons.filter_alt_rounded,
+                size: 92,
+                color: AppColors.primary.withValues(alpha: 0.9),
+              ),
             ),
-            const Positioned(right: 26, top: 22, child: Icon(Icons.auto_awesome, color: Color(0xFFEECF04), size: 24)),
-            const Positioned(left: 28, bottom: 24, child: Icon(Icons.restaurant_menu, color: Color(0xFFEE8C04), size: 24)),
+            const Positioned(
+              right: 26,
+              top: 22,
+              child: Icon(Icons.auto_awesome, color: Color(0xFFEECF04), size: 24),
+            ),
+            const Positioned(
+              left: 28,
+              bottom: 24,
+              child: Icon(Icons.restaurant_menu, color: Color(0xFFEE8C04), size: 24),
+            ),
           ],
         ),
       ),
@@ -138,6 +191,7 @@ class _FilterHeroIllustration extends StatelessWidget {
 
 class _PresetCard extends StatelessWidget {
   const _PresetCard({required this.preset});
+
   final LastFilterPreset preset;
 
   @override
@@ -150,19 +204,44 @@ class _PresetCard extends StatelessWidget {
       ),
       child: Column(
         children: <Widget>[
-          _FilterRow(icon: Icons.room_service_outlined, label: 'Cuisine', values: preset.cuisines, color: const Color(0xFFEE8C04), chipBg: const Color(0xFFFFEDDE)),
+          _FilterSection(
+            icon: Icons.room_service_outlined,
+            label: 'Cuisine:',
+            values: preset.cuisines,
+            color: const Color(0xFFEE8C04),
+            chipBg: const Color(0xFFFFEDDE),
+          ),
           const Divider(height: 1, color: Color(0xFFEFE7E3)),
-          _FilterRow(icon: Icons.auto_awesome, label: 'Mood', values: preset.moods, color: const Color(0xFFEECF04), chipBg: const Color(0xFFFFFBDE)),
+          _FilterSection(
+            icon: Icons.auto_awesome,
+            label: 'Mood:',
+            values: preset.moods,
+            color: const Color(0xFFEECF04),
+            chipBg: const Color(0xFFFFFBDE),
+          ),
           const Divider(height: 1, color: Color(0xFFEFE7E3)),
-          _FilterRow(icon: Icons.do_not_disturb_alt_outlined, label: 'Exceptions', values: preset.exclusions, color: const Color(0xFFEE2304), chipBg: const Color(0xFFFFE5DE)),
+          _FilterSection(
+            icon: Icons.do_not_disturb_alt_outlined,
+            label: 'Exceptions:',
+            values: preset.exclusions,
+            color: const Color(0xFFEE2304),
+            chipBg: const Color(0xFFFFE5DE),
+          ),
         ],
       ),
     );
   }
 }
 
-class _FilterRow extends StatelessWidget {
-  const _FilterRow({required this.icon, required this.label, required this.values, required this.color, required this.chipBg});
+class _FilterSection extends StatelessWidget {
+  const _FilterSection({
+    required this.icon,
+    required this.label,
+    required this.values,
+    required this.color,
+    required this.chipBg,
+  });
+
   final IconData icon;
   final String label;
   final List<String> values;
@@ -171,29 +250,47 @@ class _FilterRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final List<String> chips = values.isEmpty ? <String>['None'] : values;
+    final bool isEmpty = values.isEmpty;
+    final List<String> chips = isEmpty ? <String>['None'] : values;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      child: Row(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Icon(icon, color: color, size: 22),
-          const SizedBox(width: 10),
-          SizedBox(width: 78, child: Text(label, style: GoogleFonts.nunito(fontSize: 14, color: const Color(0xFF7A7270), fontWeight: FontWeight.w700))),
-          Expanded(
-            child: Wrap(
-              alignment: WrapAlignment.end,
-              spacing: 6,
-              runSpacing: 6,
-              children: chips.map((String value) => _PresetChip(label: values.isEmpty ? value : _formatOptionLabel(value), color: values.isEmpty ? const Color(0xFF8B8582) : color, background: values.isEmpty ? const Color(0xFFF1ECE9) : chipBg)).toList(),
-            ),
+          Row(
+            children: <Widget>[
+              Icon(icon, color: color, size: 22),
+              const SizedBox(width: 10),
+              Text(
+                label,
+                style: GoogleFonts.nunito(
+                  fontSize: 15,
+                  color: const Color(0xFF7A7270),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 11),
+          Wrap(
+            spacing: 7,
+            runSpacing: 7,
+            children: chips
+                .map(
+                  (String value) => _PresetChip(
+                    label: isEmpty ? value : _formatOptionLabel(value),
+                    color: isEmpty ? const Color(0xFF8B8582) : color,
+                    background: isEmpty ? const Color(0xFFF1ECE9) : chipBg,
+                  ),
+                )
+                .toList(),
           ),
         ],
       ),
     );
   }
 }
-
 
 String _formatOptionLabel(String value) {
   final Set<String> uppercaseWords = <String>{'eu', 'uk', 'usa', 'us'};
@@ -211,7 +308,12 @@ String _formatOptionLabel(String value) {
 }
 
 class _PresetChip extends StatelessWidget {
-  const _PresetChip({required this.label, required this.color, required this.background});
+  const _PresetChip({
+    required this.label,
+    required this.color,
+    required this.background,
+  });
+
   final String label;
   final Color color;
   final Color background;
@@ -220,14 +322,25 @@ class _PresetChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(99)),
-      child: Text(label, style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w800, color: color)),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.nunito(
+          fontSize: 13,
+          fontWeight: FontWeight.w800,
+          color: color,
+        ),
+      ),
     );
   }
 }
 
 class _MatchedCard extends StatelessWidget {
   const _MatchedCard({required this.count});
+
   final int count;
 
   @override
@@ -241,12 +354,35 @@ class _MatchedCard extends StatelessWidget {
       ),
       child: Row(
         children: <Widget>[
-          Text('Matched last time', style: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w700, color: const Color(0xFF2B2725))),
-          const Spacer(),
-          const Icon(Icons.bolt_rounded, color: Color(0xFFEECF04), size: 22),
-          Text('$count', style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.primary)),
+          Expanded(
+            child: Text(
+              'Previous total dishes',
+              style: GoogleFonts.nunito(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF2B2725),
+              ),
+            ),
+          ),
+          Text(
+            '$count',
+            style: GoogleFonts.nunito(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: AppColors.primary,
+            ),
+          ),
           const SizedBox(width: 4),
-          Text(count == 1 ? 'dish' : 'dishes', style: GoogleFonts.nunito(fontSize: 14, fontWeight: FontWeight.w700, color: const Color(0xFF7A7270))),
+          Text(
+            count == 1 ? 'dish' : 'dishes',
+            style: GoogleFonts.nunito(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF7A7270),
+            ),
+          ),
+          const SizedBox(width: 4),
+          const Icon(Icons.bolt_rounded, color: Color(0xFFEECF04), size: 22),
         ],
       ),
     );
