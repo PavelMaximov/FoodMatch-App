@@ -39,8 +39,8 @@ class SwipeRepository {
     return SwipeStats.fromJson(_extractMap(data, fallbackKey: 'stats'));
   }
 
-  Future<List<Dish>> getMatches() async {
-    final data = await _apiService.get(ApiConstants.swipeMatches);
+  Future<List<Dish>> getMatches({String mode = 'all'}) async {
+    final data = await _apiService.get('${ApiConstants.swipeMatches}?mode=$mode');
     final List<dynamic> list = data is Map<String, dynamic>
         ? (data['matches'] as List<dynamic>? ?? <dynamic>[])
         : <dynamic>[];

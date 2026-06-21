@@ -29,24 +29,24 @@ class SessionSettingsSheet extends StatelessWidget {
 
     return Container(
       decoration: const BoxDecoration(
-        color: AppColors.background,
+        color: Color(0xFFFFFBF9),
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: SafeArea(
         top: false,
         child: SingleChildScrollView(
           padding: EdgeInsets.only(
-            left: 24,
-            right: 24,
-            top: 26,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 32,
+            left: 20,
+            right: 20,
+            top: 22,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 28,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              _SheetTitle(onClose: () => Navigator.pop(context)),
-              const SizedBox(height: 24),
+              _SheetHeader(onClose: () => Navigator.pop(context)),
+              const SizedBox(height: 22),
               if (swipeProvider.isSoloMode)
                 _SoloSettings(
                   likedCount: swipeProvider.soloLikedCount,
@@ -75,9 +75,9 @@ class SessionSettingsSheet extends StatelessWidget {
     );
     if (!confirmed || !context.mounted) return;
 
-    final SwipeProvider swipeProvider = context.read<SwipeProvider>();
-    await swipeProvider.abandonActiveSoloSession();
+    await context.read<SwipeProvider>().abandonActiveSoloSession();
     if (!context.mounted) return;
+    context.read<MatchProvider>().clearMatches();
     Navigator.pop(context);
     onOpenPairSetup();
   }
@@ -111,53 +111,49 @@ class SessionSettingsSheet extends StatelessWidget {
   }) async {
     return await showDialog<bool>(
           context: context,
-          builder: (BuildContext dialogContext) {
-            return AlertDialog(
-              title: Text(title),
-              content: Text(message),
-              actions: <Widget>[
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext, false),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(dialogContext, true),
-                  child: const Text('Switch'),
-                ),
-              ],
-            );
-          },
+          builder: (BuildContext dialogContext) => AlertDialog(
+            title: Text(title),
+            content: Text(message),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Switch'),
+              ),
+            ],
+          ),
         ) ??
         false;
   }
 }
 
-class _SheetTitle extends StatelessWidget {
-  const _SheetTitle({required this.onClose});
+class _SheetHeader extends StatelessWidget {
+  const _SheetHeader({required this.onClose});
 
   final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Expanded(
           child: Text(
-            'Session settings',
+            'Session information',
             style: GoogleFonts.fredoka(
-              fontSize: 30,
+              fontSize: 31,
               fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+              height: 1.05,
+              color: Colors.black,
             ),
           ),
         ),
         IconButton(
           onPressed: onClose,
-          icon: Icon(
-            Icons.close,
-            size: 28,
-            color: AppColors.textSecondary.withValues(alpha: 0.78),
-          ),
+          icon: const Icon(Icons.close, size: 26, color: Color(0xFF2B2725)),
         ),
       ],
     );
@@ -180,11 +176,9 @@ class _SoloSettings extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        const _ModeInfoCard(
-          mode: 'Solo',
-          description:
-              'You\'re swiping on your own. Likes are saved to Matches right away.',
-          icon: Icons.person_rounded,
+        const _SimpleInfoCard(
+          icon: Icons.info_outline,
+          text: 'You’re currently in solo mode',
         ),
         const SizedBox(height: 14),
         Row(
@@ -194,20 +188,23 @@ class _SoloSettings extends StatelessWidget {
             Expanded(child: _StatTile(label: 'Remaining', value: remainingCount.toString())),
           ],
         ),
-        const SizedBox(height: 20),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: onSwitch,
-            icon: const Icon(Icons.group_rounded),
-            label: const Text('Switch to Pair up'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-            ),
+        const SizedBox(height: 22),
+        Text(
+          'You can switch to a Pair session.',
+          style: GoogleFonts.nunito(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF7A7270),
           ),
+        ),
+        const SizedBox(height: 10),
+        _SwitchModeCard(
+          icon: Icons.group_rounded,
+          title: 'Pair up',
+          badge: '2 people',
+          subtitle: 'Swipe together with a partner in real time.',
+          buttonText: 'Switch to Pair',
+          onPressed: onSwitch,
         ),
       ],
     );
@@ -228,32 +225,29 @@ class _PairSettings extends StatelessWidget {
     final String partnerLabel = resolvePartnerDisplayName(
       couple: couple,
       currentUserId: currentUserId,
-      fallback: coupleProvider.hasPartner ? 'Partner connected' : 'Waiting for partner',
+      fallback: coupleProvider.hasPartner ? 'Partner connected' : 'Waiting...',
     );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        const _ModeInfoCard(
-          mode: 'Pair up',
-          description: 'You\'re in a paired session. Dishes match when both people swipe right.',
-          icon: Icons.group_rounded,
-        ),
-        const SizedBox(height: 14),
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE7DEDA)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Text(
-                'Invite code',
-                style: GoogleFonts.nunito(fontSize: 13, color: AppColors.textSecondary),
+                'Invite code:',
+                style: GoogleFonts.nunito(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
               ),
               const SizedBox(height: 4),
               Row(
@@ -261,66 +255,67 @@ class _PairSettings extends StatelessWidget {
                   Expanded(
                     child: Text(
                       inviteCode,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.nunito(
-                        fontSize: 28,
+                        fontSize: 32,
+                        height: 1.05,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 1.2,
                         color: AppColors.textPrimary,
                       ),
                     ),
                   ),
-                  TextButton.icon(
-                    onPressed: inviteCode.isEmpty
-                        ? null
-                        : () {
-                            Clipboard.setData(ClipboardData(text: inviteCode));
-                            SnackBarUtils.showSuccess(context, 'Code copied!');
-                          },
-                    icon: const Icon(Icons.copy, size: 16),
-                    label: const Text('Copy'),
-                  ),
+                  _CopyPill(inviteCode: inviteCode),
                 ],
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               Text(
                 'Partner: $partnerLabel',
-                style: GoogleFonts.nunito(fontSize: 14, color: AppColors.textSecondary),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.nunito(
+                  fontSize: 15,
+                  color: const Color(0xFF8B8582),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: coupleProvider.isLoading ? null : coupleProvider.resetCouple,
+                      child: const Text('Reset'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: coupleProvider.isLeaving ? null : coupleProvider.leaveCouple,
+                      child: const Text('Leave'),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
         ),
-        const SizedBox(height: 16),
-        Row(
-          children: <Widget>[
-            Expanded(
-              child: OutlinedButton(
-                onPressed: coupleProvider.isLeaving ? null : coupleProvider.leaveCouple,
-                child: const Text('Leave'),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: OutlinedButton(
-                onPressed: coupleProvider.isLoading ? null : coupleProvider.resetCouple,
-                child: const Text('Reset'),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: onSwitch,
-            icon: const Icon(Icons.person_rounded),
-            label: const Text('Switch to Solo'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-            ),
+        const SizedBox(height: 22),
+        Text(
+          'You can switch to a Solo session.',
+          style: GoogleFonts.nunito(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF7A7270),
           ),
+        ),
+        const SizedBox(height: 10),
+        _SwitchModeCard(
+          icon: Icons.person_rounded,
+          title: 'Solo',
+          subtitle: 'Swipe through dishes just for yourself.',
+          buttonText: 'Switch to Solo',
+          onPressed: onSwitch,
         ),
       ],
     );
@@ -338,10 +333,9 @@ class _NoActiveSession extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        const _ModeInfoCard(
-          mode: 'No active swipe session',
-          description: 'Choose Solo or Pair up to start swiping.',
+        const _SimpleInfoCard(
           icon: Icons.info_outline,
+          text: 'No active swipe session.',
         ),
         const SizedBox(height: 16),
         SizedBox(
@@ -370,16 +364,57 @@ class _NoActiveSession extends StatelessWidget {
   }
 }
 
-class _ModeInfoCard extends StatelessWidget {
-  const _ModeInfoCard({
-    required this.mode,
-    required this.description,
+class _SimpleInfoCard extends StatelessWidget {
+  const _SimpleInfoCard({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: <Widget>[
+          Icon(icon, size: 20, color: const Color(0xFF7A7270)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: GoogleFonts.nunito(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SwitchModeCard extends StatelessWidget {
+  const _SwitchModeCard({
     required this.icon,
+    required this.title,
+    this.badge,
+    required this.subtitle,
+    required this.buttonText,
+    required this.onPressed,
   });
 
-  final String mode;
-  final String description;
   final IconData icon;
+  final String title;
+  final String? badge;
+  final String subtitle;
+  final String buttonText;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -389,46 +424,126 @@ class _ModeInfoCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE7DEDA)),
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFEDDE),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: const Color(0xFFEE8C04)),
+          Row(
+            children: <Widget>[
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFEDDE),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: const Color(0xFFEE8C04)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Row(
+                      children: <Widget>[
+                        Text(
+                          title,
+                          style: GoogleFonts.nunito(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        if (badge != null) ...<Widget>[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFEDDE),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              badge!,
+                              style: GoogleFonts.nunito(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFFEE8C04),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    Text(
+                      subtitle,
+                      style: GoogleFonts.nunito(
+                        fontSize: 14,
+                        color: const Color(0xFF7A7270),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  'Current mode',
-                  style: GoogleFonts.nunito(fontSize: 13, color: AppColors.textSecondary),
-                ),
-                Text(
-                  mode,
-                  style: GoogleFonts.nunito(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  description,
-                  style: GoogleFonts.nunito(fontSize: 14, color: AppColors.textSecondary),
-                ),
-              ],
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: onPressed,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                textStyle: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w800),
+              ),
+              child: Text(buttonText),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _CopyPill extends StatelessWidget {
+  const _CopyPill({required this.inviteCode});
+
+  final String inviteCode;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: inviteCode.isEmpty
+          ? null
+          : () {
+              Clipboard.setData(ClipboardData(text: inviteCode));
+              SnackBarUtils.showSuccess(context, 'Code copied!');
+            },
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: AppColors.divider),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(Icons.copy, size: 14, color: AppColors.textSecondary.withValues(alpha: 0.72)),
+            const SizedBox(width: 4),
+            Text(
+              'Copy',
+              style: GoogleFonts.nunito(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary.withValues(alpha: 0.72),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -446,20 +561,26 @@ class _StatTile extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE7DEDA)),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(label, style: GoogleFonts.nunito(fontSize: 13, color: AppColors.textSecondary)),
+          Text(
+            label,
+            style: GoogleFonts.nunito(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF7A7270),
+            ),
+          ),
           const SizedBox(height: 2),
           Text(
             value,
             style: GoogleFonts.nunito(
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
+              fontSize: 25,
+              fontWeight: FontWeight.w900,
+              color: Colors.black,
             ),
           ),
         ],

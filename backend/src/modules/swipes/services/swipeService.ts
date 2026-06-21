@@ -63,9 +63,13 @@ export class SwipeService {
     }
   }
 
-  async getMyMatches(userId: string) {
+  async getMyMatches(userId: string, mode: 'solo' | 'paired' | 'all' = 'all') {
     const session = await CoupleSessionModel.findOne({ members: new Types.ObjectId(userId), status: 'active' });
-    const matches = session
+    if (mode === 'paired' && !session) {
+      throw new AppError('User has no active paired session', 404, 'NO_ACTIVE_SESSION');
+    }
+
+    const matches = session && mode !== 'solo'
       ? await MatchModel.find({ coupleId: session._id })
           .sort({ createdAt: -1 })
           .populate({ path: 'dishId', select: DISH_DTO_SELECT })
@@ -91,6 +95,10 @@ export class SwipeService {
       });
     }
 
+    if (mode === 'paired') {
+      return validMatches.map((match) => ({ ...match, mode: 'paired', matchType: 'pair_match' }));
+    }
+
     const soloSessions = await SoloSwipeSessionModel.find({ userId: new Types.ObjectId(userId), resultDishIds: { $ne: [] } })
       .select('resultDishIds updatedAt')
       .sort({ updatedAt: -1 })
@@ -104,6 +112,10 @@ export class SwipeService {
       if (!dish) return null;
       return { id: `solo_${id.toString()}`, dish, users: [new Types.ObjectId(userId)], createdAt: new Date(), mode: 'solo', matchType: 'solo_pick' };
     }).filter((match): match is NonNullable<typeof match> => Boolean(match));
+
+    if (mode === 'solo') {
+      return soloMatches;
+    }
 
     return [...soloMatches, ...validMatches.map((match) => ({ ...match, mode: 'paired', matchType: 'pair_match' }))];
   }

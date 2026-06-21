@@ -273,7 +273,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
       if (result is Map<String, dynamic> &&
           result['swipe']?['matchCreated'] == true &&
           swipedDish != null) {
-        context.read<MatchProvider>().loadMatches(force: true);
+        context.read<MatchProvider>().loadMatches(force: true, mode: wasSoloMode ? 'solo' : 'paired');
         if (wasSoloMode) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
