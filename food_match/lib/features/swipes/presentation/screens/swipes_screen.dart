@@ -22,6 +22,7 @@ import '../../logic/swipe_provider.dart';
 import '../widgets/swipe_card_widget.dart';
 import '../widgets/swipeable_stack.dart';
 import 'pre_swipe_filter_screen.dart';
+import 'swipe_mode_selection_screen.dart';
 
 class SwipesScreen extends StatefulWidget {
   const SwipesScreen({super.key});
@@ -61,6 +62,9 @@ class _SwipesScreenState extends State<SwipesScreen> {
     final SwipeProvider swipeProvider = context.read<SwipeProvider>();
     final CoupleProvider currentCoupleProvider = context.read<CoupleProvider>();
     if (!currentCoupleProvider.hasCouple) {
+      final String? userId = context.read<AuthProvider>().currentUser?.id;
+      swipeProvider.setActiveUser(userId);
+      await swipeProvider.loadActiveSoloSession();
       _isOpeningPreSwipe = false;
       return;
     }
@@ -91,6 +95,17 @@ class _SwipesScreenState extends State<SwipesScreen> {
     await _runPreSwipeFlow();
   }
 
+  Future<void> _runSoloPreSwipeFlow() async {
+    if (_isOpeningPreSwipe) return;
+    _isOpeningPreSwipe = true;
+    final SwipeProvider swipeProvider = context.read<SwipeProvider>();
+    swipeProvider.setActiveUser(context.read<AuthProvider>().currentUser?.id);
+    final PreparedPoolResult? result = await Navigator.of(context).push<PreparedPoolResult>(MaterialPageRoute<PreparedPoolResult>(fullscreenDialog: true, builder: (_) => const PreSwipeFilterScreen(mode: 'solo')));
+    if (!mounted) { _isOpeningPreSwipe = false; return; }
+    if (result != null && result.dishes.isNotEmpty) { swipeProvider.applyPreparedDeck(result.dishes, preparedDeckMeta: result.preparedDeckMeta); }
+    _isOpeningPreSwipe = false;
+  }
+
   Future<void> _runPreSwipeFlow({bool fromHeaderAction = false}) async {
     if (_isOpeningPreSwipe) {
       return;
@@ -114,7 +129,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
     final PreparedPoolResult? result = await Navigator.of(context).push<PreparedPoolResult>(
       MaterialPageRoute<PreparedPoolResult>(
         fullscreenDialog: true,
-        builder: (_) => const PreSwipeFilterScreen(),
+        builder: (_) => const PreSwipeFilterScreen(mode: 'paired'),
       ),
     );
 
@@ -333,7 +348,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
                     ),
                   ),
                   GestureDetector(
-                    onTap: () => _runPreSwipeFlow(fromHeaderAction: true),
+                    onTap: () => context.read<SwipeProvider>().isSoloMode ? _runSoloPreSwipeFlow() : _runPreSwipeFlow(fromHeaderAction: true),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                       decoration: BoxDecoration(
@@ -373,17 +388,14 @@ class _SwipesScreenState extends State<SwipesScreen> {
                 ),
                 child: Consumer<SwipeProvider>(
                   builder: (BuildContext context, SwipeProvider provider, _) {
-                    if (!hasCouple) {
-                      return EmptyState(
-                        icon: Icons.link,
-                        title: 'Connect with your partner',
-                        subtitle: 'Create or join a session to start matching dishes together.',
-                        buttonText: 'Connect',
-                        onButtonPressed: () => _showConnectSheet(context),
+                    if (!hasCouple && !provider.isSoloMode && provider.deck.isEmpty) {
+                      return SwipeModeSelectionScreen(
+                        onSolo: _runSoloPreSwipeFlow,
+                        onPairUp: () => _showConnectSheet(context),
                       );
                     }
 
-                    if (hasCouple && !bothConfirmed) {
+                    if (hasCouple && !bothConfirmed && !provider.isSoloMode) {
                       if (provider.hasPreparedDeck || provider.deck.isNotEmpty) {
                         WidgetsBinding.instance.addPostFrameCallback((_) {
                           if (mounted) {
@@ -400,7 +412,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
                             ? 'Your choices are saved. We’ll start swiping when your partner finishes their filters.'
                             : 'Your shared deck will be ready after both of you confirm filters.',
                         buttonText: 'Filter',
-                        onButtonPressed: () => _runPreSwipeFlow(fromHeaderAction: true),
+                        onButtonPressed: () => provider.isSoloMode ? _runSoloPreSwipeFlow() : _runPreSwipeFlow(fromHeaderAction: true),
                       );
                     }
 
@@ -423,7 +435,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
                         title: 'No dishes found',
                         subtitle: 'Try removing some filters or choosing more cuisines.',
                         buttonText: 'Adjust filters',
-                        onButtonPressed: () => _runPreSwipeFlow(fromHeaderAction: true),
+                        onButtonPressed: () => provider.isSoloMode ? _runSoloPreSwipeFlow() : _runPreSwipeFlow(fromHeaderAction: true),
                       );
                     }
 

@@ -5,6 +5,7 @@ import { DISH_DTO_SELECT, toDishDto, toPublicDishId } from '../../dishes/dto/dis
 import { resolveDishByAnyId } from '../../dishes/utils/resolveDishByAnyId';
 import { MatchModel } from '../../matches/models/Match';
 import { SwipeModel } from '../models/Swipe';
+import { SoloSwipeSessionModel } from '../../solo-swipes/models/SoloSwipeSession';
 
 export class SwipeService {
   async createSwipe(userId: string, dishId: string, direction: 'like' | 'dislike') {
@@ -64,14 +65,12 @@ export class SwipeService {
 
   async getMyMatches(userId: string) {
     const session = await CoupleSessionModel.findOne({ members: new Types.ObjectId(userId), status: 'active' });
-    if (!session) {
-      throw new AppError('User has no active session', 404);
-    }
-
-    const matches = await MatchModel.find({ coupleId: session._id })
-      .sort({ createdAt: -1 })
-      .populate({ path: 'dishId', select: DISH_DTO_SELECT })
-      .lean();
+    const matches = session
+      ? await MatchModel.find({ coupleId: session._id })
+          .sort({ createdAt: -1 })
+          .populate({ path: 'dishId', select: DISH_DTO_SELECT })
+          .lean()
+      : [];
     const validMatches = [];
 
     for (const match of matches) {
@@ -92,7 +91,21 @@ export class SwipeService {
       });
     }
 
-    return validMatches;
+    const soloSessions = await SoloSwipeSessionModel.find({ userId: new Types.ObjectId(userId), resultDishIds: { $ne: [] } })
+      .select('resultDishIds updatedAt')
+      .sort({ updatedAt: -1 })
+      .lean();
+    const seenSoloDishIds = new Set<string>();
+    const soloDishIds = soloSessions.flatMap((s) => s.resultDishIds ?? []).filter((id) => { const key = id.toString(); if (seenSoloDishIds.has(key)) return false; seenSoloDishIds.add(key); return true; });
+    const soloDishes = await import('../../dishes/models/Dish').then(({ DishModel }) => DishModel.find({ _id: { $in: soloDishIds } }).select(DISH_DTO_SELECT).lean());
+    const soloById = new Map(soloDishes.map((dish: any) => [dish._id.toString(), dish]));
+    const soloMatches = soloDishIds.map((id) => {
+      const dish = toDishDto(soloById.get(id.toString()));
+      if (!dish) return null;
+      return { id: `solo_${id.toString()}`, dish, users: [new Types.ObjectId(userId)], createdAt: new Date(), mode: 'solo', matchType: 'solo_pick' };
+    }).filter((match): match is NonNullable<typeof match> => Boolean(match));
+
+    return [...soloMatches, ...validMatches.map((match) => ({ ...match, mode: 'paired', matchType: 'pair_match' }))];
   }
 
   async getMySwipeHistory(userId: string) {

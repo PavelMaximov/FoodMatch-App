@@ -84,3 +84,7 @@ Hotfix strategy:
 - Session custom dishes receive high deterministic scoring priority in the prepared deck while preserving no-duplicate ordering.
 - Existing deck GET responses filter out hidden/deleted or no-longer-visible dishes defensively.
 - The Flutter Add Dish flow clears local prepared deck state after a successful add so the Swipe screen reloads the updated backend prepared deck instead of reusing stale in-memory state.
+
+## Sprint 21 solo deck visibility
+
+Solo swipe decks do not include another user's private custom dish or another couple's session custom dish. The MVP solo deck includes public approved dishes plus the authenticated user's own approved private custom dishes. Existing paired session custom dish rules remain unchanged.

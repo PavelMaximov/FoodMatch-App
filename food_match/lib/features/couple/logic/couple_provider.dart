@@ -151,7 +151,12 @@ class CoupleProvider extends ChangeNotifier {
       _sessionStateVersion++;
       await refreshFilterState();
     } on ApiException catch (e) {
-      error = _mapError(e);
+      if (_isActiveSessionConflict(e)) {
+        error = activeSessionMessage;
+        await _refreshActiveSessionAfterConflict();
+      } else {
+        error = _mapError(e);
+      }
     } catch (e) {
       error = _mapError(e);
     } finally {

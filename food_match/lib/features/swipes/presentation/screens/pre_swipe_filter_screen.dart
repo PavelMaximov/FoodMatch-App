@@ -13,10 +13,13 @@ import '../../../auth/logic/auth_provider.dart';
 import '../../../couple/logic/couple_provider.dart';
 import '../../logic/filter_scoring_service.dart';
 import '../../logic/pre_swipe_provider.dart';
+import '../../logic/swipe_provider.dart';
 import 'previous_filter_choice_screen.dart';
 
 class PreSwipeFilterScreen extends StatefulWidget {
-  const PreSwipeFilterScreen({super.key});
+  const PreSwipeFilterScreen({super.key, this.mode = 'paired'});
+
+  final String mode;
 
   @override
   State<PreSwipeFilterScreen> createState() => _PreSwipeFilterScreenState();
@@ -134,12 +137,14 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         return;
       }
 
-      _coupleProvider.startFilterStatePolling(reason: 'pre_swipe_init');
-      await _coupleProvider.refreshFilterState(reason: 'pre_swipe_init');
+      if (widget.mode == 'paired') {
+        _coupleProvider.startFilterStatePolling(reason: 'pre_swipe_init');
+        await _coupleProvider.refreshFilterState(reason: 'pre_swipe_init');
+      }
       if (!mounted) {
         return;
       }
-      if (_coupleProvider.isMyChoicesConfirmed && !_coupleProvider.bothConfirmed) {
+      if (widget.mode == 'paired' && _coupleProvider.isMyChoicesConfirmed && !_coupleProvider.bothConfirmed) {
         debugPrint('[PreSwipe] waiting for partner filters');
         setState(() {
           _showIntro = false;
@@ -167,7 +172,9 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
 
   @override
   void dispose() {
-    _coupleProvider.stopFilterStatePolling(reason: 'pre_swipe_dispose');
+    if (widget.mode == 'paired') {
+      _coupleProvider.stopFilterStatePolling(reason: 'pre_swipe_dispose');
+    }
     super.dispose();
   }
 
@@ -235,7 +242,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
                           moods: _moods.toList(),
                           blocked: _blocked.toList(),
                           diet: _diet.toList(),
-                          partnerChoices: coupleProvider.partnerChoices,
+                          partnerChoices: widget.mode == 'paired' ? coupleProvider.partnerChoices : null,
                         ),
                     isLoading: _loading,
                     canGoBack: _step > 1,
@@ -497,10 +504,23 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       moods: _moods.toList(),
       blocked: _blocked.toList(),
       diet: _diet.toList(),
-      partnerChoices: coupleProvider.partnerChoices,
+      partnerChoices: widget.mode == 'paired' ? coupleProvider.partnerChoices : null,
     );
 
     setState(() => _loading = true);
+    if (widget.mode == 'solo') {
+      final bool created = await context.read<SwipeProvider>().createSoloSession(
+            cuisines: _cuisines.toList(), moods: _moods.toList(), blocked: _blocked.toList(), diet: _diet.toList(),
+          );
+      if (!mounted) return;
+      if (created) {
+        Navigator.pop(context, PreparedPoolResult(dishes: context.read<SwipeProvider>().deck, seenDishIds: <String>{}, usedFallback: false, relaxed: false, messages: const <String>[]));
+      } else {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('You already have an active swipe session. Finish it before starting another one.')));
+      }
+      return;
+    }
     await preSwipeProvider.saveAndConfirmChoices(
       userId: userId,
       coupleProvider: coupleProvider,

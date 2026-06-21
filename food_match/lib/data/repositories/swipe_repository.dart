@@ -9,12 +9,26 @@ class SwipeRepository {
 
   final ApiService _apiService;
 
-  Future<dynamic> sendSwipe({required String dishId, required String direction}) async {
+  Future<dynamic> sendSwipe({required String dishId, required String direction, String? soloSessionId}) async {
+    if (soloSessionId != null) {
+      return _apiService.post(ApiConstants.soloSwipe(soloSessionId), {
+        'dishId': dishId,
+        'direction': direction,
+      });
+    }
     return _apiService.post(ApiConstants.swipes, {
       'dishId': dishId,
       'direction': direction,
     });
   }
+
+  Future<dynamic> getActiveSoloSession() => _apiService.get(ApiConstants.soloSwipesActive);
+
+  Future<dynamic> createSoloSession({required Map<String, dynamic> filter}) =>
+      _apiService.post(ApiConstants.soloSwipesSession, {'filter': filter});
+
+  Future<dynamic> getLastFilterPreset(String mode) =>
+      _apiService.get('${ApiConstants.filtersLast}?mode=$mode');
 
   Future<SwipeStats> getMyStats() async {
     final data = await _apiService.get(ApiConstants.swipeStats);
