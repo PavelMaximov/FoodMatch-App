@@ -979,7 +979,7 @@ class _FilterBottomPanel extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Text(
-                '⚡ ${availability.availableCount} $dishLabel',
+                '⚡ ${availability.availableCount} $dishLabel matched',
                 style: GoogleFonts.nunito(
                   fontSize: 14,
                   fontWeight: FontWeight.w800,

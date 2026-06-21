@@ -47,9 +47,7 @@ class PreviousFilterChoiceScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
-              const _FilterHeroIllustration(),
-              const SizedBox(height: 18),
+              const SizedBox(height: 64),
               Text(
                 'Feeling it again\ntoday?',
                 style: GoogleFonts.fredoka(
@@ -147,47 +145,6 @@ String lastUsedLabel(DateTime usedAt) {
   return 'Last used on ${months[usedAt.month - 1]} ${usedAt.day}';
 }
 
-class _FilterHeroIllustration extends StatelessWidget {
-  const _FilterHeroIllustration();
-
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        width: 168,
-        height: 130,
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFEDDE),
-          borderRadius: BorderRadius.circular(36),
-        ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: <Widget>[
-            Transform.rotate(
-              angle: -0.08,
-              child: Icon(
-                Icons.filter_alt_rounded,
-                size: 92,
-                color: AppColors.primary.withValues(alpha: 0.9),
-              ),
-            ),
-            const Positioned(
-              right: 26,
-              top: 22,
-              child: Icon(Icons.auto_awesome, color: Color(0xFFEECF04), size: 24),
-            ),
-            const Positioned(
-              left: 28,
-              bottom: 24,
-              child: Icon(Icons.restaurant_menu, color: Color(0xFFEE8C04), size: 24),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class _PresetCard extends StatelessWidget {
   const _PresetCard({required this.preset});

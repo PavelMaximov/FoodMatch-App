@@ -35,8 +35,6 @@ class PreparedPoolResult {
 }
 
 class FilterAvailabilitySummary {
-  static const int idealDeckTarget = 50;
-
   const FilterAvailabilitySummary({
     required this.totalCount,
     required this.availableCount,
@@ -51,7 +49,12 @@ class FilterAvailabilitySummary {
   final bool usedCuisineUnionFallback;
   final bool wouldWidenSearch;
 
-  double get progress => (availableCount / idealDeckTarget).clamp(0, 1).toDouble();
+  double get progress {
+    if (totalCount <= 0) {
+      return 0;
+    }
+    return (availableCount / totalCount).clamp(0, 1).toDouble();
+  }
 
   String get helperText {
     if (totalCount <= 0) {
