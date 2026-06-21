@@ -35,14 +35,6 @@ class MatchProvider extends ChangeNotifier {
   }
 
   Future<void> loadMatches({bool force = false}) {
-    if (_activeCoupleId == null || _activeCoupleId!.isEmpty) {
-      matches = <Dish>[];
-      error = null;
-      isLoading = false;
-      _matchesLoadedAt = null;
-      notifyListeners();
-      return Future<void>.value();
-    }
     if (!force && _hasFreshMatchesCache) {
       final int age = DateTime.now().difference(_matchesLoadedAt!).inSeconds;
       AppLogger.info('[Cache] matches hit count=${matches.length} age=${age}s');
@@ -67,10 +59,10 @@ class MatchProvider extends ChangeNotifier {
     try {
       matches = await _swipeRepository.getMatches();
       _matchesLoadedAt = DateTime.now();
-      await _cacheService.cacheMatches(matches, coupleId: _activeCoupleId);
+      await _cacheService.cacheMatches(matches, coupleId: _activeCoupleId ?? 'solo');
       AppLogger.info('MatchProvider: loaded ${matches.length} matches');
     } catch (e) {
-      matches = await _cacheService.getCachedMatches(coupleId: _activeCoupleId);
+      matches = await _cacheService.getCachedMatches(coupleId: _activeCoupleId ?? 'solo');
       if (matches.isEmpty) {
         error = _mapError(e);
       } else {
@@ -101,9 +93,7 @@ class MatchProvider extends ChangeNotifier {
     notifyListeners();
     _cacheService.clearCachedMatches();
 
-    if (_activeCoupleId != null) {
-      loadMatches();
-    }
+    loadMatches();
   }
 
   void clearMatches() {

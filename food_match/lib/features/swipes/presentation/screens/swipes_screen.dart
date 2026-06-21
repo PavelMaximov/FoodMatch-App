@@ -19,6 +19,7 @@ import '../../../couple/presentation/widgets/connect_session_sheet.dart';
 import '../../../matches/logic/match_provider.dart';
 import '../../logic/pre_swipe_provider.dart';
 import '../../logic/swipe_provider.dart';
+import '../widgets/session_settings_sheet.dart';
 import '../widgets/swipe_card_widget.dart';
 import '../widgets/swipeable_stack.dart';
 import 'pre_swipe_filter_screen.dart';
@@ -222,6 +223,22 @@ class _SwipesScreenState extends State<SwipesScreen> {
     return null;
   }
 
+  void _showSessionSettingsSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.5),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => SessionSettingsSheet(
+        onOpenPairSetup: () => _showConnectSheet(context),
+        onStartSoloSetup: _runSoloPreSwipeFlow,
+      ),
+    );
+  }
+
   void _showConnectSheet(BuildContext context) {
     showModalBottomSheet<void>(
       context: context,
@@ -238,6 +255,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
   void _handleSwipe(SwipeDirection direction) {
     final SwipeProvider swipeProvider = context.read<SwipeProvider>();
     final swipedDish = swipeProvider.currentDish;
+    final bool wasSoloMode = swipeProvider.isSoloMode;
 
     Future<dynamic> swipeAction;
     if (direction == SwipeDirection.right) {
@@ -256,6 +274,22 @@ class _SwipesScreenState extends State<SwipesScreen> {
           result['swipe']?['matchCreated'] == true &&
           swipedDish != null) {
         context.read<MatchProvider>().loadMatches(force: true);
+        if (wasSoloMode) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Row(
+                children: <Widget>[
+                  Icon(Icons.favorite, color: Colors.white, size: 18),
+                  SizedBox(width: 8),
+                  Text('Saved to Matches'),
+                ],
+              ),
+              duration: Duration(milliseconds: 1400),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          return;
+        }
         context.push('/match-overlay', extra: swipedDish);
       }
     });
@@ -330,7 +364,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: <Widget>[
                   GestureDetector(
-                    onTap: () => _showConnectSheet(context),
+                    onTap: () => _showSessionSettingsSheet(context),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                       decoration: BoxDecoration(
@@ -338,7 +372,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
                         borderRadius: BorderRadius.circular(AppDimensions.radiusXL),
                       ),
                       child: Text(
-                        'Connect session',
+                        'Session settings',
                         style: GoogleFonts.nunito(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
@@ -365,7 +399,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            'Filter',
+                            'Filters',
                             style: GoogleFonts.nunito(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
@@ -392,6 +426,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
                       return SwipeModeSelectionScreen(
                         onSolo: _runSoloPreSwipeFlow,
                         onPairUp: () => _showConnectSheet(context),
+                        onBack: () => context.go('/recipes'),
                       );
                     }
 
@@ -411,7 +446,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
                         subtitle: isMyChoicesConfirmed
                             ? 'Your choices are saved. We’ll start swiping when your partner finishes their filters.'
                             : 'Your shared deck will be ready after both of you confirm filters.',
-                        buttonText: 'Filter',
+                        buttonText: 'Filters',
                         onButtonPressed: () => provider.isSoloMode ? _runSoloPreSwipeFlow() : _runPreSwipeFlow(fromHeaderAction: true),
                       );
                     }

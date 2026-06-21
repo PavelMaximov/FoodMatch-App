@@ -10,10 +10,12 @@ class SwipeModeSelectionScreen extends StatefulWidget {
     super.key,
     required this.onSolo,
     required this.onPairUp,
+    this.onBack,
   });
 
   final VoidCallback onSolo;
   final VoidCallback onPairUp;
+  final VoidCallback? onBack;
 
   @override
   State<SwipeModeSelectionScreen> createState() =>
@@ -26,10 +28,17 @@ class _SwipeModeSelectionScreenState extends State<SwipeModeSelectionScreen> {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 36, 20, 24),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
+          IconButton(
+            onPressed: widget.onBack ?? () => Navigator.maybePop(context),
+            icon: const Icon(Icons.arrow_back, size: 24, color: Color(0xFF2B2725)),
+            padding: EdgeInsets.zero,
+            alignment: Alignment.centerLeft,
+          ),
+          const SizedBox(height: 14),
           Text(
             'How do you want\nto swipe?',
             style: GoogleFonts.fredoka(
@@ -56,8 +65,7 @@ class _SwipeModeSelectionScreenState extends State<SwipeModeSelectionScreen> {
             subtitle: 'Swipe through dishes just for yourself.',
             info:
                 'Matches are saved to your personal list right away — no waiting on anyone else.',
-            infoColor: const Color(0xFFC5AB00),
-            infoBg: const Color(0xFFFFFBDE),
+
             onTap: () => setState(() => _selected = SwipeModeChoice.solo),
           ),
           const SizedBox(height: 14),
@@ -69,8 +77,7 @@ class _SwipeModeSelectionScreenState extends State<SwipeModeSelectionScreen> {
             subtitle: 'Swipe together with a partner in real time.',
             info:
                 'You\'ll send an invite link. A dish becomes a match only when you both swipe right.',
-            infoColor: const Color(0xFF7A7270),
-            infoBg: const Color(0xFFF7F7F7),
+
             onTap: () => setState(() => _selected = SwipeModeChoice.paired),
           ),
           const SizedBox(height: 16),
@@ -140,8 +147,6 @@ class _ModeCard extends StatelessWidget {
     this.badge,
     required this.subtitle,
     required this.info,
-    required this.infoColor,
-    required this.infoBg,
     required this.onTap,
   });
 
@@ -151,12 +156,13 @@ class _ModeCard extends StatelessWidget {
   final String? badge;
   final String subtitle;
   final String info;
-  final Color infoColor;
-  final Color infoBg;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final Color blockBackground = selected ? const Color(0xFFFFFBDE) : const Color(0xFFF7F7F7);
+    final Color blockColor = selected ? const Color(0xFFC5AB00) : const Color(0xFF8B8582);
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
@@ -246,7 +252,7 @@ class _ModeCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: infoBg,
+                color: blockBackground,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
@@ -254,7 +260,7 @@ class _ModeCard extends StatelessWidget {
                   Icon(
                     Icons.info_outline,
                     size: 18,
-                    color: infoColor,
+                    color: blockColor,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -263,7 +269,7 @@ class _ModeCard extends StatelessWidget {
                       style: GoogleFonts.nunito(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
-                        color: infoColor,
+                        color: blockColor,
                         height: 1.25,
                       ),
                     ),

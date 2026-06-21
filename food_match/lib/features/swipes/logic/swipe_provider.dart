@@ -59,6 +59,8 @@ class SwipeProvider extends ChangeNotifier {
   PreparedDeckMeta? get preparedDeckMeta => _preparedDeckMeta;
   bool get isSendingSwipe => _isSendingSwipe;
   bool get isSoloMode => currentSwipeMode == 'solo' && activeSoloSessionId != null;
+  int get soloLikedCount => _seenDishIds.length;
+  int get remainingDishCount => deck.length > currentIndex ? deck.length - currentIndex : 0;
 
   bool isSeenDish(String dishId) => _seenDishIds.contains(dishId);
 
@@ -123,6 +125,7 @@ class SwipeProvider extends ChangeNotifier {
       if (session is Map<String, dynamic>) {
         activeSoloSessionId = session['sessionId']?.toString();
         currentSwipeMode = 'solo';
+        _seenDishIds = <String>{};
         final List<dynamic> rawDishes = session['dishes'] as List<dynamic>? ?? <dynamic>[];
         applyPreparedDeck(rawDishes.whereType<Map>().map((Map item) => Dish.fromJson(Map<String, dynamic>.from(item))).toList(), preparedDeckMeta: PreparedDeckMeta.fromJson(Map<String, dynamic>.from(session['meta'] as Map? ?? <String, dynamic>{})));
         return true;
@@ -139,13 +142,29 @@ class SwipeProvider extends ChangeNotifier {
       final dynamic data = await _swipeRepository.createSoloSession(filter: <String, dynamic>{'cuisines': cuisines, 'moods': moods, 'exclusions': blocked, 'diet': diet});
       final dynamic session = data is Map<String, dynamic> ? data['session'] : null;
       if (session is Map<String, dynamic>) {
-        activeSoloSessionId = session['sessionId']?.toString(); currentSwipeMode = 'solo';
+        activeSoloSessionId = session['sessionId']?.toString();
+        currentSwipeMode = 'solo';
+        _seenDishIds = <String>{};
         final List<dynamic> rawDishes = session['dishes'] as List<dynamic>? ?? <dynamic>[];
         applyPreparedDeck(rawDishes.whereType<Map>().map((Map item) => Dish.fromJson(Map<String, dynamic>.from(item))).toList(), preparedDeckMeta: PreparedDeckMeta.fromJson(Map<String, dynamic>.from(session['meta'] as Map? ?? <String, dynamic>{})));
         return true;
       }
     } catch (e) { error = _mapSwipeError(e); } finally { isLoading = false; notifyListeners(); }
     return false;
+  }
+
+  Future<void> abandonActiveSoloSession() async {
+    if (activeSoloSessionId == null) {
+      clearPreparedDeck();
+      currentSwipeMode = 'paired';
+      notifyListeners();
+      return;
+    }
+    await _swipeRepository.abandonActiveSoloSession();
+    clearPreparedDeck();
+    currentSwipeMode = 'paired';
+    activeSoloSessionId = null;
+    notifyListeners();
   }
 
   Future<bool> loadExistingPreparedDeck({bool force = false}) {

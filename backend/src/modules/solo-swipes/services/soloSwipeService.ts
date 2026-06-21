@@ -19,6 +19,7 @@ export class SoloSwipeService {
   return this.toDeck(session, dishes);
  }
  async getDeck(userId:string, sessionId:string){ const session = await this.requireSession(userId, sessionId); session.lastActivityAt=new Date(); await session.save(); return this.toDeck(session); }
+ async abandonActive(userId:string){ const session = await SoloSwipeSessionModel.findOne({userId:new Types.ObjectId(userId),status:'active'}); if(!session) return { abandoned:false }; session.status='abandoned'; session.lastActivityAt=new Date(); await session.save(); return { abandoned:true, sessionId: session.id }; }
  async swipe(userId:string, sessionId:string, dishId:string, direction:'like'|'dislike'){
   const session = await this.requireSession(userId, sessionId); const dish = await resolveDishByAnyId(dishId); if(!dish) throw new AppError('This dish is not available.',404);
   const currentId = session.deckDishIds[session.deckIndex]?.toString(); if(!currentId || currentId !== (dish._id as Types.ObjectId).toString()) throw new AppError('Dish is not current in this solo session.',409,'DISH_NOT_CURRENT');
