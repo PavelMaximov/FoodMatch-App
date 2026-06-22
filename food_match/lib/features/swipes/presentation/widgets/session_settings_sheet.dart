@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -99,7 +101,10 @@ class SessionSettingsSheet extends StatelessWidget {
     }
     context.read<SwipeProvider>().clearPreparedDeck();
     context.read<PreSwipeProvider>().clearForLogout();
-    context.read<MatchProvider>().clearMatches();
+    final MatchProvider matchProvider = context.read<MatchProvider>();
+    matchProvider.setMode('solo');
+    matchProvider.clearMatches();
+    unawaited(matchProvider.loadMatches(force: true, mode: 'solo'));
     Navigator.pop(context);
     onStartSoloSetup();
   }

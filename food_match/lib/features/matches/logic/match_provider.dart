@@ -28,6 +28,9 @@ class MatchProvider extends ChangeNotifier {
   String? error;
 
   int get matchCount => matches.length;
+  String get mode => _mode;
+  bool get isSoloMode => _mode == 'solo';
+
 
   bool get _hasFreshMatchesCache {
     final DateTime? loadedAt = _matchesLoadedAt;
@@ -107,6 +110,21 @@ class MatchProvider extends ChangeNotifier {
     _cacheService.clearCachedMatches();
 
     loadMatches();
+  }
+
+  void setMode(String mode) {
+    final String normalized = mode == 'paired' ? 'paired' : 'solo';
+    if (_mode == normalized) {
+      return;
+    }
+    _mode = normalized;
+    matches = <Dish>[];
+    error = null;
+    isLoading = false;
+    _matchesLoadedAt = null;
+    _matchesLoadFuture = null;
+    _cacheService.clearCachedMatches();
+    notifyListeners();
   }
 
   void clearMatches() {

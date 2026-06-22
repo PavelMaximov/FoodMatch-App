@@ -15,13 +15,13 @@ import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../couple/logic/couple_provider.dart';
-import '../../../couple/presentation/widgets/connect_session_sheet.dart';
 import '../../../matches/logic/match_provider.dart';
 import '../../logic/pre_swipe_provider.dart';
 import '../../logic/swipe_provider.dart';
 import '../widgets/session_settings_sheet.dart';
 import '../widgets/swipe_card_widget.dart';
 import '../widgets/swipeable_stack.dart';
+import 'pair_connection_step_screen.dart';
 import 'pre_swipe_filter_screen.dart';
 import 'swipe_mode_selection_screen.dart';
 
@@ -36,6 +36,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
   final SwipeableStackController _swiperController = SwipeableStackController();
   bool _isOpeningPreSwipe = false;
   bool _isCardActionInProgress = false;
+  bool _showPairConnectionStep = false;
   CoupleProvider? _coupleProvider;
   final Set<String> _preloadedImageUrls = <String>{};
 
@@ -78,6 +79,14 @@ class _SwipesScreenState extends State<SwipesScreen> {
       if (!mounted) {
         return;
       }
+      if (!coupleProvider.hasPartner) {
+        debugPrint('[Deck] pair connection waiting for partner');
+        swipeProvider.clearPreparedDeck();
+        if (mounted) {
+          setState(() => _showPairConnectionStep = true);
+        }
+        return;
+      }
       if (!coupleProvider.bothConfirmed) {
         debugPrint('[Deck] local deck cleared reason=filters_not_ready');
         swipeProvider.clearPreparedDeck();
@@ -114,8 +123,11 @@ class _SwipesScreenState extends State<SwipesScreen> {
 
     _isOpeningPreSwipe = true;
     final CoupleProvider currentCoupleProvider = context.read<CoupleProvider>();
-    if (!currentCoupleProvider.hasCouple) {
+    if (!currentCoupleProvider.hasCouple || !currentCoupleProvider.hasPartner) {
       _isOpeningPreSwipe = false;
+      if (mounted) {
+        setState(() => _showPairConnectionStep = true);
+      }
       return;
     }
     final SwipeProvider swipeProvider = context.read<SwipeProvider>();
@@ -233,24 +245,17 @@ class _SwipesScreenState extends State<SwipesScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (_) => SessionSettingsSheet(
-        onOpenPairSetup: () => _showConnectSheet(context),
-        onStartSoloSetup: _runSoloPreSwipeFlow,
+        onOpenPairSetup: () {
+          setState(() => _showPairConnectionStep = true);
+        },
+        onStartSoloSetup: () {
+          setState(() => _showPairConnectionStep = false);
+          _runSoloPreSwipeFlow();
+        },
       ),
     );
   }
 
-  void _showConnectSheet(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withValues(alpha: 0.5),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (_) => const ConnectSessionSheet(),
-    );
-  }
 
   void _handleSwipe(SwipeDirection direction) {
     final SwipeProvider swipeProvider = context.read<SwipeProvider>();
@@ -347,22 +352,29 @@ class _SwipesScreenState extends State<SwipesScreen> {
   Widget build(BuildContext context) {
     final bool hasCouple = context.select<CoupleProvider, bool>((CoupleProvider p) => p.hasCouple);
     final bool bothConfirmed = context.select<CoupleProvider, bool>((CoupleProvider p) => p.bothConfirmed);
+    final bool hasPartner = context.select<CoupleProvider, bool>((CoupleProvider p) => p.hasPartner);
     final bool isMyChoicesConfirmed = context.select<CoupleProvider, bool>((CoupleProvider p) => p.isMyChoicesConfirmed);
+    final bool isSoloMode = context.select<SwipeProvider, bool>((SwipeProvider p) => p.isSoloMode);
+    final bool deckIsEmpty = context.select<SwipeProvider, bool>((SwipeProvider p) => p.deck.isEmpty);
+    final bool showModeSelection = !hasCouple && !isSoloMode && deckIsEmpty && !_showPairConnectionStep;
+    final bool showPairConnection = _showPairConnectionStep || (hasCouple && !hasPartner && !isSoloMode);
+    final bool showHeaderActions = !showModeSelection && !showPairConnection;
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: Column(
           children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.only(
-                top: 30,
-                bottom: 17,
-                left: 16,
-                right: 16,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: <Widget>[
+            if (showHeaderActions)
+              Padding(
+                padding: const EdgeInsets.only(
+                  top: 30,
+                  bottom: 17,
+                  left: 16,
+                  right: 16,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: <Widget>[
                   GestureDetector(
                     onTap: () => _showSessionSettingsSheet(context),
                     child: Container(
@@ -403,16 +415,16 @@ class _SwipesScreenState extends State<SwipesScreen> {
                             style: GoogleFonts.nunito(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color:  AppColors.textPrimary,
+                              color: AppColors.textPrimary,
                             ),
                           ),
                         ],
                       ),
                     ),
                   ),
-                ],
+                  ],
+                ),
               ),
-            ),
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.only(
@@ -422,15 +434,38 @@ class _SwipesScreenState extends State<SwipesScreen> {
                 ),
                 child: Consumer<SwipeProvider>(
                   builder: (BuildContext context, SwipeProvider provider, _) {
-                    if (!hasCouple && !provider.isSoloMode && provider.deck.isEmpty) {
+                    if (showModeSelection) {
                       return SwipeModeSelectionScreen(
-                        onSolo: _runSoloPreSwipeFlow,
-                        onPairUp: () => _showConnectSheet(context),
-                        onBack: () => context.go('/recipes'),
+                        onSolo: () {
+                          setState(() => _showPairConnectionStep = false);
+                          _runSoloPreSwipeFlow();
+                        },
+                        onPairUp: () {
+                          context.read<MatchProvider>().clearMatches();
+                          setState(() => _showPairConnectionStep = true);
+                        },
                       );
                     }
 
-                    if (hasCouple && !bothConfirmed && !provider.isSoloMode) {
+                    if (showPairConnection) {
+                      if (provider.hasPreparedDeck || provider.deck.isNotEmpty) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted) {
+                            provider.clearPreparedDeck();
+                          }
+                        });
+                      }
+                      return PairConnectionStepScreen(
+                        onBack: () => setState(() => _showPairConnectionStep = false),
+                        onPairConnected: () async {
+                          if (!mounted) return;
+                          setState(() => _showPairConnectionStep = false);
+                          await _runPreSwipeFlow();
+                        },
+                      );
+                    }
+
+                    if (hasCouple && hasPartner && !bothConfirmed && !provider.isSoloMode) {
                       if (provider.hasPreparedDeck || provider.deck.isNotEmpty) {
                         WidgetsBinding.instance.addPostFrameCallback((_) {
                           if (mounted) {

@@ -50,7 +50,7 @@ class PreviousFilterChoiceScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 64),
+              const SizedBox(height: 20),
               Text(
                 'Feeling it again\ntoday?',
                 style: GoogleFonts.fredoka(

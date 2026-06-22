@@ -10,12 +10,10 @@ class SwipeModeSelectionScreen extends StatefulWidget {
     super.key,
     required this.onSolo,
     required this.onPairUp,
-    this.onBack,
   });
 
   final VoidCallback onSolo;
   final VoidCallback onPairUp;
-  final VoidCallback? onBack;
 
   @override
   State<SwipeModeSelectionScreen> createState() =>
@@ -28,17 +26,10 @@ class _SwipeModeSelectionScreenState extends State<SwipeModeSelectionScreen> {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+      padding: const EdgeInsets.fromLTRB(20, 36, 20, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          IconButton(
-            onPressed: widget.onBack ?? () => Navigator.maybePop(context),
-            icon: const Icon(Icons.arrow_back, size: 24, color: Color(0xFF2B2725)),
-            padding: EdgeInsets.zero,
-            alignment: Alignment.centerLeft,
-          ),
-          const SizedBox(height: 14),
           Text(
             'How do you want\nto swipe?',
             style: GoogleFonts.fredoka(
