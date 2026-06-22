@@ -1,6 +1,6 @@
 import '../../core/constants/api_constants.dart';
 import '../../core/utils/logger.dart';
-import '../models/dish.dart';
+import '../models/match_item.dart';
 import '../models/swipe_stats.dart';
 import '../services/api_service.dart';
 
@@ -33,13 +33,30 @@ class SwipeRepository {
   Future<dynamic> getLastFilterPreset(String mode) =>
       _apiService.get('${ApiConstants.filtersLast}?mode=$mode');
 
+  Future<dynamic> saveLastFilterPreset({
+    required String mode,
+    required List<String> cuisines,
+    required List<String> moods,
+    required List<String> diet,
+    required List<String> exclusions,
+    required int matchedLastTime,
+  }) =>
+      _apiService.put(ApiConstants.filtersLast, <String, dynamic>{
+        'mode': mode,
+        'cuisines': cuisines,
+        'moods': moods,
+        'diet': diet,
+        'exclusions': exclusions,
+        'matchedLastTime': matchedLastTime,
+      });
+
   Future<SwipeStats> getMyStats() async {
     final data = await _apiService.get(ApiConstants.swipeStats);
     AppLogger.info('Response data: $data');
     return SwipeStats.fromJson(_extractMap(data, fallbackKey: 'stats'));
   }
 
-  Future<List<Dish>> getMatches({String mode = 'all'}) async {
+  Future<List<MatchItem>> getMatches({String mode = 'all'}) async {
     final data = await _apiService.get('${ApiConstants.swipeMatches}?mode=$mode');
     final List<dynamic> list = data is Map<String, dynamic>
         ? (data['matches'] as List<dynamic>? ?? <dynamic>[])
@@ -47,11 +64,7 @@ class SwipeRepository {
 
     return list.map((dynamic item) {
       final Map<String, dynamic> matchJson = Map<String, dynamic>.from(item as Map);
-      final dynamic dish = matchJson['dish'];
-      if (dish is Map<String, dynamic>) {
-        return Dish.fromJson(dish);
-      }
-      return Dish.fromJson(matchJson);
+      return MatchItem.fromJson(matchJson);
     }).toList();
   }
 

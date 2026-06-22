@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/theme/app_text_styles.dart';
-import '../../../../data/models/dish.dart';
+import '../../../../data/models/match_item.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
@@ -40,7 +40,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final List<Dish> matches = context.select<MatchProvider, List<Dish>>((MatchProvider p) => p.matches);
+    final List<MatchItem> matches = context.select<MatchProvider, List<MatchItem>>((MatchProvider p) => p.matches);
     final bool isLoading = context.select<MatchProvider, bool>((MatchProvider p) => p.isLoading);
     final String? error = context.select<MatchProvider, String?>((MatchProvider p) => p.error);
     final Set<String> savedDishIds = context.select<FavoritesProvider, Set<String>>((FavoritesProvider p) => p.savedDishIds);
@@ -82,7 +82,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
     );
   }
 
-  Widget _buildBody(List<Dish> matches, bool isLoading, String? error, Set<String> savedDishIds, bool Function(String) isFavoriteUpdating, bool isSoloMode) {
+  Widget _buildBody(List<MatchItem> matches, bool isLoading, String? error, Set<String> savedDishIds, bool Function(String) isFavoriteUpdating, bool isSoloMode) {
     if (isLoading && matches.isEmpty) {
       return ListView.builder(
         itemCount: 4,
@@ -127,7 +127,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
         physics: const AlwaysScrollableScrollPhysics(),
         itemCount: matches.length,
         itemBuilder: (BuildContext context, int index) {
-          final dish = matches[index];
+          final dish = matches[index].dish;
           return Padding(
             padding: const EdgeInsets.only(bottom: AppDimensions.paddingS),
             child: DishCompactCard(

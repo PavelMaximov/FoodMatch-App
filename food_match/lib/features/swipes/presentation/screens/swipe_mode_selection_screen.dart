@@ -87,7 +87,7 @@ class _SwipeModeSelectionScreenState extends State<SwipeModeSelectionScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'You can switch modes anytime from the Connect session button.',
+                    'You can switch modes anytime from Session settings.',
                     style: GoogleFonts.nunito(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,

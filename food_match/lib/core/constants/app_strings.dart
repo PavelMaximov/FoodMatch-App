@@ -54,7 +54,7 @@ class AppStrings {
   static const String copyCode = 'Copy code';
   static const String codeCopied = 'Code copied!';
   static const String shareCode = 'Share this code with your partner';
-  static const String connectSession = 'Connect session';
+  static const String connectSession = 'Session settings';
   static const String connected = 'Connected';
   static const String leaveSession = 'Leave session';
 

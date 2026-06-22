@@ -41,6 +41,7 @@ Future<void> main() async {
       providers: [
         Provider<DishRepository>.value(value: dishRepo),
         Provider<CoupleRepository>.value(value: coupleRepo),
+        Provider<SwipeRepository>.value(value: swipeRepo),
         Provider<UploadRepository>.value(value: uploadRepo),
         Provider<UserProfileHiveService>.value(value: userProfileService),
         Provider<FilterScoringService>.value(value: const FilterScoringService()),

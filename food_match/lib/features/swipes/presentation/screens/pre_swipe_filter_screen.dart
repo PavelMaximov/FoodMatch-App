@@ -9,6 +9,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../data/models/user_profile.dart';
+import '../../../../data/repositories/swipe_repository.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../couple/logic/couple_provider.dart';
 import '../../logic/filter_scoring_service.dart';
@@ -129,7 +130,6 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
           setState(() {
             _favoriteCuisines = profile!.favoriteCuisines.toSet();
             _showIntro = profile.preSwipeFilterIntroSeenAt == null;
-            _lastFilterPreset = profile.lastFilterPreset;
           });
         }
       }
@@ -140,6 +140,13 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       if (widget.mode == 'paired') {
         _coupleProvider.startFilterStatePolling(reason: 'pre_swipe_init');
         await _coupleProvider.refreshFilterState(reason: 'pre_swipe_init');
+      }
+      if (!mounted) {
+        return;
+      }
+      final LastFilterPreset? backendPreset = await _loadBackendLastFilterPreset();
+      if (mounted) {
+        setState(() => _lastFilterPreset = backendPreset);
       }
       if (!mounted) {
         return;
@@ -168,6 +175,43 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         }
       });
     });
+  }
+
+
+  Future<LastFilterPreset?> _loadBackendLastFilterPreset() async {
+    try {
+      final dynamic data = await context.read<SwipeRepository>().getLastFilterPreset(widget.mode);
+      final dynamic preset = data is Map<String, dynamic> ? data['preset'] : null;
+      if (preset is Map) {
+        return LastFilterPreset.fromJson(Map<String, dynamic>.from(preset));
+      }
+    } catch (e) {
+      debugPrint('[PreSwipe] backend last filter load failed $e');
+    }
+    return null;
+  }
+
+  Future<void> _saveBackendLastFilterPreset(int matchedLastTime) async {
+    try {
+      await context.read<SwipeRepository>().saveLastFilterPreset(
+            mode: widget.mode,
+            cuisines: _cuisines.toList(),
+            moods: _moods.toList(),
+            diet: _diet.toList(),
+            exclusions: _blocked.toList(),
+            matchedLastTime: matchedLastTime,
+          );
+    } catch (e) {
+      debugPrint('[PreSwipe] backend last filter save failed $e');
+    }
+    _lastFilterPreset = LastFilterPreset(
+      cuisines: _cuisines.toList(),
+      moods: _moods.toList(),
+      diet: _diet.toList(),
+      exclusions: _blocked.toList(),
+      matchedLastTime: matchedLastTime,
+      usedAt: DateTime.now(),
+    );
   }
 
   @override
@@ -511,6 +555,8 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
           );
       if (!mounted) return;
       if (created) {
+        await _saveBackendLastFilterPreset(matchedLastTime);
+        if (!mounted) return;
         Navigator.pop(context, PreparedPoolResult(dishes: context.read<SwipeProvider>().deck, seenDishIds: <String>{}, usedFallback: false, relaxed: false, messages: const <String>[]));
       } else {
         setState(() => _loading = false);
@@ -526,22 +572,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       blocked: _blocked.toList(),
       diet: _diet.toList(),
     );
-    await preSwipeProvider.saveLastFilterPreset(
-      userId: userId,
-      cuisines: _cuisines.toList(),
-      moods: _moods.toList(),
-      blocked: _blocked.toList(),
-      diet: _diet.toList(),
-      matchedLastTime: matchedLastTime,
-    );
-    _lastFilterPreset = LastFilterPreset(
-      cuisines: _cuisines.toList(),
-      moods: _moods.toList(),
-      diet: _diet.toList(),
-      exclusions: _blocked.toList(),
-      matchedLastTime: matchedLastTime,
-      usedAt: DateTime.now(),
-    );
+    await _saveBackendLastFilterPreset(matchedLastTime);
 
     if (!mounted) {
       return;
@@ -741,6 +772,42 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     final String? userId = context.read<AuthProvider>().currentUser?.id;
     if (userId == null) {
       Navigator.pop(context);
+      return;
+    }
+
+    if (widget.mode == 'solo') {
+      setState(() => _loading = true);
+      final bool created = await context.read<SwipeProvider>().createSoloSession(
+            cuisines: const <String>[],
+            moods: const <String>[],
+            blocked: const <String>[],
+            diet: const <String>[],
+          );
+      if (!mounted) {
+        return;
+      }
+      if (created) {
+        final int matchedLastTime = context.read<SwipeProvider>().deck.length;
+        await _saveBackendLastFilterPreset(matchedLastTime);
+        if (!mounted) {
+          return;
+        }
+        Navigator.pop(
+          context,
+          PreparedPoolResult(
+            dishes: context.read<SwipeProvider>().deck,
+            seenDishIds: <String>{},
+            usedFallback: false,
+            relaxed: false,
+            messages: const <String>[],
+          ),
+        );
+      } else {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('You already have an active swipe session. Finish it before starting another one.')),
+        );
+      }
       return;
     }
 

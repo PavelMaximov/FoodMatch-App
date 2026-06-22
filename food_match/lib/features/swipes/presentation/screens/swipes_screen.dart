@@ -38,6 +38,8 @@ class _SwipesScreenState extends State<SwipesScreen> {
   bool _isCardActionInProgress = false;
   bool _showPairConnectionStep = false;
   CoupleProvider? _coupleProvider;
+  bool _isLoadingInitialSession = false;
+  String? _initialSessionError;
   final Set<String> _preloadedImageUrls = <String>{};
 
   @override
@@ -61,48 +63,81 @@ class _SwipesScreenState extends State<SwipesScreen> {
   }
 
   Future<void> _loadExistingBackendDeckOrStart() async {
-    final SwipeProvider swipeProvider = context.read<SwipeProvider>();
-    final CoupleProvider currentCoupleProvider = context.read<CoupleProvider>();
-    if (!currentCoupleProvider.hasCouple) {
-      final String? userId = context.read<AuthProvider>().currentUser?.id;
-      swipeProvider.setActiveUser(userId);
-      await swipeProvider.loadActiveSoloSession();
-      _isOpeningPreSwipe = false;
+    if (_isLoadingInitialSession) {
       return;
     }
+    setState(() {
+      _isLoadingInitialSession = true;
+      _initialSessionError = null;
+    });
+
+    final SwipeProvider swipeProvider = context.read<SwipeProvider>();
+    final CoupleProvider coupleProvider = context.read<CoupleProvider>();
     final String? userId = context.read<AuthProvider>().currentUser?.id;
     swipeProvider.setActiveUser(userId);
 
-    final CoupleProvider coupleProvider = context.read<CoupleProvider>();
-    if (coupleProvider.hasCouple) {
-      await coupleProvider.refreshFilterState(reason: 'swipes_load_existing_deck');
+    try {
+      await coupleProvider.loadCouple(force: true);
       if (!mounted) {
         return;
       }
-      if (!coupleProvider.hasPartner) {
-        debugPrint('[Deck] pair connection waiting for partner');
-        swipeProvider.clearPreparedDeck();
-        if (mounted) {
-          setState(() => _showPairConnectionStep = true);
-        }
+
+      if (coupleProvider.error != null && !coupleProvider.hasCouple) {
+        setState(() => _initialSessionError = coupleProvider.error);
         return;
       }
-      if (!coupleProvider.bothConfirmed) {
-        debugPrint('[Deck] local deck cleared reason=filters_not_ready');
-        swipeProvider.clearPreparedDeck();
+
+      if (coupleProvider.hasCouple) {
+        swipeProvider.setPairedMode();
+        context.read<MatchProvider>().setActiveCouple(
+              coupleProvider.currentCouple?.id,
+              sessionStateVersion: coupleProvider.sessionStateVersion,
+            );
+        await coupleProvider.refreshFilterState(reason: 'swipes_load_existing_deck');
+        if (!mounted) {
+          return;
+        }
+        if (!coupleProvider.hasPartner) {
+          debugPrint('[Deck] pair connection waiting for partner');
+          swipeProvider.clearPreparedDeck();
+          if (mounted) {
+            setState(() => _showPairConnectionStep = true);
+          }
+          return;
+        }
+        if (!coupleProvider.bothConfirmed) {
+          debugPrint('[Deck] local deck cleared reason=filters_not_ready');
+          swipeProvider.clearPreparedDeck();
+          await _runPreSwipeFlow();
+          return;
+        }
+        final bool loaded = await swipeProvider.loadExistingPreparedDeck();
+        if (loaded || !mounted) {
+          return;
+        }
         await _runPreSwipeFlow();
         return;
       }
-      final bool loaded = await swipeProvider.loadExistingPreparedDeck();
-      if (loaded || !mounted) {
-        return;
+
+      setState(() => _showPairConnectionStep = false);
+      final bool loadedSolo = await swipeProvider.loadActiveSoloSession();
+      if (loadedSolo) {
+        context.read<MatchProvider>().setMode('solo');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _initialSessionError = 'We couldn’t load your swipe session. Please try again.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingInitialSession = false;
+          _isOpeningPreSwipe = false;
+        });
+      } else {
+        _isOpeningPreSwipe = false;
       }
     }
-
-    if (!mounted) {
-      return;
-    }
-    await _runPreSwipeFlow();
   }
 
   Future<void> _runSoloPreSwipeFlow() async {
@@ -356,9 +391,10 @@ class _SwipesScreenState extends State<SwipesScreen> {
     final bool isMyChoicesConfirmed = context.select<CoupleProvider, bool>((CoupleProvider p) => p.isMyChoicesConfirmed);
     final bool isSoloMode = context.select<SwipeProvider, bool>((SwipeProvider p) => p.isSoloMode);
     final bool deckIsEmpty = context.select<SwipeProvider, bool>((SwipeProvider p) => p.deck.isEmpty);
-    final bool showModeSelection = !hasCouple && !isSoloMode && deckIsEmpty && !_showPairConnectionStep;
-    final bool showPairConnection = _showPairConnectionStep || (hasCouple && !hasPartner && !isSoloMode);
-    final bool showHeaderActions = !showModeSelection && !showPairConnection;
+    final bool hasCurrentDeckCard = context.select<SwipeProvider, bool>((SwipeProvider p) => p.deck.isNotEmpty && !p.isDeckEmpty);
+    final bool showModeSelection = !_isLoadingInitialSession && !hasCouple && !isSoloMode && deckIsEmpty && !_showPairConnectionStep;
+    final bool showPairConnection = !_isLoadingInitialSession && (_showPairConnectionStep || (hasCouple && !hasPartner && !isSoloMode));
+    final bool showHeaderActions = hasCurrentDeckCard && !showModeSelection && !showPairConnection && !_isOpeningPreSwipe;
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -434,6 +470,17 @@ class _SwipesScreenState extends State<SwipesScreen> {
                 ),
                 child: Consumer<SwipeProvider>(
                   builder: (BuildContext context, SwipeProvider provider, _) {
+                    if (_isLoadingInitialSession) {
+                      return const ShimmerCard();
+                    }
+
+                    if (_initialSessionError != null) {
+                      return ErrorState(
+                        message: _initialSessionError!,
+                        onRetry: _loadExistingBackendDeckOrStart,
+                      );
+                    }
+
                     if (showModeSelection) {
                       return SwipeModeSelectionScreen(
                         onSolo: () {
@@ -441,6 +488,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
                           _runSoloPreSwipeFlow();
                         },
                         onPairUp: () {
+                          context.read<SwipeProvider>().setPairedMode();
                           context.read<MatchProvider>().clearMatches();
                           setState(() => _showPairConnectionStep = true);
                         },
@@ -500,12 +548,15 @@ class _SwipesScreenState extends State<SwipesScreen> {
                     _preloadVisibleDishImages(provider);
 
                     if (provider.isDeckEmpty) {
+                      final bool soloContext = provider.isSoloMode;
                       return EmptyState(
-                        icon: Icons.restaurant,
-                        title: 'No dishes found',
-                        subtitle: 'Try removing some filters or choosing more cuisines.',
-                        buttonText: 'Adjust filters',
-                        onButtonPressed: () => provider.isSoloMode ? _runSoloPreSwipeFlow() : _runPreSwipeFlow(fromHeaderAction: true),
+                        icon: soloContext ? Icons.favorite_border : Icons.restaurant,
+                        title: soloContext ? 'You’re done for now' : 'No dishes found',
+                        subtitle: soloContext
+                            ? 'Your solo likes are saved to Matches. Start a new filter whenever you’re ready.'
+                            : 'Try removing some filters or choosing more cuisines.',
+                        buttonText: soloContext ? 'New filter' : 'Adjust filters',
+                        onButtonPressed: () => soloContext ? _runSoloPreSwipeFlow() : _runPreSwipeFlow(fromHeaderAction: true),
                       );
                     }
 

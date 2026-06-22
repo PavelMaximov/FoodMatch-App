@@ -5,6 +5,7 @@ import '../../../core/utils/logger.dart';
 import '../../../data/local/cache_policy.dart';
 import '../../../data/local/cache_service.dart';
 import '../../../data/models/dish.dart';
+import '../../../data/models/match_item.dart';
 import '../../../data/repositories/swipe_repository.dart';
 import '../../../data/services/api_service.dart';
 
@@ -23,7 +24,7 @@ class MatchProvider extends ChangeNotifier {
   DateTime? _matchesLoadedAt;
   Future<void>? _matchesLoadFuture;
 
-  List<Dish> matches = <Dish>[];
+  List<MatchItem> matches = <MatchItem>[];
   bool isLoading = false;
   String? error;
 
@@ -41,7 +42,7 @@ class MatchProvider extends ChangeNotifier {
   Future<void> loadMatches({bool force = false, String? mode}) {
     if (mode != null && mode != _mode) {
       _mode = mode;
-      matches = <Dish>[];
+      matches = <MatchItem>[];
       error = null;
       _matchesLoadedAt = null;
       _matchesLoadFuture = null;
@@ -69,12 +70,14 @@ class MatchProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      matches = await _swipeRepository.getMatches(mode: _mode);
+      matches = _filterForMode(await _swipeRepository.getMatches(mode: _mode));
       _matchesLoadedAt = DateTime.now();
-      await _cacheService.cacheMatches(matches, coupleId: _cacheKey);
+      await _cacheService.cacheMatches(matches.map((MatchItem item) => item.dish).toList(), coupleId: _cacheKey);
       AppLogger.info('MatchProvider: loaded ${matches.length} matches');
     } catch (e) {
-      matches = await _cacheService.getCachedMatches(coupleId: _cacheKey);
+      matches = (await _cacheService.getCachedMatches(coupleId: _cacheKey))
+          .map((Dish dish) => MatchItem.fromCachedDish(dish, _mode))
+          .toList();
       if (matches.isEmpty) {
         error = _mapError(e);
       } else {
@@ -90,6 +93,18 @@ class MatchProvider extends ChangeNotifier {
 
   String get _cacheKey => _mode == 'paired' ? (_activeCoupleId ?? 'paired') : 'solo';
 
+  List<MatchItem> _filterForMode(List<MatchItem> items) {
+    if (_mode == 'solo') {
+      return items.where((MatchItem item) => item.mode == 'solo').toList();
+    }
+    if (_mode == 'paired') {
+      return items
+          .where((MatchItem item) => item.mode == 'paired' && item.matchType == 'pair_match')
+          .toList();
+    }
+    return items;
+  }
+
   void setActiveCouple(String? coupleId, {int? sessionStateVersion}) {
     final String? normalized = coupleId?.trim().isEmpty == true ? null : coupleId?.trim();
     final int nextVersion = sessionStateVersion ?? _sessionStateVersion;
@@ -101,7 +116,7 @@ class MatchProvider extends ChangeNotifier {
     _activeCoupleId = normalized;
     _mode = nextMode;
     _sessionStateVersion = nextVersion;
-    matches = <Dish>[];
+    matches = <MatchItem>[];
     error = null;
     isLoading = false;
     _matchesLoadedAt = null;
@@ -118,7 +133,7 @@ class MatchProvider extends ChangeNotifier {
       return;
     }
     _mode = normalized;
-    matches = <Dish>[];
+    matches = <MatchItem>[];
     error = null;
     isLoading = false;
     _matchesLoadedAt = null;
@@ -128,7 +143,7 @@ class MatchProvider extends ChangeNotifier {
   }
 
   void clearMatches() {
-    matches = <Dish>[];
+    matches = <MatchItem>[];
     error = null;
     _matchesLoadedAt = null;
     _matchesLoadFuture = null;
@@ -146,7 +161,7 @@ class MatchProvider extends ChangeNotifier {
     _activeCoupleId = null;
     _mode = 'solo';
     _sessionStateVersion = 0;
-    matches = <Dish>[];
+    matches = <MatchItem>[];
     error = null;
     isLoading = false;
     _matchesLoadedAt = null;
