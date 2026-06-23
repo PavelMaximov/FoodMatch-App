@@ -56,8 +56,19 @@ class SwipeRepository {
     return SwipeStats.fromJson(_extractMap(data, fallbackKey: 'stats'));
   }
 
-  Future<List<MatchItem>> getMatches({String mode = 'all'}) async {
-    final data = await _apiService.get('${ApiConstants.swipeMatches}?mode=$mode');
+  Future<List<MatchItem>> getMatches({
+    String mode = 'all',
+    String? scope,
+    String? soloSessionId,
+  }) async {
+    final List<String> query = <String>['mode=$mode'];
+    if (scope != null && scope.isNotEmpty) {
+      query.add('scope=$scope');
+    }
+    if (soloSessionId != null && soloSessionId.isNotEmpty) {
+      query.add('sessionId=$soloSessionId');
+    }
+    final data = await _apiService.get('${ApiConstants.swipeMatches}?${query.join('&')}');
     final List<dynamic> list = data is Map<String, dynamic>
         ? (data['matches'] as List<dynamic>? ?? <dynamic>[])
         : <dynamic>[];

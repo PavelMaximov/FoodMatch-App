@@ -63,7 +63,11 @@ export class SwipeService {
     }
   }
 
-  async getMyMatches(userId: string, mode: 'solo' | 'paired' | 'all' = 'all') {
+  async getMyMatches(
+    userId: string,
+    mode: 'solo' | 'paired' | 'all' = 'all',
+    options: { scope?: 'current' | 'all'; sessionId?: string } = {}
+  ) {
     const session = await CoupleSessionModel.findOne({ members: new Types.ObjectId(userId), status: 'active' });
     if (mode === 'paired' && !session) {
       throw new AppError('User has no active paired session', 404, 'NO_ACTIVE_SESSION');
@@ -99,7 +103,17 @@ export class SwipeService {
       return validMatches.map((match) => ({ ...match, mode: 'paired', matchType: 'pair_match' }));
     }
 
-    const soloSessions = await SoloSwipeSessionModel.find({ userId: new Types.ObjectId(userId), resultDishIds: { $ne: [] } })
+    const soloSessionQuery: Record<string, unknown> = {
+      userId: new Types.ObjectId(userId),
+      resultDishIds: { $ne: [] }
+    };
+    if (mode === 'solo' && options.sessionId && Types.ObjectId.isValid(options.sessionId)) {
+      soloSessionQuery._id = new Types.ObjectId(options.sessionId);
+    } else if (mode === 'solo' && options.scope === 'current') {
+      soloSessionQuery.status = 'active';
+    }
+
+    const soloSessions = await SoloSwipeSessionModel.find(soloSessionQuery)
       .select('resultDishIds updatedAt')
       .sort({ updatedAt: -1 })
       .lean();

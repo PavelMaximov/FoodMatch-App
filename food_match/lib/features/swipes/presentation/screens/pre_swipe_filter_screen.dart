@@ -12,6 +12,7 @@ import '../../../../data/models/user_profile.dart';
 import '../../../../data/repositories/swipe_repository.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../couple/logic/couple_provider.dart';
+import '../../../matches/logic/match_provider.dart';
 import '../../logic/filter_scoring_service.dart';
 import '../../logic/pre_swipe_provider.dart';
 import '../../logic/swipe_provider.dart';
@@ -555,6 +556,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
           );
       if (!mounted) return;
       if (created) {
+        context.read<MatchProvider>().setSoloSession(context.read<SwipeProvider>().activeSoloSessionId);
         await _saveBackendLastFilterPreset(matchedLastTime);
         if (!mounted) return;
         Navigator.pop(context, PreparedPoolResult(dishes: context.read<SwipeProvider>().deck, seenDishIds: <String>{}, usedFallback: false, relaxed: false, messages: const <String>[]));
@@ -787,6 +789,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         return;
       }
       if (created) {
+        context.read<MatchProvider>().setSoloSession(context.read<SwipeProvider>().activeSoloSessionId);
         final int matchedLastTime = context.read<SwipeProvider>().deck.length;
         await _saveBackendLastFilterPreset(matchedLastTime);
         if (!mounted) {

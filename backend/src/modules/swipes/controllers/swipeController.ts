@@ -22,7 +22,9 @@ export class SwipeController {
   async matches(req: AuthRequest, res: Response) {
     const rawMode = typeof req.query.mode === 'string' ? req.query.mode : 'all';
     const mode = rawMode === 'solo' || rawMode === 'paired' || rawMode === 'all' ? rawMode : 'all';
-    const matches = await swipeService.getMyMatches(req.userId!, mode);
+    const scope = req.query.scope === 'current' ? 'current' : 'all';
+    const sessionId = typeof req.query.sessionId === 'string' ? req.query.sessionId : undefined;
+    const matches = await swipeService.getMyMatches(req.userId!, mode, { scope, sessionId });
     res.json({ matches });
   }
 

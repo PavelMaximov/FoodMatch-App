@@ -19,6 +19,7 @@ class MatchProvider extends ChangeNotifier {
   final SwipeRepository _swipeRepository;
   final CacheService _cacheService;
   String? _activeCoupleId;
+  String? _activeSoloSessionId;
   String _mode = 'solo';
   int _sessionStateVersion = 0;
   DateTime? _matchesLoadedAt;
@@ -39,7 +40,15 @@ class MatchProvider extends ChangeNotifier {
         DateTime.now().difference(loadedAt) < CachePolicy.matchesTtl;
   }
 
-  Future<void> loadMatches({bool force = false, String? mode}) {
+  Future<void> loadMatches({bool force = false, String? mode, String? soloSessionId}) {
+    if (soloSessionId != null && soloSessionId != _activeSoloSessionId) {
+      _activeSoloSessionId = soloSessionId;
+      matches = <MatchItem>[];
+      error = null;
+      _matchesLoadedAt = null;
+      _matchesLoadFuture = null;
+      _cacheService.clearCachedMatches();
+    }
     if (mode != null && mode != _mode) {
       _mode = mode;
       matches = <MatchItem>[];
@@ -70,7 +79,13 @@ class MatchProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      matches = _filterForMode(await _swipeRepository.getMatches(mode: _mode));
+      matches = _filterForMode(
+        await _swipeRepository.getMatches(
+          mode: _mode,
+          scope: _mode == 'solo' ? 'current' : null,
+          soloSessionId: _mode == 'solo' ? _activeSoloSessionId : null,
+        ),
+      );
       _matchesLoadedAt = DateTime.now();
       await _cacheService.cacheMatches(matches.map((MatchItem item) => item.dish).toList(), coupleId: _cacheKey);
       AppLogger.info('MatchProvider: loaded ${matches.length} matches');
@@ -91,7 +106,12 @@ class MatchProvider extends ChangeNotifier {
     }
   }
 
-  String get _cacheKey => _mode == 'paired' ? (_activeCoupleId ?? 'paired') : 'solo';
+  String get _cacheKey {
+    if (_mode == 'paired') {
+      return _activeCoupleId ?? 'paired';
+    }
+    return _activeSoloSessionId == null ? 'solo-current' : 'solo_$_activeSoloSessionId';
+  }
 
   List<MatchItem> _filterForMode(List<MatchItem> items) {
     if (_mode == 'solo') {
@@ -108,13 +128,29 @@ class MatchProvider extends ChangeNotifier {
   void setActiveCouple(String? coupleId, {int? sessionStateVersion}) {
     final String? normalized = coupleId?.trim().isEmpty == true ? null : coupleId?.trim();
     final int nextVersion = sessionStateVersion ?? _sessionStateVersion;
-    final String nextMode = normalized == null ? 'solo' : 'paired';
-    if (normalized == _activeCoupleId && nextVersion == _sessionStateVersion && nextMode == _mode) {
+    if (normalized == null) {
+      if (_activeCoupleId == null && _mode == 'solo') {
+        return;
+      }
+      _activeCoupleId = null;
+      _mode = 'solo';
+      _sessionStateVersion = nextVersion;
+      matches = <MatchItem>[];
+      error = null;
+      isLoading = false;
+      _matchesLoadedAt = null;
+      _matchesLoadFuture = null;
+      notifyListeners();
+      _cacheService.clearCachedMatches();
+      return;
+    }
+    if (normalized == _activeCoupleId && nextVersion == _sessionStateVersion && _mode == 'paired') {
       return;
     }
 
     _activeCoupleId = normalized;
-    _mode = nextMode;
+    _activeSoloSessionId = null;
+    _mode = 'paired';
     _sessionStateVersion = nextVersion;
     matches = <MatchItem>[];
     error = null;
@@ -127,12 +163,32 @@ class MatchProvider extends ChangeNotifier {
     loadMatches();
   }
 
+  void setSoloSession(String? sessionId) {
+    final String? normalized = sessionId?.trim().isEmpty == true ? null : sessionId?.trim();
+    if (_mode == 'solo' && _activeSoloSessionId == normalized) {
+      return;
+    }
+    _activeCoupleId = null;
+    _activeSoloSessionId = normalized;
+    _mode = 'solo';
+    matches = <MatchItem>[];
+    error = null;
+    isLoading = false;
+    _matchesLoadedAt = null;
+    _matchesLoadFuture = null;
+    _cacheService.clearCachedMatches();
+    notifyListeners();
+  }
+
   void setMode(String mode) {
     final String normalized = mode == 'paired' ? 'paired' : 'solo';
     if (_mode == normalized) {
       return;
     }
     _mode = normalized;
+    if (normalized == 'paired') {
+      _activeSoloSessionId = null;
+    }
     matches = <MatchItem>[];
     error = null;
     isLoading = false;
@@ -154,11 +210,13 @@ class MatchProvider extends ChangeNotifier {
 
   void clearForLogout({bool notify = true}) {
     final bool changed = _activeCoupleId != null ||
+        _activeSoloSessionId != null ||
         _sessionStateVersion != 0 ||
         matches.isNotEmpty ||
         error != null ||
         isLoading;
     _activeCoupleId = null;
+    _activeSoloSessionId = null;
     _mode = 'solo';
     _sessionStateVersion = 0;
     matches = <MatchItem>[];
