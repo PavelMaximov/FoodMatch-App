@@ -262,7 +262,11 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: <Widget>[
                   Text('Step $_step / 3', style: GoogleFonts.nunito(fontSize: 16)),
-                  const SizedBox(width: 48),
+                  IconButton(
+                    onPressed: _loading ? null : () => Navigator.of(context).maybePop(),
+                    icon: const Icon(Icons.close, color: AppColors.textSecondary),
+                    tooltip: 'Close filters',
+                  ),
                 ],
               ),
               Text(
@@ -888,12 +892,12 @@ class PreSwipeIntroScreen extends StatelessWidget {
           child: Column(
             children: <Widget>[
               Align(
-                alignment: Alignment.centerLeft,
+                alignment: Alignment.centerRight,
                 child: IconButton(
                   onPressed: onClose,
-                  icon: const Icon(Icons.arrow_back, size: 24, color: AppColors.textSecondary),
+                  icon: const Icon(Icons.close, size: 24, color: AppColors.textSecondary),
                   padding: EdgeInsets.zero,
-                  alignment: Alignment.centerLeft,
+                  alignment: Alignment.centerRight,
                 ),
               ),
               const Spacer(),

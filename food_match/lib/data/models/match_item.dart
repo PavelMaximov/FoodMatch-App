@@ -6,6 +6,8 @@ class MatchItem {
     required this.mode,
     required this.matchType,
     this.id,
+    this.sessionId,
+    this.coupleId,
     this.createdAt,
   });
 
@@ -13,6 +15,8 @@ class MatchItem {
   final Dish dish;
   final String mode;
   final String matchType;
+  final String? sessionId;
+  final String? coupleId;
   final DateTime? createdAt;
 
   factory MatchItem.fromJson(Map<String, dynamic> json) {
@@ -28,6 +32,8 @@ class MatchItem {
       dish: Dish.fromJson(dishJson),
       mode: mode,
       matchType: matchType,
+      sessionId: json['sessionId']?.toString(),
+      coupleId: json['coupleId']?.toString(),
       createdAt: _parseDate(json['createdAt']),
     );
   }

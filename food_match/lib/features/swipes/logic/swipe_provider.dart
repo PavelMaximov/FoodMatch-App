@@ -148,6 +148,30 @@ class SwipeProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void resetToModeSelection({bool notify = true}) {
+    deck = <Dish>[];
+    currentIndex = 0;
+    isLoading = false;
+    error = null;
+    _lastSwipedDish = null;
+    _lastSwipedIndex = null;
+    _seenDishIds = <String>{};
+    _sentSwipeDishIds.clear();
+    _isSendingSwipe = false;
+    _hasPreparedDeck = false;
+    currentSwipeMode = 'paired';
+    activeSoloSessionId = null;
+    _soloLikedCount = 0;
+    _soloRemainingCount = 0;
+    _soloSessionCompleted = false;
+    _preparedDeckMeta = null;
+    _existingPreparedDeckLoadFuture = null;
+    _deckVersion++;
+    if (notify) {
+      notifyListeners();
+    }
+  }
+
   Future<bool> loadActiveSoloSession() async {
     try {
       final dynamic data = await _swipeRepository.getActiveSoloSession();

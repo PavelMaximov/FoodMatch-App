@@ -93,6 +93,7 @@ export class SwipeService {
 
       validMatches.push({
         id: match._id?.toString() ?? '',
+        coupleId: session!._id.toString(),
         dish,
         users: match.users,
         createdAt: match.createdAt
@@ -118,13 +119,20 @@ export class SwipeService {
       .sort({ updatedAt: -1 })
       .lean();
     const seenSoloDishIds = new Set<string>();
-    const soloDishIds = soloSessions.flatMap((s) => s.resultDishIds ?? []).filter((id) => { const key = id.toString(); if (seenSoloDishIds.has(key)) return false; seenSoloDishIds.add(key); return true; });
+    const soloEntries = soloSessions.flatMap((session) =>
+      (session.resultDishIds ?? []).map((dishId) => ({
+        dishId,
+        sessionId: session._id.toString(),
+        createdAt: session.updatedAt
+      }))
+    ).filter((entry) => { const key = entry.dishId.toString(); if (seenSoloDishIds.has(key)) return false; seenSoloDishIds.add(key); return true; });
+    const soloDishIds = soloEntries.map((entry) => entry.dishId);
     const soloDishes = await import('../../dishes/models/Dish').then(({ DishModel }) => DishModel.find({ _id: { $in: soloDishIds } }).select(DISH_DTO_SELECT).lean());
     const soloById = new Map(soloDishes.map((dish: any) => [dish._id.toString(), dish]));
-    const soloMatches = soloDishIds.map((id) => {
-      const dish = toDishDto(soloById.get(id.toString()));
+    const soloMatches = soloEntries.map((entry) => {
+      const dish = toDishDto(soloById.get(entry.dishId.toString()));
       if (!dish) return null;
-      return { id: `solo_${id.toString()}`, dish, users: [new Types.ObjectId(userId)], createdAt: new Date(), mode: 'solo', matchType: 'solo_pick' };
+      return { id: `solo_${entry.dishId.toString()}`, dish, users: [new Types.ObjectId(userId)], sessionId: entry.sessionId, createdAt: entry.createdAt ?? new Date(), mode: 'solo', matchType: 'solo_pick' };
     }).filter((match): match is NonNullable<typeof match> => Boolean(match));
 
     if (mode === 'solo') {

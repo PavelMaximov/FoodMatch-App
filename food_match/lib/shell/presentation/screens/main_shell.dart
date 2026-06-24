@@ -57,6 +57,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
 
   final Map<String, Future<bool>> _iconAssetAvailability =
       <String, Future<bool>>{};
+  bool _isBootstrappingMatchesBadge = false;
 
   Future<bool> _hasIconAsset(String assetPath) {
     return _iconAssetAvailability.putIfAbsent(assetPath, () async {
@@ -76,6 +77,11 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _bootstrapMatchesBadge();
+      }
+    });
   }
 
   @override
@@ -107,6 +113,45 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
       index,
       initialLocation: index == widget.navigationShell.currentIndex,
     );
+  }
+
+  Future<void> _bootstrapMatchesBadge() async {
+    if (_isBootstrappingMatchesBadge) {
+      return;
+    }
+    _isBootstrappingMatchesBadge = true;
+    try {
+      final CoupleProvider coupleProvider = context.read<CoupleProvider>();
+      await coupleProvider.loadCouple(force: true);
+      if (!mounted) {
+        return;
+      }
+      final MatchProvider matchProvider = context.read<MatchProvider>();
+      if (coupleProvider.hasCouple) {
+        matchProvider.setActiveCouple(
+          coupleProvider.currentCouple?.id,
+          sessionStateVersion: coupleProvider.sessionStateVersion,
+        );
+        return;
+      }
+      final SwipeProvider swipeProvider = context.read<SwipeProvider>();
+      final bool hasActiveSolo = await swipeProvider.loadActiveSoloSession();
+      if (!mounted) {
+        return;
+      }
+      if (hasActiveSolo) {
+        matchProvider.setSoloSession(swipeProvider.activeSoloSessionId);
+        await matchProvider.loadMatches(
+          force: true,
+          mode: 'solo',
+          soloSessionId: swipeProvider.activeSoloSessionId,
+        );
+      } else {
+        matchProvider.clearMatches();
+      }
+    } finally {
+      _isBootstrappingMatchesBadge = false;
+    }
   }
 
   @override
