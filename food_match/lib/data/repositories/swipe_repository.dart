@@ -27,6 +27,9 @@ class SwipeRepository {
   Future<dynamic> createSoloSession({required Map<String, dynamic> filter}) =>
       _apiService.post(ApiConstants.soloSwipesSession, {'filter': filter});
 
+  Future<dynamic> updateActiveSoloFilter({required Map<String, dynamic> filter}) =>
+      _apiService.patch(ApiConstants.soloSwipesActiveFilter, {'filter': filter});
+
   Future<dynamic> abandonActiveSoloSession() =>
       _apiService.post(ApiConstants.soloSwipesAbandon, <String, dynamic>{});
 

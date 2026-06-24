@@ -551,18 +551,29 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
 
     setState(() => _loading = true);
     if (widget.mode == 'solo') {
-      final bool created = await context.read<SwipeProvider>().createSoloSession(
-            cuisines: _cuisines.toList(), moods: _moods.toList(), blocked: _blocked.toList(), diet: _diet.toList(),
-          );
+      final SwipeProvider swipeProvider = context.read<SwipeProvider>();
+      final bool ready = swipeProvider.activeSoloSessionId == null
+          ? await swipeProvider.createSoloSession(
+              cuisines: _cuisines.toList(),
+              moods: _moods.toList(),
+              blocked: _blocked.toList(),
+              diet: _diet.toList(),
+            )
+          : await swipeProvider.updateActiveSoloFilter(
+              cuisines: _cuisines.toList(),
+              moods: _moods.toList(),
+              blocked: _blocked.toList(),
+              diet: _diet.toList(),
+            );
       if (!mounted) return;
-      if (created) {
-        context.read<MatchProvider>().setSoloSession(context.read<SwipeProvider>().activeSoloSessionId);
+      if (ready) {
+        context.read<MatchProvider>().setSoloSession(swipeProvider.activeSoloSessionId);
         await _saveBackendLastFilterPreset(matchedLastTime);
         if (!mounted) return;
-        Navigator.pop(context, PreparedPoolResult(dishes: context.read<SwipeProvider>().deck, seenDishIds: <String>{}, usedFallback: false, relaxed: false, messages: const <String>[]));
+        Navigator.pop(context, PreparedPoolResult(dishes: swipeProvider.deck, seenDishIds: <String>{}, usedFallback: false, relaxed: false, messages: const <String>[]));
       } else {
         setState(() => _loading = false);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('You already have an active swipe session. Finish it before starting another one.')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(swipeProvider.error ?? 'Could not update filters. You can go back to your current deck.')));
       }
       return;
     }
@@ -779,18 +790,26 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
 
     if (widget.mode == 'solo') {
       setState(() => _loading = true);
-      final bool created = await context.read<SwipeProvider>().createSoloSession(
-            cuisines: const <String>[],
-            moods: const <String>[],
-            blocked: const <String>[],
-            diet: const <String>[],
-          );
+      final SwipeProvider swipeProvider = context.read<SwipeProvider>();
+      final bool ready = swipeProvider.activeSoloSessionId == null
+          ? await swipeProvider.createSoloSession(
+              cuisines: const <String>[],
+              moods: const <String>[],
+              blocked: const <String>[],
+              diet: const <String>[],
+            )
+          : await swipeProvider.updateActiveSoloFilter(
+              cuisines: const <String>[],
+              moods: const <String>[],
+              blocked: const <String>[],
+              diet: const <String>[],
+            );
       if (!mounted) {
         return;
       }
-      if (created) {
-        context.read<MatchProvider>().setSoloSession(context.read<SwipeProvider>().activeSoloSessionId);
-        final int matchedLastTime = context.read<SwipeProvider>().deck.length;
+      if (ready) {
+        context.read<MatchProvider>().setSoloSession(swipeProvider.activeSoloSessionId);
+        final int matchedLastTime = swipeProvider.deck.length;
         await _saveBackendLastFilterPreset(matchedLastTime);
         if (!mounted) {
           return;
@@ -798,7 +817,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         Navigator.pop(
           context,
           PreparedPoolResult(
-            dishes: context.read<SwipeProvider>().deck,
+            dishes: swipeProvider.deck,
             seenDishIds: <String>{},
             usedFallback: false,
             relaxed: false,
@@ -808,7 +827,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       } else {
         setState(() => _loading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('You already have an active swipe session. Finish it before starting another one.')),
+          SnackBar(content: Text(swipeProvider.error ?? 'Could not update filters. You can go back to your current deck.')),
         );
       }
       return;

@@ -184,6 +184,40 @@ class ApiService {
   }
 
 
+  Future<dynamic> patch(String endpoint, Map<String, dynamic> body) async {
+    final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint');
+    try {
+      await _throttle();
+      AppLogger.api('PATCH', uri.toString());
+      final stopwatch = Stopwatch()..start();
+      var response = await _requestWithRetry(
+        () => _client.patch(
+          uri,
+          headers: _getHeaders(),
+          body: jsonEncode(body),
+        ),
+      );
+      response = await _refreshAndRetryIfUnauthorized(endpoint, response, () => _client.patch(uri, headers: _getHeaders(), body: jsonEncode(body)));
+      stopwatch.stop();
+      AppLogger.api(
+        'PATCH',
+        uri.toString(),
+        statusCode: response.statusCode,
+        durationMs: stopwatch.elapsedMilliseconds,
+        body: response.body,
+        errorType: _friendlyErrorType(endpoint, response),
+      );
+      return _handleResponse(response);
+    } on TimeoutException {
+      throw const ApiException(AppStrings.requestTimeout);
+    } on SocketException {
+      throw const ApiException(AppStrings.noInternet);
+    } catch (e) {
+      AppLogger.error('PATCH request failed', e);
+      rethrow;
+    }
+  }
+
   Future<dynamic> delete(String endpoint) async {
     final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint');
     try {

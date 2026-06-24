@@ -175,6 +175,23 @@ class SwipeProvider extends ChangeNotifier {
     return false;
   }
 
+
+  Future<bool> updateActiveSoloFilter({required List<String> cuisines, required List<String> moods, required List<String> blocked, required List<String> diet}) async {
+    if (activeSoloSessionId == null) {
+      return createSoloSession(cuisines: cuisines, moods: moods, blocked: blocked, diet: diet);
+    }
+    isLoading = true; error = null; notifyListeners();
+    try {
+      final dynamic data = await _swipeRepository.updateActiveSoloFilter(filter: <String, dynamic>{'cuisines': cuisines, 'moods': moods, 'exclusions': blocked, 'diet': diet});
+      final dynamic session = data is Map<String, dynamic> ? data['session'] : null;
+      if (session is Map<String, dynamic>) {
+        _applySoloSession(session);
+        return true;
+      }
+    } catch (e) { error = _mapSwipeError(e); } finally { isLoading = false; notifyListeners(); }
+    return false;
+  }
+
   Future<void> abandonActiveSoloSession() async {
     if (activeSoloSessionId == null) {
       clearPreparedDeck();

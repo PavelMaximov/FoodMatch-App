@@ -124,7 +124,9 @@ class _SwipesScreenState extends State<SwipesScreen> {
       setState(() => _showPairConnectionStep = false);
       final bool loadedSolo = await swipeProvider.loadActiveSoloSession();
       if (loadedSolo) {
-        context.read<MatchProvider>().setSoloSession(swipeProvider.activeSoloSessionId);
+        final MatchProvider matchProvider = context.read<MatchProvider>();
+        matchProvider.setSoloSession(swipeProvider.activeSoloSessionId);
+        await matchProvider.loadMatches(force: true, mode: 'solo', soloSessionId: swipeProvider.activeSoloSessionId);
       }
     } catch (e) {
       if (mounted) {

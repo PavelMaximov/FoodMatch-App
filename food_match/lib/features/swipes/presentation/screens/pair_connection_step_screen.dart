@@ -96,6 +96,40 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
     context.read<MatchProvider>().clearMatches();
   }
 
+
+  Future<void> _handleBack(CoupleProvider provider) async {
+    final bool hasSession = provider.currentCouple != null && provider.currentCouple!.inviteCode.trim().isNotEmpty;
+    if (!hasSession) {
+      widget.onBack();
+      return;
+    }
+    final bool leave = await showDialog<bool>(
+          context: context,
+          builder: (BuildContext dialogContext) => AlertDialog(
+            title: const Text('Leave pair setup?'),
+            content: const Text('Your current invite code will be closed.'),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Leave'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!leave || !mounted) {
+      return;
+    }
+    await _leaveSession(provider);
+    if (mounted) {
+      widget.onBack();
+    }
+  }
+
   String _partnerLabel(BuildContext context, CoupleProvider provider) {
     if (!provider.hasPartner) return 'Waiting...';
     return resolvePartnerDisplayName(
@@ -127,7 +161,7 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
               Row(
                 children: <Widget>[
                   IconButton(
-                    onPressed: widget.onBack,
+                    onPressed: () => _handleBack(coupleProvider),
                     icon: const Icon(Icons.arrow_back, color: Color(0xFF2B2725)),
                     padding: EdgeInsets.zero,
                     alignment: Alignment.centerLeft,
@@ -149,7 +183,7 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
                   inviteCode: couple.inviteCode,
                   partnerLabel: _partnerLabel(context, coupleProvider),
                   onReset: coupleProvider.isLoading ? null : () => _resetSession(coupleProvider),
-                  onLeave: coupleProvider.isLoading ? null : () => _leaveSession(coupleProvider),
+                  onLeave: coupleProvider.isLoading ? null : () => _handleBack(coupleProvider),
                 ),
                 const SizedBox(height: 26),
               ] else ...<Widget>[
@@ -241,12 +275,19 @@ class _InviteCard extends StatelessWidget {
                   children: <Widget>[
                     Text('Invite code:', style: GoogleFonts.nunito(fontSize: 14, color: AppColors.textSecondary)),
                     const SizedBox(height: 4),
-                    Text(inviteCode, style: GoogleFonts.fredoka(fontSize: 34, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                    SelectableText(inviteCode, style: GoogleFonts.fredoka(fontSize: 34, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
                   ],
                 ),
               ),
               TextButton.icon(
-                onPressed: () => Clipboard.setData(ClipboardData(text: inviteCode)),
+                onPressed: () async {
+                  await Clipboard.setData(ClipboardData(text: inviteCode));
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Invite code copied')),
+                    );
+                  }
+                },
                 icon: const Icon(Icons.copy_rounded, size: 16),
                 label: const Text('Copy'),
               ),

@@ -77,7 +77,9 @@ class SessionSettingsSheet extends StatelessWidget {
 
     await context.read<SwipeProvider>().abandonActiveSoloSession();
     if (!context.mounted) return;
-    context.read<MatchProvider>().clearMatches();
+    final MatchProvider matchProvider = context.read<MatchProvider>();
+    matchProvider.setMode('paired');
+    matchProvider.clearMatches();
     Navigator.pop(context);
     onOpenPairSetup();
   }
