@@ -36,6 +36,8 @@ class SwipeableStackController {
   void swipeLeft() => _state?._animateSwipe(SwipeDirection.left);
 
   void swipeRight() => _state?._animateSwipe(SwipeDirection.right);
+
+  void reset() => _state?._resetInteractionState();
 }
 
 class _SwipeableStackState extends State<SwipeableStack>
@@ -64,6 +66,9 @@ class _SwipeableStackState extends State<SwipeableStack>
       oldWidget.controller?._detach();
       widget.controller?._attach(this);
     }
+    if (oldWidget.itemCount != widget.itemCount) {
+      _resetInteractionState(notify: false);
+    }
   }
 
   @override
@@ -89,6 +94,24 @@ class _SwipeableStackState extends State<SwipeableStack>
     final double screenWidth = MediaQuery.of(context).size.width;
     final double progress = _dragOffset.dx.abs() / (screenWidth * 0.3);
     return progress.clamp(0.0, 1.0);
+  }
+
+  void _resetInteractionState({bool notify = true}) {
+    _animController.stop();
+    _animController.reset();
+    if (!mounted || !notify) {
+      _dragOffset = Offset.zero;
+      _isDragging = false;
+      _swipeAnimation = null;
+      _fadeAnimation = null;
+      return;
+    }
+    setState(() {
+      _dragOffset = Offset.zero;
+      _isDragging = false;
+      _swipeAnimation = null;
+      _fadeAnimation = null;
+    });
   }
 
   void _onHorizontalDragStart(DragStartDetails details) {

@@ -37,7 +37,8 @@ class SwipesScreen extends StatefulWidget {
 }
 
 class _SwipesScreenState extends State<SwipesScreen> {
-  final SwipeableStackController _swiperController = SwipeableStackController();
+  SwipeableStackController _swiperController = SwipeableStackController();
+  String? _swipeStackIdentity;
   bool _isOpeningPreSwipe = false;
   bool _isCardActionInProgress = false;
   bool _showPairConnectionStep = false;
@@ -268,6 +269,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
     final PreparedPoolResult? result = await Navigator.of(context).push<PreparedPoolResult>(MaterialPageRoute<PreparedPoolResult>(fullscreenDialog: true, builder: (_) => const PreSwipeFilterScreen(mode: 'solo')));
     if (!mounted) { _isOpeningPreSwipe = false; return; }
     if (result != null && result.dishes.isNotEmpty) {
+      _resetSwipeStackController();
       context.read<MatchProvider>().setSoloSession(swipeProvider.activeSoloSessionId);
       swipeProvider.applyPreparedDeck(result.dishes, preparedDeckMeta: result.preparedDeckMeta);
     }
@@ -347,6 +349,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
       seenDishIds: result.seenDishIds,
       preparedDeckMeta: result.preparedDeckMeta,
     );
+    _resetSwipeStackController();
 
     final String? waitingMessage = _partnerWaitingMessage(
       coupleProvider: _coupleProvider ?? context.read<CoupleProvider>(),
@@ -431,6 +434,12 @@ class _SwipesScreenState extends State<SwipesScreen> {
         },
       ),
     );
+  }
+
+  void _resetSwipeStackController() {
+    _swiperController.reset();
+    _swiperController = SwipeableStackController();
+    _swipeStackIdentity = null;
   }
 
 
@@ -522,9 +531,14 @@ class _SwipesScreenState extends State<SwipesScreen> {
     if (_isCardActionInProgress || provider.isLoading) {
       return;
     }
+    if (provider.isSoloMode && provider.activeSoloSessionId != null) {
+      await _runSoloPreSwipeFlow();
+      return;
+    }
     _isCardActionInProgress = true;
     try {
       await provider.loadDeck();
+      _resetSwipeStackController();
     } finally {
       _isCardActionInProgress = false;
     }
@@ -724,9 +738,17 @@ class _SwipesScreenState extends State<SwipesScreen> {
                       );
                     }
 
+                    final String stackIdentity =
+                        '${provider.currentSwipeMode}-${provider.activeSoloSessionId ?? 'none'}-${provider.deckVersion}';
+                    if (_swipeStackIdentity != stackIdentity) {
+                      _swiperController.reset();
+                      _swiperController = SwipeableStackController();
+                      _swipeStackIdentity = stackIdentity;
+                    }
+
                     return SwipeableStack(
                       controller: _swiperController,
-                      key: ValueKey<int>(provider.deckVersion),
+                      key: ValueKey<String>(stackIdentity),
                       itemCount: provider.deck.length - provider.currentIndex,
                       cardBuilder: (BuildContext context, int index) {
                         final dish = provider.deck[provider.currentIndex + index];

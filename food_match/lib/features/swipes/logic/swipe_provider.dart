@@ -124,6 +124,7 @@ class SwipeProvider extends ChangeNotifier {
     _isSendingSwipe = false;
     error = deck.isEmpty ? AppStrings.noDishesAvailable : null;
     if (isSoloMode) {
+      _soloSessionCompleted = false;
       _soloRemainingCount = deck.length > currentIndex ? deck.length - currentIndex : 0;
     }
     notifyListeners();
