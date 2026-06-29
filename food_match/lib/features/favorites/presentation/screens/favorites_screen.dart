@@ -258,19 +258,12 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
     return DishCardGrid(
       dishes: dishes,
-      crossAxisCount: 2,
       savedDishIds: favoritesProvider.savedDishIds,
       onFavoriteTap: _removeFavorite,
       onDishTap: (Dish dish) => context.push('/recipe-detail/${dish.id}', extra: dish),
       isFavoriteUpdating: favoritesProvider.isUpdating,
-      favoriteAlignment: Alignment.topLeft,
-      padding: const EdgeInsets.fromLTRB(23, 28, 23, 24),
-      mainAxisSpacing: 18,
-      crossAxisSpacing: 12,
-      childAspectRatio: 0.78,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       physics: const AlwaysScrollableScrollPhysics(),
-     
-    
     );
   }
 }

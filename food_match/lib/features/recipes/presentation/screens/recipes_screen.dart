@@ -15,7 +15,7 @@ import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/media/safe_dish_image.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
-import '../../../../shared/widgets/recipe_dish_card.dart';
+import '../../../../shared/widgets/dish_grid.dart';
 import '../../../favorites/logic/favorites_provider.dart';
 
 class RecipesScreen extends StatefulWidget {
@@ -423,23 +423,14 @@ class _RecipesScreenState extends State<RecipesScreen> {
             ),
           ),
           const SizedBox(height: 10),
-          SizedBox(
-            height: 200,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: preview.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 12),
-              itemBuilder: (_, int index) {
-                final Dish dish = preview[index];
-                return RecipeDishCard(
-                  dish: dish,
-                  isSaved: savedDishIds.contains(dish.id),
-                  onFavoriteTap: () => _toggleSaved(dish),
-                  onOpen: () => context.push('/recipe-detail/${dish.id}', extra: dish),
-                  layout: RecipeDishCardLayout.horizontal,
-                );
-              },
-            ),
+          DishGrid(
+            dishes: preview,
+            savedDishIds: savedDishIds,
+            onFavoriteTap: _toggleSaved,
+            onDishTap: (Dish dish) => context.push('/recipe-detail/${dish.id}', extra: dish),
+            padding: EdgeInsets.zero,
+            physics: const NeverScrollableScrollPhysics(),
+            shrinkWrap: true,
           ),
         ],
       ],
@@ -1325,40 +1316,13 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
 
     return RefreshIndicator(
       onRefresh: () => _loadFirstPage(force: true),
-      child: GridView.builder(
+      child: DishGrid(
         controller: _scrollController,
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          childAspectRatio: 0.84,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-        ),
-        itemCount: _dishes.length + (_isLoadingMore || _hasMore || _loadMoreError != null ? 1 : 0),
-        itemBuilder: (_, int index) {
-          if (index >= _dishes.length) {
-            if (_loadMoreError != null) {
-              return Center(
-                child: TextButton(
-                  onPressed: () => _loadMore(),
-                  child: const Text('Retry'),
-                ),
-              );
-            }
-            return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-          }
-          final Dish dish = _dishes[index];
-          return RepaintBoundary(
-            key: ValueKey<String>(dish.id),
-            child: RecipeDishCard(
-              dish: dish,
-              isSaved: savedDishIds.contains(dish.id),
-              onFavoriteTap: () => widget.onFavoriteTap(dish),
-              onOpen: () => context.push('/recipe-detail/${dish.id}', extra: dish),
-              layout: RecipeDishCardLayout.grid,
-            ),
-          );
-        },
+        dishes: _dishes,
+        savedDishIds: savedDishIds,
+        onFavoriteTap: widget.onFavoriteTap,
+        onDishTap: (Dish dish) => context.push('/recipe-detail/${dish.id}', extra: dish),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       ),
     );
   }
