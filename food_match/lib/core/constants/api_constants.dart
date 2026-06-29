@@ -28,6 +28,13 @@ class ApiConstants {
   static const String dishesCustom = '/api/dishes/custom';
   static const String dishesMy = '/api/dishes/my';
   static const String swipes = '/api/swipes';
+  static const String soloSwipesActive = '/api/solo-swipes/active';
+  static const String soloSwipesSession = '/api/solo-swipes/session';
+  static const String soloSwipesAbandon = '/api/solo-swipes/active/abandon';
+  static const String soloSwipesActiveFilter = '/api/solo-swipes/active/filter';
+  static String soloSwipeDeck(String sessionId) => '/api/solo-swipes/$sessionId/deck';
+  static String soloSwipe(String sessionId) => '/api/solo-swipes/$sessionId/swipe';
+  static const String filtersLast = '/api/filters/last';
   static const String swipeStats = '/api/swipes/me/stats';
   static const String swipeMatches = '/api/swipes/matches';
   static const String recipes = '/api/recipes';

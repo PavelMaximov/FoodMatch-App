@@ -30,6 +30,13 @@ class PreviousFilterChoiceScreen extends StatelessWidget {
             children: <Widget>[
               Row(
                 children: <Widget>[
+                  IconButton(
+                    onPressed: onClose,
+                    icon: const Icon(Icons.arrow_back, color: Color(0xFF2B2725)),
+                    padding: EdgeInsets.zero,
+                    alignment: Alignment.centerLeft,
+                  ),
+                  const SizedBox(width: 4),
                   const Icon(Icons.history, size: 16, color: Color(0xFF7A7270)),
                   const SizedBox(width: 6),
                   Expanded(
@@ -41,13 +48,9 @@ class PreviousFilterChoiceScreen extends StatelessWidget {
                       ),
                     ),
                   ),
-                  IconButton(
-                    onPressed: onClose,
-                    icon: const Icon(Icons.close, color: Color(0xFF2B2725)),
-                  ),
                 ],
               ),
-              const SizedBox(height: 64),
+              const SizedBox(height: 20),
               Text(
                 'Feeling it again\ntoday?',
                 style: GoogleFonts.fredoka(

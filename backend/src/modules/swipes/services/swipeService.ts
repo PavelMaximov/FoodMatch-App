@@ -5,6 +5,7 @@ import { DISH_DTO_SELECT, toDishDto, toPublicDishId } from '../../dishes/dto/dis
 import { resolveDishByAnyId } from '../../dishes/utils/resolveDishByAnyId';
 import { MatchModel } from '../../matches/models/Match';
 import { SwipeModel } from '../models/Swipe';
+import { SoloSwipeSessionModel } from '../../solo-swipes/models/SoloSwipeSession';
 
 export class SwipeService {
   async createSwipe(userId: string, dishId: string, direction: 'like' | 'dislike') {
@@ -62,16 +63,22 @@ export class SwipeService {
     }
   }
 
-  async getMyMatches(userId: string) {
+  async getMyMatches(
+    userId: string,
+    mode: 'solo' | 'paired' | 'all' = 'all',
+    options: { scope?: 'current' | 'all'; sessionId?: string } = {}
+  ) {
     const session = await CoupleSessionModel.findOne({ members: new Types.ObjectId(userId), status: 'active' });
-    if (!session) {
-      throw new AppError('User has no active session', 404);
+    if (mode === 'paired' && !session) {
+      throw new AppError('User has no active paired session', 404, 'NO_ACTIVE_SESSION');
     }
 
-    const matches = await MatchModel.find({ coupleId: session._id })
-      .sort({ createdAt: -1 })
-      .populate({ path: 'dishId', select: DISH_DTO_SELECT })
-      .lean();
+    const matches = session && mode !== 'solo'
+      ? await MatchModel.find({ coupleId: session._id })
+          .sort({ createdAt: -1 })
+          .populate({ path: 'dishId', select: DISH_DTO_SELECT })
+          .lean()
+      : [];
     const validMatches = [];
 
     for (const match of matches) {
@@ -86,13 +93,53 @@ export class SwipeService {
 
       validMatches.push({
         id: match._id?.toString() ?? '',
+        coupleId: session!._id.toString(),
         dish,
         users: match.users,
         createdAt: match.createdAt
       });
     }
 
-    return validMatches;
+    if (mode === 'paired') {
+      return validMatches.map((match) => ({ ...match, mode: 'paired', matchType: 'pair_match' }));
+    }
+
+    const soloSessionQuery: Record<string, unknown> = {
+      userId: new Types.ObjectId(userId),
+      resultDishIds: { $ne: [] }
+    };
+    if (mode === 'solo' && options.sessionId && Types.ObjectId.isValid(options.sessionId)) {
+      soloSessionQuery._id = new Types.ObjectId(options.sessionId);
+    } else if (mode === 'solo' && options.scope === 'current') {
+      soloSessionQuery.status = 'active';
+    }
+
+    const soloSessions = await SoloSwipeSessionModel.find(soloSessionQuery)
+      .select('resultDishIds updatedAt')
+      .sort({ updatedAt: -1 })
+      .lean();
+    const seenSoloDishIds = new Set<string>();
+    const soloEntries = soloSessions.flatMap((session) =>
+      (session.resultDishIds ?? []).map((dishId) => ({
+        dishId,
+        sessionId: session._id.toString(),
+        createdAt: session.updatedAt
+      }))
+    ).filter((entry) => { const key = entry.dishId.toString(); if (seenSoloDishIds.has(key)) return false; seenSoloDishIds.add(key); return true; });
+    const soloDishIds = soloEntries.map((entry) => entry.dishId);
+    const soloDishes = await import('../../dishes/models/Dish').then(({ DishModel }) => DishModel.find({ _id: { $in: soloDishIds } }).select(DISH_DTO_SELECT).lean());
+    const soloById = new Map(soloDishes.map((dish: any) => [dish._id.toString(), dish]));
+    const soloMatches = soloEntries.map((entry) => {
+      const dish = toDishDto(soloById.get(entry.dishId.toString()));
+      if (!dish) return null;
+      return { id: `solo_${entry.dishId.toString()}`, dish, users: [new Types.ObjectId(userId)], sessionId: entry.sessionId, createdAt: entry.createdAt ?? new Date(), mode: 'solo', matchType: 'solo_pick' };
+    }).filter((match): match is NonNullable<typeof match> => Boolean(match));
+
+    if (mode === 'solo') {
+      return soloMatches;
+    }
+
+    return [...soloMatches, ...validMatches.map((match) => ({ ...match, mode: 'paired', matchType: 'pair_match' }))];
   }
 
   async getMySwipeHistory(userId: string) {

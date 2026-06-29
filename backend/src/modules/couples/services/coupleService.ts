@@ -3,6 +3,7 @@ import { AppError } from '../../../core/errors/AppError';
 import { generateInviteCode } from '../../../core/utils/inviteCode';
 import { MatchModel } from '../../matches/models/Match';
 import { SwipeModel } from '../../swipes/models/Swipe';
+import { SoloSwipeSessionModel } from '../../solo-swipes/models/SoloSwipeSession';
 import { CoupleFilterState, CoupleFilterUserChoice, CoupleSessionDocument, CoupleSessionModel } from '../models/CoupleSession';
 import { clearPreparedDeck } from './coupleDeckService';
 
@@ -13,7 +14,8 @@ export class CoupleService {
 
   async createSession(userId: string) {
     const active = await this.getMyActiveSession(userId);
-    if (active) throw new AppError('User already has an active session', 409);
+    const activeSolo = await SoloSwipeSessionModel.exists({ userId: new Types.ObjectId(userId), status: 'active' });
+    if (active || activeSolo) throw new AppError('You already have an active swipe session.', 409, 'ACTIVE_SESSION_EXISTS');
 
     const inviteCode = await this.generateUniqueInviteCode();
     await CoupleSessionModel.create({
@@ -28,7 +30,8 @@ export class CoupleService {
 
   async joinSession(userId: string, inviteCode: string) {
     const active = await this.getMyActiveSession(userId);
-    if (active) throw new AppError('User already has an active session', 409);
+    const activeSolo = await SoloSwipeSessionModel.exists({ userId: new Types.ObjectId(userId), status: 'active' });
+    if (active || activeSolo) throw new AppError('You already have an active swipe session.', 409, 'ACTIVE_SESSION_EXISTS');
 
     const session = await CoupleSessionModel.findOne({ inviteCode: inviteCode.toUpperCase(), status: 'active' });
     if (!session) throw new AppError('Session not found', 404);

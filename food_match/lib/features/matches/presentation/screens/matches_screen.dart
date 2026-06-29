@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/theme/app_text_styles.dart';
-import '../../../../data/models/dish.dart';
+import '../../../../data/models/match_item.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
@@ -40,10 +40,11 @@ class _MatchesScreenState extends State<MatchesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final List<Dish> matches = context.select<MatchProvider, List<Dish>>((MatchProvider p) => p.matches);
+    final List<MatchItem> matches = context.select<MatchProvider, List<MatchItem>>((MatchProvider p) => p.matches);
     final bool isLoading = context.select<MatchProvider, bool>((MatchProvider p) => p.isLoading);
     final String? error = context.select<MatchProvider, String?>((MatchProvider p) => p.error);
     final Set<String> savedDishIds = context.select<FavoritesProvider, Set<String>>((FavoritesProvider p) => p.savedDishIds);
+    final bool isSoloMode = context.select<MatchProvider, bool>((MatchProvider p) => p.isSoloMode);
     final bool Function(String) isFavoriteUpdating = context.read<FavoritesProvider>().isUpdating;
     final Couple? currentCouple = context.select<CoupleProvider, Couple?>((CoupleProvider p) => p.currentCouple);
     final String? currentUserId = context.select<AuthProvider, String?>((AuthProvider p) => p.currentUser?.id);
@@ -68,11 +69,12 @@ class _MatchesScreenState extends State<MatchesScreen> {
             children: <Widget>[
               const SizedBox(height: 20),
               _Header(
+                isSoloMode: isSoloMode,
                 partnerName: partnerName,
                 partnerAvatarUrl: partnerAvatarUrl,
               ),
               const SizedBox(height: AppDimensions.paddingL),
-              Expanded(child: _buildBody(matches, isLoading, error, savedDishIds, isFavoriteUpdating)),
+              Expanded(child: _buildBody(matches, isLoading, error, savedDishIds, isFavoriteUpdating, isSoloMode)),
             ],
           ),
         ),
@@ -80,7 +82,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
     );
   }
 
-  Widget _buildBody(List<Dish> matches, bool isLoading, String? error, Set<String> savedDishIds, bool Function(String) isFavoriteUpdating) {
+  Widget _buildBody(List<MatchItem> matches, bool isLoading, String? error, Set<String> savedDishIds, bool Function(String) isFavoriteUpdating, bool isSoloMode) {
     if (isLoading && matches.isEmpty) {
       return ListView.builder(
         itemCount: 4,
@@ -108,7 +110,9 @@ class _MatchesScreenState extends State<MatchesScreen> {
             EmptyState(
               icon: Icons.favorite_border,
               title: 'No matches yet',
-              subtitle: 'Start swiping with your partner to find dishes you both like.',
+              subtitle: isSoloMode
+                  ? 'Your solo likes will appear here.'
+                  : 'Start swiping with your partner to find dishes you both like.',
               buttonText: 'Start swiping',
               onButtonPressed: () => context.go('/swipes'),
             ),
@@ -123,7 +127,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
         physics: const AlwaysScrollableScrollPhysics(),
         itemCount: matches.length,
         itemBuilder: (BuildContext context, int index) {
-          final dish = matches[index];
+          final dish = matches[index].dish;
           return Padding(
             padding: const EdgeInsets.only(bottom: AppDimensions.paddingS),
             child: DishCompactCard(
@@ -142,15 +146,24 @@ class _MatchesScreenState extends State<MatchesScreen> {
 
 class _Header extends StatelessWidget {
   const _Header({
+    required this.isSoloMode,
     required this.partnerName,
     this.partnerAvatarUrl,
   });
 
+  final bool isSoloMode;
   final String partnerName;
   final String? partnerAvatarUrl;
 
   @override
   Widget build(BuildContext context) {
+    if (isSoloMode) {
+      return Text(
+        "Dishes you've liked",
+        style: AppTextStyles.pageTitle,
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[

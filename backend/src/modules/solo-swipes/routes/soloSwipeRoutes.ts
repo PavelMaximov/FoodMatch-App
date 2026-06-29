@@ -1,0 +1,13 @@
+import { Router } from 'express';
+import { authMiddleware } from '../../../core/middleware/authMiddleware';
+import { asyncHandler } from '../../../core/utils/asyncHandler';
+import { swipeRateLimiter } from '../../../core/middleware/rateLimiters';
+import { soloSwipeController } from '../controllers/soloSwipeController';
+const router = Router();
+router.get('/active', authMiddleware, asyncHandler(soloSwipeController.active.bind(soloSwipeController)));
+router.post('/session', authMiddleware, swipeRateLimiter, asyncHandler(soloSwipeController.create.bind(soloSwipeController)));
+router.post('/active/abandon', authMiddleware, swipeRateLimiter, asyncHandler(soloSwipeController.abandon.bind(soloSwipeController)));
+router.patch('/active/filter', authMiddleware, swipeRateLimiter, asyncHandler(soloSwipeController.updateFilter.bind(soloSwipeController)));
+router.get('/:sessionId/deck', authMiddleware, asyncHandler(soloSwipeController.deck.bind(soloSwipeController)));
+router.post('/:sessionId/swipe', authMiddleware, swipeRateLimiter, asyncHandler(soloSwipeController.swipe.bind(soloSwipeController)));
+export default router;

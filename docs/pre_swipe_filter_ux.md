@@ -57,3 +57,9 @@ Sprint 20 uses Flutter local persistence because the app already has a user-scop
 5. Custom session dishes remain governed by existing visibility and deck logic.
 6. Logout/login does not show another user's local preset.
 7. No red screens or layout overflow on a small Android device.
+
+## Sprint 21 mode-aware presets
+
+Last filter presets now live in a backend `LastFilterPreset` collection and are mode-scoped. Solo uses the authenticated user id; paired uses a stable sorted pair key for future pair-specific reuse. The Flutter pre-swipe flow can run in `solo` or `paired` mode so solo filters do not wait for partner confirmation.
+
+Deferred for this sprint: paired mid-deck filter editing and `filterEditLock`.

@@ -121,11 +121,19 @@ class PreSwipeProvider extends ChangeNotifier {
       );
 
   void clearForLogout({bool notify = true}) {
+    _clearLocalDraftState(notify: notify, forceNotify: false);
+  }
+
+  void clearDraft({bool notify = true}) {
+    _clearLocalDraftState(notify: notify, forceNotify: true);
+  }
+
+  void _clearLocalDraftState({required bool notify, required bool forceNotify}) {
     final bool changed = isPreparingBackendDeck || preparedDeckMeta != null || backendDeckError != null;
     isPreparingBackendDeck = false;
     preparedDeckMeta = null;
     backendDeckError = null;
-    if (changed && notify) {
+    if (notify && (changed || forceNotify)) {
       notifyListeners();
     }
   }

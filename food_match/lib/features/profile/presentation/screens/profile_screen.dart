@@ -194,7 +194,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: SafeArea(
         bottom: false,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
           children: <Widget>[
             Text(
               AppStrings.profile,
@@ -694,7 +694,7 @@ class _SessionCard extends StatelessWidget {
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
                 ),
                 child: Text(
                   'Select now',
@@ -750,14 +750,14 @@ class _SmallSessionButton extends StatelessWidget {
         ? OutlinedButton.styleFrom(
             foregroundColor: const Color(0xFF614A4D),
             side: const BorderSide(color: Color(0xFF614A4D), width: 1.4),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
             padding: EdgeInsets.zero,
           )
         : ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
             elevation: 0,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
             padding: EdgeInsets.zero,
           );
 
@@ -804,7 +804,7 @@ class _LogoutButton extends StatelessWidget {
           backgroundColor: Colors.white,
           foregroundColor: AppColors.primary,
           side: const BorderSide(color: AppColors.primary, width: 1.7),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
         ),
         child: Text(
           'Logout',

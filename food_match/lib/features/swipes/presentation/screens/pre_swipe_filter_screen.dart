@@ -9,14 +9,19 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../data/models/user_profile.dart';
+import '../../../../data/repositories/swipe_repository.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../couple/logic/couple_provider.dart';
+import '../../../matches/logic/match_provider.dart';
 import '../../logic/filter_scoring_service.dart';
 import '../../logic/pre_swipe_provider.dart';
+import '../../logic/swipe_provider.dart';
 import 'previous_filter_choice_screen.dart';
 
 class PreSwipeFilterScreen extends StatefulWidget {
-  const PreSwipeFilterScreen({super.key});
+  const PreSwipeFilterScreen({super.key, this.mode = 'paired'});
+
+  final String mode;
 
   @override
   State<PreSwipeFilterScreen> createState() => _PreSwipeFilterScreenState();
@@ -126,7 +131,6 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
           setState(() {
             _favoriteCuisines = profile!.favoriteCuisines.toSet();
             _showIntro = profile.preSwipeFilterIntroSeenAt == null;
-            _lastFilterPreset = profile.lastFilterPreset;
           });
         }
       }
@@ -134,12 +138,21 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         return;
       }
 
-      _coupleProvider.startFilterStatePolling(reason: 'pre_swipe_init');
-      await _coupleProvider.refreshFilterState(reason: 'pre_swipe_init');
+      if (widget.mode == 'paired') {
+        _coupleProvider.startFilterStatePolling(reason: 'pre_swipe_init');
+        await _coupleProvider.refreshFilterState(reason: 'pre_swipe_init');
+      }
       if (!mounted) {
         return;
       }
-      if (_coupleProvider.isMyChoicesConfirmed && !_coupleProvider.bothConfirmed) {
+      final LastFilterPreset? backendPreset = await _loadBackendLastFilterPreset();
+      if (mounted) {
+        setState(() => _lastFilterPreset = backendPreset);
+      }
+      if (!mounted) {
+        return;
+      }
+      if (widget.mode == 'paired' && _coupleProvider.isMyChoicesConfirmed && !_coupleProvider.bothConfirmed) {
         debugPrint('[PreSwipe] waiting for partner filters');
         setState(() {
           _showIntro = false;
@@ -165,9 +178,48 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     });
   }
 
+
+  Future<LastFilterPreset?> _loadBackendLastFilterPreset() async {
+    try {
+      final dynamic data = await context.read<SwipeRepository>().getLastFilterPreset(widget.mode);
+      final dynamic preset = data is Map<String, dynamic> ? data['preset'] : null;
+      if (preset is Map) {
+        return LastFilterPreset.fromJson(Map<String, dynamic>.from(preset));
+      }
+    } catch (e) {
+      debugPrint('[PreSwipe] backend last filter load failed $e');
+    }
+    return null;
+  }
+
+  Future<void> _saveBackendLastFilterPreset(int matchedLastTime) async {
+    try {
+      await context.read<SwipeRepository>().saveLastFilterPreset(
+            mode: widget.mode,
+            cuisines: _cuisines.toList(),
+            moods: _moods.toList(),
+            diet: _diet.toList(),
+            exclusions: _blocked.toList(),
+            matchedLastTime: matchedLastTime,
+          );
+    } catch (e) {
+      debugPrint('[PreSwipe] backend last filter save failed $e');
+    }
+    _lastFilterPreset = LastFilterPreset(
+      cuisines: _cuisines.toList(),
+      moods: _moods.toList(),
+      diet: _diet.toList(),
+      exclusions: _blocked.toList(),
+      matchedLastTime: matchedLastTime,
+      usedAt: DateTime.now(),
+    );
+  }
+
   @override
   void dispose() {
-    _coupleProvider.stopFilterStatePolling(reason: 'pre_swipe_dispose');
+    if (widget.mode == 'paired') {
+      _coupleProvider.stopFilterStatePolling(reason: 'pre_swipe_dispose');
+    }
     super.dispose();
   }
 
@@ -185,7 +237,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         preset: _lastFilterPreset!,
         onUsePreset: _usePreviousPreset,
         onChangeFilters: _startFreshFilters,
-        onClose: _startFreshFilters,
+        onClose: () => Navigator.of(context).maybePop(),
       );
     }
 
@@ -211,8 +263,9 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
                 children: <Widget>[
                   Text('Step $_step / 3', style: GoogleFonts.nunito(fontSize: 16)),
                   IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close),
+                    onPressed: _loading ? null : () => Navigator.of(context).maybePop(),
+                    icon: const Icon(Icons.close, color: AppColors.textSecondary),
+                    tooltip: 'Close filters',
                   ),
                 ],
               ),
@@ -235,7 +288,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
                           moods: _moods.toList(),
                           blocked: _blocked.toList(),
                           diet: _diet.toList(),
-                          partnerChoices: coupleProvider.partnerChoices,
+                          partnerChoices: widget.mode == 'paired' ? coupleProvider.partnerChoices : null,
                         ),
                     isLoading: _loading,
                     canGoBack: _step > 1,
@@ -497,10 +550,37 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       moods: _moods.toList(),
       blocked: _blocked.toList(),
       diet: _diet.toList(),
-      partnerChoices: coupleProvider.partnerChoices,
+      partnerChoices: widget.mode == 'paired' ? coupleProvider.partnerChoices : null,
     );
 
     setState(() => _loading = true);
+    if (widget.mode == 'solo') {
+      final SwipeProvider swipeProvider = context.read<SwipeProvider>();
+      final bool ready = swipeProvider.activeSoloSessionId == null
+          ? await swipeProvider.createSoloSession(
+              cuisines: _cuisines.toList(),
+              moods: _moods.toList(),
+              blocked: _blocked.toList(),
+              diet: _diet.toList(),
+            )
+          : await swipeProvider.updateActiveSoloFilter(
+              cuisines: _cuisines.toList(),
+              moods: _moods.toList(),
+              blocked: _blocked.toList(),
+              diet: _diet.toList(),
+            );
+      if (!mounted) return;
+      if (ready) {
+        context.read<MatchProvider>().setSoloSession(swipeProvider.activeSoloSessionId);
+        await _saveBackendLastFilterPreset(matchedLastTime);
+        if (!mounted) return;
+        Navigator.pop(context, PreparedPoolResult(dishes: swipeProvider.deck, seenDishIds: <String>{}, usedFallback: false, relaxed: false, messages: const <String>[]));
+      } else {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(swipeProvider.error ?? 'Could not update filters. You can go back to your current deck.')));
+      }
+      return;
+    }
     await preSwipeProvider.saveAndConfirmChoices(
       userId: userId,
       coupleProvider: coupleProvider,
@@ -509,22 +589,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       blocked: _blocked.toList(),
       diet: _diet.toList(),
     );
-    await preSwipeProvider.saveLastFilterPreset(
-      userId: userId,
-      cuisines: _cuisines.toList(),
-      moods: _moods.toList(),
-      blocked: _blocked.toList(),
-      diet: _diet.toList(),
-      matchedLastTime: matchedLastTime,
-    );
-    _lastFilterPreset = LastFilterPreset(
-      cuisines: _cuisines.toList(),
-      moods: _moods.toList(),
-      diet: _diet.toList(),
-      exclusions: _blocked.toList(),
-      matchedLastTime: matchedLastTime,
-      usedAt: DateTime.now(),
-    );
+    await _saveBackendLastFilterPreset(matchedLastTime);
 
     if (!mounted) {
       return;
@@ -727,6 +792,51 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       return;
     }
 
+    if (widget.mode == 'solo') {
+      setState(() => _loading = true);
+      final SwipeProvider swipeProvider = context.read<SwipeProvider>();
+      final bool ready = swipeProvider.activeSoloSessionId == null
+          ? await swipeProvider.createSoloSession(
+              cuisines: const <String>[],
+              moods: const <String>[],
+              blocked: const <String>[],
+              diet: const <String>[],
+            )
+          : await swipeProvider.updateActiveSoloFilter(
+              cuisines: const <String>[],
+              moods: const <String>[],
+              blocked: const <String>[],
+              diet: const <String>[],
+            );
+      if (!mounted) {
+        return;
+      }
+      if (ready) {
+        context.read<MatchProvider>().setSoloSession(swipeProvider.activeSoloSessionId);
+        final int matchedLastTime = swipeProvider.deck.length;
+        await _saveBackendLastFilterPreset(matchedLastTime);
+        if (!mounted) {
+          return;
+        }
+        Navigator.pop(
+          context,
+          PreparedPoolResult(
+            dishes: swipeProvider.deck,
+            seenDishIds: <String>{},
+            usedFallback: false,
+            relaxed: false,
+            messages: const <String>[],
+          ),
+        );
+      } else {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(swipeProvider.error ?? 'Could not update filters. You can go back to your current deck.')),
+        );
+      }
+      return;
+    }
+
     final CoupleProvider coupleProvider = context.read<CoupleProvider>();
     if (coupleProvider.hasCouple) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -785,7 +895,9 @@ class PreSwipeIntroScreen extends StatelessWidget {
                 alignment: Alignment.centerRight,
                 child: IconButton(
                   onPressed: onClose,
-                  icon: const Icon(Icons.close, size: 30, color: AppColors.textSecondary),
+                  icon: const Icon(Icons.close, size: 24, color: AppColors.textSecondary),
+                  padding: EdgeInsets.zero,
+                  alignment: Alignment.centerRight,
                 ),
               ),
               const Spacer(),
