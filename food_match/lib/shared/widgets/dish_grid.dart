@@ -29,7 +29,7 @@ class DishGrid extends StatelessWidget {
 
   static const int columns = 2;
   static const double spacing = 15;
-  static const double childAspectRatio = 0.86;
+  static const double childAspectRatio = 1.08;
 
   @override
   Widget build(BuildContext context) {

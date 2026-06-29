@@ -44,6 +44,7 @@ class DishGridCard extends StatelessWidget {
           child: Ink(
             decoration: BoxDecoration(
               color: Colors.white,
+              border: Border.all(color: const Color(0xFFE5E5E5)),
               borderRadius: BorderRadius.circular(_DishGridCardTokens.cardRadius),
               boxShadow: <BoxShadow>[
                 BoxShadow(
@@ -53,12 +54,17 @@ class DishGridCard extends StatelessWidget {
                 ),
               ],
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(_DishGridCardTokens.cardInset),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  AspectRatio(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    _DishGridCardTokens.imageInset,
+                    _DishGridCardTokens.imageInset,
+                    _DishGridCardTokens.imageInset,
+                    0,
+                  ),
+                  child: AspectRatio(
                     aspectRatio: 4 / 3,
                     child: Stack(
                       fit: StackFit.expand,
@@ -101,30 +107,32 @@ class DishGridCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: _DishGridCardTokens.titlePaddingX,
-                        vertical: _DishGridCardTokens.titlePaddingY,
-                      ),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          dish.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.nunito(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
-                            height: 1.2,
-                          ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      _DishGridCardTokens.titlePaddingX,
+                      _DishGridCardTokens.titlePaddingY,
+                      _DishGridCardTokens.titlePaddingX,
+                      _DishGridCardTokens.titlePaddingY,
+                    ),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        dish.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.nunito(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                          height: 1.2,
                         ),
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
@@ -156,9 +164,9 @@ class _FavoriteButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(9),
+      shape: const CircleBorder(),
       child: InkWell(
-        borderRadius: BorderRadius.circular(9),
+        customBorder: const CircleBorder(),
         onTap: isLoading ? null : onTap,
         child: SizedBox(
           width: 30,
@@ -200,7 +208,7 @@ class _MetaPill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Icon(icon, size: 12, color: iconColor ?? AppColors.textPrimary),
+          Icon(icon, size: 12, color: iconColor ?? AppColors.primary),
           const SizedBox(width: 3),
           Text(
             label,
@@ -224,8 +232,8 @@ class _DishGridCardTokens {
 
   static const double cardRadius = 16;
   static const double imageRadius = 14;
-  static const double cardInset = 4;
+  static const double imageInset = 12;
   static const double overlayInset = 8;
-  static const double titlePaddingX = 8;
-  static const double titlePaddingY = 10;
+  static const double titlePaddingX = 12;
+  static const double titlePaddingY = 5;
 }

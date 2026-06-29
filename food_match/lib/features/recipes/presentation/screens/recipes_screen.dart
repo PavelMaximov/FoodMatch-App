@@ -16,6 +16,7 @@ import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/media/safe_dish_image.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
 import '../../../../shared/widgets/dish_grid.dart';
+import '../../../../shared/widgets/dish_grid_card.dart';
 import '../../../favorites/logic/favorites_provider.dart';
 
 class RecipesScreen extends StatefulWidget {
@@ -423,14 +424,23 @@ class _RecipesScreenState extends State<RecipesScreen> {
             ),
           ),
           const SizedBox(height: 10),
-          DishGrid(
-            dishes: preview,
-            savedDishIds: savedDishIds,
-            onFavoriteTap: _toggleSaved,
-            onDishTap: (Dish dish) => context.push('/recipe-detail/${dish.id}', extra: dish),
-            padding: EdgeInsets.zero,
-            physics: const NeverScrollableScrollPhysics(),
-            shrinkWrap: true,
+          SizedBox(
+            height: 158,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: preview.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 15),
+              itemBuilder: (_, int index) {
+                final Dish dish = preview[index];
+                return DishGridCard(
+                  width: 170,
+                  dish: dish,
+                  isFavorite: savedDishIds.contains(dish.id),
+                  onFavoriteTap: () => _toggleSaved(dish),
+                  onTap: () => context.push('/recipe-detail/${dish.id}', extra: dish),
+                );
+              },
+            ),
           ),
         ],
       ],
