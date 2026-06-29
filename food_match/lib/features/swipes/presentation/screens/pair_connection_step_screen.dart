@@ -108,6 +108,7 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
           builder: (BuildContext dialogContext) => AlertDialog(
             title: const Text('Leave pair setup?'),
             content: const Text('Your current invite code will be closed.'),
+            actionsAlignment: MainAxisAlignment.center,
             actions: <Widget>[
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext, false),
@@ -154,7 +155,7 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
           });
         }
         return SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
@@ -275,7 +276,7 @@ class _InviteCard extends StatelessWidget {
                   children: <Widget>[
                     Text('Invite code:', style: GoogleFonts.nunito(fontSize: 14, color: AppColors.textSecondary)),
                     const SizedBox(height: 4),
-                    SelectableText(inviteCode, style: GoogleFonts.fredoka(fontSize: 34, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                    SelectableText(inviteCode, style: GoogleFonts.nunito(fontSize: 34, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: 2)),
                   ],
                 ),
               ),
@@ -301,7 +302,7 @@ class _InviteCard extends StatelessWidget {
               Expanded(
                 child: OutlinedButton(
                   onPressed: onReset,
-                  style: OutlinedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                  style: OutlinedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36))),
                   child: const Text('Reset'),
                 ),
               ),
@@ -312,7 +313,7 @@ class _InviteCard extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
                   ),
                   child: const Text('Leave'),
                 ),
@@ -418,7 +419,7 @@ class _OrangeButton extends StatelessWidget {
           disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.55),
           foregroundColor: Colors.white,
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
         ),
         child: isLoading
             ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))

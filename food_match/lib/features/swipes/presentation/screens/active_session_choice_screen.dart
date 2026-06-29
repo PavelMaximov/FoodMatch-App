@@ -56,7 +56,7 @@ class ActiveSessionChoiceScreen extends StatelessWidget {
                   height: 46,
                   decoration: BoxDecoration(
                     color: const Color(0xFFFFEDDE),
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(36),
                   ),
                   child: Icon(
                     sessionLabel.toLowerCase().contains('solo')
