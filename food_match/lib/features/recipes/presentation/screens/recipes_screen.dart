@@ -15,6 +15,7 @@ import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/media/safe_dish_image.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
+import '../../../../shared/widgets/recipe_list_chrome.dart';
 import '../../../../shared/widgets/dish_grid.dart';
 import '../../../../shared/widgets/dish_grid_card.dart';
 import '../../../favorites/logic/favorites_provider.dart';
@@ -933,7 +934,7 @@ class RecipeResultsPage extends StatefulWidget {
 class _RecipeResultsPageState extends State<RecipeResultsPage> {
   static const int _pageSize = 20;
 
-  late MealTabType? _selectedTab = widget.initialTab;
+  late final MealTabType? _selectedTab = widget.initialTab;
   late Set<String> _selectedCuisines = Set<String>.from(widget.initialCuisines);
   late Set<String> _selectedMoods = Set<String>.from(widget.initialMoods);
   late Set<String> _selectedDiet = Set<String>.from(widget.initialDiet);
@@ -950,6 +951,11 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
   String? _error;
   String? _loadMoreError;
   String _query = '';
+  final List<String> _recentSearches = <String>[
+    'Hamburger Lorem Ipsum',
+    'Hamburger Lorem',
+    'Hamburger',
+  ];
   int _offset = 0;
   int _requestGeneration = 0;
 
@@ -967,6 +973,11 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
     final String name = _selectedTab!.name;
     return name[0].toUpperCase() + name.substring(1);
   }
+
+  bool get _isMealTabPage => widget.initialTab != null;
+
+  bool get _showRecentSearches =>
+      !_isMealTabPage && _isSearching && _query.trim().isEmpty;
 
   bool get _hasActiveSearchOrFilters {
     return _query.trim().isNotEmpty ||
@@ -1126,11 +1137,6 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
     }
   }
 
-  void _changeTab(MealTabType tab) {
-    setState(() => _selectedTab = tab);
-    _loadFirstPage();
-  }
-
   void _toggleSearch() {
     setState(() => _isSearching = true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1146,15 +1152,41 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
     _searchDebounce = Timer(const Duration(milliseconds: 350), () => _loadFirstPage());
   }
 
-  void _clearSearch() {
-    _searchController.clear();
+  void _closeOrClearSearch() {
+    if (_searchController.text.isNotEmpty) {
+      _searchController.clear();
+      _searchDebounce?.cancel();
+      setState(() => _query = '');
+      _searchFocusNode.requestFocus();
+      _loadFirstPage();
+      return;
+    }
     _searchDebounce?.cancel();
-    setState(() {
-      _query = '';
-      _isSearching = false;
-    });
+    setState(() => _isSearching = false);
     _searchFocusNode.unfocus();
+  }
+
+  void _submitSearch(String value) {
+    final String query = value.trim();
+    if (query.isEmpty) {
+      return;
+    }
+    setState(() {
+      _recentSearches.removeWhere((String item) => item.toLowerCase() == query.toLowerCase());
+      _recentSearches.insert(0, query);
+      if (_recentSearches.length > 10) {
+        _recentSearches.removeRange(10, _recentSearches.length);
+      }
+    });
     _loadFirstPage();
+  }
+
+  void _selectRecentSearch(String value) {
+    _searchController.text = value;
+    _searchController.selection = TextSelection.collapsed(offset: value.length);
+    setState(() => _query = value);
+    _loadFirstPage();
+    _searchFocusNode.requestFocus();
   }
 
   Future<void> _openFilters() async {
@@ -1226,58 +1258,41 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
         child: Column(
           children: <Widget>[
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-              child: Column(
-                children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      _RecipeIconButton(
-                        icon: Icons.arrow_back,
-                        onTap: () => Navigator.of(context).pop(),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          _pageTitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.sectionHeader,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      _RecipeIconButton(
-                        icon: Icons.search,
-                        onTap: _toggleSearch,
-                        isActive: _isSearching || _query.trim().isNotEmpty,
-                      ),
-                      const SizedBox(width: 8),
-                      _RecipeIconButton(
-                        icon: Icons.tune,
-                        onTap: _openFilters,
-                        isActive: _selectedCuisines.isNotEmpty ||
-                            _selectedMoods.isNotEmpty ||
-                            _selectedDiet.isNotEmpty ||
-                            _selectedTypes.isNotEmpty,
-                      ),
-                    ],
-                  ),
-                  if (_isSearching) ...<Widget>[
-                    const SizedBox(height: 12),
-                    _InlineRecipeSearchField(
-                      controller: _searchController,
-                      focusNode: _searchFocusNode,
-                      onChanged: _onSearchChanged,
-                      onClear: _clearSearch,
-                    ),
-                  ],
-                ],
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+              child: AppCenteredHeader(
+                title: _pageTitle,
+                onBackTap: () => Navigator.of(context).maybePop(),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              child: MealTabsBar(selected: _selectedTab, onSelected: _changeTab),
+            if (!_isMealTabPage) ...<Widget>[
+              const SizedBox(height: 14),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: RecipeSearchFilterBar(
+                  controller: _searchController,
+                  focusNode: _searchFocusNode,
+                  isActive: _isSearching,
+                  hasActiveFilters: _selectedCuisines.isNotEmpty ||
+                      _selectedMoods.isNotEmpty ||
+                      _selectedDiet.isNotEmpty ||
+                      _selectedTypes.isNotEmpty,
+                  onTap: _toggleSearch,
+                  onChanged: _onSearchChanged,
+                  onSubmitted: _submitSearch,
+                  onCloseOrClear: _closeOrClearSearch,
+                  onFilterTap: _openFilters,
+                ),
+              ),
+              if (_showRecentSearches)
+                RecentSearchBlock(
+                  searches: _recentSearches,
+                  onClear: () => setState(_recentSearches.clear),
+                  onSelected: _selectRecentSearch,
+                ),
+            ],
+            Expanded(
+              child: _showRecentSearches ? const SizedBox.shrink() : _buildBody(savedDishIds),
             ),
-            Expanded(child: _buildBody(savedDishIds)),
           ],
         ),
       ),
@@ -1333,102 +1348,6 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
         onFavoriteTap: widget.onFavoriteTap,
         onDishTap: (Dish dish) => context.push('/recipe-detail/${dish.id}', extra: dish),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      ),
-    );
-  }
-}
-
-class _RecipeIconButton extends StatelessWidget {
-  const _RecipeIconButton({
-    required this.icon,
-    required this.onTap,
-    this.isActive = false,
-  });
-
-  final IconData icon;
-  final VoidCallback onTap;
-  final bool isActive;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: kRecipeChipBackgroundColor,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(kRecipeChipRadius),
-        side: BorderSide(
-          color: isActive ? AppColors.primary : kRecipeChipBorderColor,
-          width: kRecipeChipBorderWidth,
-        ),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(kRecipeChipRadius),
-        onTap: onTap,
-        child: SizedBox(
-          width: 40,
-          height: 40,
-          child: Icon(icon, size: 20, color: AppColors.textPrimary),
-        ),
-      ),
-    );
-  }
-}
-
-class _InlineRecipeSearchField extends StatelessWidget {
-  const _InlineRecipeSearchField({
-    required this.controller,
-    required this.focusNode,
-    required this.onChanged,
-    required this.onClear,
-  });
-
-  final TextEditingController controller;
-  final FocusNode focusNode;
-  final ValueChanged<String> onChanged;
-  final VoidCallback onClear;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      focusNode: focusNode,
-      onChanged: onChanged,
-      textInputAction: TextInputAction.search,
-      style: GoogleFonts.nunito(
-        fontSize: 16,
-        fontWeight: FontWeight.w500,
-        color: AppColors.textPrimary,
-      ),
-      decoration: InputDecoration(
-        filled: true,
-        fillColor: kRecipeChipBackgroundColor,
-        prefixIcon: const Icon(Icons.search, color: Color(0xFF555555), size: 18),
-        suffixIcon: controller.text.isEmpty
-            ? null
-            : IconButton(
-                onPressed: onClear,
-                icon: const Icon(Icons.close, color: AppColors.textPrimary, size: 18),
-              ),
-        hintText: 'Search any recipe',
-        hintStyle: GoogleFonts.nunito(
-          fontSize: 16,
-          fontWeight: FontWeight.w400,
-          color: const Color(0xFFAAAAAA),
-        ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(kRecipeChipRadius),
-          borderSide: const BorderSide(
-            color: kRecipeChipBorderColor,
-            width: kRecipeChipBorderWidth,
-          ),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(kRecipeChipRadius),
-          borderSide: const BorderSide(
-            color: AppColors.primary,
-            width: kRecipeChipBorderWidth,
-          ),
-        ),
       ),
     );
   }

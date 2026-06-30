@@ -9,7 +9,8 @@ import '../../../../data/models/dish.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
-import '../../../../shared/widgets/dish_card_grid.dart';
+import '../../../../shared/widgets/dish_grid.dart';
+import '../../../../shared/widgets/recipe_list_chrome.dart';
 import '../../logic/favorites_provider.dart';
 
 class FavoritesScreen extends StatefulWidget {
@@ -22,6 +23,13 @@ class FavoritesScreen extends StatefulWidget {
 class _FavoritesScreenState extends State<FavoritesScreen> {
   bool _isSearching = false;
   String _query = '';
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+  final List<String> _recentSearches = <String>[
+    'Hamburger Lorem Ipsum',
+    'Hamburger Lorem',
+    'Hamburger',
+  ];
   Set<String> _selectedCuisines = <String>{};
   Set<String> _selectedMoods = <String>{};
   Set<String> _selectedDiet = <String>{};
@@ -31,6 +39,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
   bool get _hasActiveFilters =>
       _selectedCuisines.isNotEmpty || _selectedMoods.isNotEmpty || _selectedDiet.isNotEmpty;
+
+  bool get _showRecentSearches => _isSearching && _query.trim().isEmpty;
 
   @override
   void initState() {
@@ -51,13 +61,48 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     }
   }
 
-  void _toggleSearch() {
-    setState(() {
-      _isSearching = !_isSearching;
-      if (!_isSearching) {
-        _query = '';
+  void _activateSearch() {
+    if (_isSearching) {
+      return;
+    }
+    setState(() => _isSearching = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _searchFocusNode.requestFocus();
       }
     });
+  }
+
+  void _closeOrClearSearch() {
+    if (_searchController.text.isNotEmpty) {
+      _searchController.clear();
+      setState(() => _query = '');
+      _searchFocusNode.requestFocus();
+      return;
+    }
+    setState(() => _isSearching = false);
+    _searchFocusNode.unfocus();
+  }
+
+  void _submitSearch(String value) {
+    final String query = value.trim();
+    if (query.isEmpty) {
+      return;
+    }
+    setState(() {
+      _recentSearches.removeWhere((String item) => item.toLowerCase() == query.toLowerCase());
+      _recentSearches.insert(0, query);
+      if (_recentSearches.length > 10) {
+        _recentSearches.removeRange(10, _recentSearches.length);
+      }
+    });
+  }
+
+  void _selectRecentSearch(String value) {
+    _searchController.text = value;
+    _searchController.selection = TextSelection.collapsed(offset: value.length);
+    setState(() => _query = value);
+    _searchFocusNode.requestFocus();
   }
 
   Future<void> _openFilters() async {
@@ -151,6 +196,13 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   }
 
   @override
+  void dispose() {
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final FavoritesProvider favoritesProvider = context.watch<FavoritesProvider>();
     final List<Dish> visibleFavorites = _visibleFavorites(favoritesProvider.savedDishes);
@@ -163,17 +215,33 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-              child: _FavoritesHeader(
-                isSearching: _isSearching,
-                query: _query,
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+              child: AppCenteredHeader(
+                title: 'Favorites',
+                onBackTap: () => context.canPop() ? context.pop() : context.go('/recipes'),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: RecipeSearchFilterBar(
+                controller: _searchController,
+                focusNode: _searchFocusNode,
+                isActive: _isSearching,
                 hasActiveFilters: _hasActiveFilters,
-                onQueryChanged: (String value) => setState(() => _query = value),
-                onBackTap: context.pop,
-                onSearchTap: _toggleSearch,
+                onTap: _activateSearch,
+                onChanged: (String value) => setState(() => _query = value),
+                onSubmitted: _submitSearch,
+                onCloseOrClear: _closeOrClearSearch,
                 onFilterTap: _openFilters,
               ),
             ),
+            if (_showRecentSearches)
+              RecentSearchBlock(
+                searches: _recentSearches,
+                onClear: () => setState(_recentSearches.clear),
+                onSelected: _selectRecentSearch,
+              ),
             if (_hasActiveFilters || _query.trim().isNotEmpty)
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
@@ -190,7 +258,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             Expanded(
               child: RefreshIndicator(
                 onRefresh: () => _loadFavorites(force: true),
-                child: _buildBody(favoritesProvider, visibleFavorites),
+                child: _showRecentSearches
+                    ? const SizedBox.shrink()
+                    : _buildBody(favoritesProvider, visibleFavorites),
               ),
             ),
           ],
@@ -256,7 +326,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       );
     }
 
-    return DishCardGrid(
+    return DishGrid(
       dishes: dishes,
       savedDishIds: favoritesProvider.savedDishIds,
       onFavoriteTap: _removeFavorite,
@@ -264,124 +334,6 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       isFavoriteUpdating: favoritesProvider.isUpdating,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       physics: const AlwaysScrollableScrollPhysics(),
-    );
-  }
-}
-
-class _FavoritesHeader extends StatelessWidget {
-  const _FavoritesHeader({
-    required this.isSearching,
-    required this.query,
-    required this.hasActiveFilters,
-    required this.onQueryChanged,
-    required this.onBackTap,
-    required this.onSearchTap,
-    required this.onFilterTap,
-  });
-
-  final bool isSearching;
-  final String query;
-  final bool hasActiveFilters;
-  final ValueChanged<String> onQueryChanged;
-  final VoidCallback onBackTap;
-  final VoidCallback onSearchTap;
-  final VoidCallback onFilterTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: <Widget>[
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.only(top: 23, right: 12),
-              child: _HeaderIconButton(
-                icon: Icons.arrow_back,
-                onTap: onBackTap,
-              ),
-            ),
-            Expanded(
-              child: Text(
-                'Favorites',
-                style: AppTextStyles.pageTitle,
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(top: 23),
-              child: Row(
-                children: <Widget>[
-                  _HeaderIconButton(
-                    icon: isSearching ? Icons.close : Icons.search,
-                    onTap: onSearchTap,
-                    isActive: isSearching || query.trim().isNotEmpty,
-                  ),
-                  const SizedBox(width: 14),
-                  _HeaderIconButton(
-                    icon: Icons.tune,
-                    onTap: onFilterTap,
-                    isActive: hasActiveFilters,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        if (isSearching) ...<Widget>[
-          const SizedBox(height: 14),
-          TextField(
-            autofocus: true,
-            onChanged: onQueryChanged,
-            decoration: InputDecoration(
-              hintText: 'Search favorites',
-              prefixIcon: const Icon(Icons.search, size: 20),
-              filled: true,
-              fillColor: Colors.white,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: Color(0xFFE2DBD8)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: Color(0xFFE2DBD8)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: AppColors.primary),
-              ),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _HeaderIconButton extends StatelessWidget {
-  const _HeaderIconButton({
-    required this.icon,
-    required this.onTap,
-    this.isActive = false,
-  });
-
-  final IconData icon;
-  final VoidCallback onTap;
-  final bool isActive;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      customBorder: const CircleBorder(),
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.all(4),
-        child: Icon(
-          icon,
-          size: 22,
-          color: isActive ? AppColors.primary : AppColors.textPrimary,
-        ),
-      ),
     );
   }
 }
