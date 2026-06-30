@@ -161,6 +161,10 @@ class RecentSearchBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (searches.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
       child: Column(

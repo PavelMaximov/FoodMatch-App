@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/errors/error_messages.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -15,6 +16,7 @@ import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/media/safe_dish_image.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
+import '../../../../shared/widgets/recipe_filter_bottom_sheet.dart';
 import '../../../../shared/widgets/recipe_list_chrome.dart';
 import '../../../../shared/widgets/dish_grid.dart';
 import '../../../../shared/widgets/dish_grid_card.dart';
@@ -939,6 +941,7 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
   late Set<String> _selectedMoods = Set<String>.from(widget.initialMoods);
   late Set<String> _selectedDiet = Set<String>.from(widget.initialDiet);
   late Set<String> _selectedTypes = Set<String>.from(widget.initialTypes);
+  RecipeListFilters _listFilters = const RecipeListFilters();
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
@@ -951,11 +954,7 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
   String? _error;
   String? _loadMoreError;
   String _query = '';
-  final List<String> _recentSearches = <String>[
-    'Hamburger Lorem Ipsum',
-    'Hamburger Lorem',
-    'Hamburger',
-  ];
+  final List<String> _recentSearches = <String>[];
   int _offset = 0;
   int _requestGeneration = 0;
 
@@ -963,7 +962,10 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
   void initState() {
     super.initState();
     _scrollController.addListener(_maybeLoadMore);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadFirstPage());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadRecentSearches();
+      _loadFirstPage();
+    });
   }
 
   String get _pageTitle {
@@ -984,7 +986,8 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
         _selectedCuisines.isNotEmpty ||
         _selectedMoods.isNotEmpty ||
         _selectedDiet.isNotEmpty ||
-        _selectedTypes.isNotEmpty;
+        _selectedTypes.isNotEmpty ||
+        _listFilters.hasActiveFilters;
   }
 
   Future<void> _loadFirstPage({bool force = false}) async {
@@ -1027,15 +1030,15 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
           limit: _pageSize,
           offset: offset,
           search: _query.trim().isEmpty ? null : _query.trim(),
-          cuisine: _mergedCsv(widget.initialQuery.cuisine, _selectedCuisines),
+          cuisine: _mergedCsv(widget.initialQuery.cuisine, <String>{..._selectedCuisines, ..._listFilters.cuisines}),
           type: _mergedCsv(widget.initialQuery.type, _selectedTypes),
-          mealType: _selectedTab?.name ?? widget.initialQuery.mealType,
+          mealType: _selectedTab?.name ?? _listFilters.mealCategory?.toLowerCase() ?? widget.initialQuery.mealType,
           mood: _mergedList(widget.initialQuery.mood, _selectedMoods),
           diet: _mergedList(widget.initialQuery.diet, _selectedDiet),
-          effort: widget.initialQuery.effort,
+          effort: _listFilters.difficulty?.toLowerCase() ?? widget.initialQuery.effort,
           popular: widget.initialQuery.popular,
-          maxCookTime: widget.initialQuery.maxCookTime,
-          maxTotalTime: widget.initialQuery.maxTotalTime,
+          maxCookTime: _listFilters.maxCookTime ?? widget.initialQuery.maxCookTime,
+          maxTotalTime: _listFilters.maxCookTime ?? widget.initialQuery.maxTotalTime,
           timeTier: widget.initialQuery.timeTier,
           maxIngredients: widget.initialQuery.maxIngredients,
           sort: widget.initialQuery.sort,
@@ -1166,7 +1169,24 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
     _searchFocusNode.unfocus();
   }
 
-  void _submitSearch(String value) {
+  Future<void> _loadRecentSearches() async {
+    final SharedPreferences preferences = await SharedPreferences.getInstance();
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _recentSearches
+        ..clear()
+        ..addAll(preferences.getStringList('recipe_recent_searches') ?? const <String>[]);
+    });
+  }
+
+  Future<void> _saveRecentSearches() async {
+    final SharedPreferences preferences = await SharedPreferences.getInstance();
+    await preferences.setStringList('recipe_recent_searches', _recentSearches);
+  }
+
+  Future<void> _rememberSearch(String value) async {
     final String query = value.trim();
     if (query.isEmpty) {
       return;
@@ -1178,6 +1198,15 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
         _recentSearches.removeRange(10, _recentSearches.length);
       }
     });
+    await _saveRecentSearches();
+  }
+
+  void _submitSearch(String value) {
+    final String query = value.trim();
+    if (query.isEmpty) {
+      return;
+    }
+    _rememberSearch(query);
     _loadFirstPage();
   }
 
@@ -1190,54 +1219,27 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
   }
 
   Future<void> _openFilters() async {
-    final bool hasFilterOptions = widget.availableCuisines.isNotEmpty ||
-        widget.availableMoods.isNotEmpty ||
-        widget.availableDiet.isNotEmpty ||
-        widget.availableTypes.isNotEmpty;
-    if (!hasFilterOptions) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Filters are coming soon')),
-      );
-      return;
-    }
-
-    final _FilterSelection? next = await showModalBottomSheet<_FilterSelection>(
+    final RecipeListFilters? next = await showRecipeFilterBottomSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.background,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (BuildContext context) => Container(
-        decoration: const BoxDecoration(
-          color: AppColors.background,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: _FilterSheet(
-          cuisines: widget.availableCuisines,
-          moods: widget.availableMoods,
-          diet: widget.availableDiet,
-          types: widget.availableTypes,
-          selectedCuisines: _selectedCuisines,
-          selectedMoods: _selectedMoods,
-          selectedDiet: _selectedDiet,
-          selectedTypes: _selectedTypes,
-        ),
-      ),
+      filters: _listFilters,
+      mealOptions: _mealFilterOptions,
+      cuisineOptions: widget.availableCuisines,
     );
 
     if (next == null || !mounted) {
       return;
     }
 
-    setState(() {
-      _selectedCuisines = Set<String>.from(next.cuisines);
-      _selectedMoods = Set<String>.from(next.moods);
-      _selectedDiet = Set<String>.from(next.diet);
-      _selectedTypes = Set<String>.from(next.types);
-    });
+    setState(() => _listFilters = next);
     await _loadFirstPage();
   }
+
+  List<String> get _mealFilterOptions => const <String>[
+        'Breakfast',
+        'Lunch',
+        'Dinner',
+        'Snack',
+      ];
 
   @override
   void dispose() {
@@ -1275,7 +1277,8 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
                   hasActiveFilters: _selectedCuisines.isNotEmpty ||
                       _selectedMoods.isNotEmpty ||
                       _selectedDiet.isNotEmpty ||
-                      _selectedTypes.isNotEmpty,
+                      _selectedTypes.isNotEmpty ||
+                      _listFilters.hasActiveFilters,
                   onTap: _toggleSearch,
                   onChanged: _onSearchChanged,
                   onSubmitted: _submitSearch,
@@ -1286,7 +1289,10 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
               if (_showRecentSearches)
                 RecentSearchBlock(
                   searches: _recentSearches,
-                  onClear: () => setState(_recentSearches.clear),
+                  onClear: () {
+                    setState(_recentSearches.clear);
+                    _saveRecentSearches();
+                  },
                   onSelected: _selectRecentSearch,
                 ),
             ],
