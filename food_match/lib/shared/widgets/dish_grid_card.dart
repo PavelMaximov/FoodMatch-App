@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme/app_colors.dart';
@@ -46,13 +47,13 @@ class DishGridCard extends StatelessWidget {
               color: Colors.white,
               border: Border.all(color: const Color(0xFFE5E5E5)),
               borderRadius: BorderRadius.circular(_DishGridCardTokens.cardRadius),
-              boxShadow: <BoxShadow>[
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+              // boxShadow: <BoxShadow>[
+              //   BoxShadow(
+              //     color: Colors.black.withValues(alpha: 0.08),
+              //     blurRadius: 12,
+              //     offset: const Offset(0, 4),
+              //   ),
+              // ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -87,8 +88,16 @@ class DishGridCard extends StatelessWidget {
                             left: _DishGridCardTokens.overlayInset,
                             bottom: _DishGridCardTokens.overlayInset,
                             child: _MetaPill(
-                              icon: Icons.schedule,
-                              label: '${dish.cookTime} min.',
+                             iconWidget: SvgPicture.asset(
+                                  'assets/icons/time.svg',
+                                  width: 10,
+                                  height: 10,
+                                  colorFilter: const ColorFilter.mode(
+                                    AppColors.primary,
+                                    BlendMode.srcIn,
+                                  ),
+                                ),
+                              label: '${dish.cookTime} m.',
                             ),
                           ),
                         if (_difficultyLabel(dish.effort) != null)
@@ -98,8 +107,15 @@ class DishGridCard extends StatelessWidget {
                             child: ConstrainedBox(
                               constraints: const BoxConstraints(maxWidth: 66),
                               child: _MetaPill(
-                                icon: Icons.local_fire_department,
-                                iconColor: AppColors.primary,
+                                iconWidget: SvgPicture.asset(
+                                  'assets/icons/level.svg',
+                                  width: 10,
+                                  height: 10,
+                                  colorFilter: const ColorFilter.mode(
+                                    AppColors.primary,
+                                    BlendMode.srcIn,
+                                  ),
+                                ),
                                 label: _difficultyLabel(dish.effort)!,
                               ),
                             ),
@@ -191,11 +207,12 @@ class _FavoriteButton extends StatelessWidget {
 }
 
 class _MetaPill extends StatelessWidget {
-  const _MetaPill({required this.icon, required this.label, this.iconColor});
+  const _MetaPill({required this.label, this.icon, this.iconColor, this.iconWidget});
 
-  final IconData icon;
+  final IconData? icon;
   final String label;
   final Color? iconColor;
+  final Widget? iconWidget;
 
   @override
   Widget build(BuildContext context) {
@@ -208,8 +225,13 @@ class _MetaPill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Icon(icon, size: 12, color: iconColor ?? AppColors.primary),
-          const SizedBox(width: 3),
+          if (iconWidget != null)
+            iconWidget!
+          else if (icon != null)
+            Icon(icon, size: 12, color: iconColor ?? AppColors.primary)
+          else
+            const SizedBox.shrink(),
+          if (iconWidget != null || icon != null) const SizedBox(width: 3),
           Text(
             label,
             maxLines: 1,
@@ -231,7 +253,7 @@ class _DishGridCardTokens {
   const _DishGridCardTokens._();
 
   static const double cardRadius = 16;
-  static const double imageRadius = 14;
+  static const double imageRadius = 13;
   static const double imageInset = 12;
   static const double overlayInset = 8;
   static const double titlePaddingX = 12;
