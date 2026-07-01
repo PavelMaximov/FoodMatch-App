@@ -33,7 +33,7 @@ class _SwipeModeSelectionScreenState extends State<SwipeModeSelectionScreen> {
           Text(
             'How do you want\nto swipe?',
             style: GoogleFonts.fredoka(
-              fontSize: 28,
+              fontSize: 36,
               fontWeight: FontWeight.w700,
               height: 1.08,
               color: Colors.black,
@@ -109,6 +109,10 @@ class _SwipeModeSelectionScreenState extends State<SwipeModeSelectionScreen> {
                 backgroundColor: const Color(0xFFFD5115),
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
+                elevation: 0,
+                shadowColor: Colors.transparent,
+                surfaceTintColor: Colors.transparent,
+                overlayColor: Colors.transparent,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(36),
                 ),

@@ -194,7 +194,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: SafeArea(
         bottom: false,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 28),
           children: <Widget>[
             Text(
               AppStrings.profile,

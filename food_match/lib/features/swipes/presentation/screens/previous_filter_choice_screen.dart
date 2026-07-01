@@ -85,7 +85,7 @@ class PreviousFilterChoiceScreen extends StatelessWidget {
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(36),
                     ),
                     textStyle: GoogleFonts.nunito(
                       fontSize: 17,
@@ -104,7 +104,7 @@ class PreviousFilterChoiceScreen extends StatelessWidget {
                     side: const BorderSide(color: AppColors.primary, width: 2),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(36),
                     ),
                     textStyle: GoogleFonts.nunito(
                       fontSize: 17,

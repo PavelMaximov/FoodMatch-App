@@ -2,14 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_text_styles.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
-import '../../../../shared/widgets/dish_card_grid.dart';
+import '../../../../shared/widgets/dish_grid.dart';
+import '../../../../shared/widgets/recipe_filter_bottom_sheet.dart';
+import '../../../../shared/widgets/recipe_list_chrome.dart';
 import '../../logic/favorites_provider.dart';
 
 class FavoritesScreen extends StatefulWidget {
@@ -22,20 +24,25 @@ class FavoritesScreen extends StatefulWidget {
 class _FavoritesScreenState extends State<FavoritesScreen> {
   bool _isSearching = false;
   String _query = '';
-  Set<String> _selectedCuisines = <String>{};
-  Set<String> _selectedMoods = <String>{};
-  Set<String> _selectedDiet = <String>{};
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+  final List<String> _recentSearches = <String>[];
+  RecipeListFilters _listFilters = const RecipeListFilters();
   List<Dish>? _lastFavoritesInput;
   String? _lastFilterSignature;
   List<Dish> _lastVisibleFavorites = const <Dish>[];
 
-  bool get _hasActiveFilters =>
-      _selectedCuisines.isNotEmpty || _selectedMoods.isNotEmpty || _selectedDiet.isNotEmpty;
+  bool get _hasActiveFilters => _listFilters.hasActiveFilters;
+
+  bool get _showRecentSearches => _isSearching && _query.trim().isEmpty;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadFavorites());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadRecentSearches();
+      _loadFavorites();
+    });
   }
 
   Future<void> _loadFavorites({bool force = false}) async {
@@ -51,52 +58,100 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     }
   }
 
-  void _toggleSearch() {
-    setState(() {
-      _isSearching = !_isSearching;
-      if (!_isSearching) {
-        _query = '';
+  void _activateSearch() {
+    if (_isSearching) {
+      return;
+    }
+    setState(() => _isSearching = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _searchFocusNode.requestFocus();
       }
     });
   }
 
+  void _closeOrClearSearch() {
+    if (_searchController.text.isNotEmpty) {
+      _searchController.clear();
+      setState(() => _query = '');
+      _searchFocusNode.requestFocus();
+      return;
+    }
+    setState(() => _isSearching = false);
+    _searchFocusNode.unfocus();
+  }
+
+  Future<void> _loadRecentSearches() async {
+    final SharedPreferences preferences = await SharedPreferences.getInstance();
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _recentSearches
+        ..clear()
+        ..addAll(preferences.getStringList('favorite_recent_searches') ?? const <String>[]);
+    });
+  }
+
+  Future<void> _saveRecentSearches() async {
+    final SharedPreferences preferences = await SharedPreferences.getInstance();
+    await preferences.setStringList('favorite_recent_searches', _recentSearches);
+  }
+
+  Future<void> _rememberSearch(String value) async {
+    final String query = value.trim();
+    if (query.isEmpty) {
+      return;
+    }
+    setState(() {
+      _recentSearches.removeWhere((String item) => item.toLowerCase() == query.toLowerCase());
+      _recentSearches.insert(0, query);
+      if (_recentSearches.length > 10) {
+        _recentSearches.removeRange(10, _recentSearches.length);
+      }
+    });
+    await _saveRecentSearches();
+  }
+
+  void _submitSearch(String value) {
+    final String query = value.trim();
+    if (query.isEmpty) {
+      return;
+    }
+    _rememberSearch(query);
+  }
+
+  void _selectRecentSearch(String value) {
+    _searchController.text = value;
+    _searchController.selection = TextSelection.collapsed(offset: value.length);
+    setState(() => _query = value);
+    _searchFocusNode.requestFocus();
+  }
+
   Future<void> _openFilters() async {
     final List<Dish> savedDishes = context.read<FavoritesProvider>().savedDishes;
-    final _FavoriteFilterSelection? selection = await showModalBottomSheet<_FavoriteFilterSelection>(
+    final RecipeListFilters? next = await showRecipeFilterBottomSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.background,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (BuildContext context) => _FavoriteFilterSheet(
-        cuisines: _uniqueSorted(savedDishes.map((Dish dish) => dish.cuisine)),
-        moods: _uniqueSorted(savedDishes.expand((Dish dish) => dish.mood)),
-        diet: _uniqueSorted(savedDishes.expand((Dish dish) => dish.diet)),
-        selectedCuisines: _selectedCuisines,
-        selectedMoods: _selectedMoods,
-        selectedDiet: _selectedDiet,
-      ),
+      filters: _listFilters,
+      mealOptions: const <String>['Breakfast', 'Lunch', 'Dinner', 'Snack'],
+      cuisineOptions: _uniqueSorted(savedDishes.map((Dish dish) => dish.cuisine)),
     );
 
-    if (selection == null || !mounted) {
+    if (next == null || !mounted) {
       return;
     }
 
-    setState(() {
-      _selectedCuisines = selection.cuisines;
-      _selectedMoods = selection.moods;
-      _selectedDiet = selection.diet;
-    });
+    setState(() => _listFilters = next);
   }
 
   List<Dish> _visibleFavorites(List<Dish> favorites) {
     final String query = _query.trim().toLowerCase();
     final String signature = <String>[
       query,
-      _selectedCuisines.join('|'),
-      _selectedMoods.join('|'),
-      _selectedDiet.join('|'),
+      _listFilters.mealCategory ?? '',
+      _listFilters.maxCookTime?.toString() ?? '',
+      _listFilters.difficulty ?? '',
+      _listFilters.cuisines.join('|'),
     ].join('::');
     if (identical(_lastFavoritesInput, favorites) && _lastFilterSignature == signature) {
       return _lastVisibleFavorites;
@@ -107,16 +162,19 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       }
 
       final String cuisine = _normalizeLabel(dish.cuisine);
-      final Set<String> moods = dish.mood.map(_normalizeLabel).where((String item) => item.isNotEmpty).toSet();
-      final Set<String> diet = dish.diet.map(_normalizeLabel).where((String item) => item.isNotEmpty).toSet();
-
-      if (_selectedCuisines.isNotEmpty && !_selectedCuisines.contains(cuisine)) {
+      if (_listFilters.cuisines.isNotEmpty && !_listFilters.cuisines.contains(cuisine)) {
         return false;
       }
-      if (_selectedMoods.isNotEmpty && moods.intersection(_selectedMoods).isEmpty) {
+      if (_listFilters.mealCategory != null &&
+          !_matchesMealCategory(dish, _listFilters.mealCategory!)) {
         return false;
       }
-      if (_selectedDiet.isNotEmpty && diet.intersection(_selectedDiet).isEmpty) {
+      if (_listFilters.maxCookTime != null &&
+          (dish.cookTime <= 0 || dish.cookTime > _listFilters.maxCookTime!)) {
+        return false;
+      }
+      if (_listFilters.difficulty != null &&
+          !_matchesDifficulty(dish.effort, _listFilters.difficulty!)) {
         return false;
       }
       return true;
@@ -150,6 +208,51 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         .join(' ');
   }
 
+  bool _matchesMealCategory(Dish dish, String mealCategory) {
+    final String target = mealCategory.trim().toLowerCase();
+    final Iterable<String> values = <String>[
+      dish.type,
+      ...dish.tags,
+      ...dish.mood,
+    ];
+    return values.any((String value) => _matchesToken(value, target));
+  }
+
+  bool _matchesToken(String rawValue, String target) {
+    final String value = rawValue.trim().toLowerCase();
+    if (value.isEmpty) {
+      return false;
+    }
+    if (value == target) {
+      return true;
+    }
+    return value
+        .split(RegExp(r'[\s/,&|]+'))
+        .map((String token) => token.trim())
+        .where((String token) => token.isNotEmpty)
+        .contains(target);
+  }
+
+  bool _matchesDifficulty(String rawValue, String difficulty) {
+    final String value = rawValue.trim().toLowerCase();
+    switch (difficulty.toLowerCase()) {
+      case 'easy':
+        return value == 'easy' || value == 'simple' || value == 'low';
+      case 'medium':
+        return value == 'medium' || value == 'med' || value == 'moderate';
+      case 'hard':
+        return value == 'hard' || value == 'complex' || value == 'difficult' || value == 'high';
+    }
+    return false;
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final FavoritesProvider favoritesProvider = context.watch<FavoritesProvider>();
@@ -163,17 +266,36 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-              child: _FavoritesHeader(
-                isSearching: _isSearching,
-                query: _query,
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+              child: AppCenteredHeader(
+                title: 'Favorites',
+                onBackTap: () => context.canPop() ? context.pop() : context.go('/recipes'),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: RecipeSearchFilterBar(
+                controller: _searchController,
+                focusNode: _searchFocusNode,
+                isActive: _isSearching,
                 hasActiveFilters: _hasActiveFilters,
-                onQueryChanged: (String value) => setState(() => _query = value),
-                onBackTap: context.pop,
-                onSearchTap: _toggleSearch,
+                onTap: _activateSearch,
+                onChanged: (String value) => setState(() => _query = value),
+                onSubmitted: _submitSearch,
+                onCloseOrClear: _closeOrClearSearch,
                 onFilterTap: _openFilters,
               ),
             ),
+            if (_showRecentSearches)
+              RecentSearchBlock(
+                searches: _recentSearches,
+                onClear: () {
+                  setState(_recentSearches.clear);
+                  _saveRecentSearches();
+                },
+                onSelected: _selectRecentSearch,
+              ),
             if (_hasActiveFilters || _query.trim().isNotEmpty)
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
@@ -181,16 +303,17 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                   count: visibleFavorites.length,
                   onClear: () => setState(() {
                     _query = '';
-                    _selectedCuisines = <String>{};
-                    _selectedMoods = <String>{};
-                    _selectedDiet = <String>{};
+                    _searchController.clear();
+                    _listFilters = const RecipeListFilters();
                   }),
                 ),
               ),
             Expanded(
               child: RefreshIndicator(
                 onRefresh: () => _loadFavorites(force: true),
-                child: _buildBody(favoritesProvider, visibleFavorites),
+                child: _showRecentSearches
+                    ? const SizedBox.shrink()
+                    : _buildBody(favoritesProvider, visibleFavorites),
               ),
             ),
           ],
@@ -256,7 +379,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       );
     }
 
-    return DishCardGrid(
+    return DishGrid(
       dishes: dishes,
       savedDishIds: favoritesProvider.savedDishIds,
       onFavoriteTap: _removeFavorite,
@@ -264,124 +387,6 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       isFavoriteUpdating: favoritesProvider.isUpdating,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       physics: const AlwaysScrollableScrollPhysics(),
-    );
-  }
-}
-
-class _FavoritesHeader extends StatelessWidget {
-  const _FavoritesHeader({
-    required this.isSearching,
-    required this.query,
-    required this.hasActiveFilters,
-    required this.onQueryChanged,
-    required this.onBackTap,
-    required this.onSearchTap,
-    required this.onFilterTap,
-  });
-
-  final bool isSearching;
-  final String query;
-  final bool hasActiveFilters;
-  final ValueChanged<String> onQueryChanged;
-  final VoidCallback onBackTap;
-  final VoidCallback onSearchTap;
-  final VoidCallback onFilterTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: <Widget>[
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.only(top: 23, right: 12),
-              child: _HeaderIconButton(
-                icon: Icons.arrow_back,
-                onTap: onBackTap,
-              ),
-            ),
-            Expanded(
-              child: Text(
-                'Favorites',
-                style: AppTextStyles.pageTitle,
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(top: 23),
-              child: Row(
-                children: <Widget>[
-                  _HeaderIconButton(
-                    icon: isSearching ? Icons.close : Icons.search,
-                    onTap: onSearchTap,
-                    isActive: isSearching || query.trim().isNotEmpty,
-                  ),
-                  const SizedBox(width: 14),
-                  _HeaderIconButton(
-                    icon: Icons.tune,
-                    onTap: onFilterTap,
-                    isActive: hasActiveFilters,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        if (isSearching) ...<Widget>[
-          const SizedBox(height: 14),
-          TextField(
-            autofocus: true,
-            onChanged: onQueryChanged,
-            decoration: InputDecoration(
-              hintText: 'Search favorites',
-              prefixIcon: const Icon(Icons.search, size: 20),
-              filled: true,
-              fillColor: Colors.white,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: Color(0xFFE2DBD8)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: Color(0xFFE2DBD8)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: AppColors.primary),
-              ),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _HeaderIconButton extends StatelessWidget {
-  const _HeaderIconButton({
-    required this.icon,
-    required this.onTap,
-    this.isActive = false,
-  });
-
-  final IconData icon;
-  final VoidCallback onTap;
-  final bool isActive;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      customBorder: const CircleBorder(),
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.all(4),
-        child: Icon(
-          icon,
-          size: 22,
-          color: isActive ? AppColors.primary : AppColors.textPrimary,
-        ),
-      ),
     );
   }
 }
@@ -410,202 +415,6 @@ class _ResultSummary extends StatelessWidget {
           child: const Text('Clear'),
         ),
       ],
-    );
-  }
-}
-
-class _FavoriteFilterSelection {
-  const _FavoriteFilterSelection({
-    required this.cuisines,
-    required this.moods,
-    required this.diet,
-  });
-
-  final Set<String> cuisines;
-  final Set<String> moods;
-  final Set<String> diet;
-}
-
-class _FavoriteFilterSheet extends StatefulWidget {
-  const _FavoriteFilterSheet({
-    required this.cuisines,
-    required this.moods,
-    required this.diet,
-    required this.selectedCuisines,
-    required this.selectedMoods,
-    required this.selectedDiet,
-  });
-
-  final List<String> cuisines;
-  final List<String> moods;
-  final List<String> diet;
-  final Set<String> selectedCuisines;
-  final Set<String> selectedMoods;
-  final Set<String> selectedDiet;
-
-  @override
-  State<_FavoriteFilterSheet> createState() => _FavoriteFilterSheetState();
-}
-
-class _FavoriteFilterSheetState extends State<_FavoriteFilterSheet> {
-  late final Set<String> _cuisines = <String>{...widget.selectedCuisines};
-  late final Set<String> _moods = <String>{...widget.selectedMoods};
-  late final Set<String> _diet = <String>{...widget.selectedDiet};
-
-  bool get _hasSelections => _cuisines.isNotEmpty || _moods.isNotEmpty || _diet.isNotEmpty;
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(19, 52, 19, 22),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Center(
-              child: Container(
-                width: 46,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: Colors.black12,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Filter favorites',
-              style: GoogleFonts.nunito(
-                fontSize: 24,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    _FilterSection(
-                      title: 'Cuisine',
-                      options: widget.cuisines,
-                      selected: _cuisines,
-                      onChanged: () => setState(() {}),
-                    ),
-                    _FilterSection(
-                      title: 'Mood',
-                      options: widget.moods,
-                      selected: _moods,
-                      onChanged: () => setState(() {}),
-                    ),
-                    _FilterSection(
-                      title: 'Diet',
-                      options: widget.diet,
-                      selected: _diet,
-                      onChanged: () => setState(() {}),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: _hasSelections
-                        ? () {
-                            setState(() {
-                              _cuisines.clear();
-                              _moods.clear();
-                              _diet.clear();
-                            });
-                          }
-                        : null,
-                    child: const Text('Clear'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.of(context).pop(
-                      _FavoriteFilterSelection(
-                        cuisines: <String>{..._cuisines},
-                        moods: <String>{..._moods},
-                        diet: <String>{..._diet},
-                      ),
-                    ),
-                    child: const Text('Apply'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _FilterSection extends StatelessWidget {
-  const _FilterSection({
-    required this.title,
-    required this.options,
-    required this.selected,
-    required this.onChanged,
-  });
-
-  final String title;
-  final List<String> options;
-  final Set<String> selected;
-  final VoidCallback onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    if (options.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(
-            title,
-            style: GoogleFonts.nunito(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: options.map((String option) {
-              final bool isSelected = selected.contains(option);
-              return FilterChip(
-                label: Text(option),
-                selected: isSelected,
-                onSelected: (bool selected) {
-                  if (selected) {
-                    this.selected.add(option);
-                  } else {
-                    this.selected.remove(option);
-                  }
-                  onChanged();
-                },
-                selectedColor: const Color(0xFFFFDCD0),
-                checkmarkColor: AppColors.primary,
-                side: BorderSide(
-                  color: isSelected ? AppColors.primary : const Color(0xFFE2DBD8),
-                ),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
     );
   }
 }

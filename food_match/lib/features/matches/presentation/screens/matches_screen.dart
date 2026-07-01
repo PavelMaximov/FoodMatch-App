@@ -63,7 +63,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingL),
+          padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingM),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[

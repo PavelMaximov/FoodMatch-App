@@ -24,7 +24,7 @@ class ActiveSessionChoiceScreen extends StatelessWidget {
         children: <Widget>[
           Text(
             'Continue where\nyou left off?',
-            style: GoogleFonts.fredoka(
+            style: GoogleFonts.nunito(
               fontSize: 34,
               fontWeight: FontWeight.w700,
               height: 1.05,
@@ -101,7 +101,7 @@ class ActiveSessionChoiceScreen extends StatelessWidget {
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
                 textStyle: GoogleFonts.nunito(fontSize: 17, fontWeight: FontWeight.w800),
               ),
               child: const Text('Continue'),
@@ -116,7 +116,7 @@ class ActiveSessionChoiceScreen extends StatelessWidget {
                 foregroundColor: AppColors.primary,
                 side: const BorderSide(color: AppColors.primary, width: 2),
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
                 textStyle: GoogleFonts.nunito(fontSize: 17, fontWeight: FontWeight.w800),
               ),
               child: const Text('Start new'),
