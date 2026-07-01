@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/utils/snackbar_utils.dart';
 import '../../../../data/models/couple.dart';
 import '../../../auth/logic/auth_provider.dart';
@@ -27,10 +27,11 @@ class SessionSettingsSheet extends StatelessWidget {
     final SwipeProvider swipeProvider = context.watch<SwipeProvider>();
     final CoupleProvider coupleProvider = context.watch<CoupleProvider>();
 
+    final FoodMatchThemeColors colors = context.fmColors;
     return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFFFFFBF9),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      decoration: BoxDecoration(
+        color: colors.modalBackground,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: SafeArea(
         top: false,
@@ -116,12 +117,13 @@ class SessionSettingsSheet extends StatelessWidget {
     return await showDialog<bool>(
           context: context,
           builder: (BuildContext dialogContext) => AlertDialog(
-            title: Text(title),
-            content: Text(message),
+            backgroundColor: context.fmColors.modalBackground,
+            title: Text(title, style: TextStyle(color: context.fmColors.textPrimary)),
+            content: Text(message, style: TextStyle(color: context.fmColors.textSecondary)),
             actions: <Widget>[
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext, false),
-                child: const Text('Cancel'),
+                child: Text('Cancel', style: TextStyle(color: context.fmColors.textSecondary)),
               ),
               ElevatedButton(
                 onPressed: () => Navigator.pop(dialogContext, true),
@@ -151,13 +153,13 @@ class _SheetHeader extends StatelessWidget {
               fontSize: 31,
               fontWeight: FontWeight.w700,
               height: 1.05,
-              color: Colors.black,
+              color: context.fmColors.textPrimary,
             ),
           ),
         ),
         IconButton(
           onPressed: onClose,
-          icon: const Icon(Icons.close, size: 26, color: Color(0xFF2B2725)),
+          icon: Icon(Icons.close, size: 26, color: context.fmColors.textPrimary),
         ),
       ],
     );
@@ -198,7 +200,7 @@ class _SoloSettings extends StatelessWidget {
           style: GoogleFonts.nunito(
             fontSize: 15,
             fontWeight: FontWeight.w700,
-            color: const Color(0xFF7A7270),
+            color: context.fmColors.textMuted,
           ),
         ),
         const SizedBox(height: 10),
@@ -239,7 +241,7 @@ class _PairSettings extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: context.fmColors.card,
             borderRadius: BorderRadius.circular(16),
           ),
           child: Column(
@@ -250,7 +252,7 @@ class _PairSettings extends StatelessWidget {
                 style: GoogleFonts.nunito(
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
+                  color: context.fmColors.textPrimary,
                 ),
               ),
               const SizedBox(height: 4),
@@ -266,7 +268,7 @@ class _PairSettings extends StatelessWidget {
                         height: 1.05,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 1.2,
-                        color: AppColors.textPrimary,
+                        color: context.fmColors.textPrimary,
                       ),
                     ),
                   ),
@@ -280,7 +282,7 @@ class _PairSettings extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.nunito(
                   fontSize: 15,
-                  color: const Color(0xFF8B8582),
+                  color: context.fmColors.textMuted,
                 ),
               ),
               const SizedBox(height: 18),
@@ -310,7 +312,7 @@ class _PairSettings extends StatelessWidget {
           style: GoogleFonts.nunito(
             fontSize: 15,
             fontWeight: FontWeight.w700,
-            color: const Color(0xFF7A7270),
+            color: context.fmColors.textMuted,
           ),
         ),
         const SizedBox(height: 10),
@@ -380,12 +382,12 @@ class _SimpleInfoCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.fmColors.card,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         children: <Widget>[
-          Icon(icon, size: 20, color: const Color(0xFF7A7270)),
+          Icon(icon, size: 20, color: context.fmColors.textMuted),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -393,7 +395,7 @@ class _SimpleInfoCard extends StatelessWidget {
               style: GoogleFonts.nunito(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
+                color: context.fmColors.textPrimary,
               ),
             ),
           ),
@@ -426,7 +428,7 @@ class _SwitchModeCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.fmColors.card,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -438,10 +440,10 @@ class _SwitchModeCard extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFEDDE),
+                  color: context.fmColors.primarySoft,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(icon, color: const Color(0xFFEE8C04)),
+                child: Icon(icon, color: context.fmColors.primary),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -455,7 +457,7 @@ class _SwitchModeCard extends StatelessWidget {
                           style: GoogleFonts.nunito(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
-                            color: AppColors.textPrimary,
+                            color: context.fmColors.textPrimary,
                           ),
                         ),
                         if (badge != null) ...<Widget>[
@@ -463,7 +465,7 @@ class _SwitchModeCard extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFFFEDDE),
+                              color: context.fmColors.primarySoft,
                               borderRadius: BorderRadius.circular(999),
                             ),
                             child: Text(
@@ -471,7 +473,7 @@ class _SwitchModeCard extends StatelessWidget {
                               style: GoogleFonts.nunito(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w800,
-                                color: const Color(0xFFEE8C04),
+                                color: context.fmColors.primary,
                               ),
                             ),
                           ),
@@ -482,7 +484,7 @@ class _SwitchModeCard extends StatelessWidget {
                       subtitle,
                       style: GoogleFonts.nunito(
                         fontSize: 14,
-                        color: const Color(0xFF7A7270),
+                        color: context.fmColors.textMuted,
                       ),
                     ),
                   ],
@@ -496,8 +498,8 @@ class _SwitchModeCard extends StatelessWidget {
             child: ElevatedButton(
               onPressed: onPressed,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
+                backgroundColor: context.fmColors.buttonPrimaryBackground,
+                foregroundColor: context.fmColors.buttonPrimaryText,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 textStyle: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w800),
@@ -529,21 +531,21 @@ class _CopyPill extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(color: AppColors.divider),
+          color: context.fmColors.card,
+          border: Border.all(color: context.fmColors.border),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Icon(Icons.copy, size: 14, color: AppColors.textSecondary.withValues(alpha: 0.72)),
+            Icon(Icons.copy, size: 14, color: context.fmColors.textMuted),
             const SizedBox(width: 4),
             Text(
               'Copy',
               style: GoogleFonts.nunito(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary.withValues(alpha: 0.72),
+                color: context.fmColors.textMuted,
               ),
             ),
           ],
@@ -564,7 +566,7 @@ class _StatTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.fmColors.card,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -575,7 +577,7 @@ class _StatTile extends StatelessWidget {
             style: GoogleFonts.nunito(
               fontSize: 14,
               fontWeight: FontWeight.w700,
-              color: const Color(0xFF7A7270),
+              color: context.fmColors.textMuted,
             ),
           ),
           const SizedBox(height: 2),
@@ -584,7 +586,7 @@ class _StatTile extends StatelessWidget {
             style: GoogleFonts.nunito(
               fontSize: 25,
               fontWeight: FontWeight.w900,
-              color: Colors.black,
+              color: context.fmColors.textPrimary,
             ),
           ),
         ],

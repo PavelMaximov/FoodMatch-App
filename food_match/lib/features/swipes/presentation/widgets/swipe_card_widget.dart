@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/utils/image_utils.dart';
 import '../../../../data/models/dish.dart';
@@ -31,6 +31,7 @@ class SwipeCardWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final FoodMatchThemeColors colors = context.fmColors;
     final Dish dish = this.dish;
     final String heroImageUrl = ImageUtils.getImageUrl(dish.imageUrl, usage: ImageUsage.swipeCard);
     return RepaintBoundary(
@@ -110,7 +111,7 @@ class SwipeCardWidget extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    _buildInfoButton(),
+                    _buildInfoButton(context),
                   ],
                 ),
                 const SizedBox(height: 4),
@@ -124,7 +125,7 @@ class SwipeCardWidget extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 8),
-                _buildTags(),
+                _buildTags(context),
               ],
             ),
           ),
@@ -137,26 +138,26 @@ class SwipeCardWidget extends StatelessWidget {
               children: <Widget>[
                 _buildCircleSvgButton(
                   size: 50,
-                  bgColor: Colors.white.withValues(alpha: 0.15),
+                  bgColor: colors.cardElevated.withValues(alpha: 0.62),
                   assetPath: 'assets/icons/swipe/back_swipe.svg',
                   onTap: onBack,
                 ),
                 _buildCircleSvgButton(
                   size: 64,
-                  bgColor: Colors.white,
+                  bgColor: colors.cardElevated,
                   assetPath: 'assets/icons/swipe/dislike_swipe.svg',
-                  iconColor: const Color(0xFF1A1A1A),
+                  iconColor: colors.error,
                   onTap: onDislike,
                 ),
                 _buildCircleSvgButton(
                   size: 64,
-                  bgColor: AppColors.primary,
+                  bgColor: colors.buttonPrimaryBackground,
                   assetPath: 'assets/icons/swipe/like_swipe.svg',
                   onTap: onLike,
                 ),
                 _buildCircleSvgButton(
                   size: 50,
-                  bgColor: Colors.white.withValues(alpha: 0.15),
+                  bgColor: colors.cardElevated.withValues(alpha: 0.62),
                   assetPath: 'assets/icons/swipe/reset_swipe.svg',
                   onTap: onRefresh,
                 ),
@@ -169,7 +170,7 @@ class SwipeCardWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoButton() {
+  Widget _buildInfoButton(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onInfoTap,
@@ -178,7 +179,7 @@ class SwipeCardWidget extends StatelessWidget {
         height: 32,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: Colors.white.withValues(alpha: 0.3),
+          color: context.fmColors.cardElevated.withValues(alpha: 0.62),
         ),
         child: const Icon(
           Icons.info_outline,
@@ -189,24 +190,24 @@ class SwipeCardWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildTags() {
+  Widget _buildTags(BuildContext context) {
     return Wrap(
       spacing: 8,
       runSpacing: 4,
       children: <Widget>[
-        if (dish.cuisine.isNotEmpty) _buildTag(dish.cuisine),
-        ...dish.mood.take(3).map(_buildTag),
+        if (dish.cuisine.isNotEmpty) _buildTag(context, dish.cuisine),
+        ...dish.mood.take(3).map((String mood) => _buildTag(context, mood)),
       ],
     );
   }
 
-  Widget _buildTag(String text) {
+  Widget _buildTag(BuildContext context, String text) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.2),
+        color: context.fmColors.metadataPillBackground.withValues(alpha: 0.72),
         borderRadius: BorderRadius.circular(AppDimensions.radiusXL),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
+        border: Border.all(color: context.fmColors.border),
       ),
       child: Text(
         text,

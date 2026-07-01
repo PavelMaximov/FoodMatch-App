@@ -565,8 +565,9 @@ class _SwipesScreenState extends State<SwipesScreen> {
         _activeSessionChoiceType == null &&
         (_showPairConnectionStep || (hasCouple && !hasPartner && !isSoloMode));
     final bool showHeaderActions = hasCurrentDeckCard && !showActiveSessionChoice && !showModeSelection && !showPairConnection && !_isOpeningPreSwipe;
+    final FoodMatchThemeColors colors = context.fmColors;
     return Scaffold(
-      backgroundColor: context.fmColors.background,
+      backgroundColor: colors.background,
       body: SafeArea(
         child: Column(
           children: <Widget>[
@@ -586,15 +587,16 @@ class _SwipesScreenState extends State<SwipesScreen> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFF5B1C),
+                        color: colors.cardElevated,
                         borderRadius: BorderRadius.circular(AppDimensions.radiusXL),
+                        border: Border.all(color: colors.primary),
                       ),
                       child: Text(
                         'Session settings',
                         style: GoogleFonts.nunito(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: Colors.white,
+                          color: colors.primary,
                         ),
                       ),
                     ),
@@ -604,16 +606,17 @@ class _SwipesScreenState extends State<SwipesScreen> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFDCD6D3),
+                        color: colors.cardElevated,
                         borderRadius: BorderRadius.circular(AppDimensions.radiusXL),
+                        border: Border.all(color: colors.border),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: <Widget>[
-                          const Icon(
+                          Icon(
                             Icons.tune,
                             size: 16,
-                            color: AppColors.textPrimary,
+                            color: colors.primary,
                           ),
                           const SizedBox(width: 6),
                           Text(
@@ -621,7 +624,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
                             style: GoogleFonts.nunito(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
+                              color: colors.textPrimary,
                             ),
                           ),
                         ],
