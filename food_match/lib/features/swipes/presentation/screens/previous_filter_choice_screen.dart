@@ -4,6 +4,12 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../data/models/user_profile.dart';
 
+enum PreviousChoicePillType {
+  cuisine,
+  mood,
+  exception,
+}
+
 class PreviousFilterChoiceScreen extends StatelessWidget {
   const PreviousFilterChoiceScreen({
     super.key,
@@ -171,24 +177,21 @@ class _PresetCard extends StatelessWidget {
             icon: Icons.room_service_outlined,
             label: 'Cuisine:',
             values: preset.cuisines,
-            color: colors.primary,
-            chipBg: colors.primarySoft,
+            type: PreviousChoicePillType.cuisine,
           ),
           Divider(height: 1, color: colors.divider),
           _FilterSection(
             icon: Icons.auto_awesome,
             label: 'Mood:',
             values: preset.moods,
-            color: colors.warning,
-            chipBg: colors.chipBackground,
+            type: PreviousChoicePillType.mood,
           ),
           Divider(height: 1, color: colors.divider),
           _FilterSection(
             icon: Icons.do_not_disturb_alt_outlined,
             label: 'Exceptions:',
             values: preset.exclusions,
-            color: colors.error,
-            chipBg: colors.chipBackground,
+            type: PreviousChoicePillType.exception,
           ),
         ],
       ),
@@ -201,21 +204,20 @@ class _FilterSection extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.values,
-    required this.color,
-    required this.chipBg,
+    required this.type,
   });
 
   final IconData icon;
   final String label;
   final List<String> values;
-  final Color color;
-  final Color chipBg;
+  final PreviousChoicePillType type;
 
   @override
   Widget build(BuildContext context) {
     final FoodMatchThemeColors colors = context.fmColors;
     final bool isEmpty = values.isEmpty;
     final List<String> chips = isEmpty ? <String>['None'] : values;
+    final _PillColors pillColors = _previousChoicePillColors(context, type);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -224,7 +226,7 @@ class _FilterSection extends StatelessWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
-              Icon(icon, color: color, size: 22),
+              Icon(icon, color: pillColors.foreground, size: 22),
               const SizedBox(width: 10),
               Text(
                 label,
@@ -244,8 +246,13 @@ class _FilterSection extends StatelessWidget {
                 .map(
                   (String value) => _PresetChip(
                     label: isEmpty ? value : _formatOptionLabel(value),
-                    color: isEmpty ? colors.textMuted : color,
-                    background: isEmpty ? colors.chipBackground : chipBg,
+                    colors: isEmpty
+                        ? _PillColors(
+                            background: colors.chipBackground,
+                            foreground: colors.textMuted,
+                            border: colors.chipBorder,
+                          )
+                        : pillColors,
                   ),
                 )
                 .toList(),
@@ -274,32 +281,93 @@ String _formatOptionLabel(String value) {
 class _PresetChip extends StatelessWidget {
   const _PresetChip({
     required this.label,
-    required this.color,
-    required this.background,
+    required this.colors,
   });
 
   final String label;
-  final Color color;
-  final Color background;
+  final _PillColors colors;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: background,
+        color: colors.background,
         borderRadius: BorderRadius.circular(99),
-        border: Border.all(color: context.fmColors.chipBorder),
+        border: Border.all(color: colors.border),
       ),
       child: Text(
         label,
         style: GoogleFonts.nunito(
           fontSize: 13,
           fontWeight: FontWeight.w800,
-          color: color,
+          color: colors.foreground,
         ),
       ),
     );
+  }
+}
+
+class _PillColors {
+  const _PillColors({
+    required this.background,
+    required this.foreground,
+    required this.border,
+  });
+
+  final Color background;
+  final Color foreground;
+  final Color border;
+}
+
+_PillColors _previousChoicePillColors(
+  BuildContext context,
+  PreviousChoicePillType type,
+) {
+  final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
+  if (isDark) {
+    switch (type) {
+      case PreviousChoicePillType.cuisine:
+        return const _PillColors(
+          background: Color(0xFF4A3218),
+          foreground: Color(0xFFF0A03A),
+          border: Color(0xFF5A3A1D),
+        );
+      case PreviousChoicePillType.mood:
+        return const _PillColors(
+          background: Color(0xFF4A462C),
+          foreground: Color(0xFFE2C403),
+          border: Color(0xFF5A552F),
+        );
+      case PreviousChoicePillType.exception:
+        return const _PillColors(
+          background: Color(0xFF4A211B),
+          foreground: Color(0xFFFF4E2F),
+          border: Color(0xFF5A2A22),
+        );
+    }
+  }
+
+  switch (type) {
+    case PreviousChoicePillType.cuisine:
+      return const _PillColors(
+        background: Color(0xFFFFEDDE),
+        foreground: Color(0xFFEE8C04),
+        border: Color(0xFFFFD7BB),
+      );
+    case PreviousChoicePillType.mood:
+      return const _PillColors(
+        background: Color(0xFFFFFBDE),
+        foreground: Color(0xFFEECF04),
+        border: Color(0xFFF3E9A6),
+      );
+    case PreviousChoicePillType.exception:
+      return const _PillColors(
+        background: Color(0xFFFFE5DE),
+        foreground: Color(0xFFEE2304),
+        border: Color(0xFFFFC5B8),
+      );
   }
 }
 

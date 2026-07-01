@@ -26,6 +26,7 @@ class _SwipeModeSelectionScreenState extends State<SwipeModeSelectionScreen> {
   @override
   Widget build(BuildContext context) {
     final FoodMatchThemeColors colors = context.fmColors;
+    final _ModeInfoBlockColors switchHintColors = _modeSwitchHintColors(context);
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 36, 20, 24),
       child: Column(
@@ -72,13 +73,12 @@ class _SwipeModeSelectionScreenState extends State<SwipeModeSelectionScreen> {
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: colors.primarySoft,
+              color: switchHintColors.background,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: colors.border),
             ),
             child: Row(
               children: <Widget>[
-                Icon(Icons.lightbulb_outline, color: colors.primary),
+                Icon(Icons.lightbulb_outline, color: switchHintColors.foreground),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -86,7 +86,7 @@ class _SwipeModeSelectionScreenState extends State<SwipeModeSelectionScreen> {
                     style: GoogleFonts.nunito(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
-                      color: colors.primary,
+                      color: switchHintColors.foreground,
                     ),
                   ),
                 ),
@@ -147,8 +147,10 @@ class _ModeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final FoodMatchThemeColors colors = context.fmColors;
-    final Color blockBackground = selected ? colors.primarySoft : colors.cardElevated;
-    final Color blockColor = selected ? colors.primary : colors.textMuted;
+    final _ModeInfoBlockColors blockColors = _modeInfoBlockColors(
+      context,
+      isActive: selected,
+    );
 
     return InkWell(
       onTap: onTap,
@@ -230,13 +232,12 @@ class _ModeCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: blockBackground,
+                color: blockColors.background,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: selected ? colors.primary.withValues(alpha: 0.22) : colors.border),
               ),
               child: Row(
                 children: <Widget>[
-                  Icon(Icons.info_outline, size: 18, color: blockColor),
+                  Icon(Icons.info_outline, size: 18, color: blockColors.foreground),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -245,7 +246,7 @@ class _ModeCard extends StatelessWidget {
                         fontSize: 13,
                         height: 1.3,
                         fontWeight: FontWeight.w700,
-                        color: blockColor,
+                        color: blockColors.foreground,
                       ),
                     ),
                   ),
@@ -257,4 +258,57 @@ class _ModeCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ModeInfoBlockColors {
+  const _ModeInfoBlockColors({
+    required this.background,
+    required this.foreground,
+  });
+
+  final Color background;
+  final Color foreground;
+}
+
+_ModeInfoBlockColors _modeInfoBlockColors(
+  BuildContext context, {
+  required bool isActive,
+}) {
+  final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
+  if (isDark) {
+    return isActive
+        ? const _ModeInfoBlockColors(
+            background: Color(0xFF4A462C),
+            foreground: Color(0xFFE2C403),
+          )
+        : const _ModeInfoBlockColors(
+            background: Color(0xFF504B49),
+            foreground: Color(0xFFC2C2C2),
+          );
+  }
+
+  return isActive
+      ? const _ModeInfoBlockColors(
+          background: Color(0xFFFFFBDE),
+          foreground: Color(0xFFC5AB00),
+        )
+      : const _ModeInfoBlockColors(
+          background: Color(0xFFF7F7F7),
+          foreground: Color(0xFF8B8582),
+        );
+}
+
+_ModeInfoBlockColors _modeSwitchHintColors(BuildContext context) {
+  final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
+  return isDark
+      ? const _ModeInfoBlockColors(
+          background: Color(0xFF1E2A22),
+          foreground: Color(0xFF4AC372),
+        )
+      : const _ModeInfoBlockColors(
+          background: Color(0xFFEAF8EF),
+          foreground: Color(0xFF2E8B57),
+        );
 }
