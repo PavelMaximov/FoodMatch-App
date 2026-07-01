@@ -452,7 +452,6 @@ class _PremiumCta extends StatelessWidget {
   const _PremiumCta({required this.onTap});
 
   final VoidCallback onTap;
-  final String? value;
 
   @override
   Widget build(BuildContext context) {
@@ -531,7 +530,7 @@ class _AvatarContent extends StatelessWidget {
 }
 
 class _FavoritesCard extends StatelessWidget {
-  const _FavoritesCard({required this.onTap});
+  const _FavoritesCard({required this.onTap, this.value});
 
   final VoidCallback onTap;
   final String? value;
@@ -1009,7 +1008,6 @@ class _ProfileInk extends StatelessWidget {
 
   final Widget child;
   final VoidCallback onTap;
-  final String? value;
 
   @override
   Widget build(BuildContext context) {
