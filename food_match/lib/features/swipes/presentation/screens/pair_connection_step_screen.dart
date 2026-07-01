@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/theme_extensions.dart';
 import '../../../../data/models/couple.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../couple/logic/couple_provider.dart';
@@ -106,13 +106,14 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
     final bool leave = await showDialog<bool>(
           context: context,
           builder: (BuildContext dialogContext) => AlertDialog(
-            title: const Text('Leave pair setup?'),
-            content: const Text('Your current invite code will be closed.'),
+            backgroundColor: context.fmColors.modalBackground,
+            title: Text('Leave pair setup?', style: TextStyle(color: context.fmColors.textPrimary)),
+            content: Text('Your current invite code will be closed.', style: TextStyle(color: context.fmColors.textSecondary)),
             actionsAlignment: MainAxisAlignment.center,
             actions: <Widget>[
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext, false),
-                child: const Text('Cancel'),
+                child: Text('Cancel', style: TextStyle(color: context.fmColors.textSecondary)),
               ),
               ElevatedButton(
                 onPressed: () => Navigator.pop(dialogContext, true),
@@ -144,6 +145,7 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
   Widget build(BuildContext context) {
     return Consumer<CoupleProvider>(
       builder: (BuildContext context, CoupleProvider coupleProvider, _) {
+        final FoodMatchThemeColors colors = context.fmColors;
         final Couple? couple = coupleProvider.currentCouple;
         final bool hasSession = couple != null && couple.inviteCode.trim().isNotEmpty;
         if (hasSession && coupleProvider.hasPartner && !_handledConnectedSession) {
@@ -163,7 +165,7 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
                 children: <Widget>[
                   IconButton(
                     onPressed: () => _handleBack(coupleProvider),
-                    icon: const Icon(Icons.arrow_back, color: Color(0xFF2B2725)),
+                    icon: Icon(Icons.arrow_back, color: colors.textPrimary),
                     padding: EdgeInsets.zero,
                     alignment: Alignment.centerLeft,
                   ),
@@ -173,7 +175,7 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
                     style: GoogleFonts.fredoka(
                       fontSize: 28,
                       fontWeight: FontWeight.w700,
-                      color: Colors.black,
+                      color: colors.textPrimary,
                     ),
                   ),
                 ],
@@ -190,7 +192,7 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
               ] else ...<Widget>[
                 Text(
                   'Create your own session',
-                  style: _sectionTitleStyle(),
+                  style: _sectionTitleStyle(context),
                 ),
                 const SizedBox(height: 12),
                 _OrangeButton(
@@ -202,7 +204,7 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
               ],
               Text(
                 'Join an existing session',
-                style: _sectionTitleStyle(),
+                style: _sectionTitleStyle(context),
               ),
               const SizedBox(height: 14),
               _CodeInput(
@@ -223,7 +225,7 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
                   coupleProvider.error!,
                   style: GoogleFonts.nunito(
                     fontSize: 13,
-                    color: coupleProvider.hasActiveSessionConflict ? AppColors.textSecondary : AppColors.error,
+                    color: coupleProvider.hasActiveSessionConflict ? colors.textSecondary : colors.error,
                   ),
                 ),
               ],
@@ -234,10 +236,10 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
     );
   }
 
-  TextStyle _sectionTitleStyle() => GoogleFonts.nunito(
+  TextStyle _sectionTitleStyle(BuildContext context) => GoogleFonts.nunito(
         fontSize: 18,
         fontWeight: FontWeight.w800,
-        color: AppColors.textPrimary,
+        color: context.fmColors.textPrimary,
       );
 }
 
@@ -256,13 +258,14 @@ class _InviteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final FoodMatchThemeColors colors = context.fmColors;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colors.card,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE8E0DD)),
+        border: Border.all(color: colors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -274,9 +277,9 @@ class _InviteCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Text('Invite code:', style: GoogleFonts.nunito(fontSize: 14, color: AppColors.textSecondary)),
+                    Text('Invite code:', style: GoogleFonts.nunito(fontSize: 14, color: colors.textSecondary)),
                     const SizedBox(height: 4),
-                    SelectableText(inviteCode, style: GoogleFonts.nunito(fontSize: 34, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: 2)),
+                    SelectableText(inviteCode, style: GoogleFonts.nunito(fontSize: 34, fontWeight: FontWeight.w800, color: colors.textPrimary, letterSpacing: 2)),
                   ],
                 ),
               ),
@@ -295,14 +298,19 @@ class _InviteCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          Text('Partner: $partnerLabel', style: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+          Text('Partner: $partnerLabel', style: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w700, color: colors.textPrimary)),
           const SizedBox(height: 16),
           Row(
             children: <Widget>[
               Expanded(
                 child: OutlinedButton(
                   onPressed: onReset,
-                  style: OutlinedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36))),
+                  style: OutlinedButton.styleFrom(
+                    backgroundColor: colors.buttonSecondaryBackground,
+                    foregroundColor: colors.buttonSecondaryText,
+                    side: BorderSide(color: colors.borderStrong),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
+                  ),
                   child: const Text('Reset'),
                 ),
               ),
@@ -311,8 +319,8 @@ class _InviteCard extends StatelessWidget {
                 child: ElevatedButton(
                   onPressed: onLeave,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
+                    backgroundColor: colors.buttonPrimaryBackground,
+                    foregroundColor: colors.buttonPrimaryText,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
                   ),
                   child: const Text('Leave'),
@@ -341,6 +349,7 @@ class _CodeInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final FoodMatchThemeColors colors = context.fmColors;
     return GestureDetector(
       onTap: focusNode.requestFocus,
       child: Stack(
@@ -366,16 +375,16 @@ class _CodeInput extends StatelessWidget {
                     height: 48,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: colors.inputBackground,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFE8E0DD)),
+                      border: Border.all(color: colors.inputBorder),
                     ),
                     child: Text(
                       i < code.length ? code[i] : '0',
                       style: GoogleFonts.nunito(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
-                        color: i < code.length ? AppColors.textPrimary : const Color(0xFFC6BEBA),
+                        color: i < code.length ? colors.textPrimary : colors.textMuted,
                       ),
                     ),
                   ),
@@ -415,14 +424,14 @@ class _OrangeButton extends StatelessWidget {
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.55),
-          foregroundColor: Colors.white,
+          backgroundColor: context.fmColors.buttonPrimaryBackground,
+          disabledBackgroundColor: context.fmColors.buttonPrimaryBackground.withValues(alpha: 0.55),
+          foregroundColor: context.fmColors.buttonPrimaryText,
           elevation: 0,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
         ),
         child: isLoading
-            ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+            ? SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: context.fmColors.buttonPrimaryText))
             : Text(label, style: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.w800)),
       ),
     );

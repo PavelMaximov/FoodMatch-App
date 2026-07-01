@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/theme_extensions.dart';
 import '../../../../data/models/user_profile.dart';
 
 class PreviousFilterChoiceScreen extends StatelessWidget {
@@ -20,8 +20,9 @@ class PreviousFilterChoiceScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final FoodMatchThemeColors colors = context.fmColors;
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFBF9),
+      backgroundColor: colors.background,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
@@ -32,19 +33,19 @@ class PreviousFilterChoiceScreen extends StatelessWidget {
                 children: <Widget>[
                   IconButton(
                     onPressed: onClose,
-                    icon: const Icon(Icons.arrow_back, color: Color(0xFF2B2725)),
+                    icon: Icon(Icons.arrow_back, color: colors.textPrimary),
                     padding: EdgeInsets.zero,
                     alignment: Alignment.centerLeft,
                   ),
                   const SizedBox(width: 4),
-                  const Icon(Icons.history, size: 16, color: Color(0xFF7A7270)),
+                  Icon(Icons.history, size: 16, color: colors.textMuted),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       lastUsedLabel(preset.usedAt),
                       style: GoogleFonts.nunito(
                         fontSize: 13,
-                        color: const Color(0xFF7A7270),
+                        color: colors.textMuted,
                       ),
                     ),
                   ),
@@ -57,7 +58,7 @@ class PreviousFilterChoiceScreen extends StatelessWidget {
                   fontSize: 36,
                   fontWeight: FontWeight.w700,
                   height: 1.05,
-                  color: Colors.black,
+                  color: colors.textPrimary,
                 ),
               ),
               const SizedBox(height: 10),
@@ -66,7 +67,7 @@ class PreviousFilterChoiceScreen extends StatelessWidget {
                 style: GoogleFonts.nunito(
                   fontSize: 18,
                   height: 1.35,
-                  color: const Color(0xFF7A7270),
+                  color: colors.textMuted,
                 ),
               ),
               const SizedBox(height: 24),
@@ -81,8 +82,8 @@ class PreviousFilterChoiceScreen extends StatelessWidget {
                   icon: const Icon(Icons.thumb_up_alt_rounded, size: 20),
                   label: const Text('Yes, same vibe'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
+                    backgroundColor: colors.buttonPrimaryBackground,
+                    foregroundColor: colors.buttonPrimaryText,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(36),
@@ -100,8 +101,9 @@ class PreviousFilterChoiceScreen extends StatelessWidget {
                 child: OutlinedButton(
                   onPressed: onChangeFilters,
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.primary,
-                    side: const BorderSide(color: AppColors.primary, width: 2),
+                    backgroundColor: colors.buttonSecondaryBackground,
+                    foregroundColor: colors.primary,
+                    side: BorderSide(color: colors.primary, width: 2),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(36),
@@ -156,11 +158,12 @@ class _PresetCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final FoodMatchThemeColors colors = context.fmColors;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colors.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE7DEDA)),
+        border: Border.all(color: colors.border),
       ),
       child: Column(
         children: <Widget>[
@@ -168,24 +171,24 @@ class _PresetCard extends StatelessWidget {
             icon: Icons.room_service_outlined,
             label: 'Cuisine:',
             values: preset.cuisines,
-            color: const Color(0xFFEE8C04),
-            chipBg: const Color(0xFFFFEDDE),
+            color: colors.primary,
+            chipBg: colors.primarySoft,
           ),
-          const Divider(height: 1, color: Color(0xFFEFE7E3)),
+          Divider(height: 1, color: colors.divider),
           _FilterSection(
             icon: Icons.auto_awesome,
             label: 'Mood:',
             values: preset.moods,
-            color: const Color(0xFFEECF04),
-            chipBg: const Color(0xFFFFFBDE),
+            color: colors.warning,
+            chipBg: colors.chipBackground,
           ),
-          const Divider(height: 1, color: Color(0xFFEFE7E3)),
+          Divider(height: 1, color: colors.divider),
           _FilterSection(
             icon: Icons.do_not_disturb_alt_outlined,
             label: 'Exceptions:',
             values: preset.exclusions,
-            color: const Color(0xFFEE2304),
-            chipBg: const Color(0xFFFFE5DE),
+            color: colors.error,
+            chipBg: colors.chipBackground,
           ),
         ],
       ),
@@ -210,6 +213,7 @@ class _FilterSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final FoodMatchThemeColors colors = context.fmColors;
     final bool isEmpty = values.isEmpty;
     final List<String> chips = isEmpty ? <String>['None'] : values;
 
@@ -226,7 +230,7 @@ class _FilterSection extends StatelessWidget {
                 label,
                 style: GoogleFonts.nunito(
                   fontSize: 15,
-                  color: const Color(0xFF7A7270),
+                  color: colors.textMuted,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -240,8 +244,8 @@ class _FilterSection extends StatelessWidget {
                 .map(
                   (String value) => _PresetChip(
                     label: isEmpty ? value : _formatOptionLabel(value),
-                    color: isEmpty ? const Color(0xFF8B8582) : color,
-                    background: isEmpty ? const Color(0xFFF1ECE9) : chipBg,
+                    color: isEmpty ? colors.textMuted : color,
+                    background: isEmpty ? colors.chipBackground : chipBg,
                   ),
                 )
                 .toList(),
@@ -285,6 +289,7 @@ class _PresetChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: background,
         borderRadius: BorderRadius.circular(99),
+        border: Border.all(color: context.fmColors.chipBorder),
       ),
       child: Text(
         label,
@@ -305,12 +310,13 @@ class _MatchedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final FoodMatchThemeColors colors = context.fmColors;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colors.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE7DEDA)),
+        border: Border.all(color: colors.border),
       ),
       child: Row(
         children: <Widget>[
@@ -320,7 +326,7 @@ class _MatchedCard extends StatelessWidget {
               style: GoogleFonts.nunito(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
-                color: const Color(0xFF2B2725),
+                color: colors.textPrimary,
               ),
             ),
           ),
@@ -329,7 +335,7 @@ class _MatchedCard extends StatelessWidget {
             style: GoogleFonts.nunito(
               fontSize: 18,
               fontWeight: FontWeight.w900,
-              color: AppColors.primary,
+              color: colors.primary,
             ),
           ),
           const SizedBox(width: 4),
@@ -338,11 +344,11 @@ class _MatchedCard extends StatelessWidget {
             style: GoogleFonts.nunito(
               fontSize: 14,
               fontWeight: FontWeight.w700,
-              color: const Color(0xFF7A7270),
+              color: colors.textMuted,
             ),
           ),
           const SizedBox(width: 4),
-          const Icon(Icons.bolt_rounded, color: Color(0xFFEECF04), size: 22),
+          Icon(Icons.bolt_rounded, color: colors.warning, size: 22),
         ],
       ),
     );

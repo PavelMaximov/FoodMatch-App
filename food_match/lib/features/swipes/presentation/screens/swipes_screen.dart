@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/utils/cloudinary_image_url.dart';
 import '../../../../core/utils/image_utils.dart';
@@ -565,7 +566,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
         (_showPairConnectionStep || (hasCouple && !hasPartner && !isSoloMode));
     final bool showHeaderActions = hasCurrentDeckCard && !showActiveSessionChoice && !showModeSelection && !showPairConnection && !_isOpeningPreSwipe;
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.fmColors.background,
       body: SafeArea(
         child: Column(
           children: <Widget>[

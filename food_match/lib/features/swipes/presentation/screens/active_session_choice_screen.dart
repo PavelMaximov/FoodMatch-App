@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/theme_extensions.dart';
 
 class ActiveSessionChoiceScreen extends StatelessWidget {
   const ActiveSessionChoiceScreen({
@@ -17,6 +17,7 @@ class ActiveSessionChoiceScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final FoodMatchThemeColors colors = context.fmColors;
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 42, 20, 24),
       child: Column(
@@ -28,7 +29,7 @@ class ActiveSessionChoiceScreen extends StatelessWidget {
               fontSize: 34,
               fontWeight: FontWeight.w700,
               height: 1.05,
-              color: Colors.black,
+              color: colors.textPrimary,
             ),
           ),
           const SizedBox(height: 12),
@@ -37,7 +38,7 @@ class ActiveSessionChoiceScreen extends StatelessWidget {
             style: GoogleFonts.nunito(
               fontSize: 16,
               height: 1.35,
-              color: const Color(0xFF7A7270),
+              color: colors.textSecondary,
             ),
           ),
           const SizedBox(height: 24),
@@ -45,9 +46,9 @@ class ActiveSessionChoiceScreen extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: colors.card,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFE8E0DD)),
+              border: Border.all(color: colors.border),
             ),
             child: Row(
               children: <Widget>[
@@ -55,14 +56,12 @@ class ActiveSessionChoiceScreen extends StatelessWidget {
                   width: 46,
                   height: 46,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFEDDE),
+                    color: colors.primarySoft,
                     borderRadius: BorderRadius.circular(36),
                   ),
                   child: Icon(
-                    sessionLabel.toLowerCase().contains('solo')
-                        ? Icons.person_rounded
-                        : Icons.group_rounded,
-                    color: AppColors.primary,
+                    sessionLabel.toLowerCase().contains('solo') ? Icons.person_rounded : Icons.group_rounded,
+                    color: colors.primary,
                   ),
                 ),
                 const SizedBox(width: 14),
@@ -75,16 +74,13 @@ class ActiveSessionChoiceScreen extends StatelessWidget {
                         style: GoogleFonts.nunito(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
-                          color: AppColors.textPrimary,
+                          color: colors.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'Choose whether to resume it or start fresh.',
-                        style: GoogleFonts.nunito(
-                          fontSize: 14,
-                          color: const Color(0xFF7A7270),
-                        ),
+                        style: GoogleFonts.nunito(fontSize: 14, color: colors.textSecondary),
                       ),
                     ],
                   ),
@@ -98,8 +94,8 @@ class ActiveSessionChoiceScreen extends StatelessWidget {
             child: ElevatedButton(
               onPressed: onContinue,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
+                backgroundColor: colors.buttonPrimaryBackground,
+                foregroundColor: colors.buttonPrimaryText,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
                 textStyle: GoogleFonts.nunito(fontSize: 17, fontWeight: FontWeight.w800),
@@ -113,8 +109,9 @@ class ActiveSessionChoiceScreen extends StatelessWidget {
             child: OutlinedButton(
               onPressed: onStartNew,
               style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                side: const BorderSide(color: AppColors.primary, width: 2),
+                backgroundColor: colors.buttonSecondaryBackground,
+                foregroundColor: colors.primary,
+                side: BorderSide(color: colors.primary, width: 2),
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
                 textStyle: GoogleFonts.nunito(fontSize: 17, fontWeight: FontWeight.w800),
