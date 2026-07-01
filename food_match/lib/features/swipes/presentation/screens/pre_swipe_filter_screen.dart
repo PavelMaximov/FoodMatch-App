@@ -1126,24 +1126,24 @@ class _FilterBottomPanel extends StatelessWidget {
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 13),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(_PreSwipeFilterScreenState._buttonRadius),
+                      borderRadius: BorderRadius.circular(36),
                     ),
                   ),
                   child: const Text('Back'),
                 ),
               ),
-              const SizedBox(width: 10),
-              TextButton(
-                onPressed: onSkip,
-                child: Text(
-                  'Skip',
-                  style: GoogleFonts.nunito(
-                    fontSize: 16,
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
+              // const SizedBox(width: 10),
+              // TextButton(
+              //   onPressed: onSkip,
+              //   child: Text(
+              //     'Skip',
+              //     style: GoogleFonts.nunito(
+              //       fontSize: 16,
+              //       color: AppColors.primary,
+              //       fontWeight: FontWeight.w700,
+              //     ),
+              //   ),
+              // ),
               const SizedBox(width: 10),
               Expanded(
                 child: ElevatedButton(
@@ -1153,7 +1153,7 @@ class _FilterBottomPanel extends StatelessWidget {
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 13),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(_PreSwipeFilterScreenState._buttonRadius),
+                      borderRadius: BorderRadius.circular(36),
                     ),
                   ),
                   child: Text(primaryLabel),
@@ -1198,7 +1198,7 @@ class _EmptyPoolScreen extends StatelessWidget {
                 onPressed: () => Navigator.of(context).pop(),
                 style: ElevatedButton.styleFrom(
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(_PreSwipeFilterScreenState._buttonRadius),
+                    borderRadius: BorderRadius.circular(36),
                   ),
                 ),
                 child: const Text('Reset filters'),
