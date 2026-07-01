@@ -219,8 +219,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _FavoritesCard(onTap: () => context.push('/favorites')),
             const SizedBox(height: 18),
             _SettingsGroup(
-              themeMode: context.watch<ThemeController>().themeMode,
-              onSettings: _showThemeSettings,
+              onSettings: () => context.push('/profile/settings'),
               onAbout: () => _showComingSoon(context, 'About FoodMatch'),
               onHelp: () => _showComingSoon(context, 'Help'),
             ),
@@ -250,8 +249,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  void _showComingSoon(BuildContext context, String label) {
+    SnackBarUtils.showSuccess(context, '$label coming soon');
+  }
+}
 
-  Future<void> _showThemeSettings() async {
+class ProfileSettingsScreen extends StatelessWidget {
+  const ProfileSettingsScreen({super.key});
+
+  Future<void> _showColorThemeSheet(BuildContext context) async {
     final ThemeController controller = context.read<ThemeController>();
     final FoodMatchThemeColors colors = context.fmColors;
     await showModalBottomSheet<void>(
@@ -272,7 +278,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text(
-                  'Appearance',
+                  'Color theme',
                   style: GoogleFonts.nunito(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
@@ -315,8 +321,88 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _showComingSoon(BuildContext context, String label) {
-    SnackBarUtils.showSuccess(context, '$label coming soon');
+  @override
+  Widget build(BuildContext context) {
+    final ThemeMode themeMode = context.watch<ThemeController>().themeMode;
+    final FoodMatchThemeColors colors = context.fmColors;
+    return Scaffold(
+      backgroundColor: colors.background,
+      body: SafeArea(
+        bottom: false,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 28),
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                _HeaderIconButton(
+                  icon: Icons.arrow_back,
+                  onTap: () => context.pop(),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Settings',
+                  style: AppTextStyles.pageTitle.copyWith(fontSize: 34, color: colors.textPrimary),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            _ProfileSurface(
+              padding: EdgeInsets.zero,
+              child: Column(
+                children: <Widget>[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Appearance',
+                        style: GoogleFonts.nunito(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.4,
+                          color: colors.textMuted,
+                        ),
+                      ),
+                    ),
+                  ),
+                  _SettingsRow(
+                    icon: Icons.palette_outlined,
+                    label: 'Color theme',
+                    value: _themeModeLabel(themeMode),
+                    onTap: () => _showColorThemeSheet(context),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+class _HeaderIconButton extends StatelessWidget {
+  const _HeaderIconButton({required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: context.fmColors.card,
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: SizedBox(
+          width: 40,
+          height: 40,
+          child: Icon(icon, color: context.fmColors.textPrimary),
+        ),
+      ),
+    );
   }
 }
 
@@ -637,13 +723,11 @@ class _ThemeModeOption extends StatelessWidget {
 
 class _SettingsGroup extends StatelessWidget {
   const _SettingsGroup({
-    required this.themeMode,
     required this.onSettings,
     required this.onAbout,
     required this.onHelp,
   });
 
-  final ThemeMode themeMode;
   final VoidCallback onSettings;
   final VoidCallback onAbout;
   final VoidCallback onHelp;
@@ -654,27 +738,7 @@ class _SettingsGroup extends StatelessWidget {
       padding: EdgeInsets.zero,
       child: Column(
         children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Appearance',
-                style: GoogleFonts.nunito(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.4,
-                  color: context.fmColors.textMuted,
-                ),
-              ),
-            ),
-          ),
-          _SettingsRow(
-            icon: Icons.palette_outlined,
-            label: 'Theme',
-            value: _themeModeLabel(themeMode),
-            onTap: onSettings,
-          ),
+          _SettingsRow(icon: Icons.settings_outlined, label: 'Settings', onTap: onSettings),
           _Separator(),
           _SettingsRow(icon: Icons.info_outline, label: 'About FoodMatch', onTap: onAbout),
           _Separator(),
