@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../core/theme/app_colors.dart';
+import '../../core/theme/theme_extensions.dart';
 import '../../core/theme/app_text_styles.dart';
 
 class AppCenteredHeader extends StatelessWidget {
@@ -18,6 +18,7 @@ class AppCenteredHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final FoodMatchThemeColors colors = context.fmColors;
     return Row(
       children: <Widget>[
         _HeaderBackButton(onTap: onBackTap),
@@ -27,7 +28,7 @@ class AppCenteredHeader extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
-            style: AppTextStyles.pageTitle.copyWith(fontSize: 34),
+            style: AppTextStyles.pageTitle.copyWith(fontSize: 34, color: colors.textPrimary),
           ),
         ),
         const SizedBox(width: iconSize, height: iconSize),
@@ -62,6 +63,7 @@ class RecipeSearchFilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final FoodMatchThemeColors colors = context.fmColors;
     return Row(
       children: <Widget>[
         Expanded(
@@ -78,34 +80,34 @@ class RecipeSearchFilterBar extends StatelessWidget {
               style: GoogleFonts.nunito(
                 fontSize: 15,
                 fontWeight: FontWeight.w500,
-                color: AppColors.textPrimary,
+                color: colors.textPrimary,
               ),
               decoration: InputDecoration(
                 hintText: 'Search any recipe',
                 hintStyle: GoogleFonts.nunito(
                   fontSize: 15,
-                  color: const Color(0xFFB8B1AE),
+                  color: colors.textMuted,
                 ),
                 prefixIcon: isActive
                     ? null
-                    : const Icon(Icons.search, size: 18, color: Color(0xFF9B9491)),
+                    : Icon(Icons.search, size: 18, color: colors.textMuted),
                 suffixIcon: isActive
                     ? IconButton(
                         padding: EdgeInsets.zero,
                         onPressed: onCloseOrClear,
-                        icon: const Icon(Icons.close, size: 18, color: AppColors.textPrimary),
+                        icon: Icon(Icons.close, size: 18, color: colors.textPrimary),
                       )
                     : null,
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: colors.inputBackground,
                 contentPadding: EdgeInsets.only(
                   left: isActive ? 14 : 0,
                   right: 10,
                   top: 9,
                   bottom: 9,
                 ),
-                enabledBorder: _border(const Color(0xFFE7E0DD)),
-                focusedBorder: _border(AppColors.primary),
+                enabledBorder: _border(colors.inputBorder),
+                focusedBorder: _border(colors.inputFocusedBorder),
               ),
             ),
           ),
@@ -113,7 +115,7 @@ class RecipeSearchFilterBar extends StatelessWidget {
         if (!isActive) ...<Widget>[
           const SizedBox(width: 12),
           Material(
-            color: Colors.white,
+            color: colors.inputBackground,
             borderRadius: BorderRadius.circular(12),
             child: InkWell(
               borderRadius: BorderRadius.circular(12),
@@ -124,14 +126,14 @@ class RecipeSearchFilterBar extends StatelessWidget {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: hasActiveFilters ? AppColors.primary : const Color(0xFFE7E0DD),
+                    color: hasActiveFilters ? colors.primary : colors.inputBorder,
                     width: 1.4,
                   ),
                 ),
                 child: Icon(
                   Icons.tune,
                   size: 20,
-                  color: hasActiveFilters ? AppColors.primary : AppColors.textPrimary,
+                  color: hasActiveFilters ? colors.primary : colors.textPrimary,
                 ),
               ),
             ),
@@ -161,6 +163,7 @@ class RecentSearchBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final FoodMatchThemeColors colors = context.fmColors;
     if (searches.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -171,7 +174,7 @@ class RecentSearchBlock extends StatelessWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
-              Text('Recent', style: GoogleFonts.nunito(fontSize: 14, color: AppColors.textSecondary)),
+              Text('Recent', style: GoogleFonts.nunito(fontSize: 14, color: colors.textSecondary)),
               const Spacer(),
               GestureDetector(
                 onTap: onClear,
@@ -180,7 +183,7 @@ class RecentSearchBlock extends StatelessWidget {
                   style: GoogleFonts.nunito(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
+                    color: colors.textPrimary,
                   ),
                 ),
               ),
@@ -194,12 +197,12 @@ class RecentSearchBlock extends StatelessWidget {
                 onTap: () => onSelected(query),
                 child: Row(
                   children: <Widget>[
-                    const Icon(Icons.history, size: 16, color: AppColors.primary),
+                    Icon(Icons.history, size: 16, color: colors.primary),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         query,
-                        style: GoogleFonts.nunito(fontSize: 15, color: AppColors.textPrimary),
+                        style: GoogleFonts.nunito(fontSize: 15, color: colors.textPrimary),
                       ),
                     ),
                   ],
@@ -222,10 +225,10 @@ class _HeaderBackButton extends StatelessWidget {
     return InkWell(
       borderRadius: BorderRadius.circular(20),
       onTap: onTap,
-      child: const SizedBox(
+      child: SizedBox(
         width: AppCenteredHeader.iconSize,
         height: AppCenteredHeader.iconSize,
-        child: Icon(Icons.arrow_back, size: 24, color: AppColors.textPrimary),
+        child: Icon(Icons.arrow_back, size: 24, color: context.fmColors.textPrimary),
       ),
     );
   }

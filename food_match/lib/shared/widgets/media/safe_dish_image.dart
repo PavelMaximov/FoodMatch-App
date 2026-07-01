@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/theme_extensions.dart';
 import '../../../core/utils/image_utils.dart';
 import 'safe_network_image.dart';
 
@@ -30,7 +31,7 @@ class SafeDishImage extends StatelessWidget {
       width: width,
       height: height,
       borderRadius: borderRadius,
-      backgroundColor: const Color(0xFFF5EDE8),
+      backgroundColor: context.fmColors.imageFallbackBackground,
       placeholderIcon: Icons.restaurant_menu,
       errorIcon: Icons.restaurant_menu,
     );

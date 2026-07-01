@@ -7,6 +7,7 @@ import 'core/security/api_security_config.dart';
 import 'core/security/privacy_overlay.dart';
 import 'core/security/screen_security_service.dart';
 import 'core/theme/app_theme.dart';
+import 'core/theme/theme_controller.dart';
 import 'features/auth/logic/auth_provider.dart';
 import 'features/couple/logic/couple_provider.dart';
 
@@ -80,6 +81,8 @@ class _FoodMatchAppState extends State<FoodMatchApp> with WidgetsBindingObserver
       title: 'FoodMatch',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: context.watch<ThemeController>().themeMode,
       routerConfig: _router,
       builder: (BuildContext context, Widget? child) {
         return Stack(

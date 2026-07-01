@@ -6,7 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/theme_extensions.dart';
 import '../../../features/couple/logic/couple_provider.dart';
 import '../../../features/matches/logic/match_provider.dart';
 import '../../../features/swipes/logic/swipe_provider.dart';
@@ -158,6 +158,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final int matchCount = context.select<MatchProvider, int>((MatchProvider p) => p.matchCount);
     final int currentIndex = widget.navigationShell.currentIndex;
+    final FoodMatchThemeColors colors = context.fmColors;
 
     return Scaffold(
       body: Column(
@@ -167,7 +168,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
         ],
       ),
       bottomNavigationBar: BottomAppBar(
-        color: const Color(0xFFFFFBF9),
+        color: colors.bottomNavBackground,
         elevation: 8,
         child: SizedBox(
           height: 64,
@@ -194,7 +195,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
                             height: 32,
                             decoration: BoxDecoration(
                               color: isActive
-                                  ? AppColors.navActiveIndicator
+                                  ? colors.bottomNavActiveIndicator
                                   : Colors.transparent,
                               borderRadius: BorderRadius.circular(8),
                             ),
@@ -213,10 +214,10 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
                               child: Container(
                                 padding: const EdgeInsets.all(3),
                                 decoration: BoxDecoration(
-                                  color: AppColors.navBadgeBg,
+                                  color: colors.badgeBackground,
                                   shape: BoxShape.circle,
                                   border: Border.all(
-                                    color: const Color(0xFFFFFBF9),
+                                    color: colors.bottomNavBackground,
                                     width: 1.5,
                                   ),
                                 ),
@@ -230,7 +231,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
                                   style: GoogleFonts.nunito(
                                     fontSize: 10,
                                     fontWeight: FontWeight.w700,
-                                    color: AppColors.navBadgeText,
+                                    color: colors.badgeText,
                                   ),
                                 ),
                               ),
@@ -243,7 +244,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
                         style: GoogleFonts.nunito(
                           fontSize: 10,
                           fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
-                          color: AppColors.navText,
+                          color: isActive ? colors.bottomNavActive : colors.bottomNavInactive,
                         ),
                       ),
                     ],
@@ -288,7 +289,8 @@ class _BottomNavIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color iconColor = isActive ? AppColors.navActiveIcon : AppColors.navIcon;
+    final FoodMatchThemeColors colors = context.fmColors;
+    final Color iconColor = isActive ? colors.bottomNavActive : colors.bottomNavInactive;
     final String iconAsset = item.iconAssetFor(isActive: isActive);
 
     return Center(
