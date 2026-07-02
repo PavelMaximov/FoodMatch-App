@@ -7,8 +7,8 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/errors/error_messages.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/utils/image_utils.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../data/repositories/dish_repository.dart';
@@ -31,8 +31,6 @@ class RecipesScreen extends StatefulWidget {
 
 const double kRecipeChipRadius = 15;
 const double kRecipeChipBorderWidth = 1.6;
-const Color kRecipeChipBorderColor = Color(0xFFE2DBD8);
-const Color kRecipeChipBackgroundColor = Colors.white;
 
 enum MealTabType { breakfast, lunch, dinner, snack }
 
@@ -257,13 +255,14 @@ class _RecipesScreenState extends State<RecipesScreen> {
     final _FilterSelection? next = await showModalBottomSheet<_FilterSelection>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.background,
+      backgroundColor: context.fmColors.modalBackground,
+      barrierColor: context.fmColors.modalBarrier,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (BuildContext context) => Container(
-        decoration: const BoxDecoration(
-          color: AppColors.background,
+        decoration: BoxDecoration(
+          color: context.fmColors.modalBackground,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: _FilterSheet(
@@ -301,8 +300,9 @@ class _RecipesScreenState extends State<RecipesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final FoodMatchThemeColors colors = context.fmColors;
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: colors.background,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -316,7 +316,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
                       Expanded(
                         child: Text(
                           'Recipes',
-                          style: AppTextStyles.pageTitle,
+                          style: AppTextStyles.pageTitle.copyWith(color: colors.textPrimary),
                         ),
                       ),
                       _FavoritesPillButton(
@@ -392,6 +392,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
             style: GoogleFonts.nunito(
               fontSize: 25,
               fontWeight: FontWeight.w800,
+              color: context.fmColors.textPrimary,
             ),
           ),
           const SizedBox(height: 10),
@@ -417,11 +418,12 @@ class _RecipesScreenState extends State<RecipesScreen> {
                   style: GoogleFonts.nunito(
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
+                    color: context.fmColors.textPrimary,
                   ),
                 ),
-                const Text(
+                Text(
                   ' >',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: context.fmColors.primary),
                 ),
               ],
             ),
@@ -747,6 +749,7 @@ class MealTabsBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final FoodMatchThemeColors colors = context.fmColors;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: SizedBox(
@@ -763,10 +766,10 @@ class MealTabsBar extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14),
                 decoration: BoxDecoration(
-                  color: kRecipeChipBackgroundColor,
+                  color: colors.inputBackground,
                   borderRadius: BorderRadius.circular(kRecipeChipRadius),
                   border: Border.all(
-                    color: isActive ? AppColors.primary : kRecipeChipBorderColor,
+                    color: isActive ? colors.primary : colors.chipBorder,
                     width: kRecipeChipBorderWidth,
                   ),
                 ),
@@ -775,7 +778,7 @@ class MealTabsBar extends StatelessWidget {
                     Icon(
                       _iconForTab(tab),
                       size: 18,
-                      color: AppColors.textPrimary,
+                      color: colors.textPrimary,
                     ),
                     const SizedBox(width: 6),
                     Text(
@@ -783,6 +786,7 @@ class MealTabsBar extends StatelessWidget {
                       style: GoogleFonts.nunito(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
+                        color: colors.textPrimary,
                       ),
                     ),
                   ],
@@ -834,6 +838,7 @@ class PopularCategoriesGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final FoodMatchThemeColors colors = context.fmColors;
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -851,8 +856,8 @@ class PopularCategoriesGrid extends StatelessWidget {
           child: Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(13),
-              border: Border.all(color: const Color(0xFFE4DEDB)),
-              color: Colors.white,
+              border: Border.all(color: colors.border),
+              color: colors.card,
             ),
             // padding: const EdgeInsets.all(12),
             child: Stack(
@@ -1255,7 +1260,7 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
     final Set<String> savedDishIds = context.select<FavoritesProvider, Set<String>>((FavoritesProvider p) => p.savedDishIds);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.fmColors.background,
       body: SafeArea(
         child: Column(
           children: <Widget>[
@@ -1369,8 +1374,9 @@ class _FavoritesPillButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final FoodMatchThemeColors colors = context.fmColors;
     return Material(
-      color: const Color(0xFFDCD6D3),
+      color: colors.buttonSecondaryBackground,
       borderRadius: BorderRadius.circular(999),
       child: InkWell(
         borderRadius: BorderRadius.circular(999),
@@ -1386,11 +1392,11 @@ class _FavoritesPillButton extends StatelessWidget {
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: <Widget>[
-                    const Center(
+                    Center(
                       child: Icon(
                         Icons.bookmark,
                         size: 16,
-                        color: AppColors.textPrimary,
+                        color: colors.textPrimary,
                       ),
                     ),
                     if (count > 0)
@@ -1404,7 +1410,7 @@ class _FavoritesPillButton extends StatelessWidget {
                           ),
                           padding: const EdgeInsets.symmetric(horizontal: 2),
                           decoration: BoxDecoration(
-                            color: AppColors.primary,
+                            color: colors.primary,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           alignment: Alignment.center,
@@ -1413,7 +1419,7 @@ class _FavoritesPillButton extends StatelessWidget {
                             style: GoogleFonts.nunito(
                               fontSize: 7,
                               fontWeight: FontWeight.w800,
-                              color: Colors.white,
+                              color: colors.badgeText,
                               height: 1,
                             ),
                           ),
@@ -1428,7 +1434,7 @@ class _FavoritesPillButton extends StatelessWidget {
                 style: GoogleFonts.nunito(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+                  color: colors.textPrimary,
                 ),
               ),
             ],
@@ -1446,12 +1452,13 @@ class _RecipeSearchBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final FoodMatchThemeColors colors = context.fmColors;
     return Material(
-      color: kRecipeChipBackgroundColor,
+      color: colors.inputBackground,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(kRecipeChipRadius),
-        side: const BorderSide(
-          color: kRecipeChipBorderColor,
+        side: BorderSide(
+          color: colors.inputBorder,
           width: kRecipeChipBorderWidth,
         ),
       ),
@@ -1464,7 +1471,7 @@ class _RecipeSearchBar extends StatelessWidget {
             height: 46,
             child: Row(
               children: <Widget>[
-                const Icon(Icons.search, color: Color(0xFF555555), size: 18),
+                Icon(Icons.search, color: colors.textMuted, size: 18),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -1472,7 +1479,7 @@ class _RecipeSearchBar extends StatelessWidget {
                     style: GoogleFonts.nunito(
                       fontSize: 16,
                       fontWeight: FontWeight.w400,
-                      color: const Color(0xFFAAAAAA),
+                      color: colors.textMuted,
                     ),
                   ),
                 ),
@@ -1500,8 +1507,9 @@ class _SavedDishTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final FoodMatchThemeColors colors = context.fmColors;
     return Material(
-      color: Colors.white,
+      color: colors.dishCardBackground,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -1528,7 +1536,7 @@ class _SavedDishTile extends StatelessWidget {
                   style: GoogleFonts.nunito(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
+                    color: colors.textPrimary,
                   ),
                 ),
               ),
@@ -1537,8 +1545,8 @@ class _SavedDishTile extends StatelessWidget {
                 icon: Icon(
                   isSaved ? Icons.bookmark : Icons.bookmark_border,
                   color: isSaved
-                      ? const Color(0xFFFF5D33)
-                      : AppColors.textSecondary,
+                      ? colors.favoriteActive
+                      : colors.favoriteInactive,
                 ),
               ),
             ],
@@ -1567,10 +1575,14 @@ class _RecipeSearchDelegate extends SearchDelegate<Dish?> {
   @override
   ThemeData appBarTheme(BuildContext context) {
     final ThemeData base = Theme.of(context);
+    final FoodMatchThemeColors colors = context.fmColors;
     return base.copyWith(
       appBarTheme: base.appBarTheme.copyWith(
-        backgroundColor: AppColors.background,
+        backgroundColor: colors.background,
+        foregroundColor: colors.textPrimary,
+        iconTheme: IconThemeData(color: colors.textPrimary),
       ),
+      scaffoldBackgroundColor: colors.background,
       inputDecorationTheme: const InputDecorationTheme(
         border: InputBorder.none,
       ),
@@ -1594,12 +1606,12 @@ class _RecipeSearchDelegate extends SearchDelegate<Dish?> {
   }
 
   @override
-  Widget buildResults(BuildContext context) => _buildList();
+  Widget buildResults(BuildContext context) => _buildList(context);
 
   @override
-  Widget buildSuggestions(BuildContext context) => _buildList();
+  Widget buildSuggestions(BuildContext context) => _buildList(context);
 
-  Widget _buildList() {
+  Widget _buildList(BuildContext context) {
     final String q = query.trim().toLowerCase();
     final List<Dish> source = q.isEmpty
         ? List<Dish>.from(_dishes)
@@ -1622,7 +1634,9 @@ class _RecipeSearchDelegate extends SearchDelegate<Dish?> {
       );
     }
 
-    return ListView.separated(
+    return ColoredBox(
+      color: context.fmColors.background,
+      child: ListView.separated(
       padding: const EdgeInsets.all(16),
       itemCount: results.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
@@ -1642,6 +1656,7 @@ class _RecipeSearchDelegate extends SearchDelegate<Dish?> {
           onOpen: () => close(context, dish),
         );
       },
+      ),
     );
   }
 }
@@ -1693,6 +1708,7 @@ class _FilterSheetState extends State<_FilterSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final FoodMatchThemeColors colors = context.fmColors;
     return SafeArea(
       child: SizedBox(
         height: MediaQuery.sizeOf(context).height * 0.82,
@@ -1706,7 +1722,7 @@ class _FilterSheetState extends State<_FilterSheet> {
                   width: 46,
                   height: 5,
                   decoration: BoxDecoration(
-                    color: Colors.black12,
+                    color: colors.borderStrong,
                     borderRadius: BorderRadius.circular(999),
                   ),
                 ),
@@ -1717,7 +1733,7 @@ class _FilterSheetState extends State<_FilterSheet> {
                 style: GoogleFonts.nunito(
                   fontSize: 24,
                   fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
+                  color: colors.textPrimary,
                 ),
               ),
               const SizedBox(height: 12),
@@ -1758,6 +1774,9 @@ class _FilterSheetState extends State<_FilterSheet> {
               Row(
                 children: <Widget>[
                   TextButton(
+                    style: TextButton.styleFrom(
+                      foregroundColor: colors.buttonSecondaryText,
+                    ),
                     onPressed: () => Navigator.of(context).pop(
                       const _FilterSelection(
                         cuisines: <String>{},
@@ -1770,6 +1789,10 @@ class _FilterSheetState extends State<_FilterSheet> {
                   ),
                   const Spacer(),
                   ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: colors.buttonPrimaryBackground,
+                      foregroundColor: colors.buttonPrimaryText,
+                    ),
                     onPressed: () => Navigator.of(context).pop(
                       _FilterSelection(
                         cuisines: _cuisines,
@@ -1815,6 +1838,7 @@ class _FilterGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final FoodMatchThemeColors colors = context.fmColors;
     if (options.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -1829,7 +1853,7 @@ class _FilterGroup extends StatelessWidget {
             style: GoogleFonts.nunito(
               fontSize: 17,
               fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+              color: colors.textPrimary,
             ),
           ),
           const SizedBox(height: 8),
@@ -1839,16 +1863,22 @@ class _FilterGroup extends StatelessWidget {
             children: options.map((String option) {
               final bool isSelected = selected.contains(option);
               return FilterChip(
-                label: Text(option),
+                label: Text(
+                  option,
+                  style: GoogleFonts.nunito(
+                    color: isSelected ? colors.primary : colors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
                 selected: isSelected,
                 onSelected: (_) => onToggle(option),
                 showCheckmark: false,
-                backgroundColor: Colors.white,
-                selectedColor: const Color(0xFFFFEFE7),
+                backgroundColor: colors.chipBackground,
+                selectedColor: colors.primarySoft,
                 side: BorderSide(
                   color: isSelected
-                      ? AppColors.primary
-                      : const Color(0xFFE0D8D5),
+                      ? colors.chipSelectedBorder
+                      : colors.chipBorder,
                 ),
               );
             }).toList(),

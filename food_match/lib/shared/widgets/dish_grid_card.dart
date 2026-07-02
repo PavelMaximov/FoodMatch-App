@@ -48,13 +48,6 @@ class DishGridCard extends StatelessWidget {
               color: colors.dishCardBackground,
               border: Border.all(color: colors.dishCardBorder),
               borderRadius: BorderRadius.circular(_DishGridCardTokens.cardRadius),
-              // boxShadow: <BoxShadow>[
-              //   BoxShadow(
-              //     color: Colors.black.withValues(alpha: 0.08),
-              //     blurRadius: 12,
-              //     offset: const Offset(0, 4),
-              //   ),
-              // ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

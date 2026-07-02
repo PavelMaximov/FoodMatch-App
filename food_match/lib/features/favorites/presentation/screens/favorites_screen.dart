@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/theme_extensions.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
@@ -259,7 +259,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     final List<Dish> visibleFavorites = _visibleFavorites(favoritesProvider.savedDishes);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.fmColors.background,
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -406,7 +406,7 @@ class _ResultSummary extends StatelessWidget {
           style: GoogleFonts.nunito(
             fontSize: 13,
             fontWeight: FontWeight.w700,
-            color: AppColors.textSecondary,
+            color: context.fmColors.textSecondary,
           ),
         ),
         const Spacer(),
