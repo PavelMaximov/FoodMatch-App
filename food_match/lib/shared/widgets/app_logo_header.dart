@@ -3,7 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants/app_strings.dart';
-import '../../core/theme/app_colors.dart';
+import '../../core/theme/theme_extensions.dart';
 
 class AppLogoHeader extends StatelessWidget {
   final bool showSubtitle;
@@ -18,10 +18,10 @@ class AppLogoHeader extends StatelessWidget {
           'assets/logos/foodmatch_logo.svg',
           width: 260,
           height: 78,
-          placeholderBuilder: (_) => const Icon(
+          placeholderBuilder: (BuildContext context) => Icon(
             Icons.restaurant_menu,
             size: 64,
-            color: AppColors.textPrimary,
+            color: context.fmColors.textPrimary,
           ),
         ),
         const SizedBox(height: 12),
@@ -33,7 +33,7 @@ class AppLogoHeader extends StatelessWidget {
               AppStrings.appTagline,
               style: GoogleFonts.nunito(
                 fontSize: 14,
-                color: AppColors.textSecondary,
+                color: context.fmColors.textSecondary,
               ),
               textAlign: TextAlign.center,
             ),
