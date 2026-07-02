@@ -5,9 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/constants/app_strings.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimensions.dart';
-import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/utils/image_utils.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../data/models/recipe_step.dart';
@@ -65,11 +64,12 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     final Dish? dish = context.select<RecipeProvider, Dish?>((RecipeProvider p) => p.currentDish);
     final bool isLoading = context.select<RecipeProvider, bool>((RecipeProvider p) => p.isLoading);
     final String? error = context.select<RecipeProvider, String?>((RecipeProvider p) => p.error);
+    final FoodMatchThemeColors colors = context.fmColors;
 
     if (isLoading) {
-      return const Scaffold(
-        backgroundColor: AppColors.background,
-        body: Padding(
+      return Scaffold(
+        backgroundColor: colors.background,
+        body: const Padding(
           padding: EdgeInsets.all(AppDimensions.paddingM),
           child: ShimmerCard(),
         ),
@@ -78,7 +78,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
     if (error != null && dish == null) {
       return Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: colors.background,
         body: SafeArea(
           child: ErrorState(
             message: error,
@@ -93,20 +93,24 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
     if (dish == null) {
       return Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: colors.background,
         body: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               IconButton(
                 onPressed: () => Navigator.of(context).pop(),
-                icon: const Icon(Icons.arrow_back),
+                icon: Icon(Icons.arrow_back, color: colors.textPrimary),
               ),
               Expanded(
                 child: Center(
                   child: Text(
                     AppStrings.recipeNotAvailable,
-                    style: AppTextStyles.bodyLarge,
+                    style: GoogleFonts.nunito(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: colors.textPrimary,
+                    ),
                   ),
                 ),
               ),
@@ -124,7 +128,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     final bool isFavoriteUpdating = context.select<FavoritesProvider, bool>((FavoritesProvider p) => p.isUpdating(dish.id));
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: colors.background,
       body: Stack(
         children: <Widget>[
           CustomScrollView(
@@ -204,6 +208,7 @@ class _StickyOverlayButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final FoodMatchThemeColors colors = context.fmColors;
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.only(top: 12, left: 20, right: 20),
@@ -212,18 +217,18 @@ class _StickyOverlayButtons extends StatelessWidget {
           children: <Widget>[
             _OverlayCircleButton(
               icon: Icons.arrow_back,
-              iconColor: isScrolled ? Colors.white : AppColors.textPrimary,
-              backgroundColor: isScrolled ? Colors.black.withValues(alpha: 0.70) : Colors.white,
+              iconColor: isScrolled ? colors.buttonPrimaryText : colors.textPrimary,
+              backgroundColor: isScrolled ? colors.overlay : colors.cardElevated,
               onTap: onBackTap,
             ),
             _OverlayCircleButton(
               icon: isFavorite ? Icons.bookmark : Icons.bookmark_border,
               iconColor: isFavorite
-                  ? AppColors.primary
+                  ? colors.favoriteActive
                   : isScrolled
-                      ? Colors.white
-                      : AppColors.textPrimary,
-              backgroundColor: isScrolled ? Colors.black.withValues(alpha: 0.70) : Colors.white,
+                      ? colors.buttonPrimaryText
+                      : colors.favoriteInactive,
+              backgroundColor: isScrolled ? colors.overlay : colors.cardElevated,
               onTap: isFavoriteUpdating ? null : onFavoriteTap,
               isLoading: isFavoriteUpdating,
             ),
@@ -293,11 +298,12 @@ class _RecipeContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final FoodMatchThemeColors colors = context.fmColors;
     final EdgeInsets safePadding = MediaQuery.paddingOf(context);
     final List<_IngredientDisplayRow> ingredientRows = _buildIngredientRows(dish);
 
     return ColoredBox(
-      color: AppColors.background,
+      color: colors.background,
       child: Padding(
         padding: EdgeInsets.fromLTRB(
           AppDimensions.paddingL,
@@ -316,7 +322,7 @@ class _RecipeContent extends StatelessWidget {
                 fontSize: 27,
                 fontWeight: FontWeight.w800,
                 height: 1.08,
-                color: AppColors.textPrimary,
+                color: colors.textPrimary,
               ),
             ),
             if (dish.description.trim().isNotEmpty) ...<Widget>[
@@ -328,7 +334,7 @@ class _RecipeContent extends StatelessWidget {
                 style: GoogleFonts.nunito(
                   fontSize: 14,
                   height: 1.42,
-                  color: AppColors.textSecondary,
+                  color: colors.textSecondary,
                 ),
               ),
             ],
@@ -406,17 +412,18 @@ class _TagChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final FoodMatchThemeColors colors = context.fmColors;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colors.chipBackground,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.divider),
+        border: Border.all(color: colors.chipBorder),
       ),
       child: Text(
         label,
         style: GoogleFonts.nunito(
-          color: AppColors.chipText,
+          color: colors.textSecondary,
           fontSize: 12.5,
           fontWeight: FontWeight.w700,
         ),
@@ -432,19 +439,20 @@ class _StatsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final FoodMatchThemeColors colors = context.fmColors;
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 15),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colors.metadataPillBackground,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.divider),
+        border: Border.all(color: colors.border),
       ),
       child: Row(
         children: <Widget>[
           Expanded(child: _StatItem(icon: Icons.schedule, label: _formatCookTime(dish.cookTime))),
-          const _VerticalDivider(),
+          _VerticalDivider(color: colors.divider),
           Expanded(child: _StatItem(icon: Icons.groups_outlined, label: _formatServings(dish.servings))),
-          const _VerticalDivider(),
+          _VerticalDivider(color: colors.divider),
           Expanded(
             child: _StatItem(
               icon: Icons.local_fire_department_outlined,
@@ -503,11 +511,12 @@ class _StatItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final FoodMatchThemeColors colors = context.fmColors;
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        Icon(icon, size: 17, color: AppColors.textPrimary),
+        Icon(icon, size: 17, color: colors.metadataIcon),
         const SizedBox(width: 5),
         Flexible(
           child: Text(
@@ -517,7 +526,7 @@ class _StatItem extends StatelessWidget {
             style: GoogleFonts.nunito(
               fontSize: 14,
               fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+              color: colors.textPrimary,
             ),
           ),
         ),
@@ -527,11 +536,13 @@ class _StatItem extends StatelessWidget {
 }
 
 class _VerticalDivider extends StatelessWidget {
-  const _VerticalDivider();
+  const _VerticalDivider({required this.color});
+
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
-    return Container(width: 1, height: 28, color: AppColors.divider);
+    return Container(width: 1, height: 28, color: color);
   }
 }
 
@@ -571,8 +582,9 @@ class _TabButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final FoodMatchThemeColors colors = context.fmColors;
     return Material(
-      color: isActive ? AppColors.primaryLight : const Color(0xFFF0EDEB),
+      color: isActive ? colors.buttonPrimaryBackground : colors.cardElevated,
       borderRadius: const BorderRadius.vertical(top: Radius.circular(19)),
       child: InkWell(
         borderRadius: const BorderRadius.vertical(top: Radius.circular(19)),
@@ -584,7 +596,7 @@ class _TabButton extends StatelessWidget {
             style: GoogleFonts.nunito(
               fontSize: 14,
               fontWeight: FontWeight.w800,
-              color: isActive ? Colors.white : AppColors.textPrimary,
+              color: isActive ? colors.buttonPrimaryText : colors.textPrimary,
             ),
           ),
         ),
@@ -600,12 +612,13 @@ class _TabPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final FoodMatchThemeColors colors = context.fmColors;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Color(0xFFF0EDEB))),
+      decoration: BoxDecoration(
+        color: colors.card,
+        border: Border(top: BorderSide(color: colors.divider)),
       ),
       child: child,
     );
@@ -656,10 +669,11 @@ class _IngredientText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final FoodMatchThemeColors colors = context.fmColors;
     final TextStyle baseStyle = GoogleFonts.nunito(
       fontSize: 14.5,
       height: 1.35,
-      color: AppColors.textPrimary,
+      color: colors.textPrimary,
     );
     final String measurement = row.measurement?.trim() ?? '';
 
@@ -686,6 +700,7 @@ class _InstructionsContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final FoodMatchThemeColors colors = context.fmColors;
     if (steps.isEmpty) {
       return const _InlineEmptyState(
         icon: Icons.menu_book_outlined,
@@ -706,7 +721,7 @@ class _InstructionsContent extends StatelessWidget {
                 style: GoogleFonts.nunito(
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
-                  color: AppColors.primary,
+                  color: colors.primary,
                 ),
               ),
               const SizedBox(width: 10),
@@ -716,7 +731,7 @@ class _InstructionsContent extends StatelessWidget {
                   style: GoogleFonts.nunito(
                     fontSize: 14.5,
                     height: 1.4,
-                    color: AppColors.textPrimary,
+                    color: colors.textPrimary,
                   ),
                 ),
               ),
@@ -737,13 +752,23 @@ class _InlineEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final FoodMatchThemeColors colors = context.fmColors;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 18),
       child: Row(
         children: <Widget>[
-          Icon(icon, color: AppColors.textSecondary),
+          Icon(icon, color: colors.textMuted),
           const SizedBox(width: 10),
-          Expanded(child: Text(message, style: AppTextStyles.bodyMedium)),
+          Expanded(
+            child: Text(
+              message,
+              style: GoogleFonts.nunito(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: colors.textSecondary,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -782,19 +807,23 @@ class _DashedDivider extends StatelessWidget {
     return SizedBox(
       height: 1,
       width: double.infinity,
-      child: CustomPaint(painter: _DashedDividerPainter()),
+      child: CustomPaint(painter: _DashedDividerPainter(context.fmColors.divider)),
     );
   }
 }
 
 class _DashedDividerPainter extends CustomPainter {
+  const _DashedDividerPainter(this.color);
+
+  final Color color;
+
   @override
   void paint(Canvas canvas, Size size) {
     const double dashWidth = 5;
     const double dashGap = 4;
     double startX = 0;
     final Paint paint = Paint()
-      ..color = AppColors.divider
+      ..color = color
       ..strokeWidth = 1;
 
     while (startX < size.width) {
@@ -804,5 +833,5 @@ class _DashedDividerPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _DashedDividerPainter oldDelegate) => oldDelegate.color != color;
 }
