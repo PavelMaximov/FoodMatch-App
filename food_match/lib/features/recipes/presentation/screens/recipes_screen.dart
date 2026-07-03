@@ -141,7 +141,6 @@ class RecipeCategoryConfig {
   const RecipeCategoryConfig({
     required this.id,
     required this.title,
-    required this.assetName,
     required this.filter,
     this.query = const RecipeResultsQuery(sort: 'default'),
     this.postFilter,
@@ -149,7 +148,6 @@ class RecipeCategoryConfig {
 
   final String id;
   final String title;
-  final String assetName;
   final bool Function(Dish dish) filter;
   final RecipeResultsQuery query;
   final bool Function(Dish dish)? postFilter;
@@ -594,14 +592,12 @@ class _RecipesScreenState extends State<RecipesScreen> {
     RecipeCategoryConfig(
       id: 'quick_easy',
       title: 'Quick & Easy',
-      assetName: 'Quick & Easy.png',
       query: const RecipeResultsQuery(maxTotalTime: 30, sort: 'cookTime'),
       filter: (Dish d) => d.cookTime > 0 && d.cookTime <= 30,
     ),
     RecipeCategoryConfig(
       id: 'comfort_food',
       title: 'Comfort Food',
-      assetName: 'Comfort Food.png',
       query: const RecipeResultsQuery(mood: <String>['comfort']),
       filter: (Dish d) =>
           d.mood.map((e) => e.toLowerCase()).contains('comfort'),
@@ -609,7 +605,6 @@ class _RecipesScreenState extends State<RecipesScreen> {
     RecipeCategoryConfig(
       id: 'healthy_choices',
       title: 'Healthy Choices',
-      assetName: 'Healthy Choices.png',
       query: const RecipeResultsQuery(mood: <String>['healthy']),
       filter: (Dish d) {
         final Set<String> mood = d.mood.map((e) => e.toLowerCase()).toSet();
@@ -622,7 +617,6 @@ class _RecipesScreenState extends State<RecipesScreen> {
     RecipeCategoryConfig(
       id: 'party_snacks',
       title: 'Party Snacks',
-      assetName: 'Party Snacks.png',
       query: const RecipeResultsQuery(type: 'snack', mood: <String>['festive']),
       filter: (Dish d) =>
           d.type.toLowerCase() == 'snack' &&
@@ -631,14 +625,12 @@ class _RecipesScreenState extends State<RecipesScreen> {
     RecipeCategoryConfig(
       id: 'under_30',
       title: 'Under 30 Minutes',
-      assetName: 'Under 30 Minutes.png',
       query: const RecipeResultsQuery(timeTier: 'under_30_minutes', sort: 'cookTime'),
       filter: (Dish d) => d.cookTime > 0 && d.cookTime <= 30,
     ),
     RecipeCategoryConfig(
       id: 'five_ingredients',
       title: '5 Ingredients',
-      assetName: '5 Ingredients.png',
       query: const RecipeResultsQuery(maxIngredients: 5),
       postFilter: (Dish d) {
         if (d.sections.isNotEmpty) {
@@ -656,14 +648,12 @@ class _RecipesScreenState extends State<RecipesScreen> {
     RecipeCategoryConfig(
       id: 'popular',
       title: 'Most Popular',
-      assetName: 'Most Popular.png',
       query: const RecipeResultsQuery(popular: true, sort: 'popular'),
       filter: (Dish d) => d.popular,
     ),
     RecipeCategoryConfig(
       id: 'vegetarian',
       title: 'Vegetarian',
-      assetName: 'Vegetarian.png',
       query: const RecipeResultsQuery(diet: <String>['vegetarian']),
       filter: (Dish d) =>
           d.diet.map((e) => e.toLowerCase()).contains('vegetarian'),
@@ -671,28 +661,24 @@ class _RecipesScreenState extends State<RecipesScreen> {
     RecipeCategoryConfig(
       id: 'soups',
       title: 'Soups',
-      assetName: 'Soups.png',
       query: const RecipeResultsQuery(type: 'soup'),
       filter: (Dish d) => d.type.toLowerCase() == 'soup',
     ),
     RecipeCategoryConfig(
       id: 'desserts',
       title: 'Desserts',
-      assetName: 'Desserts.png',
       query: const RecipeResultsQuery(type: 'dessert'),
       filter: (Dish d) => d.type.toLowerCase() == 'dessert',
     ),
     RecipeCategoryConfig(
       id: 'german',
-      title: 'German Favorites',
-      assetName: 'German Favourites.png',
+      title: 'German Favourite',
       query: const RecipeResultsQuery(cuisine: 'german'),
       filter: (Dish d) => d.cuisine.trim().toLowerCase() == 'german',
     ),
     RecipeCategoryConfig(
       id: 'asian',
       title: 'Asian Flavours',
-      assetName: 'Asian Flavours.png',
       query: const RecipeResultsQuery(cuisine: 'asian,japanese'),
       filter: (Dish d) {
         final String cuisine = d.cuisine.toLowerCase();
@@ -851,6 +837,10 @@ class PopularCategoriesGrid extends StatelessWidget {
       ),
       itemBuilder: (_, int index) {
         final RecipeCategoryConfig category = categories[index];
+        final String assetPath = _popularCategoryAssetPath(
+          context,
+          category.title,
+        );
         return GestureDetector(
           onTap: () => onTap(category),
           child: Container(
@@ -859,43 +849,55 @@ class PopularCategoriesGrid extends StatelessWidget {
               border: Border.all(color: colors.border),
               color: colors.card,
             ),
-            // padding: const EdgeInsets.all(12),
-            child: Stack(
-              children: <Widget>[
-                Positioned.fill(child: _buildCategoryBackground(category)),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 6),
-                    child: Text(
-                      category.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      softWrap: true,
-                      style: GoogleFonts.nunito(
-                        color: const Color.fromARGB(255, 255, 255, 255),
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.asset(
+                assetPath,
+                fit: BoxFit.cover,
+                alignment: Alignment.center,
+                errorBuilder: (_, __, ___) => _PopularCategoryFallback(
+                  title: category.title,
                 ),
-              ],
+              ),
             ),
           ),
         );
       },
     );
   }
+}
 
-  Widget _buildCategoryBackground(RecipeCategoryConfig category) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: SizedBox.expand(
-        child: Image.asset(
-          'assets/media/${category.assetName}',
-          fit: BoxFit.cover,
-          alignment: Alignment.center,
+String _popularCategoryAssetPath(BuildContext context, String categoryName) {
+  final String suffix = Theme.of(context).brightness == Brightness.dark
+      ? 'd'
+      : 'l';
+  return 'assets/media/$categoryName-$suffix.png';
+}
+
+class _PopularCategoryFallback extends StatelessWidget {
+  const _PopularCategoryFallback({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    final FoodMatchThemeColors colors = context.fmColors;
+    return Container(
+      alignment: Alignment.centerLeft,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: colors.cardElevated,
+        border: Border.all(color: colors.border),
+      ),
+      child: Text(
+        title,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        softWrap: true,
+        style: GoogleFonts.nunito(
+          color: colors.textPrimary,
+          fontSize: 16,
+          fontWeight: FontWeight.w800,
         ),
       ),
     );
