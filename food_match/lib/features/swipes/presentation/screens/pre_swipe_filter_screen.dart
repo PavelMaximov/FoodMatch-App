@@ -18,10 +18,20 @@ import '../../logic/pre_swipe_provider.dart';
 import '../../logic/swipe_provider.dart';
 import 'previous_filter_choice_screen.dart';
 
+enum PreSwipeFilterIntent {
+  createNewSession,
+  updateActiveSoloSession,
+}
+
 class PreSwipeFilterScreen extends StatefulWidget {
-  const PreSwipeFilterScreen({super.key, this.mode = 'paired'});
+  const PreSwipeFilterScreen({
+    super.key,
+    this.mode = 'paired',
+    this.intent = PreSwipeFilterIntent.createNewSession,
+  });
 
   final String mode;
+  final PreSwipeFilterIntent intent;
 
   @override
   State<PreSwipeFilterScreen> createState() => _PreSwipeFilterScreenState();
@@ -39,6 +49,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   bool _waitingForPartner = false;
   bool _isPreparingSharedDeck = false;
   bool _hasStartedPrepareAfterBothConfirmed = false;
+  bool _isApplyingFilters = false;
   String? _pendingUserId;
   LastFilterPreset? _lastFilterPreset;
   late final CoupleProvider _coupleProvider;
@@ -537,6 +548,9 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   }
 
   Future<void> _confirmCurrentFilters() async {
+    if (_isApplyingFilters) {
+      return;
+    }
     final String? userId = context.read<AuthProvider>().currentUser?.id;
     if (userId == null) {
       Navigator.pop(context);
@@ -553,17 +567,21 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       partnerChoices: widget.mode == 'paired' ? coupleProvider.partnerChoices : null,
     );
 
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _isApplyingFilters = true;
+    });
     if (widget.mode == 'solo') {
       final SwipeProvider swipeProvider = context.read<SwipeProvider>();
-      final bool ready = swipeProvider.activeSoloSessionId == null
-          ? await swipeProvider.createSoloSession(
+      final bool shouldUpdateActiveSession = widget.intent == PreSwipeFilterIntent.updateActiveSoloSession;
+      final bool ready = shouldUpdateActiveSession
+          ? await swipeProvider.rebuildActiveSoloSessionFilters(
               cuisines: _cuisines.toList(),
               moods: _moods.toList(),
               blocked: _blocked.toList(),
               diet: _diet.toList(),
             )
-          : await swipeProvider.updateActiveSoloFilter(
+          : await swipeProvider.createSoloSession(
               cuisines: _cuisines.toList(),
               moods: _moods.toList(),
               blocked: _blocked.toList(),
@@ -576,7 +594,10 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         if (!mounted) return;
         Navigator.pop(context, PreparedPoolResult(dishes: swipeProvider.deck, seenDishIds: <String>{}, usedFallback: false, relaxed: false, messages: const <String>[]));
       } else {
-        setState(() => _loading = false);
+        setState(() {
+          _loading = false;
+          _isApplyingFilters = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(swipeProvider.error ?? 'Could not update filters. You can go back to your current deck.')));
       }
       return;
@@ -604,6 +625,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       debugPrint('[PreSwipe] waiting for partner filters');
       setState(() {
         _loading = false;
+        _isApplyingFilters = false;
         _waitingForPartner = true;
         _pendingUserId = userId;
         _hasStartedPrepareAfterBothConfirmed = false;
@@ -752,6 +774,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       }
       setState(() {
         _loading = false;
+        _isApplyingFilters = false;
         _isPreparingSharedDeck = false;
         _waitingForPartner = true;
         _hasStartedPrepareAfterBothConfirmed = false;
@@ -765,6 +788,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     }
     setState(() {
       _loading = false;
+      _isApplyingFilters = false;
       _waitingForPartner = false;
       _isPreparingSharedDeck = false;
     });
@@ -786,6 +810,9 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   }
 
   Future<void> _skip() async {
+    if (_isApplyingFilters) {
+      return;
+    }
     final String? userId = context.read<AuthProvider>().currentUser?.id;
     if (userId == null) {
       Navigator.pop(context);
@@ -793,16 +820,20 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     }
 
     if (widget.mode == 'solo') {
-      setState(() => _loading = true);
+      setState(() {
+        _loading = true;
+        _isApplyingFilters = true;
+      });
       final SwipeProvider swipeProvider = context.read<SwipeProvider>();
-      final bool ready = swipeProvider.activeSoloSessionId == null
-          ? await swipeProvider.createSoloSession(
+      final bool shouldUpdateActiveSession = widget.intent == PreSwipeFilterIntent.updateActiveSoloSession;
+      final bool ready = shouldUpdateActiveSession
+          ? await swipeProvider.rebuildActiveSoloSessionFilters(
               cuisines: const <String>[],
               moods: const <String>[],
               blocked: const <String>[],
               diet: const <String>[],
             )
-          : await swipeProvider.updateActiveSoloFilter(
+          : await swipeProvider.createSoloSession(
               cuisines: const <String>[],
               moods: const <String>[],
               blocked: const <String>[],
@@ -829,7 +860,10 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
           ),
         );
       } else {
-        setState(() => _loading = false);
+        setState(() {
+          _loading = false;
+          _isApplyingFilters = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(swipeProvider.error ?? 'Could not update filters. You can go back to your current deck.')),
         );

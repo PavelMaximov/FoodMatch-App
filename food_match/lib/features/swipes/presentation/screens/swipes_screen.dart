@@ -262,12 +262,12 @@ class _SwipesScreenState extends State<SwipesScreen> {
     });
   }
 
-  Future<void> _runSoloPreSwipeFlow() async {
+  Future<void> _runSoloPreSwipeFlow({PreSwipeFilterIntent intent = PreSwipeFilterIntent.createNewSession}) async {
     if (_isOpeningPreSwipe) return;
     _isOpeningPreSwipe = true;
     final SwipeProvider swipeProvider = context.read<SwipeProvider>();
     swipeProvider.setActiveUser(context.read<AuthProvider>().currentUser?.id);
-    final PreparedPoolResult? result = await Navigator.of(context).push<PreparedPoolResult>(MaterialPageRoute<PreparedPoolResult>(fullscreenDialog: true, builder: (_) => const PreSwipeFilterScreen(mode: 'solo')));
+    final PreparedPoolResult? result = await Navigator.of(context).push<PreparedPoolResult>(MaterialPageRoute<PreparedPoolResult>(fullscreenDialog: true, builder: (_) => PreSwipeFilterScreen(mode: 'solo', intent: intent)));
     if (!mounted) { _isOpeningPreSwipe = false; return; }
     if (result != null && result.dishes.isNotEmpty) {
       _resetSwipeStackController();
@@ -533,7 +533,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
       return;
     }
     if (provider.isSoloMode && provider.activeSoloSessionId != null) {
-      await _runSoloPreSwipeFlow();
+      await _runSoloPreSwipeFlow(intent: PreSwipeFilterIntent.updateActiveSoloSession);
       return;
     }
     _isCardActionInProgress = true;
@@ -602,7 +602,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
                     ),
                   ),
                   GestureDetector(
-                    onTap: () => context.read<SwipeProvider>().isSoloMode ? _runSoloPreSwipeFlow() : _runPreSwipeFlow(fromHeaderAction: true),
+                    onTap: () => context.read<SwipeProvider>().isSoloMode ? _runSoloPreSwipeFlow(intent: PreSwipeFilterIntent.updateActiveSoloSession) : _runPreSwipeFlow(fromHeaderAction: true),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                       decoration: BoxDecoration(
@@ -714,7 +714,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
                             ? 'Your choices are saved. We’ll start swiping when your partner finishes their filters.'
                             : 'Your shared deck will be ready after both of you confirm filters.',
                         buttonText: 'Filters',
-                        onButtonPressed: () => provider.isSoloMode ? _runSoloPreSwipeFlow() : _runPreSwipeFlow(fromHeaderAction: true),
+                        onButtonPressed: () => provider.isSoloMode ? _runSoloPreSwipeFlow(intent: PreSwipeFilterIntent.updateActiveSoloSession) : _runPreSwipeFlow(fromHeaderAction: true),
                       );
                     }
 
@@ -736,7 +736,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
                       return DeckEndChoiceScreen(
                         isSoloMode: soloContext,
                         onUsePreviousFilter: () => soloContext
-                            ? _runSoloPreSwipeFlow()
+                            ? _runSoloPreSwipeFlow(intent: PreSwipeFilterIntent.updateActiveSoloSession)
                             : _runPreSwipeFlow(fromHeaderAction: true),
                         onStartNew: () => _startNewFromDeckEnd(soloContext),
                       );
