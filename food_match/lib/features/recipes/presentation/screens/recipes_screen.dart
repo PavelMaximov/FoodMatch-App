@@ -851,13 +851,46 @@ class PopularCategoriesGrid extends StatelessWidget {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: Image.asset(
-                assetPath,
-                fit: BoxFit.cover,
-                alignment: Alignment.center,
-                errorBuilder: (_, __, ___) => _PopularCategoryFallback(
-                  title: category.title,
-                ),
+              child: LayoutBuilder(
+                builder: (BuildContext context, BoxConstraints constraints) {
+                  return Stack(
+                    fit: StackFit.expand,
+                    children: <Widget>[
+                      Image.asset(
+                        assetPath,
+                        fit: BoxFit.cover,
+                        alignment: Alignment.center,
+                        errorBuilder: (_, __, ___) => _PopularCategoryFallback(
+                          title: category.title,
+                        ),
+                      ),
+                      Positioned(
+                        left: 16,
+                        top: 0,
+                        bottom: 0,
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: SizedBox(
+                            width: constraints.maxWidth * 0.58,
+                            child: Text(
+                              category.title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              softWrap: true,
+                              style: GoogleFonts.nunito(
+                                color: _popularCategoryTextColor(context),
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                height: 1.05,
+                                letterSpacing: 0.1,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
           ),
@@ -872,6 +905,11 @@ String _popularCategoryAssetPath(BuildContext context, String categoryName) {
       ? 'd'
       : 'l';
   return 'assets/media/$categoryName-$suffix.png';
+}
+
+Color _popularCategoryTextColor(BuildContext context) {
+  final bool isDark = Theme.of(context).brightness == Brightness.dark;
+  return isDark ? const Color(0xFFF0E8E2) : const Color(0xFF1A1A1A);
 }
 
 class _PopularCategoryFallback extends StatelessWidget {
@@ -895,9 +933,11 @@ class _PopularCategoryFallback extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         softWrap: true,
         style: GoogleFonts.nunito(
-          color: colors.textPrimary,
+          color: _popularCategoryTextColor(context),
           fontSize: 16,
           fontWeight: FontWeight.w800,
+          height: 1.05,
+          letterSpacing: 0.1,
         ),
       ),
     );
