@@ -33,20 +33,32 @@ class _SwipeCardIconButtonStyle {
   final Color border;
 }
 
+class _SwipeCardInfoStyle {
+  const _SwipeCardInfoStyle({
+    required this.background,
+    required this.icon,
+    required this.border,
+  });
+
+  final Color background;
+  final Color icon;
+  final Color border;
+}
+
 _SwipeCardPillStyle _pillStyle(BuildContext context) {
   final bool isDark = Theme.of(context).brightness == Brightness.dark;
   if (isDark) {
     return const _SwipeCardPillStyle(
-      background: Color.fromRGBO(52, 40, 34, 0.90),
+      background: Color.fromRGBO(52, 40, 34, 0.707),
       text: Color(0xFFF0E8E2),
-      border: Color.fromRGBO(255, 255, 255, 0.10),
+      border: Color.fromRGBO(255, 255, 255, 0.104),
     );
   }
 
   return const _SwipeCardPillStyle(
-    background: Color.fromRGBO(255, 255, 255, 0.88),
+    background: Color.fromRGBO(255, 255, 255, 0.697),
     text: Color(0xFF52433E),
-    border: Color.fromRGBO(255, 255, 255, 0.45),
+    border:Color.fromRGBO(255, 255, 255, 0.50),
   );
 }
 
@@ -54,16 +66,33 @@ _SwipeCardIconButtonStyle _neutralIconButtonStyle(BuildContext context) {
   final bool isDark = Theme.of(context).brightness == Brightness.dark;
   if (isDark) {
     return const _SwipeCardIconButtonStyle(
-      background: Color.fromRGBO(38, 29, 26, 0.88),
+      background: Color.fromRGBO(38, 29, 26, 0),
       icon: Color(0xFFF0E8E2),
-      border: Color.fromRGBO(255, 255, 255, 0.10),
+      border: Color(0xFFF0E8E2),
     );
   }
 
   return const _SwipeCardIconButtonStyle(
-    background: Color.fromRGBO(255, 255, 255, 0.90),
+    background: Color.fromRGBO(255, 255, 255, 0),
+    icon: Color.fromARGB(255, 255, 255, 255),
+    border: Color.fromARGB(255, 255, 255, 255),
+  );
+}
+
+_SwipeCardInfoStyle _infoStyle(BuildContext context) {
+  final bool isDark = Theme.of(context).brightness == Brightness.dark;
+  if (isDark) {
+    return const _SwipeCardInfoStyle(
+      background: Color.fromRGBO(38, 29, 26, 0.72),
+      icon: Color(0xFFF0E8E2),
+      border: Color.fromRGBO(255, 255, 255, 0.12),
+    );
+  }
+
+  return const _SwipeCardInfoStyle(
+    background: Color.fromRGBO(255, 255, 255, 0.719),
     icon: Color(0xFF52433E),
-    border: Color.fromRGBO(255, 255, 255, 0.50),
+    border: Color.fromRGBO(255, 255, 255, 0.40),
   );
 }
 
@@ -206,7 +235,7 @@ class SwipeCardWidget extends StatelessWidget {
                 ),
                 _buildCircleSvgButton(
                   size: 64,
-                  bgColor: colors.cardElevated,
+                  bgColor: const Color(0xFFFFFFFF),
                   assetPath: 'assets/icons/swipe/dislike_swipe.svg',
                   iconColor: colors.error,
                   onTap: onDislike,
@@ -235,7 +264,7 @@ class SwipeCardWidget extends StatelessWidget {
   }
 
   Widget _buildInfoButton(BuildContext context) {
-    final _SwipeCardIconButtonStyle neutralIconStyle = _neutralIconButtonStyle(context);
+    final _SwipeCardInfoStyle infoStyle = _infoStyle(context);
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onInfoTap,
@@ -244,12 +273,12 @@ class SwipeCardWidget extends StatelessWidget {
         height: 32,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: neutralIconStyle.background,
-          border: Border.all(color: neutralIconStyle.border),
+          color: infoStyle.background,
+          border: Border.all(color: infoStyle.border),
         ),
         child: Icon(
           Icons.info_outline,
-          color: neutralIconStyle.icon,
+          color: infoStyle.icon,
           size: 18,
         ),
       ),
@@ -304,13 +333,13 @@ class SwipeCardWidget extends StatelessWidget {
           shape: BoxShape.circle,
           color: bgColor,
           border: borderColor == null ? null : Border.all(color: borderColor),
-          boxShadow: <BoxShadow>[
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.15),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          // boxShadow: <BoxShadow>[
+          //   BoxShadow(
+          //     color: Colors.black.withValues(alpha: 0.15),
+          //     blurRadius: 8,
+          //     offset: const Offset(0, 2),
+          //   ),
+          // ],
         ),
         child: Center(
           child: SvgPicture.asset(

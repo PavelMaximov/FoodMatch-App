@@ -211,7 +211,7 @@ class _StickyOverlayButtons extends StatelessWidget {
     final FoodMatchThemeColors colors = context.fmColors;
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.only(top: 12, left: 20, right: 20),
+        padding: const EdgeInsets.only(top: 12, left: 16, right: 16),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: <Widget>[
@@ -306,7 +306,7 @@ class _RecipeContent extends StatelessWidget {
       color: colors.background,
       child: Padding(
         padding: EdgeInsets.fromLTRB(
-          AppDimensions.paddingL,
+          AppDimensions.paddingM,
           26,
           AppDimensions.paddingL,
           safePadding.bottom + AppDimensions.bottomNavHeight + AppDimensions.paddingXL,
@@ -450,9 +450,9 @@ class _StatsRow extends StatelessWidget {
       child: Row(
         children: <Widget>[
           Expanded(child: _StatItem(icon: Icons.schedule, label: _formatCookTime(dish.cookTime))),
-          _VerticalDivider(color: colors.divider),
+          _VerticalDivider(color: colors.chipBorder),
           Expanded(child: _StatItem(icon: Icons.groups_outlined, label: _formatServings(dish.servings))),
-          _VerticalDivider(color: colors.divider),
+          _VerticalDivider(color: colors.chipBorder),
           Expanded(
             child: _StatItem(
               icon: Icons.local_fire_department_outlined,
@@ -619,6 +619,7 @@ class _TabPanel extends StatelessWidget {
       decoration: BoxDecoration(
         color: colors.card,
         border: Border(top: BorderSide(color: colors.divider)),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
       ),
       child: child,
     );

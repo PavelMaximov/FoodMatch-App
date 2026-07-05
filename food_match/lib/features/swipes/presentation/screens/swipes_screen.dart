@@ -589,15 +589,26 @@ class _SwipesScreenState extends State<SwipesScreen> {
                       decoration: BoxDecoration(
                         color: colors.cardElevated,
                         borderRadius: BorderRadius.circular(AppDimensions.radiusXL),
-                        border: Border.all(color: colors.primary),
+                        border: Border.all(color: colors.favoriteBtn),
                       ),
-                      child: Text(
-                        'Session settings',
-                        style: GoogleFonts.nunito(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: colors.primary,
-                        ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Icon(
+                            Icons.settings_outlined,
+                            size: 16,
+                            color: colors.primary,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Session',
+                            style: GoogleFonts.nunito(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: colors.textSecondary,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -608,7 +619,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
                       decoration: BoxDecoration(
                         color: colors.cardElevated,
                         borderRadius: BorderRadius.circular(AppDimensions.radiusXL),
-                        border: Border.all(color: colors.border),
+                        border: Border.all(color: colors.favoriteBtn),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -622,9 +633,9 @@ class _SwipesScreenState extends State<SwipesScreen> {
                           Text(
                             'Filters',
                             style: GoogleFonts.nunito(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: colors.textPrimary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: colors.textSecondary,
                             ),
                           ),
                         ],

@@ -1418,7 +1418,7 @@ class _FavoritesPillButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final FoodMatchThemeColors colors = context.fmColors;
     return Material(
-      color: colors.buttonSecondaryBackground,
+      color: colors.favoriteBtn,
       borderRadius: BorderRadius.circular(999),
       child: InkWell(
         borderRadius: BorderRadius.circular(999),

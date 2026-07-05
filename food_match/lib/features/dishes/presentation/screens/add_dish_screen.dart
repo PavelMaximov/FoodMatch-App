@@ -501,7 +501,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
                         ),
                       )
                 ],
-                const SizedBox(height: 14),
+                const SizedBox(height: 18),
                 GestureDetector(
                   onTap: _isSubmitting ? null : _pickImage,
                   child: Container(

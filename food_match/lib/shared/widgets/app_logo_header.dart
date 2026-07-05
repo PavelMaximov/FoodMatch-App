@@ -14,19 +14,25 @@ class AppLogoHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: <Widget>[
-        SvgPicture.asset(
-          'assets/logos/foodmatch_logo.svg',
-          width: 260,
-          height: 78,
-          placeholderBuilder: (BuildContext context) => Icon(
-            Icons.restaurant_menu,
-            size: 64,
-            color: context.fmColors.textPrimary,
-          ),
+        LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) {
+            final double width = constraints.maxWidth > 0 ? constraints.maxWidth : 230;
+            return SvgPicture.asset(
+              'assets/logos/foodmatch_logo.svg',
+              width: width,
+              height: width * 0.22,
+              fit: BoxFit.contain,
+              placeholderBuilder: (BuildContext context) => Icon(
+                Icons.restaurant_menu,
+                size: 64,
+                color: context.fmColors.textPrimary,
+              ),
+            );
+          },
         ),
         const SizedBox(height: 12),
         if (showSubtitle) ...<Widget>[
-          const SizedBox(height: 12),
+          const SizedBox(height: 2),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(

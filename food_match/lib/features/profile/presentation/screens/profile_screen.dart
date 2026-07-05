@@ -262,7 +262,7 @@ class ProfileSettingsScreen extends StatelessWidget {
     final FoodMatchThemeColors colors = context.fmColors;
     await showModalBottomSheet<void>(
       context: context,
-      backgroundColor: colors.modalBackground,
+      backgroundColor: colors.background,
       barrierColor: colors.modalBarrier,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -493,7 +493,7 @@ class _UserInfoCard extends StatelessWidget {
                   style: GoogleFonts.nunito(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.textSecondary.withValues(alpha: 0.68),
+                    color: context.fmColors.textMuted,
                   ),
                 ),
               ],
@@ -514,14 +514,14 @@ class _UserInfoCard extends StatelessWidget {
                       style: GoogleFonts.nunito(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.textSecondary.withValues(alpha: 0.66),
+                        color: context.fmColors.textMuted,
                       ),
                     ),
                     const SizedBox(width: 5),
                     Icon(
                       Icons.edit,
                       size: 13,
-                      color: AppColors.textSecondary.withValues(alpha: 0.66),
+                      color: context.fmColors.textMuted,
                     ),
                   ],
                 ),

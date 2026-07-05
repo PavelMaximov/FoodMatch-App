@@ -60,7 +60,10 @@ class SessionSettingsSheet extends StatelessWidget {
                   onSwitch: () => _confirmSwitchToSolo(context),
                 )
               else
-                _NoActiveSession(onPairUp: onOpenPairSetup, onSolo: onStartSoloSetup),
+                _NoActiveSession(
+                  onPairUp: onOpenPairSetup,
+                  onSolo: onStartSoloSetup,
+                ),
             ],
           ),
         ),
@@ -72,7 +75,8 @@ class SessionSettingsSheet extends StatelessWidget {
     final bool confirmed = await _confirm(
       context,
       title: 'Switch to Pair up?',
-      message: 'This will end your current solo session and open partner setup.',
+      message:
+          'This will end your current solo session and open partner setup.',
     );
     if (!confirmed || !context.mounted) return;
 
@@ -118,12 +122,21 @@ class SessionSettingsSheet extends StatelessWidget {
           context: context,
           builder: (BuildContext dialogContext) => AlertDialog(
             backgroundColor: context.fmColors.modalBackground,
-            title: Text(title, style: TextStyle(color: context.fmColors.textPrimary)),
-            content: Text(message, style: TextStyle(color: context.fmColors.textSecondary)),
+            title: Text(
+              title,
+              style: TextStyle(color: context.fmColors.textPrimary),
+            ),
+            content: Text(
+              message,
+              style: TextStyle(color: context.fmColors.textSecondary),
+            ),
             actions: <Widget>[
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext, false),
-                child: Text('Cancel', style: TextStyle(color: context.fmColors.textSecondary)),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(color: context.fmColors.textSecondary),
+                ),
               ),
               ElevatedButton(
                 onPressed: () => Navigator.pop(dialogContext, true),
@@ -149,17 +162,24 @@ class _SheetHeader extends StatelessWidget {
         Expanded(
           child: Text(
             'Session information',
-            style: GoogleFonts.fredoka(
+            style: GoogleFonts.nunito(
               fontSize: 31,
               fontWeight: FontWeight.w700,
               height: 1.05,
               color: context.fmColors.textPrimary,
+              
             ),
           ),
         ),
         IconButton(
           onPressed: onClose,
-          icon: Icon(Icons.close, size: 26, color: context.fmColors.textPrimary),
+          icon: Icon(
+            Icons.close,
+            size: 26,
+            color: context.fmColors.textPrimary,
+          ),
+          padding: EdgeInsets.zero,
+          alignment: Alignment.topRight,
         ),
       ],
     );
@@ -189,9 +209,16 @@ class _SoloSettings extends StatelessWidget {
         const SizedBox(height: 14),
         Row(
           children: <Widget>[
-            Expanded(child: _StatTile(label: 'Liked', value: likedCount.toString())),
+            Expanded(
+              child: _StatTile(label: 'Liked', value: likedCount.toString()),
+            ),
             const SizedBox(width: 12),
-            Expanded(child: _StatTile(label: 'Remaining', value: remainingCount.toString())),
+            Expanded(
+              child: _StatTile(
+                label: 'Remaining',
+                value: remainingCount.toString(),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 22),
@@ -290,14 +317,18 @@ class _PairSettings extends StatelessWidget {
                 children: <Widget>[
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: coupleProvider.isLoading ? null : coupleProvider.resetCouple,
+                      onPressed: coupleProvider.isLoading
+                          ? null
+                          : coupleProvider.resetCouple,
                       child: const Text('Reset'),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: coupleProvider.isLeaving ? null : coupleProvider.leaveCouple,
+                      onPressed: coupleProvider.isLeaving
+                          ? null
+                          : coupleProvider.leaveCouple,
                       child: const Text('Leave'),
                     ),
                   ),
@@ -463,7 +494,10 @@ class _SwitchModeCard extends StatelessWidget {
                         if (badge != null) ...<Widget>[
                           const SizedBox(width: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
                             decoration: BoxDecoration(
                               color: context.fmColors.primarySoft,
                               borderRadius: BorderRadius.circular(999),
@@ -501,8 +535,13 @@ class _SwitchModeCard extends StatelessWidget {
                 backgroundColor: context.fmColors.buttonPrimaryBackground,
                 foregroundColor: context.fmColors.buttonPrimaryText,
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                textStyle: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w800),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                textStyle: GoogleFonts.nunito(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
               child: Text(buttonText),
             ),
