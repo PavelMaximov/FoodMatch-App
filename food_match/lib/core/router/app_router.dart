@@ -17,6 +17,7 @@ import '../../features/favorites/presentation/screens/favorites_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/recipes/presentation/screens/recipes_screen.dart';
 import '../../features/swipes/presentation/screens/swipes_screen.dart';
+import '../../shared/widgets/root_tab_skeleton.dart';
 import '../../shell/presentation/screens/main_shell.dart';
 
 class AppRouter {
@@ -178,6 +179,8 @@ class _PagedBranchNavigatorContainer extends StatefulWidget {
 class _PagedBranchNavigatorContainerState
     extends State<_PagedBranchNavigatorContainer> {
   late final PageController _pageController;
+  late final Set<int> _visitedBranches;
+  late List<Widget> _tabPages;
   @override
   void initState() {
     super.initState();
@@ -185,11 +188,16 @@ class _PagedBranchNavigatorContainerState
       initialPage: widget.navigationShell.currentIndex,
       keepPage: true,
     );
+    _visitedBranches = <int>{widget.navigationShell.currentIndex};
+    _tabPages = _buildTabPages(widget.children);
   }
 
   @override
   void didUpdateWidget(covariant _PagedBranchNavigatorContainer oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.children != widget.children) {
+      _tabPages = _buildTabPages(widget.children);
+    }
     final int currentIndex = widget.navigationShell.currentIndex;
     if (!_pageController.hasClients ||
         (_pageController.page?.round() ?? _pageController.initialPage) ==
@@ -203,6 +211,41 @@ class _PagedBranchNavigatorContainerState
   void dispose() {
     _pageController.dispose();
     super.dispose();
+  }
+
+
+  List<Widget> _buildTabPages(List<Widget> children) {
+    return List<Widget>.generate(children.length, (int index) {
+      return KeyedSubtree(
+        key: PageStorageKey<String>('root-tab-$index'),
+        child: Stack(
+          fit: StackFit.expand,
+          children: <Widget>[
+            RootTabSkeleton(type: _skeletonTypeFor(index)),
+            RepaintBoundary(child: children[index]),
+            if (!_visitedBranches.contains(index))
+              RootTabSkeleton(type: _skeletonTypeFor(index)),
+          ],
+        ),
+      );
+    });
+  }
+
+  RootTabSkeletonType _skeletonTypeFor(int index) {
+    switch (index) {
+      case 0:
+        return RootTabSkeletonType.recipes;
+      case 1:
+        return RootTabSkeletonType.matches;
+      case 2:
+        return RootTabSkeletonType.swipes;
+      case 3:
+        return RootTabSkeletonType.addDish;
+      case 4:
+        return RootTabSkeletonType.profile;
+      default:
+        return RootTabSkeletonType.recipes;
+    }
   }
 
   Future<void> _animateToBranch(int index) async {
@@ -220,6 +263,10 @@ class _PagedBranchNavigatorContainerState
     if (index == widget.navigationShell.currentIndex) {
       return;
     }
+    setState(() {
+      _visitedBranches.add(index);
+      _tabPages = _buildTabPages(widget.children);
+    });
     widget.navigationShell.goBranch(index);
   }
 
@@ -229,7 +276,8 @@ class _PagedBranchNavigatorContainerState
       controller: _pageController,
       physics: const PageScrollPhysics(),
       onPageChanged: _handlePageChanged,
-      children: widget.children,
+      allowImplicitScrolling: true,
+      children: _tabPages,
     );
   }
 }

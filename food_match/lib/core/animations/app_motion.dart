@@ -6,6 +6,7 @@ class AppMotion {
   static const Duration fast = Duration(milliseconds: 200);
   static const Duration normal = Duration(milliseconds: 300);
   static const Duration tab = Duration(milliseconds: 420);
+  static const Duration indicatorScale = Duration(milliseconds: 260);
   static const Duration slow = Duration(milliseconds: 420);
   static const Curve curve = Curves.easeOutCubic;
 

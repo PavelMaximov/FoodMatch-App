@@ -192,22 +192,38 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
                       Stack(
                         clipBehavior: Clip.none,
                         children: <Widget>[
-                          AnimatedContainer(
-                            duration: AppMotion.durationFor(context, AppMotion.fast),
+                          SizedBox(
                             width: 40,
                             height: 32,
-                            decoration: BoxDecoration(
-                              color: isActive
-                                  ? colors.bottomNavActiveIndicator
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: _BottomNavIcon(
-                              item: item,
-                              isActive: isActive,
-                              assetExists: _hasIconAsset(
-                                item.iconAssetFor(isActive: isActive),
-                              ),
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: <Widget>[
+                                AnimatedScale(
+                                  scale: isActive ? 1 : 0.76,
+                                  duration: AppMotion.durationFor(context, AppMotion.indicatorScale),
+                                  curve: Curves.easeOutCubic,
+                                  child: AnimatedOpacity(
+                                    opacity: isActive ? 1 : 0,
+                                    duration: AppMotion.durationFor(context, AppMotion.fast),
+                                    curve: AppMotion.curve,
+                                    child: Container(
+                                      width: 40,
+                                      height: 32,
+                                      decoration: BoxDecoration(
+                                        color: colors.bottomNavActiveIndicator,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                _BottomNavIcon(
+                                  item: item,
+                                  isActive: isActive,
+                                  assetExists: _hasIconAsset(
+                                    item.iconAssetFor(isActive: isActive),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                           if (index == 1 && matchCount > 0)
@@ -242,13 +258,15 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
                         ],
                       ),
                       const SizedBox(height: 2),
-                      Text(
-                        item.label,
+                      AnimatedDefaultTextStyle(
+                        duration: AppMotion.durationFor(context, AppMotion.fast),
+                        curve: AppMotion.curve,
                         style: GoogleFonts.nunito(
                           fontSize: 10,
                           fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
                           color: isActive ? colors.bottomNavActive : colors.bottomNavInactive,
                         ),
+                        child: Text(item.label),
                       ),
                     ],
                   ),
