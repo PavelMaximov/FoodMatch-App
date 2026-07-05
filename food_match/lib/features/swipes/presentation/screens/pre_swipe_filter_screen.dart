@@ -1,10 +1,12 @@
 import 'package:flutter/foundation.dart';
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/animations/app_motion.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../data/models/dish.dart';
@@ -50,6 +52,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   bool _isPreparingSharedDeck = false;
   bool _hasStartedPrepareAfterBothConfirmed = false;
   bool _isApplyingFilters = false;
+  bool _isGoingBack = false;
   String? _pendingUserId;
   LastFilterPreset? _lastFilterPreset;
   late final CoupleProvider _coupleProvider;
@@ -287,7 +290,28 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
               const SizedBox(height: 10),
               Text(_subtitle, style: GoogleFonts.nunito(fontSize: 18, color: context.fmColors.textSecondary)),
               const SizedBox(height: 24),
-              Expanded(child: _buildStepContent()),
+              Expanded(
+                child: PageTransitionSwitcher(
+                  duration: AppMotion.durationFor(context, AppMotion.normal),
+                  reverse: _isGoingBack,
+                  transitionBuilder: (
+                    Widget child,
+                    Animation<double> animation,
+                    Animation<double> secondaryAnimation,
+                  ) {
+                    return SharedAxisTransition(
+                      animation: animation,
+                      secondaryAnimation: secondaryAnimation,
+                      transitionType: SharedAxisTransitionType.horizontal,
+                      child: child,
+                    );
+                  },
+                  child: KeyedSubtree(
+                    key: ValueKey<int>(_step),
+                    child: _buildStepContent(),
+                  ),
+                ),
+              ),
               const SizedBox(height: 16),
               Consumer<CoupleProvider>(
                 builder: (BuildContext context, CoupleProvider coupleProvider, _) {
@@ -304,7 +328,12 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
                     isLoading: _loading,
                     canGoBack: _step > 1,
                     primaryLabel: _step == 3 ? 'Confirm' : 'Continue',
-                    onBack: _step == 1 ? null : () => setState(() => _step--),
+                    onBack: _step == 1
+                        ? null
+                        : () => setState(() {
+                              _isGoingBack = true;
+                              _step--;
+                            }),
                     onSkip: _loading ? null : _skip,
                     onContinue: _loading ? null : _next,
                   );
@@ -541,7 +570,10 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
 
   Future<void> _next() async {
     if (_step < 3) {
-      setState(() => _step++);
+      setState(() {
+        _isGoingBack = false;
+        _step++;
+      });
       return;
     }
     await _confirmCurrentFilters();

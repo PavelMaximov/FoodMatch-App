@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../animations/app_motion.dart';
 import '../../data/models/dish.dart';
 import '../../features/auth/logic/auth_provider.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
@@ -64,15 +65,23 @@ class AppRouter {
             ),
             GoRoute(
               path: '/recipe-detail/:dishId',
-              builder: (BuildContext context, GoRouterState state) => RecipeDetailScreen(
-                dishId: state.pathParameters['dishId'] ?? 'unknown',
-                dish: state.extra is Dish ? state.extra! as Dish : null,
+              pageBuilder: (BuildContext context, GoRouterState state) => _bottomUpPage(
+                context: context,
+                state: state,
+                child: RecipeDetailScreen(
+                  dishId: state.pathParameters['dishId'] ?? 'unknown',
+                  dish: state.extra is Dish ? state.extra! as Dish : null,
+                ),
               ),
             ),
             GoRoute(
               path: '/match-overlay',
-              builder: (BuildContext context, GoRouterState state) => MatchOverlayScreen(
-                dish: state.extra is Dish ? state.extra! as Dish : null,
+              pageBuilder: (BuildContext context, GoRouterState state) => _fadeScalePage(
+                context: context,
+                state: state,
+                child: MatchOverlayScreen(
+                  dish: state.extra is Dish ? state.extra! as Dish : null,
+                ),
               ),
             ),
             StatefulShellRoute.indexedStack(
@@ -86,7 +95,15 @@ class AppRouter {
                 StatefulShellBranch(
                   routes: <RouteBase>[
                     GoRoute(path: '/recipes', builder: (_, __) => const RecipesScreen()),
-                    GoRoute(path: '/favorites', builder: (_, __) => const FavoritesScreen()),
+                    GoRoute(
+                      path: '/favorites',
+                      pageBuilder: (BuildContext context, GoRouterState state) =>
+                          _bottomUpPage(
+                        context: context,
+                        state: state,
+                        child: const FavoritesScreen(),
+                      ),
+                    ),
                   ],
                 ),
                 StatefulShellBranch(
@@ -131,4 +148,52 @@ class AppRouter {
       '/profile',
     }.contains(location);
   }
+}
+
+
+CustomTransitionPage<void> _bottomUpPage({
+  required BuildContext context,
+  required GoRouterState state,
+  required Widget child,
+}) {
+  return CustomTransitionPage<void>(
+    key: state.pageKey,
+    transitionDuration: AppMotion.durationFor(context, AppMotion.normal),
+    reverseTransitionDuration: AppMotion.durationFor(context, AppMotion.normal),
+    child: child,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final Animation<Offset> offset = Tween<Offset>(
+        begin: const Offset(0, 1),
+        end: Offset.zero,
+      ).chain(CurveTween(curve: AppMotion.curve)).animate(animation);
+      return SlideTransition(position: offset, child: child);
+    },
+  );
+}
+
+CustomTransitionPage<void> _fadeScalePage({
+  required BuildContext context,
+  required GoRouterState state,
+  required Widget child,
+}) {
+  return CustomTransitionPage<void>(
+    key: state.pageKey,
+    transitionDuration: AppMotion.durationFor(context, AppMotion.fast),
+    reverseTransitionDuration: AppMotion.durationFor(context, AppMotion.fast),
+    child: child,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final Animation<double> curved = CurvedAnimation(
+        parent: animation,
+        curve: AppMotion.curve,
+        reverseCurve: AppMotion.curve,
+      );
+      return FadeTransition(
+        opacity: curved,
+        child: ScaleTransition(
+          scale: Tween<double>(begin: 0.94, end: 1).animate(curved),
+          child: child,
+        ),
+      );
+    },
+  );
 }
