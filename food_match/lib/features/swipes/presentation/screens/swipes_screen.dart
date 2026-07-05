@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/utils/cloudinary_image_url.dart';
 import '../../../../core/utils/image_utils.dart';
@@ -261,12 +262,12 @@ class _SwipesScreenState extends State<SwipesScreen> {
     });
   }
 
-  Future<void> _runSoloPreSwipeFlow() async {
+  Future<void> _runSoloPreSwipeFlow({PreSwipeFilterIntent intent = PreSwipeFilterIntent.createNewSession}) async {
     if (_isOpeningPreSwipe) return;
     _isOpeningPreSwipe = true;
     final SwipeProvider swipeProvider = context.read<SwipeProvider>();
     swipeProvider.setActiveUser(context.read<AuthProvider>().currentUser?.id);
-    final PreparedPoolResult? result = await Navigator.of(context).push<PreparedPoolResult>(MaterialPageRoute<PreparedPoolResult>(fullscreenDialog: true, builder: (_) => const PreSwipeFilterScreen(mode: 'solo')));
+    final PreparedPoolResult? result = await Navigator.of(context).push<PreparedPoolResult>(MaterialPageRoute<PreparedPoolResult>(fullscreenDialog: true, builder: (_) => PreSwipeFilterScreen(mode: 'solo', intent: intent)));
     if (!mounted) { _isOpeningPreSwipe = false; return; }
     if (result != null && result.dishes.isNotEmpty) {
       _resetSwipeStackController();
@@ -532,7 +533,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
       return;
     }
     if (provider.isSoloMode && provider.activeSoloSessionId != null) {
-      await _runSoloPreSwipeFlow();
+      await _runSoloPreSwipeFlow(intent: PreSwipeFilterIntent.updateActiveSoloSession);
       return;
     }
     _isCardActionInProgress = true;
@@ -564,8 +565,9 @@ class _SwipesScreenState extends State<SwipesScreen> {
         _activeSessionChoiceType == null &&
         (_showPairConnectionStep || (hasCouple && !hasPartner && !isSoloMode));
     final bool showHeaderActions = hasCurrentDeckCard && !showActiveSessionChoice && !showModeSelection && !showPairConnection && !_isOpeningPreSwipe;
+    final FoodMatchThemeColors colors = context.fmColors;
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: colors.background,
       body: SafeArea(
         child: Column(
           children: <Widget>[
@@ -585,42 +587,55 @@ class _SwipesScreenState extends State<SwipesScreen> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFF5B1C),
+                        color: colors.cardElevated,
                         borderRadius: BorderRadius.circular(AppDimensions.radiusXL),
-                      ),
-                      child: Text(
-                        'Session settings',
-                        style: GoogleFonts.nunito(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => context.read<SwipeProvider>().isSoloMode ? _runSoloPreSwipeFlow() : _runPreSwipeFlow(fromHeaderAction: true),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFDCD6D3),
-                        borderRadius: BorderRadius.circular(AppDimensions.radiusXL),
+                        border: Border.all(color: colors.favoriteBtn),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: <Widget>[
-                          const Icon(
+                          Icon(
+                            Icons.settings_outlined,
+                            size: 16,
+                            color: colors.primary,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Session',
+                            style: GoogleFonts.nunito(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: colors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => context.read<SwipeProvider>().isSoloMode ? _runSoloPreSwipeFlow(intent: PreSwipeFilterIntent.updateActiveSoloSession) : _runPreSwipeFlow(fromHeaderAction: true),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: colors.cardElevated,
+                        borderRadius: BorderRadius.circular(AppDimensions.radiusXL),
+                        border: Border.all(color: colors.favoriteBtn),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Icon(
                             Icons.tune,
                             size: 16,
-                            color: AppColors.textPrimary,
+                            color: colors.primary,
                           ),
                           const SizedBox(width: 6),
                           Text(
                             'Filters',
                             style: GoogleFonts.nunito(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: colors.textSecondary,
                             ),
                           ),
                         ],
@@ -710,7 +725,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
                             ? 'Your choices are saved. We’ll start swiping when your partner finishes their filters.'
                             : 'Your shared deck will be ready after both of you confirm filters.',
                         buttonText: 'Filters',
-                        onButtonPressed: () => provider.isSoloMode ? _runSoloPreSwipeFlow() : _runPreSwipeFlow(fromHeaderAction: true),
+                        onButtonPressed: () => provider.isSoloMode ? _runSoloPreSwipeFlow(intent: PreSwipeFilterIntent.updateActiveSoloSession) : _runPreSwipeFlow(fromHeaderAction: true),
                       );
                     }
 
@@ -732,7 +747,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
                       return DeckEndChoiceScreen(
                         isSoloMode: soloContext,
                         onUsePreviousFilter: () => soloContext
-                            ? _runSoloPreSwipeFlow()
+                            ? _runSoloPreSwipeFlow(intent: PreSwipeFilterIntent.updateActiveSoloSession)
                             : _runPreSwipeFlow(fromHeaderAction: true),
                         onStartNew: () => _startNewFromDeckEnd(soloContext),
                       );

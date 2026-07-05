@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+/// Legacy static light palette kept for compatibility during the
+/// ThemeExtension migration. Prefer context.fmColors in new UI code.
 class AppColors {
   const AppColors._();
 

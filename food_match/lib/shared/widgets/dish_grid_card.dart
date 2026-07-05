@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../core/theme/app_colors.dart';
+import '../../core/theme/theme_extensions.dart';
 import '../../core/utils/image_utils.dart';
 import '../../data/models/dish.dart';
 import 'media/safe_dish_image.dart';
@@ -29,6 +29,7 @@ class DishGridCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final FoodMatchThemeColors colors = context.fmColors;
     final Widget image = SafeDishImage(
       imageUrl: ImageUtils.getImageUrl(dish.imageUrl, usage: ImageUsage.dishCard),
       fit: BoxFit.cover,
@@ -37,23 +38,16 @@ class DishGridCard extends StatelessWidget {
     return SizedBox(
       width: width,
       child: Material(
-        color: Colors.white,
+        color: colors.dishCardBackground,
         borderRadius: BorderRadius.circular(_DishGridCardTokens.cardRadius),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
           child: Ink(
             decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: const Color(0xFFE5E5E5)),
+              color: colors.dishCardBackground,
+              border: Border.all(color: colors.dishCardBorder),
               borderRadius: BorderRadius.circular(_DishGridCardTokens.cardRadius),
-              // boxShadow: <BoxShadow>[
-              //   BoxShadow(
-              //     color: Colors.black.withValues(alpha: 0.08),
-              //     blurRadius: 12,
-              //     offset: const Offset(0, 4),
-              //   ),
-              // ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -92,8 +86,8 @@ class DishGridCard extends StatelessWidget {
                                   'assets/icons/time.svg',
                                   width: 10,
                                   height: 10,
-                                  colorFilter: const ColorFilter.mode(
-                                    AppColors.primary,
+                                  colorFilter: ColorFilter.mode(
+                                    colors.metadataIcon,
                                     BlendMode.srcIn,
                                   ),
                                 ),
@@ -111,8 +105,8 @@ class DishGridCard extends StatelessWidget {
                                   'assets/icons/level.svg',
                                   width: 10,
                                   height: 10,
-                                  colorFilter: const ColorFilter.mode(
-                                    AppColors.primary,
+                                  colorFilter: ColorFilter.mode(
+                                    colors.metadataIcon,
                                     BlendMode.srcIn,
                                   ),
                                 ),
@@ -141,7 +135,7 @@ class DishGridCard extends StatelessWidget {
                         style: GoogleFonts.nunito(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
+                          color: colors.textPrimary,
                           height: 1.2,
                         ),
                       ),
@@ -179,7 +173,7 @@ class _FavoriteButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: context.fmColors.metadataPillBackground,
       shape: const CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),
@@ -197,7 +191,7 @@ class _FavoriteButton extends StatelessWidget {
                 : Icon(
                     isFavorite ? Icons.bookmark : Icons.bookmark_border,
                     size: 19,
-                    color: isFavorite ? AppColors.primary : AppColors.textSecondary,
+                    color: isFavorite ? context.fmColors.favoriteActive : context.fmColors.favoriteInactive,
                   ),
           ),
         ),
@@ -219,7 +213,7 @@ class _MetaPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.fmColors.metadataPillBackground,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
@@ -228,7 +222,7 @@ class _MetaPill extends StatelessWidget {
           if (iconWidget != null)
             iconWidget!
           else if (icon != null)
-            Icon(icon, size: 12, color: iconColor ?? AppColors.primary)
+            Icon(icon, size: 12, color: iconColor ?? context.fmColors.metadataIcon)
           else
             const SizedBox.shrink(),
           if (iconWidget != null || icon != null) const SizedBox(width: 3),
@@ -239,7 +233,7 @@ class _MetaPill extends StatelessWidget {
             style: GoogleFonts.nunito(
               fontSize: 10,
               fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+              color: context.fmColors.textPrimary,
               height: 1,
             ),
           ),

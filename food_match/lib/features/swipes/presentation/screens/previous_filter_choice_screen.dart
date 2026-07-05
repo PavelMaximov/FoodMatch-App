@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/theme_extensions.dart';
 import '../../../../data/models/user_profile.dart';
+
+enum PreviousChoicePillType {
+  cuisine,
+  mood,
+  exception,
+}
 
 class PreviousFilterChoiceScreen extends StatelessWidget {
   const PreviousFilterChoiceScreen({
@@ -20,8 +26,9 @@ class PreviousFilterChoiceScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final FoodMatchThemeColors colors = context.fmColors;
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFBF9),
+      backgroundColor: colors.background,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
@@ -32,19 +39,19 @@ class PreviousFilterChoiceScreen extends StatelessWidget {
                 children: <Widget>[
                   IconButton(
                     onPressed: onClose,
-                    icon: const Icon(Icons.arrow_back, color: Color(0xFF2B2725)),
+                    icon: Icon(Icons.arrow_back, color: colors.textPrimary),
                     padding: EdgeInsets.zero,
                     alignment: Alignment.centerLeft,
                   ),
                   const SizedBox(width: 4),
-                  const Icon(Icons.history, size: 16, color: Color(0xFF7A7270)),
+                  Icon(Icons.history, size: 16, color: colors.textMuted),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       lastUsedLabel(preset.usedAt),
                       style: GoogleFonts.nunito(
                         fontSize: 13,
-                        color: const Color(0xFF7A7270),
+                        color: colors.textMuted,
                       ),
                     ),
                   ),
@@ -57,7 +64,7 @@ class PreviousFilterChoiceScreen extends StatelessWidget {
                   fontSize: 36,
                   fontWeight: FontWeight.w700,
                   height: 1.05,
-                  color: Colors.black,
+                  color: colors.textPrimary,
                 ),
               ),
               const SizedBox(height: 10),
@@ -66,7 +73,7 @@ class PreviousFilterChoiceScreen extends StatelessWidget {
                 style: GoogleFonts.nunito(
                   fontSize: 18,
                   height: 1.35,
-                  color: const Color(0xFF7A7270),
+                  color: colors.textMuted,
                 ),
               ),
               const SizedBox(height: 24),
@@ -81,8 +88,8 @@ class PreviousFilterChoiceScreen extends StatelessWidget {
                   icon: const Icon(Icons.thumb_up_alt_rounded, size: 20),
                   label: const Text('Yes, same vibe'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
+                    backgroundColor: colors.buttonPrimaryBackground,
+                    foregroundColor: colors.buttonPrimaryText,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(36),
@@ -100,8 +107,9 @@ class PreviousFilterChoiceScreen extends StatelessWidget {
                 child: OutlinedButton(
                   onPressed: onChangeFilters,
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.primary,
-                    side: const BorderSide(color: AppColors.primary, width: 2),
+                    backgroundColor: colors.buttonSecondaryBackground,
+                    foregroundColor: colors.primary,
+                    side: BorderSide(color: colors.primary, width: 2),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(36),
@@ -156,11 +164,12 @@ class _PresetCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final FoodMatchThemeColors colors = context.fmColors;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colors.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE7DEDA)),
+        border: Border.all(color: colors.border),
       ),
       child: Column(
         children: <Widget>[
@@ -168,24 +177,21 @@ class _PresetCard extends StatelessWidget {
             icon: Icons.room_service_outlined,
             label: 'Cuisine:',
             values: preset.cuisines,
-            color: const Color(0xFFEE8C04),
-            chipBg: const Color(0xFFFFEDDE),
+            type: PreviousChoicePillType.cuisine,
           ),
-          const Divider(height: 1, color: Color(0xFFEFE7E3)),
+          Divider(height: 1, color: colors.divider),
           _FilterSection(
             icon: Icons.auto_awesome,
             label: 'Mood:',
             values: preset.moods,
-            color: const Color(0xFFEECF04),
-            chipBg: const Color(0xFFFFFBDE),
+            type: PreviousChoicePillType.mood,
           ),
-          const Divider(height: 1, color: Color(0xFFEFE7E3)),
+          Divider(height: 1, color: colors.divider),
           _FilterSection(
             icon: Icons.do_not_disturb_alt_outlined,
             label: 'Exceptions:',
             values: preset.exclusions,
-            color: const Color(0xFFEE2304),
-            chipBg: const Color(0xFFFFE5DE),
+            type: PreviousChoicePillType.exception,
           ),
         ],
       ),
@@ -198,20 +204,20 @@ class _FilterSection extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.values,
-    required this.color,
-    required this.chipBg,
+    required this.type,
   });
 
   final IconData icon;
   final String label;
   final List<String> values;
-  final Color color;
-  final Color chipBg;
+  final PreviousChoicePillType type;
 
   @override
   Widget build(BuildContext context) {
+    final FoodMatchThemeColors colors = context.fmColors;
     final bool isEmpty = values.isEmpty;
     final List<String> chips = isEmpty ? <String>['None'] : values;
+    final _PillColors pillColors = _previousChoicePillColors(context, type);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -220,13 +226,13 @@ class _FilterSection extends StatelessWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
-              Icon(icon, color: color, size: 22),
+              Icon(icon, color: pillColors.foreground, size: 22),
               const SizedBox(width: 10),
               Text(
                 label,
                 style: GoogleFonts.nunito(
                   fontSize: 15,
-                  color: const Color(0xFF7A7270),
+                  color: colors.textMuted,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -240,8 +246,13 @@ class _FilterSection extends StatelessWidget {
                 .map(
                   (String value) => _PresetChip(
                     label: isEmpty ? value : _formatOptionLabel(value),
-                    color: isEmpty ? const Color(0xFF8B8582) : color,
-                    background: isEmpty ? const Color(0xFFF1ECE9) : chipBg,
+                    colors: isEmpty
+                        ? _PillColors(
+                            background: colors.chipBackground,
+                            foreground: colors.textMuted,
+                            border: colors.chipBorder,
+                          )
+                        : pillColors,
                   ),
                 )
                 .toList(),
@@ -270,31 +281,93 @@ String _formatOptionLabel(String value) {
 class _PresetChip extends StatelessWidget {
   const _PresetChip({
     required this.label,
-    required this.color,
-    required this.background,
+    required this.colors,
   });
 
   final String label;
-  final Color color;
-  final Color background;
+  final _PillColors colors;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: background,
+        color: colors.background,
         borderRadius: BorderRadius.circular(99),
+        border: Border.all(color: colors.border),
       ),
       child: Text(
         label,
         style: GoogleFonts.nunito(
           fontSize: 13,
           fontWeight: FontWeight.w800,
-          color: color,
+          color: colors.foreground,
         ),
       ),
     );
+  }
+}
+
+class _PillColors {
+  const _PillColors({
+    required this.background,
+    required this.foreground,
+    required this.border,
+  });
+
+  final Color background;
+  final Color foreground;
+  final Color border;
+}
+
+_PillColors _previousChoicePillColors(
+  BuildContext context,
+  PreviousChoicePillType type,
+) {
+  final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
+  if (isDark) {
+    switch (type) {
+      case PreviousChoicePillType.cuisine:
+        return const _PillColors(
+          background: Color(0xFF4A3218),
+          foreground: Color(0xFFF0A03A),
+          border: Color(0xFF5A3A1D),
+        );
+      case PreviousChoicePillType.mood:
+        return const _PillColors(
+          background: Color(0xFF4A462C),
+          foreground: Color(0xFFE2C403),
+          border: Color(0xFF5A552F),
+        );
+      case PreviousChoicePillType.exception:
+        return const _PillColors(
+          background: Color(0xFF4A211B),
+          foreground: Color(0xFFFF4E2F),
+          border: Color(0xFF5A2A22),
+        );
+    }
+  }
+
+  switch (type) {
+    case PreviousChoicePillType.cuisine:
+      return const _PillColors(
+        background: Color(0xFFFFEDDE),
+        foreground: Color(0xFFEE8C04),
+        border: Color(0xFFFFD7BB),
+      );
+    case PreviousChoicePillType.mood:
+      return const _PillColors(
+        background: Color(0xFFFFFBDE),
+        foreground: Color(0xFFEECF04),
+        border: Color(0xFFF3E9A6),
+      );
+    case PreviousChoicePillType.exception:
+      return const _PillColors(
+        background: Color(0xFFFFE5DE),
+        foreground: Color(0xFFEE2304),
+        border: Color(0xFFFFC5B8),
+      );
   }
 }
 
@@ -305,12 +378,13 @@ class _MatchedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final FoodMatchThemeColors colors = context.fmColors;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colors.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE7DEDA)),
+        border: Border.all(color: colors.border),
       ),
       child: Row(
         children: <Widget>[
@@ -320,7 +394,7 @@ class _MatchedCard extends StatelessWidget {
               style: GoogleFonts.nunito(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
-                color: const Color(0xFF2B2725),
+                color: colors.textPrimary,
               ),
             ),
           ),
@@ -329,7 +403,7 @@ class _MatchedCard extends StatelessWidget {
             style: GoogleFonts.nunito(
               fontSize: 18,
               fontWeight: FontWeight.w900,
-              color: AppColors.primary,
+              color: colors.primary,
             ),
           ),
           const SizedBox(width: 4),
@@ -338,11 +412,11 @@ class _MatchedCard extends StatelessWidget {
             style: GoogleFonts.nunito(
               fontSize: 14,
               fontWeight: FontWeight.w700,
-              color: const Color(0xFF7A7270),
+              color: colors.textMuted,
             ),
           ),
           const SizedBox(width: 4),
-          const Icon(Icons.bolt_rounded, color: Color(0xFFEECF04), size: 22),
+          Icon(Icons.bolt_rounded, color: colors.warning, size: 22),
         ],
       ),
     );

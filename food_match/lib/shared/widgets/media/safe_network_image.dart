@@ -1,7 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
-import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/theme_extensions.dart';
 import '../../../core/utils/image_utils.dart';
 
 class SafeNetworkImage extends StatelessWidget {
@@ -77,15 +77,15 @@ class _FallbackImage extends StatelessWidget {
     return Container(
       width: width,
       height: height,
-      color: backgroundColor ?? const Color(0xFFEFE8E4),
+      color: backgroundColor ?? context.fmColors.imageFallbackBackground,
       child: Center(
         child: showLoader
-            ? const SizedBox(
+            ? SizedBox(
                 width: 22,
                 height: 22,
-                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                child: CircularProgressIndicator(strokeWidth: 2, color: context.fmColors.primary),
               )
-            : Icon(icon, color: AppColors.textHint, size: 40),
+            : Icon(icon, color: context.fmColors.textMuted, size: 40),
       ),
     );
   }

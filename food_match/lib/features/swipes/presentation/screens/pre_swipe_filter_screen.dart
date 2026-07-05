@@ -5,8 +5,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/theme/theme_extensions.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../data/models/user_profile.dart';
 import '../../../../data/repositories/swipe_repository.dart';
@@ -18,10 +18,20 @@ import '../../logic/pre_swipe_provider.dart';
 import '../../logic/swipe_provider.dart';
 import 'previous_filter_choice_screen.dart';
 
+enum PreSwipeFilterIntent {
+  createNewSession,
+  updateActiveSoloSession,
+}
+
 class PreSwipeFilterScreen extends StatefulWidget {
-  const PreSwipeFilterScreen({super.key, this.mode = 'paired'});
+  const PreSwipeFilterScreen({
+    super.key,
+    this.mode = 'paired',
+    this.intent = PreSwipeFilterIntent.createNewSession,
+  });
 
   final String mode;
+  final PreSwipeFilterIntent intent;
 
   @override
   State<PreSwipeFilterScreen> createState() => _PreSwipeFilterScreenState();
@@ -39,6 +49,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   bool _waitingForPartner = false;
   bool _isPreparingSharedDeck = false;
   bool _hasStartedPrepareAfterBothConfirmed = false;
+  bool _isApplyingFilters = false;
   String? _pendingUserId;
   LastFilterPreset? _lastFilterPreset;
   late final CoupleProvider _coupleProvider;
@@ -251,7 +262,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     }
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.fmColors.background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(20),
@@ -264,17 +275,17 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
                   Text('Step $_step / 3', style: GoogleFonts.nunito(fontSize: 16)),
                   IconButton(
                     onPressed: _loading ? null : () => Navigator.of(context).maybePop(),
-                    icon: const Icon(Icons.close, color: AppColors.textSecondary),
+                    icon: Icon(Icons.close, color: context.fmColors.textSecondary),
                     tooltip: 'Close filters',
                   ),
                 ],
               ),
               Text(
                 _title,
-                style: AppTextStyles.pageTitle.copyWith(color: const Color(0xFF1A1A1A)),
+                style: AppTextStyles.pageTitle.copyWith(color: context.fmColors.textPrimary),
               ),
               const SizedBox(height: 10),
-              Text(_subtitle, style: GoogleFonts.nunito(fontSize: 18, color: AppColors.textSecondary)),
+              Text(_subtitle, style: GoogleFonts.nunito(fontSize: 18, color: context.fmColors.textSecondary)),
               const SizedBox(height: 24),
               Expanded(child: _buildStepContent()),
               const SizedBox(height: 16),
@@ -537,6 +548,9 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   }
 
   Future<void> _confirmCurrentFilters() async {
+    if (_isApplyingFilters) {
+      return;
+    }
     final String? userId = context.read<AuthProvider>().currentUser?.id;
     if (userId == null) {
       Navigator.pop(context);
@@ -553,17 +567,21 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       partnerChoices: widget.mode == 'paired' ? coupleProvider.partnerChoices : null,
     );
 
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _isApplyingFilters = true;
+    });
     if (widget.mode == 'solo') {
       final SwipeProvider swipeProvider = context.read<SwipeProvider>();
-      final bool ready = swipeProvider.activeSoloSessionId == null
-          ? await swipeProvider.createSoloSession(
+      final bool shouldUpdateActiveSession = widget.intent == PreSwipeFilterIntent.updateActiveSoloSession;
+      final bool ready = shouldUpdateActiveSession
+          ? await swipeProvider.rebuildActiveSoloSessionFilters(
               cuisines: _cuisines.toList(),
               moods: _moods.toList(),
               blocked: _blocked.toList(),
               diet: _diet.toList(),
             )
-          : await swipeProvider.updateActiveSoloFilter(
+          : await swipeProvider.createSoloSession(
               cuisines: _cuisines.toList(),
               moods: _moods.toList(),
               blocked: _blocked.toList(),
@@ -576,7 +594,10 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         if (!mounted) return;
         Navigator.pop(context, PreparedPoolResult(dishes: swipeProvider.deck, seenDishIds: <String>{}, usedFallback: false, relaxed: false, messages: const <String>[]));
       } else {
-        setState(() => _loading = false);
+        setState(() {
+          _loading = false;
+          _isApplyingFilters = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(swipeProvider.error ?? 'Could not update filters. You can go back to your current deck.')));
       }
       return;
@@ -604,6 +625,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       debugPrint('[PreSwipe] waiting for partner filters');
       setState(() {
         _loading = false;
+        _isApplyingFilters = false;
         _waitingForPartner = true;
         _pendingUserId = userId;
         _hasStartedPrepareAfterBothConfirmed = false;
@@ -634,7 +656,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
                     ? 'Both filter sets are ready. We’re preparing your shared deck now.'
                     : 'Your choices are saved. We’ll start swiping when your partner finishes their filters.');
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.fmColors.background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -646,22 +668,22 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
                   width: 96,
                   height: 96,
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.12),
+                    color: context.fmColors.primarySoft,
                     borderRadius: BorderRadius.circular(48),
                   ),
-                  child: const Icon(Icons.hourglass_empty, size: 44, color: AppColors.primary),
+                  child: Icon(Icons.hourglass_empty, size: 44, color: context.fmColors.primary),
                 ),
                 const SizedBox(height: 28),
                 Text(
                   title,
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.fredoka(fontWeight: FontWeight.w700, fontSize: 38, color: const Color(0xFF1A1A1A)),
+                  style: GoogleFonts.fredoka(fontWeight: FontWeight.w700, fontSize: 38, color: context.fmColors.textPrimary),
                 ),
                 const SizedBox(height: 14),
                 Text(
                   subtitle,
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.nunito(fontSize: 17, color: AppColors.textSecondary, height: 1.35),
+                  style: GoogleFonts.nunito(fontSize: 17, color: context.fmColors.textSecondary, height: 1.35),
                 ),
                 const SizedBox(height: 24),
                 const CircularProgressIndicator(),
@@ -752,6 +774,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       }
       setState(() {
         _loading = false;
+        _isApplyingFilters = false;
         _isPreparingSharedDeck = false;
         _waitingForPartner = true;
         _hasStartedPrepareAfterBothConfirmed = false;
@@ -765,6 +788,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     }
     setState(() {
       _loading = false;
+      _isApplyingFilters = false;
       _waitingForPartner = false;
       _isPreparingSharedDeck = false;
     });
@@ -786,6 +810,9 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   }
 
   Future<void> _skip() async {
+    if (_isApplyingFilters) {
+      return;
+    }
     final String? userId = context.read<AuthProvider>().currentUser?.id;
     if (userId == null) {
       Navigator.pop(context);
@@ -793,16 +820,20 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     }
 
     if (widget.mode == 'solo') {
-      setState(() => _loading = true);
+      setState(() {
+        _loading = true;
+        _isApplyingFilters = true;
+      });
       final SwipeProvider swipeProvider = context.read<SwipeProvider>();
-      final bool ready = swipeProvider.activeSoloSessionId == null
-          ? await swipeProvider.createSoloSession(
+      final bool shouldUpdateActiveSession = widget.intent == PreSwipeFilterIntent.updateActiveSoloSession;
+      final bool ready = shouldUpdateActiveSession
+          ? await swipeProvider.rebuildActiveSoloSessionFilters(
               cuisines: const <String>[],
               moods: const <String>[],
               blocked: const <String>[],
               diet: const <String>[],
             )
-          : await swipeProvider.updateActiveSoloFilter(
+          : await swipeProvider.createSoloSession(
               cuisines: const <String>[],
               moods: const <String>[],
               blocked: const <String>[],
@@ -829,7 +860,10 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
           ),
         );
       } else {
-        setState(() => _loading = false);
+        setState(() {
+          _loading = false;
+          _isApplyingFilters = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(swipeProvider.error ?? 'Could not update filters. You can go back to your current deck.')),
         );
@@ -885,7 +919,7 @@ class PreSwipeIntroScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.fmColors.background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(28),
@@ -895,7 +929,7 @@ class PreSwipeIntroScreen extends StatelessWidget {
                 alignment: Alignment.centerRight,
                 child: IconButton(
                   onPressed: onClose,
-                  icon: const Icon(Icons.close, size: 24, color: AppColors.textSecondary),
+                  icon: Icon(Icons.close, size: 24, color: context.fmColors.textSecondary),
                   padding: EdgeInsets.zero,
                   alignment: Alignment.centerRight,
                 ),
@@ -910,13 +944,13 @@ class PreSwipeIntroScreen extends StatelessWidget {
               Text(
                 'Let’s tune your food vibe.',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.fredoka(fontWeight: FontWeight.w700, fontSize: 38, color: AppColors.textPrimary, height: 1.15),
+                style: GoogleFonts.fredoka(fontWeight: FontWeight.w700, fontSize: 38, color: context.fmColors.textPrimary, height: 1.15),
               ),
               const SizedBox(height: 18),
               Text(
                 'FoodMatch has a large dish database. A few quick filters help us build a deck that feels closer to what you actually want today.',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.nunito(fontSize: 17, height: 1.45, color: AppColors.textSecondary),
+                style: GoogleFonts.nunito(fontSize: 17, height: 1.45, color: context.fmColors.textSecondary),
               ),
               const Spacer(),
               SizedBox(
@@ -924,8 +958,8 @@ class PreSwipeIntroScreen extends StatelessWidget {
                 child: ElevatedButton(
                   onPressed: onCustomize,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
+                    backgroundColor: context.fmColors.buttonPrimaryBackground,
+                    foregroundColor: context.fmColors.buttonPrimaryText,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
@@ -967,15 +1001,15 @@ class _FilterOptionChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Color borderColor = selected
-        ? AppColors.primary
+        ? context.fmColors.primary
         : highlighted
-            ? AppColors.success
-            : const Color(0xFFD9D9D9);
+            ? context.fmColors.success
+            : context.fmColors.border;
     final Color textColor = selected
-        ? AppColors.primary
+        ? context.fmColors.primary
         : enabled
-            ? AppColors.textPrimary
-            : AppColors.textHint;
+            ? context.fmColors.textPrimary
+            : context.fmColors.textMuted;
 
     return InkWell(
       borderRadius: BorderRadius.circular(_PreSwipeFilterScreenState._chipRadius),
@@ -984,7 +1018,7 @@ class _FilterOptionChip extends StatelessWidget {
         duration: const Duration(milliseconds: 140),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFFFFEFE7) : enabled ? Colors.white : const Color(0xFFF2F2F2),
+          color: selected ? context.fmColors.primarySoft : enabled ? context.fmColors.chipBackground : context.fmColors.cardElevated,
           borderRadius: BorderRadius.circular(_PreSwipeFilterScreenState._chipRadius),
           border: Border.all(color: borderColor, width: selected ? 2 : 1),
         ),
@@ -992,10 +1026,10 @@ class _FilterOptionChip extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             if (selected)
-              const Icon(
+              Icon(
                 Icons.check,
                 size: 18,
-                color: AppColors.primary,
+                color: context.fmColors.primary,
               )
             else
               FutureBuilder<bool>(
@@ -1007,19 +1041,19 @@ class _FilterOptionChip extends StatelessWidget {
                       assetPath,
                       width: 18,
                       height: 18,
-                      colorFilter: ColorFilter.mode(AppColors.textSecondary, BlendMode.srcIn),
-                      placeholderBuilder: (_) => const Icon(
+                      colorFilter: ColorFilter.mode(context.fmColors.textSecondary, BlendMode.srcIn),
+                      placeholderBuilder: (_) => Icon(
                         Icons.restaurant_menu,
                         size: 18,
-                        color: AppColors.textSecondary,
+                        color: context.fmColors.textSecondary,
                       ),
                     );
                   }
 
-                  return const Icon(
+                  return Icon(
                     Icons.restaurant_menu,
                     size: 18,
-                    color: AppColors.textSecondary,
+                    color: context.fmColors.textSecondary,
                   );
                 },
               ),
@@ -1068,9 +1102,9 @@ class _FilterBottomPanel extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.fmColors.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFD0D0D0)),
+        border: Border.all(color: context.fmColors.border),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -1085,7 +1119,7 @@ class _FilterBottomPanel extends StatelessWidget {
                   style: GoogleFonts.nunito(
                     fontSize: 14,
                     fontWeight: FontWeight.w400,
-                    color: AppColors.textPrimary,
+                    color: context.fmColors.textPrimary,
                   ),
                 ),
               ),
@@ -1095,7 +1129,7 @@ class _FilterBottomPanel extends StatelessWidget {
                 style: GoogleFonts.nunito(
                   fontSize: 14,
                   fontWeight: FontWeight.w800,
-                  color: AppColors.primary,
+                  color: context.fmColors.primary,
                 ),
               ),
             ],
@@ -1113,8 +1147,8 @@ class _FilterBottomPanel extends StatelessWidget {
             child: LinearProgressIndicator(
               minHeight: 10,
               value: availability.progress,
-              backgroundColor: const Color(0xFFE8E0DC),
-              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+              backgroundColor: context.fmColors.divider,
+              valueColor: AlwaysStoppedAnimation<Color>(context.fmColors.primary),
             ),
           ),
           const SizedBox(height: 16),
@@ -1139,7 +1173,7 @@ class _FilterBottomPanel extends StatelessWidget {
               //     'Skip',
               //     style: GoogleFonts.nunito(
               //       fontSize: 16,
-              //       color: AppColors.primary,
+              //       color: context.fmColors.primary,
               //       fontWeight: FontWeight.w700,
               //     ),
               //   ),
@@ -1149,8 +1183,8 @@ class _FilterBottomPanel extends StatelessWidget {
                 child: ElevatedButton(
                   onPressed: onContinue,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
+                    backgroundColor: context.fmColors.buttonPrimaryBackground,
+                    foregroundColor: context.fmColors.buttonPrimaryText,
                     padding: const EdgeInsets.symmetric(vertical: 13),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(36),

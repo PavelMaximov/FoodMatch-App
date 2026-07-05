@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/theme_extensions.dart';
 
 enum SwipeModeChoice { solo, paired }
 
@@ -25,6 +25,8 @@ class _SwipeModeSelectionScreenState extends State<SwipeModeSelectionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final FoodMatchThemeColors colors = context.fmColors;
+    final _ModeInfoBlockColors switchHintColors = _modeSwitchHintColors(context);
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 36, 20, 24),
       child: Column(
@@ -36,7 +38,7 @@ class _SwipeModeSelectionScreenState extends State<SwipeModeSelectionScreen> {
               fontSize: 36,
               fontWeight: FontWeight.w700,
               height: 1.08,
-              color: Colors.black,
+              color: colors.textPrimary,
             ),
           ),
           const SizedBox(height: 10),
@@ -45,7 +47,7 @@ class _SwipeModeSelectionScreenState extends State<SwipeModeSelectionScreen> {
             style: GoogleFonts.nunito(
               fontSize: 15,
               height: 1.35,
-              color: const Color(0xFF7A7270),
+              color: colors.textSecondary,
             ),
           ),
           const SizedBox(height: 22),
@@ -54,9 +56,7 @@ class _SwipeModeSelectionScreenState extends State<SwipeModeSelectionScreen> {
             icon: Icons.person_rounded,
             title: 'Solo',
             subtitle: 'Swipe through dishes just for yourself.',
-            info:
-                'Matches are saved to your personal list right away — no waiting on anyone else.',
-
+            info: 'Matches are saved to your personal list right away — no waiting on anyone else.',
             onTap: () => setState(() => _selected = SwipeModeChoice.solo),
           ),
           const SizedBox(height: 14),
@@ -66,24 +66,19 @@ class _SwipeModeSelectionScreenState extends State<SwipeModeSelectionScreen> {
             title: 'Pair up',
             badge: '2 people',
             subtitle: 'Swipe together with a partner in real time.',
-            info:
-                'You\'ll send an invite link. A dish becomes a match only when you both swipe right.',
-
+            info: 'You\'ll send an invite link. A dish becomes a match only when you both swipe right.',
             onTap: () => setState(() => _selected = SwipeModeChoice.paired),
           ),
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: const Color(0xFFEAF8EF),
+              color: switchHintColors.background,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Row(
               children: <Widget>[
-                const Icon(
-                  Icons.lightbulb_outline,
-                  color: Color(0xFF2E8B57),
-                ),
+                Icon(Icons.lightbulb_outline, color: switchHintColors.foreground),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -91,7 +86,7 @@ class _SwipeModeSelectionScreenState extends State<SwipeModeSelectionScreen> {
                     style: GoogleFonts.nunito(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
-                      color: const Color(0xFF2E8B57),
+                      color: switchHintColors.foreground,
                     ),
                   ),
                 ),
@@ -102,12 +97,10 @@ class _SwipeModeSelectionScreenState extends State<SwipeModeSelectionScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: _selected == SwipeModeChoice.solo
-                  ? widget.onSolo
-                  : widget.onPairUp,
+              onPressed: _selected == SwipeModeChoice.solo ? widget.onSolo : widget.onPairUp,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFD5115),
-                foregroundColor: Colors.white,
+                backgroundColor: colors.buttonPrimaryBackground,
+                foregroundColor: colors.buttonPrimaryText,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 elevation: 0,
                 shadowColor: Colors.transparent,
@@ -122,9 +115,7 @@ class _SwipeModeSelectionScreenState extends State<SwipeModeSelectionScreen> {
                 ),
               ),
               child: Text(
-                _selected == SwipeModeChoice.solo
-                    ? 'Continue with Solo'
-                    : 'Continue with Pair up',
+                _selected == SwipeModeChoice.solo ? 'Continue with Solo' : 'Continue with Pair up',
               ),
             ),
           ),
@@ -155,8 +146,11 @@ class _ModeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color blockBackground = selected ? const Color(0xFFFFFBDE) : const Color(0xFFF7F7F7);
-    final Color blockColor = selected ? const Color(0xFFC5AB00) : const Color(0xFF8B8582);
+    final FoodMatchThemeColors colors = context.fmColors;
+    final _ModeInfoBlockColors blockColors = _modeInfoBlockColors(
+      context,
+      isActive: selected,
+    );
 
     return InkWell(
       onTap: onTap,
@@ -164,10 +158,10 @@ class _ModeCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: colors.card,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: selected ? const Color(0xFFEE8C04) : const Color(0xFFE2DAD6),
+            color: selected ? colors.primary : colors.border,
             width: selected ? 2 : 1,
           ),
         ),
@@ -179,13 +173,10 @@ class _ModeCard extends StatelessWidget {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFEDDE),
+                    color: colors.primarySoft,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(
-                    icon,
-                    color: const Color(0xFFEE8C04),
-                  ),
+                  child: Icon(icon, color: colors.primary),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -199,18 +190,15 @@ class _ModeCard extends StatelessWidget {
                             style: GoogleFonts.nunito(
                               fontSize: 18,
                               fontWeight: FontWeight.w800,
-                              color: Colors.black,
+                              color: colors.textPrimary,
                             ),
                           ),
                           if (badge != null) ...<Widget>[
                             const SizedBox(width: 8),
                             Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 3,
-                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFFFEDDE),
+                                color: colors.primarySoft,
                                 borderRadius: BorderRadius.circular(999),
                               ),
                               child: Text(
@@ -218,7 +206,7 @@ class _ModeCard extends StatelessWidget {
                                 style: GoogleFonts.nunito(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w800,
-                                  color: const Color(0xFFEE8C04),
+                                  color: colors.primary,
                                 ),
                               ),
                             ),
@@ -227,10 +215,7 @@ class _ModeCard extends StatelessWidget {
                       ),
                       Text(
                         subtitle,
-                        style: GoogleFonts.nunito(
-                          fontSize: 14,
-                          color: const Color(0xFF7A7270),
-                        ),
+                        style: GoogleFonts.nunito(fontSize: 14, color: colors.textSecondary),
                       ),
                     ],
                   ),
@@ -239,7 +224,7 @@ class _ModeCard extends StatelessWidget {
                   value: true,
                   groupValue: selected,
                   onChanged: (_) => onTap(),
-                  activeColor: AppColors.primary,
+                  activeColor: colors.primary,
                 ),
               ],
             ),
@@ -247,25 +232,21 @@ class _ModeCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: blockBackground,
+                color: blockColors.background,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
                 children: <Widget>[
-                  Icon(
-                    Icons.info_outline,
-                    size: 18,
-                    color: blockColor,
-                  ),
+                  Icon(Icons.info_outline, size: 18, color: blockColors.foreground),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       info,
                       style: GoogleFonts.nunito(
                         fontSize: 13,
+                        height: 1.3,
                         fontWeight: FontWeight.w700,
-                        color: blockColor,
-                        height: 1.25,
+                        color: blockColors.foreground,
                       ),
                     ),
                   ),
@@ -277,4 +258,57 @@ class _ModeCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ModeInfoBlockColors {
+  const _ModeInfoBlockColors({
+    required this.background,
+    required this.foreground,
+  });
+
+  final Color background;
+  final Color foreground;
+}
+
+_ModeInfoBlockColors _modeInfoBlockColors(
+  BuildContext context, {
+  required bool isActive,
+}) {
+  final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
+  if (isDark) {
+    return isActive
+        ? const _ModeInfoBlockColors(
+            background: Color(0xFF4A462C),
+            foreground: Color(0xFFE2C403),
+          )
+        : const _ModeInfoBlockColors(
+            background: Color(0xFF504B49),
+            foreground: Color(0xFFC2C2C2),
+          );
+  }
+
+  return isActive
+      ? const _ModeInfoBlockColors(
+          background: Color(0xFFFFFBDE),
+          foreground: Color(0xFFC5AB00),
+        )
+      : const _ModeInfoBlockColors(
+          background: Color(0xFFF7F7F7),
+          foreground: Color(0xFF8B8582),
+        );
+}
+
+_ModeInfoBlockColors _modeSwitchHintColors(BuildContext context) {
+  final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
+  return isDark
+      ? const _ModeInfoBlockColors(
+          background: Color(0xFF1E2A22),
+          foreground: Color(0xFF4AC372),
+        )
+      : const _ModeInfoBlockColors(
+          background: Color(0xFFEAF8EF),
+          foreground: Color(0xFF2E8B57),
+        );
 }

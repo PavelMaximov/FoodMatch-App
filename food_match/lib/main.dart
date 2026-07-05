@@ -4,6 +4,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 
 import 'app.dart';
+import 'core/theme/theme_controller.dart';
 import 'data/local/cache_service.dart';
 import 'data/local/user_profile_hive_service.dart';
 import 'data/repositories/auth_repository.dart';
@@ -35,6 +36,8 @@ Future<void> main() async {
   final CacheService cacheService = CacheService();
   final UserProfileHiveService userProfileService = UserProfileHiveService();
   await userProfileService.init();
+  final ThemeController themeController = ThemeController();
+  await themeController.load();
 
   runApp(
     MultiProvider(
@@ -44,6 +47,7 @@ Future<void> main() async {
         Provider<SwipeRepository>.value(value: swipeRepo),
         Provider<UploadRepository>.value(value: uploadRepo),
         Provider<UserProfileHiveService>.value(value: userProfileService),
+        ChangeNotifierProvider<ThemeController>.value(value: themeController),
         Provider<FilterScoringService>.value(value: const FilterScoringService()),
         ChangeNotifierProvider<AuthProvider>(
           create: (_) => AuthProvider(

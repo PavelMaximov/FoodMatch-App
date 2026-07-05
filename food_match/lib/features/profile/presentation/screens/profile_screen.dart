@@ -12,6 +12,8 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/errors/error_messages.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/theme/theme_controller.dart';
+import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/utils/image_utils.dart';
 import '../../../../core/utils/snackbar_utils.dart';
 import '../../../../data/models/couple.dart';
@@ -190,7 +192,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final String email = user?.email.trim().isNotEmpty == true ? user!.email : 'name@gmail.com';
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.fmColors.background,
       body: SafeArea(
         bottom: false,
         child: ListView(
@@ -198,7 +200,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: <Widget>[
             Text(
               AppStrings.profile,
-              style: AppTextStyles.pageTitle,
+              style: AppTextStyles.pageTitle.copyWith(color: context.fmColors.textPrimary),
             ),
             const SizedBox(height: 18),
             _UserInfoCard(
@@ -217,7 +219,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _FavoritesCard(onTap: () => context.push('/favorites')),
             const SizedBox(height: 18),
             _SettingsGroup(
-              onSettings: () => _showComingSoon(context, 'Settings'),
+              onSettings: () => context.push('/profile/settings'),
               onAbout: () => _showComingSoon(context, 'About FoodMatch'),
               onHelp: () => _showComingSoon(context, 'Help'),
             ),
@@ -249,6 +251,158 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   void _showComingSoon(BuildContext context, String label) {
     SnackBarUtils.showSuccess(context, '$label coming soon');
+  }
+}
+
+class ProfileSettingsScreen extends StatelessWidget {
+  const ProfileSettingsScreen({super.key});
+
+  Future<void> _showColorThemeSheet(BuildContext context) async {
+    final ThemeController controller = context.read<ThemeController>();
+    final FoodMatchThemeColors colors = context.fmColors;
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: colors.background,
+      barrierColor: colors.modalBarrier,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (BuildContext sheetContext) {
+        final ThemeMode selectedMode = sheetContext.watch<ThemeController>().themeMode;
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  'Color theme',
+                  style: GoogleFonts.nunito(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: sheetContext.fmColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _ThemeModeOption(
+                  icon: Icons.brightness_auto_outlined,
+                  label: 'System',
+                  isSelected: selectedMode == ThemeMode.system,
+                  onTap: () async {
+                    await controller.setThemeMode(ThemeMode.system);
+                    if (sheetContext.mounted) Navigator.of(sheetContext).pop();
+                  },
+                ),
+                _ThemeModeOption(
+                  icon: Icons.light_mode_outlined,
+                  label: 'Light',
+                  isSelected: selectedMode == ThemeMode.light,
+                  onTap: () async {
+                    await controller.setThemeMode(ThemeMode.light);
+                    if (sheetContext.mounted) Navigator.of(sheetContext).pop();
+                  },
+                ),
+                _ThemeModeOption(
+                  icon: Icons.dark_mode_outlined,
+                  label: 'Dark',
+                  isSelected: selectedMode == ThemeMode.dark,
+                  onTap: () async {
+                    await controller.setThemeMode(ThemeMode.dark);
+                    if (sheetContext.mounted) Navigator.of(sheetContext).pop();
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeMode themeMode = context.watch<ThemeController>().themeMode;
+    final FoodMatchThemeColors colors = context.fmColors;
+    return Scaffold(
+      backgroundColor: colors.background,
+      body: SafeArea(
+        bottom: false,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 28),
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                _HeaderIconButton(
+                  icon: Icons.arrow_back,
+                  onTap: () => context.pop(),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Settings',
+                  style: AppTextStyles.pageTitle.copyWith(fontSize: 34, color: colors.textPrimary),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            _ProfileSurface(
+              padding: EdgeInsets.zero,
+              child: Column(
+                children: <Widget>[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Appearance',
+                        style: GoogleFonts.nunito(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.4,
+                          color: colors.textMuted,
+                        ),
+                      ),
+                    ),
+                  ),
+                  _SettingsRow(
+                    icon: Icons.palette_outlined,
+                    label: 'Color theme',
+                    value: _themeModeLabel(themeMode),
+                    onTap: () => _showColorThemeSheet(context),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+class _HeaderIconButton extends StatelessWidget {
+  const _HeaderIconButton({required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: context.fmColors.card,
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: SizedBox(
+          width: 40,
+          height: 40,
+          child: Icon(icon, color: context.fmColors.textPrimary),
+        ),
+      ),
+    );
   }
 }
 
@@ -328,7 +482,7 @@ class _UserInfoCard extends StatelessWidget {
                   style: GoogleFonts.nunito(
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
+                    color: context.fmColors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 3),
@@ -339,7 +493,7 @@ class _UserInfoCard extends StatelessWidget {
                   style: GoogleFonts.nunito(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.textSecondary.withValues(alpha: 0.68),
+                    color: context.fmColors.textMuted,
                   ),
                 ),
               ],
@@ -360,14 +514,14 @@ class _UserInfoCard extends StatelessWidget {
                       style: GoogleFonts.nunito(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.textSecondary.withValues(alpha: 0.66),
+                        color: context.fmColors.textMuted,
                       ),
                     ),
                     const SizedBox(width: 5),
                     Icon(
                       Icons.edit,
                       size: 13,
-                      color: AppColors.textSecondary.withValues(alpha: 0.66),
+                      color: context.fmColors.textMuted,
                     ),
                   ],
                 ),
@@ -453,7 +607,7 @@ class _AvatarContent extends StatelessWidget {
     return Text(
       displayName.characters.first.toUpperCase(),
       style: GoogleFonts.nunito(
-        color: Colors.white,
+        color: context.fmColors.card,
         fontSize: 29,
         fontWeight: FontWeight.w800,
       ),
@@ -462,9 +616,10 @@ class _AvatarContent extends StatelessWidget {
 }
 
 class _FavoritesCard extends StatelessWidget {
-  const _FavoritesCard({required this.onTap});
+  const _FavoritesCard({required this.onTap, this.value});
 
   final VoidCallback onTap;
+  final String? value;
 
   @override
   Widget build(BuildContext context) {
@@ -489,7 +644,7 @@ class _FavoritesCard extends StatelessWidget {
                       style: GoogleFonts.nunito(
                         fontSize: 17,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
+                        color: context.fmColors.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -500,17 +655,68 @@ class _FavoritesCard extends StatelessWidget {
                       style: GoogleFonts.nunito(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
-                        color: AppColors.textSecondary.withValues(alpha: 0.72),
+                        color: context.fmColors.textMuted,
                       ),
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right, size: 28, color: AppColors.textPrimary),
+              if (value != null)
+                Text(
+                  value!,
+                  style: GoogleFonts.nunito(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: context.fmColors.textMuted,
+                  ),
+                ),
+              Icon(Icons.chevron_right, size: 28, color: context.fmColors.textPrimary),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+
+String _themeModeLabel(ThemeMode mode) {
+  return switch (mode) {
+    ThemeMode.light => 'Light',
+    ThemeMode.dark => 'Dark',
+    ThemeMode.system => 'System',
+  };
+}
+
+class _ThemeModeOption extends StatelessWidget {
+  const _ThemeModeOption({
+    required this.icon,
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final FoodMatchThemeColors colors = context.fmColors;
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(icon, color: isSelected ? colors.primary : colors.textSecondary),
+      title: Text(
+        label,
+        style: GoogleFonts.nunito(
+          fontSize: 16,
+          fontWeight: FontWeight.w700,
+          color: colors.textPrimary,
+        ),
+      ),
+      trailing: isSelected ? Icon(Icons.check_circle, color: colors.primary) : null,
+      onTap: onTap,
     );
   }
 }
@@ -544,11 +750,12 @@ class _SettingsGroup extends StatelessWidget {
 }
 
 class _SettingsRow extends StatelessWidget {
-  const _SettingsRow({required this.icon, required this.label, required this.onTap});
+  const _SettingsRow({required this.icon, required this.label, required this.onTap, this.value});
 
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+  final String? value;
 
   @override
   Widget build(BuildContext context) {
@@ -560,7 +767,7 @@ class _SettingsRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Row(
             children: <Widget>[
-              Icon(icon, size: 16, color: AppColors.textPrimary),
+              Icon(icon, size: 16, color: context.fmColors.textPrimary),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -568,11 +775,20 @@ class _SettingsRow extends StatelessWidget {
                   style: GoogleFonts.nunito(
                     fontSize: 17,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+                    color: context.fmColors.textPrimary,
                   ),
                 ),
               ),
-              const Icon(Icons.chevron_right, size: 28, color: AppColors.textPrimary),
+              if (value != null)
+                Text(
+                  value!,
+                  style: GoogleFonts.nunito(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: context.fmColors.textMuted,
+                  ),
+                ),
+              Icon(Icons.chevron_right, size: 28, color: context.fmColors.textPrimary),
             ],
           ),
         ),
@@ -598,9 +814,9 @@ class _SessionCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              const Padding(
-                padding: EdgeInsets.only(top: 4),
-                child: Icon(Icons.link, size: 15, color: AppColors.textPrimary),
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Icon(Icons.link, size: 15, color: context.fmColors.textPrimary),
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -612,7 +828,7 @@ class _SessionCard extends StatelessWidget {
                       style: GoogleFonts.nunito(
                         fontSize: 17,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
+                        color: context.fmColors.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -625,7 +841,7 @@ class _SessionCard extends StatelessWidget {
                       style: GoogleFonts.nunito(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
-                        color: AppColors.textSecondary.withValues(alpha: 0.72),
+                        color: context.fmColors.textMuted,
                       ),
                     ),
                   ],
@@ -691,8 +907,8 @@ class _SessionCard extends StatelessWidget {
               child: ElevatedButton(
                 onPressed: () => ProfileScreen._openSessionSheet(context),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
+                  backgroundColor: context.fmColors.buttonPrimaryBackground,
+                  foregroundColor: context.fmColors.buttonPrimaryText,
                   elevation: 0,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
                 ),
@@ -701,7 +917,7 @@ class _SessionCard extends StatelessWidget {
                   style: GoogleFonts.nunito(
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
-                    color: Colors.white,
+                    color: context.fmColors.buttonPrimaryText,
                   ),
                 ),
               ),
@@ -748,14 +964,14 @@ class _SmallSessionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final ButtonStyle style = isOutlined
         ? OutlinedButton.styleFrom(
-            foregroundColor: const Color(0xFF614A4D),
-            side: const BorderSide(color: Color(0xFF614A4D), width: 1.4),
+            foregroundColor: context.fmColors.primaryPressed,
+            side: BorderSide(color: context.fmColors.primaryPressed, width: 1.4),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
             padding: EdgeInsets.zero,
           )
         : ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
+            backgroundColor: context.fmColors.buttonPrimaryBackground,
+            foregroundColor: context.fmColors.buttonPrimaryText,
             elevation: 0,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
             padding: EdgeInsets.zero,
@@ -767,7 +983,7 @@ class _SmallSessionButton extends StatelessWidget {
             height: 16,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              color: isOutlined ? const Color(0xFF614A4D) : Colors.white,
+              color: isOutlined ? context.fmColors.primaryPressed : context.fmColors.buttonPrimaryText,
             ),
           )
         : Text(
@@ -775,7 +991,7 @@ class _SmallSessionButton extends StatelessWidget {
             style: GoogleFonts.nunito(
               fontSize: 12,
               fontWeight: FontWeight.w800,
-              color: isOutlined ? const Color(0xFF614A4D) : Colors.white,
+              color: isOutlined ? context.fmColors.primaryPressed : context.fmColors.buttonPrimaryText,
             ),
           );
 
@@ -801,9 +1017,9 @@ class _LogoutButton extends StatelessWidget {
       child: OutlinedButton(
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
-          backgroundColor: Colors.white,
-          foregroundColor: AppColors.primary,
-          side: const BorderSide(color: AppColors.primary, width: 1.7),
+          backgroundColor: context.fmColors.buttonSecondaryBackground,
+          foregroundColor: context.fmColors.primary,
+          side: BorderSide(color: context.fmColors.primary, width: 1.7),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
         ),
         child: Text(
@@ -811,7 +1027,7 @@ class _LogoutButton extends StatelessWidget {
           style: GoogleFonts.nunito(
             fontSize: 13,
             fontWeight: FontWeight.w800,
-            color: AppColors.primary,
+            color: context.fmColors.primary,
           ),
         ),
       ),
@@ -835,9 +1051,9 @@ class _ProfileSurface extends StatelessWidget {
     return Container(
       constraints: minHeight == null ? null : BoxConstraints(minHeight: minHeight!),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.fmColors.card,
         borderRadius: BorderRadius.circular(ProfileScreen._cardRadius),
-        border: Border.all(color: AppColors.divider.withValues(alpha: 0.95)),
+        border: Border.all(color: context.fmColors.border),
         // boxShadow: <BoxShadow>[
         //   BoxShadow(
         //     color: AppColors.cardShadow.withValues(alpha: 0.65),
@@ -875,7 +1091,7 @@ class _Separator extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(left: 20, right: 20),
-      child: Divider(height: 1, thickness: 1, color: AppColors.divider.withValues(alpha: 0.76)),
+      child: Divider(height: 1, thickness: 1, color: context.fmColors.divider),
     );
   }
 }

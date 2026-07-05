@@ -4,9 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/constants/app_strings.dart';
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/theme/app_dimensions.dart';
-import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/snackbar_utils.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/app_button.dart';
@@ -66,12 +65,12 @@ class _LoginScreenState extends State<LoginScreen> {
           text,
           style: GoogleFonts.nunito(
             fontSize: 13,
-            color: AppColors.textSecondary,
+            color: context.fmColors.textSecondary,
           ),
         ),
         const SizedBox(width: 8),
-        const Expanded(
-          child: Divider(color: AppColors.divider, thickness: 1),
+        Expanded(
+          child: Divider(color: context.fmColors.divider, thickness: 1),
         ),
       ],
     );
@@ -86,14 +85,14 @@ class _LoginScreenState extends State<LoginScreen> {
             style: GoogleFonts.nunito(
               fontSize: 20,
               fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+              color: context.fmColors.textPrimary,
             ),
           ),
           onTap: () => SnackBarUtils.showError(context, AppStrings.googleSignInComingSoon),
         ),
         const SizedBox(width: 16),
         _buildSocialIcon(
-          child: const Icon(Icons.apple, size: 24, color: AppColors.textPrimary),
+          child: Icon(Icons.apple, size: 24, color: context.fmColors.textPrimary),
           onTap: () => SnackBarUtils.showError(context, AppStrings.appleSignInComingSoon),
         ),
       ],
@@ -111,7 +110,7 @@ class _LoginScreenState extends State<LoginScreen> {
         height: 40,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          border: Border.all(color: AppColors.divider),
+          border: Border.all(color: context.fmColors.border),
         ),
         child: Center(child: child),
       ),
@@ -129,7 +128,7 @@ class _LoginScreenState extends State<LoginScreen> {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: AppColors.textPrimary,
+          color: context.fmColors.textPrimary,
           borderRadius: BorderRadius.circular(AppDimensions.radiusButton),
         ),
         child: Row(
@@ -139,7 +138,7 @@ class _LoginScreenState extends State<LoginScreen> {
               text,
               style: GoogleFonts.nunito(
                 fontSize: 14,
-                color: Colors.white,
+                color: context.fmColors.textInverse,
               ),
             ),
             const SizedBox(width: 4),
@@ -148,7 +147,7 @@ class _LoginScreenState extends State<LoginScreen> {
               style: GoogleFonts.nunito(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: AppColors.primary,
+                color: context.fmColors.primary,
               ),
             ),
           ],
@@ -160,7 +159,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.fmColors.background,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -173,7 +172,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const AppLogoHeader(showSubtitle: true),
                 Text(
                   AppStrings.login,
-                  style: AppTextStyles.pageTitle,
+                  style: GoogleFonts.fredoka(fontSize: 36, fontWeight: FontWeight.w700, color: context.fmColors.textPrimary),
                 ),
                 const SizedBox(height: 24),
                 AppTextField(
@@ -193,7 +192,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   autofillHints: const <String>[AutofillHints.password],
                   validator: Validators.password,
                   suffixIcon: IconButton(
-                    icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
+                    icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: context.fmColors.textMuted),
                     onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                   ),
                 ),
@@ -211,8 +210,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             onChanged: (bool? value) {
                               setState(() => _rememberMe = value ?? false);
                             },
-                            activeColor: AppColors.primary,
-                            side: const BorderSide(color: AppColors.divider),
+                            activeColor: context.fmColors.primary,
+                            side: BorderSide(color: context.fmColors.border),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(4),
                             ),
@@ -223,7 +222,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           AppStrings.rememberMe,
                           style: GoogleFonts.nunito(
                             fontSize: 14,
-                            color: AppColors.textPrimary,
+                            color: context.fmColors.textPrimary,
                           ),
                         ),
                       ],
@@ -234,7 +233,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         AppStrings.forgotPassword,
                         style: GoogleFonts.nunito(
                           fontSize: 14,
-                          color: AppColors.textPrimary,
+                          color: context.fmColors.textPrimary,
                           decoration: TextDecoration.underline,
                         ),
                       ),

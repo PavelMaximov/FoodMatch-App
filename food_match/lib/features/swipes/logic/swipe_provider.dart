@@ -43,6 +43,7 @@ class SwipeProvider extends ChangeNotifier {
   int _deckVersion = 0;
   PreparedDeckMeta? _preparedDeckMeta;
   Future<bool>? _existingPreparedDeckLoadFuture;
+  bool _isApplyingSoloFilterRequest = false;
 
   List<Dish> deck = <Dish>[];
   int currentIndex = 0;
@@ -188,6 +189,10 @@ class SwipeProvider extends ChangeNotifier {
   }
 
   Future<bool> createSoloSession({required List<String> cuisines, required List<String> moods, required List<String> blocked, required List<String> diet}) async {
+    if (_isApplyingSoloFilterRequest) {
+      return false;
+    }
+    _isApplyingSoloFilterRequest = true;
     isLoading = true; error = null; notifyListeners();
     try {
       final dynamic data = await _swipeRepository.createSoloSession(filter: <String, dynamic>{'cuisines': cuisines, 'moods': moods, 'exclusions': blocked, 'diet': diet});
@@ -196,15 +201,16 @@ class SwipeProvider extends ChangeNotifier {
         _applySoloSession(session);
         return true;
       }
-    } catch (e) { error = _mapSwipeError(e); } finally { isLoading = false; notifyListeners(); }
+    } catch (e) { error = _mapSwipeError(e); } finally { _isApplyingSoloFilterRequest = false; isLoading = false; notifyListeners(); }
     return false;
   }
 
 
-  Future<bool> updateActiveSoloFilter({required List<String> cuisines, required List<String> moods, required List<String> blocked, required List<String> diet}) async {
-    if (activeSoloSessionId == null) {
-      return createSoloSession(cuisines: cuisines, moods: moods, blocked: blocked, diet: diet);
+  Future<bool> rebuildActiveSoloSessionFilters({required List<String> cuisines, required List<String> moods, required List<String> blocked, required List<String> diet}) async {
+    if (_isApplyingSoloFilterRequest) {
+      return false;
     }
+    _isApplyingSoloFilterRequest = true;
     isLoading = true; error = null; notifyListeners();
     try {
       final dynamic data = await _swipeRepository.updateActiveSoloFilter(filter: <String, dynamic>{'cuisines': cuisines, 'moods': moods, 'exclusions': blocked, 'diet': diet});
@@ -213,8 +219,15 @@ class SwipeProvider extends ChangeNotifier {
         _applySoloSession(session);
         return true;
       }
-    } catch (e) { error = _mapSwipeError(e); } finally { isLoading = false; notifyListeners(); }
+    } catch (e) { error = _mapSwipeError(e); } finally { _isApplyingSoloFilterRequest = false; isLoading = false; notifyListeners(); }
     return false;
+  }
+
+  Future<bool> updateActiveSoloFilter({required List<String> cuisines, required List<String> moods, required List<String> blocked, required List<String> diet}) async {
+    if (activeSoloSessionId == null) {
+      return createSoloSession(cuisines: cuisines, moods: moods, blocked: blocked, diet: diet);
+    }
+    return rebuildActiveSoloSessionFilters(cuisines: cuisines, moods: moods, blocked: blocked, diet: diet);
   }
 
   Future<void> abandonActiveSoloSession() async {

@@ -3,9 +3,8 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/theme/app_dimensions.dart';
-import '../../../../core/theme/app_text_styles.dart';
 import '../../../../data/models/match_item.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
@@ -60,7 +59,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
     final String? partnerAvatarUrl = partner?.avatarUrl;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.fmColors.background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingM),
@@ -160,7 +159,7 @@ class _Header extends StatelessWidget {
     if (isSoloMode) {
       return Text(
         "Dishes you've liked",
-        style: AppTextStyles.pageTitle,
+        style: GoogleFonts.fredoka(fontSize: 36, fontWeight: FontWeight.w700, color: context.fmColors.textPrimary),
       );
     }
 
@@ -169,7 +168,7 @@ class _Header extends StatelessWidget {
       children: <Widget>[
         Text(
           AppStrings.matches,
-          style: AppTextStyles.pageTitle,
+          style: GoogleFonts.fredoka(fontSize: 36, fontWeight: FontWeight.w700, color: context.fmColors.textPrimary),
         ),
         const SizedBox(height: 1),
         Row(
@@ -179,7 +178,7 @@ class _Header extends StatelessWidget {
               style: GoogleFonts.nunito(
                 fontSize: 22,
                 fontWeight: FontWeight.w500,
-                color: AppColors.textPrimary,
+                color: context.fmColors.textPrimary,
               ),
             ),
             Flexible(
@@ -189,7 +188,7 @@ class _Header extends StatelessWidget {
                 style: GoogleFonts.nunito(
                   fontSize: 56 * 0.5,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+                  color: context.fmColors.textPrimary,
                 ),
               ),
             ),
@@ -223,19 +222,19 @@ class _PartnerAvatar extends StatelessWidget {
         size: 30,
       );
     }
-    return _buildFallback(initials);
+    return _buildFallback(context, initials);
   }
 
-  Widget _buildFallback(String initials) {
+  Widget _buildFallback(BuildContext context, String initials) {
     return CircleAvatar(
       radius: 15,
-      backgroundColor: const Color(0xFFE6DFDC),
+      backgroundColor: context.fmColors.primarySoft,
       child: Text(
         initials,
         style: GoogleFonts.nunito(
           fontSize: 12,
           fontWeight: FontWeight.w700,
-          color: AppColors.textSecondary,
+          color: context.fmColors.textSecondary,
         ),
       ),
     );

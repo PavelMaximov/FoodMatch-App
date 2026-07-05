@@ -106,7 +106,13 @@ class AppRouter {
                 ),
                 StatefulShellBranch(
                   routes: <RouteBase>[
-                    GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
+                    GoRoute(
+                      path: '/profile',
+                      builder: (_, __) => const ProfileScreen(),
+                      routes: <RouteBase>[
+                        GoRoute(path: 'settings', builder: (_, __) => const ProfileSettingsScreen()),
+                      ],
+                    ),
                   ],
                 ),
               ],
