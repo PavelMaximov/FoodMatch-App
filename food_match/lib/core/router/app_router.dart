@@ -84,7 +84,16 @@ class AppRouter {
                 ),
               ),
             ),
-            StatefulShellRoute.indexedStack(
+            StatefulShellRoute(
+              navigatorContainerBuilder: (
+                BuildContext context,
+                StatefulNavigationShell navigationShell,
+                List<Widget> children,
+              ) =>
+                  _PagedBranchNavigatorContainer(
+                navigationShell: navigationShell,
+                children: children,
+              ),
               builder: (
                 BuildContext context,
                 GoRouterState state,
@@ -150,6 +159,80 @@ class AppRouter {
   }
 }
 
+
+
+class _PagedBranchNavigatorContainer extends StatefulWidget {
+  const _PagedBranchNavigatorContainer({
+    required this.navigationShell,
+    required this.children,
+  });
+
+  final StatefulNavigationShell navigationShell;
+  final List<Widget> children;
+
+  @override
+  State<_PagedBranchNavigatorContainer> createState() =>
+      _PagedBranchNavigatorContainerState();
+}
+
+class _PagedBranchNavigatorContainerState
+    extends State<_PagedBranchNavigatorContainer> {
+  late final PageController _pageController;
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(
+      initialPage: widget.navigationShell.currentIndex,
+      keepPage: true,
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant _PagedBranchNavigatorContainer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final int currentIndex = widget.navigationShell.currentIndex;
+    if (!_pageController.hasClients ||
+        (_pageController.page?.round() ?? _pageController.initialPage) ==
+            currentIndex) {
+      return;
+    }
+    _animateToBranch(currentIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _animateToBranch(int index) async {
+    if (!_pageController.hasClients) {
+      return;
+    }
+    await _pageController.animateToPage(
+      index,
+      duration: AppMotion.durationFor(context, AppMotion.tab),
+      curve: AppMotion.curve,
+    );
+  }
+
+  void _handlePageChanged(int index) {
+    if (index == widget.navigationShell.currentIndex) {
+      return;
+    }
+    widget.navigationShell.goBranch(index);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PageView(
+      controller: _pageController,
+      physics: const PageScrollPhysics(),
+      onPageChanged: _handlePageChanged,
+      children: widget.children,
+    );
+  }
+}
 
 CustomTransitionPage<void> _bottomUpPage({
   required BuildContext context,

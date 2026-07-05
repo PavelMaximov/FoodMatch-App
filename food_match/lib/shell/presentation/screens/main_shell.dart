@@ -59,7 +59,6 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   final Map<String, Future<bool>> _iconAssetAvailability =
       <String, Future<bool>>{};
   bool _isBootstrappingMatchesBadge = false;
-  int _previousIndex = 2;
 
   Future<bool> _hasIconAsset(String assetPath) {
     return _iconAssetAvailability.putIfAbsent(assetPath, () async {
@@ -106,33 +105,17 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     }
   }
 
-  void _goToTab(int index, {bool resetCurrent = false}) {
-    if (index < 0 || index >= _navItems.length) {
+  void _onTabTap(int index) {
+    if (index < 0 ||
+        index >= _navItems.length ||
+        index == widget.navigationShell.currentIndex) {
       return;
     }
     if (index == 1) {
       context.read<MatchProvider>().loadMatches();
     }
 
-    setState(() => _previousIndex = widget.navigationShell.currentIndex);
-    widget.navigationShell.goBranch(
-      index,
-      initialLocation: resetCurrent || index == widget.navigationShell.currentIndex,
-    );
-  }
-
-  void _onTabTap(int index) {
-    _goToTab(index, resetCurrent: index == widget.navigationShell.currentIndex);
-  }
-
-  void _handleHorizontalDragEnd(DragEndDetails details) {
-    final double velocity = details.primaryVelocity ?? 0;
-    if (velocity.abs() < 250) {
-      return;
-    }
-    final int currentIndex = widget.navigationShell.currentIndex;
-    final int nextIndex = velocity < 0 ? currentIndex + 1 : currentIndex - 1;
-    _goToTab(nextIndex);
+    widget.navigationShell.goBranch(index);
   }
 
   Future<void> _bootstrapMatchesBadge() async {
@@ -184,31 +167,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
       body: Column(
         children: <Widget>[
           const NetworkStatusBar(),
-          Expanded(
-            child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onHorizontalDragEnd: _handleHorizontalDragEnd,
-              child: AnimatedSwitcher(
-                duration: AppMotion.durationFor(context, AppMotion.normal),
-                switchInCurve: AppMotion.curve,
-                switchOutCurve: AppMotion.curve,
-                transitionBuilder: (Widget child, Animation<double> animation) {
-                  final int childIndex = (child.key! as ValueKey<int>).value;
-                  final bool movingRight = childIndex >= _previousIndex;
-                  final Offset begin = Offset(movingRight ? 1 : -1, 0);
-                  final Animation<Offset> offset = Tween<Offset>(begin: begin, end: Offset.zero).animate(animation);
-                  return SlideTransition(
-                    position: offset,
-                    child: FadeTransition(opacity: animation, child: child),
-                  );
-                },
-                child: KeyedSubtree(
-                  key: ValueKey<int>(currentIndex),
-                  child: widget.navigationShell,
-                ),
-              ),
-            ),
-          ),
+          Expanded(child: widget.navigationShell),
         ],
       ),
       bottomNavigationBar: BottomAppBar(
