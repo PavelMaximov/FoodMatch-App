@@ -1,11 +1,13 @@
 import 'dart:async';
 
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../core/animations/app_motion.dart';
 import '../../../../core/errors/error_messages.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/theme/theme_extensions.dart';
@@ -331,7 +333,24 @@ class _RecipesScreenState extends State<RecipesScreen> {
             Expanded(
               child: RefreshIndicator(
                 onRefresh: () => _loadData(force: true),
-                child: _buildBody(),
+                child: PageTransitionSwitcher(
+                  duration: AppMotion.durationFor(context, AppMotion.normal),
+                  transitionBuilder: (
+                    Widget child,
+                    Animation<double> animation,
+                    Animation<double> secondaryAnimation,
+                  ) {
+                    return FadeThroughTransition(
+                      animation: animation,
+                      secondaryAnimation: secondaryAnimation,
+                      child: child,
+                    );
+                  },
+                  child: KeyedSubtree(
+                    key: ValueKey<String>(_bodyMotionKey),
+                    child: _buildBody(),
+                  ),
+                ),
               ),
             ),
           ],
@@ -339,6 +358,20 @@ class _RecipesScreenState extends State<RecipesScreen> {
         ),
       );
     
+  }
+
+
+  String get _bodyMotionKey {
+    if (_isLoading && _allDishes.isEmpty) {
+      return 'loading';
+    }
+    if (_error != null && _allDishes.isEmpty) {
+      return 'error';
+    }
+    if (_filteredDishes.isEmpty) {
+      return 'empty';
+    }
+    return 'content-${_selectedCuisines.length}-${_selectedMoods.length}-${_selectedDiet.length}-${_selectedTypes.length}';
   }
 
   Widget _buildBody() {
@@ -468,8 +501,9 @@ class _RecipesScreenState extends State<RecipesScreen> {
     final String title = tab.name[0].toUpperCase() + tab.name.substring(1);
 
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => RecipeResultsPage(
+      _bottomUpRoute(
+        context: context,
+        child: RecipeResultsPage(
           title: title,
           initialTab: tab,
           initialQuery: RecipeResultsQuery(mealType: tab.name, sort: 'default'),
@@ -519,8 +553,9 @@ class _RecipesScreenState extends State<RecipesScreen> {
 
   void _openCategory(RecipeCategoryConfig category) {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => RecipeResultsPage(
+      _bottomUpRoute(
+        context: context,
+        child: RecipeResultsPage(
           title: category.title,
           initialQuery: category.query,
           postFilter: category.postFilter,
@@ -540,8 +575,9 @@ class _RecipesScreenState extends State<RecipesScreen> {
 
   void _openAllRecipes() {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => RecipeResultsPage(
+      _bottomUpRoute(
+        context: context,
+        child: RecipeResultsPage(
           title: 'All Recipes',
           initialQuery: const RecipeResultsQuery(sort: 'default'),
           onFavoriteTap: _toggleSaved,
@@ -721,6 +757,22 @@ class _RecipesScreenState extends State<RecipesScreen> {
         .map((String token) => token[0].toUpperCase() + token.substring(1))
         .join(' ');
   }
+}
+
+
+Route<T> _bottomUpRoute<T>({required BuildContext context, required Widget child}) {
+  return PageRouteBuilder<T>(
+    transitionDuration: AppMotion.durationFor(context, AppMotion.normal),
+    reverseTransitionDuration: AppMotion.durationFor(context, AppMotion.normal),
+    pageBuilder: (_, __, ___) => child,
+    transitionsBuilder: (_, Animation<double> animation, __, Widget child) {
+      final Animation<Offset> offset = Tween<Offset>(
+        begin: const Offset(0, 1),
+        end: Offset.zero,
+      ).chain(CurveTween(curve: AppMotion.curve)).animate(animation);
+      return SlideTransition(position: offset, child: child);
+    },
+  );
 }
 
 class MealTabsBar extends StatelessWidget {

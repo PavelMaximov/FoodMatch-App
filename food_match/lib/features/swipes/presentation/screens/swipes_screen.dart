@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/animations/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/theme/app_dimensions.dart';
@@ -473,15 +474,30 @@ class _SwipesScreenState extends State<SwipesScreen> {
             );
         if (wasSoloMode) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Row(
-                children: <Widget>[
-                  Icon(Icons.favorite, color: Colors.white, size: 18),
-                  SizedBox(width: 8),
-                  Text('Saved to Matches'),
-                ],
+            SnackBar(
+              content: TweenAnimationBuilder<double>(
+                tween: Tween<double>(begin: 0.92, end: 1),
+                duration: AppMotion.fast,
+                curve: AppMotion.curve,
+                builder: (BuildContext context, double scale, Widget? child) {
+                  return Opacity(
+                    opacity: scale.clamp(0.0, 1.0),
+                    child: Transform.scale(
+                      scale: scale,
+                      alignment: Alignment.centerLeft,
+                      child: child,
+                    ),
+                  );
+                },
+                child: Row(
+                  children: <Widget>[
+                    Icon(Icons.favorite, color: Colors.white, size: 18),
+                    SizedBox(width: 8),
+                    Text('Saved to Matches'),
+                  ],
+                ),
               ),
-              duration: Duration(milliseconds: 1400),
+              duration: const Duration(milliseconds: 1400),
               behavior: SnackBarBehavior.floating,
             ),
           );

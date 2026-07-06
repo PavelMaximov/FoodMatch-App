@@ -1,25 +1,16 @@
-import 'dart:io';
-
-import 'package:flutter/foundation.dart';
-import 'package:http/io_client.dart';
+import 'package:http/http.dart' as http;
 
 import 'api_security_config.dart';
+
+// Conditional imports for web compatibility.
+import 'certificate_pinning_http_client_io.dart'
+    if (dart.library.html) 'certificate_pinning_http_client_web.dart';
 
 class CertificatePinningHttpClient {
   const CertificatePinningHttpClient._();
 
-  static IOClient create() {
+  static http.Client create() {
     ApiSecurityConfig.validateApiTransport();
-    final HttpClient httpClient = HttpClient();
-    if (ApiSecurityConfig.certificatePinningEnabled) {
-      httpClient.badCertificateCallback = (X509Certificate certificate, String host, int port) {
-        if (host != ApiSecurityConfig.productionApiHost) return false;
-        if (kDebugMode) {
-          debugPrint('[ApiSecurity] Rejected invalid certificate for $host:$port');
-        }
-        return false;
-      };
-    }
-    return IOClient(httpClient);
+    return createHttpClient();
   }
 }
