@@ -1,7 +1,16 @@
+import 'package:flutter/foundation.dart';
+
 class ApiConstants {
   ApiConstants._();
 
-  static String get baseUrl => 'http://192.168.0.39:4000';
+  static String get baseUrl {
+    const String envBaseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: '');
+    if (envBaseUrl.isNotEmpty) {
+      return envBaseUrl;
+    }
+
+    return kIsWeb ? 'http://localhost:4000' : 'http://192.168.0.39:4000';
+  }
 
   static const String health = '/health';
   static const String register = '/api/auth/register';
