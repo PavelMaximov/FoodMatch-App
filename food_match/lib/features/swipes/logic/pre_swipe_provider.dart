@@ -309,6 +309,22 @@ class PreSwipeProvider extends ChangeNotifier {
         debugPrint('[Deck] prepare skipped: filters not ready');
         rethrow;
       }
+      final bool requiresSafeBackendDeck = fallback.config?.blocked.isNotEmpty ?? false;
+      if (requiresSafeBackendDeck) {
+        debugPrint('[PreparedDeck] Backend prepare failed with exclusions selected; local fallback suppressed');
+        return PreparedPoolResult(
+          dishes: const <Dish>[],
+          seenDishIds: const <String>{},
+          usedFallback: false,
+          relaxed: true,
+          messages: <String>[
+            ...fallback.messages,
+            'Could not prepare a safe deck. Please try again.',
+          ],
+          config: fallback.config,
+          preparedDeckMeta: fallback.preparedDeckMeta,
+        );
+      }
       debugPrint('[PreparedDeck] Backend prepare failed, using local fallback');
       return PreparedPoolResult(
         dishes: fallback.dishes,

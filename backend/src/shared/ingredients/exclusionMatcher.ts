@@ -7,6 +7,7 @@ export interface MatchedIngredientExclusionReason {
   tags: string[];
   matchedExclusions: string[];
   source: string;
+  matchSource: 'catalog_exact' | 'catalog_alias' | 'phrase_fallback';
 }
 
 export interface DishExclusionReason {
@@ -74,12 +75,19 @@ export function ingredientMatchesExclusions(ingredientText: string, exclusions: 
 }
 
 export function getExclusionTagsForIngredient(ingredientText: string): string[] {
+  return getExclusionTagsForIngredientDetailed(ingredientText).tags;
+}
+
+export function getExclusionTagsForIngredientDetailed(ingredientText: string): { tags: string[]; matchSource: 'catalog_exact' | 'catalog_alias' | 'phrase_fallback' | null } {
   const normalized = normalizeIngredientText(ingredientText);
-  if (!normalized || isLikelyNoiseIngredient(normalized)) return [];
+  if (!normalized || isLikelyNoiseIngredient(normalized)) return { tags: [], matchSource: null };
 
   const exactMatch = INGREDIENT_CATALOG_BY_KEY.get(normalized) ?? INGREDIENT_CATALOG_BY_KEY.get(normalizeIngredientKey(normalized));
-  if (exactMatch) return exactMatch.exclusionTags;
-  if (SAFE_PHRASES.has(normalized)) return [];
+  if (exactMatch) {
+    const canonical = normalizeIngredientText(exactMatch.canonicalName);
+    return { tags: exactMatch.exclusionTags, matchSource: canonical === normalized ? 'catalog_exact' : 'catalog_alias' };
+  }
+  if (SAFE_PHRASES.has(normalized)) return { tags: [], matchSource: null };
 
   const tags = new Set<ExclusionTag>();
   for (const group of PHRASE_FALLBACKS) {
@@ -87,7 +95,7 @@ export function getExclusionTagsForIngredient(ingredientText: string): string[] 
       for (const tag of group.tags) tags.add(tag);
     }
   }
-  return [...tags];
+  return { tags: [...tags], matchSource: tags.size > 0 ? 'phrase_fallback' : null };
 }
 
 export function getMatchedExclusionReason(dish: unknown, exclusions: string[]): DishExclusionReason {
@@ -96,10 +104,10 @@ export function getMatchedExclusionReason(dish: unknown, exclusions: string[]): 
 
   const reasons: MatchedIngredientExclusionReason[] = [];
   for (const candidate of extractDishIngredientTexts(dish)) {
-    const tags = getExclusionTagsForIngredient(candidate.text);
-    const matchedExclusions = tags.filter((tag) => requestedTags.has(tag as ExclusionTag));
-    if (matchedExclusions.length > 0) {
-      reasons.push({ ingredient: candidate.text, normalized: normalizeIngredientText(candidate.text), tags, matchedExclusions, source: candidate.source });
+    const detail = getExclusionTagsForIngredientDetailed(candidate.text);
+    const matchedExclusions = detail.tags.filter((tag) => requestedTags.has(tag as ExclusionTag));
+    if (matchedExclusions.length > 0 && detail.matchSource) {
+      reasons.push({ ingredient: candidate.text, normalized: normalizeIngredientText(candidate.text), tags: detail.tags, matchedExclusions, source: candidate.source, matchSource: detail.matchSource });
     }
   }
 
