@@ -1,4 +1,5 @@
 import { Document, Schema, Types, model } from 'mongoose';
+import { RecommendationMeta } from '../../recommendations/recommendationTypes';
 
 export interface CoupleFilterUserChoice {
   userId: Types.ObjectId;
@@ -27,6 +28,7 @@ export interface CouplePreparedDeck {
   generatedAt: Date | null;
   generatedBy: Types.ObjectId | null;
   reason: string | null;
+  recommendationMeta?: RecommendationMeta | null;
 }
 
 export interface CoupleSessionDocument extends Document {
@@ -73,7 +75,8 @@ const preparedDeckSchema = new Schema<CouplePreparedDeck>(
     filtersHash: { type: String, default: '' },
     generatedAt: { type: Date, default: null },
     generatedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
-    reason: { type: String, default: null }
+    reason: { type: String, default: null },
+    recommendationMeta: { type: Schema.Types.Mixed, default: null }
   },
   { _id: false }
 );

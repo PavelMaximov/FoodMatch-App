@@ -1,6 +1,7 @@
 import { Types } from 'mongoose';
 import { DishDocument } from '../dishes/models/Dish';
 import { dishMatchesExclusions } from '../../shared/ingredients/exclusionMatcher';
+import { buildRecommendationDiagnostics, RecommendationAlgorithm, RecommendationMeta } from './recommendationTypes';
 
 export const WEIGHTED_SCORING_MVP_ALGORITHM = 'weighted_scoring_mvp_v1' as const;
 export const WEIGHTED_SCORING_PAIR_SHARED_MVP_ALGORITHM = 'weighted_scoring_pair_shared_mvp_v1' as const;
@@ -28,11 +29,11 @@ export interface BuildRecommendedDeckInput {
   mode: 'solo' | 'paired';
 }
 
-export interface RecommendedDeckMeta {
+export interface RecommendedDeckMeta extends RecommendationMeta {
   totalCatalogCount: number;
   candidateCount: number;
   finalCount: number;
-  algorithm: typeof WEIGHTED_SCORING_MVP_ALGORITHM | typeof WEIGHTED_SCORING_PAIR_SHARED_MVP_ALGORITHM;
+  algorithm: RecommendationAlgorithm;
   excludedByExclusionsCount: number;
   candidateCountAfterExclusions: number;
   expansionApplied: boolean;
@@ -96,6 +97,7 @@ export function buildRecommendedDeck(input: BuildRecommendedDeckInput): BuildRec
     return !matched;
   });
   const candidates = afterExclusions.filter((dish) => matchesStrictDiet(dish, filters.diet));
+  const excludedByDietCount = afterExclusions.length - candidates.length;
 
   let expansionReason: RecommendedDeckMeta['expansionReason'];
   if (candidates.length < CRITICAL_CANDIDATE_THRESHOLD) {
@@ -124,20 +126,34 @@ export function buildRecommendedDeck(input: BuildRecommendedDeckInput): BuildRec
     criticalCandidates: expansionReason === 'critical_candidates_after_exclusions'
   });
 
-  const selected = pickCoreAndExplore(scored, input.deckSize, expansionReason ? EXPANDED_EXPLORE_SHARE : DEFAULT_EXPLORE_SHARE)
-    .map((scoredDish) => scoredDish.dish);
+  const selection = pickCoreAndExplore(scored, input.deckSize, expansionReason ? EXPANDED_EXPLORE_SHARE : DEFAULT_EXPLORE_SHARE);
+  const selected = selection.items.map((scoredDish) => scoredDish.dish);
 
   return {
     dishes: selected,
     meta: {
-      totalCatalogCount,
-      excludedByExclusionsCount,
-      candidateCountAfterExclusions: afterExclusions.length,
-      candidateCount: candidates.length,
-      finalCount: selected.length,
       algorithm: WEIGHTED_SCORING_MVP_ALGORITHM,
+      mode: 'solo',
+      generatedAt: new Date().toISOString(),
+      deckSize: input.deckSize,
+      totalDishCount: totalCatalogCount,
+      visibleDishCount: totalCatalogCount,
+      candidateCountBeforeHardFilters: afterExplicitExcludes.length,
+      excludedByExclusionsCount,
+      excludedByDietCount,
+      fullyConsumedExcludedCount: excludedDishIds.size,
+      candidateCountAfterHardFilters: candidates.length,
+      scoredCandidateCount: scored.length,
+      finalCount: selected.length,
+      coreCount: selection.coreCount,
+      exploreCount: selection.exploreCount,
       expansionApplied: Boolean(expansionReason),
-      ...(expansionReason ? { expansionReason } : {})
+      ...(expansionReason ? { expansionReason } : {}),
+      hardFilterSummary: { exclusions: filters.exclusions, strictDiet: filters.diet },
+      diagnosticsNotes: buildRecommendationDiagnostics({ visibleDishCount: totalCatalogCount, excludedByExclusionsCount, excludedByDietCount, candidateCountAfterHardFilters: candidates.length, finalCount: selected.length }),
+      totalCatalogCount,
+      candidateCount: candidates.length,
+      candidateCountAfterExclusions: afterExclusions.length
     }
   };
 }
@@ -156,6 +172,7 @@ export function buildPairSharedRecommendedDeck(input: BuildPairRecommendedDeckIn
     return !matched;
   });
   const candidates = afterExclusions.filter((dish) => matchesStrictDiet(dish, hardFilters.diet));
+  const excludedByDietCount = afterExclusions.length - candidates.length;
 
   let expansionReason: RecommendedDeckMeta['expansionReason'];
   if (candidates.length < CRITICAL_CANDIDATE_THRESHOLD) {
@@ -196,20 +213,39 @@ export function buildPairSharedRecommendedDeck(input: BuildPairRecommendedDeckIn
     return { dish, score: pairScore + customBoost, components: userScores[0]?.components ?? neutralComponents() };
   }).sort((a, b) => b.score - a.score || getDishName(a.dish).localeCompare(getDishName(b.dish)) || getDishId(a.dish).localeCompare(getDishId(b.dish)));
 
-  const selected = pickCoreAndExplore(scored, input.deckSize, expansionReason ? EXPANDED_EXPLORE_SHARE : DEFAULT_EXPLORE_SHARE)
-    .map((scoredDish) => scoredDish.dish);
+  const selection = pickCoreAndExplore(scored, input.deckSize, expansionReason ? EXPANDED_EXPLORE_SHARE : DEFAULT_EXPLORE_SHARE);
+  const selected = selection.items.map((scoredDish) => scoredDish.dish);
 
   return {
     dishes: selected,
     meta: {
-      totalCatalogCount,
-      excludedByExclusionsCount,
-      candidateCountAfterExclusions: afterExclusions.length,
-      candidateCount: candidates.length,
-      finalCount: selected.length,
       algorithm: WEIGHTED_SCORING_PAIR_SHARED_MVP_ALGORITHM,
+      mode: 'pair',
+      generatedAt: new Date().toISOString(),
+      deckSize: input.deckSize,
+      totalDishCount: totalCatalogCount,
+      visibleDishCount: totalCatalogCount,
+      candidateCountBeforeHardFilters: afterExplicitExcludes.length,
+      excludedByExclusionsCount,
+      excludedByDietCount,
+      fullyConsumedExcludedCount: excludedDishIds.size,
+      candidateCountAfterHardFilters: candidates.length,
+      scoredCandidateCount: scored.length,
+      finalCount: selected.length,
+      coreCount: selection.coreCount,
+      exploreCount: selection.exploreCount,
       expansionApplied: Boolean(expansionReason),
-      ...(expansionReason ? { expansionReason } : {})
+      ...(expansionReason ? { expansionReason } : {}),
+      customCandidateCount: input.customDishIds ? input.dishes.filter((dish) => input.customDishIds?.has(getDishId(dish))).length : 0,
+      customIncludedCount: input.customDishIds ? selected.filter((dish) => input.customDishIds?.has(getDishId(dish))).length : 0,
+      customExcludedCount: input.customDishIds ? input.dishes.filter((dish) => input.customDishIds?.has(getDishId(dish))).length - afterExclusions.filter((dish) => input.customDishIds?.has(getDishId(dish)) && matchesStrictDiet(dish, hardFilters.diet)).length : 0,
+      customBoostAppliedCount: input.customDishIds ? scored.filter((item) => input.customDishIds?.has(getDishId(item.dish))).length : 0,
+      userContextCount: normalizedUsers.length,
+      hardFilterSummary: { exclusions: hardFilters.exclusions, strictDiet: hardFilters.diet },
+      diagnosticsNotes: buildRecommendationDiagnostics({ visibleDishCount: totalCatalogCount, excludedByExclusionsCount, excludedByDietCount, candidateCountAfterHardFilters: candidates.length, finalCount: selected.length, customCandidateCount: input.customDishIds ? input.dishes.filter((dish) => input.customDishIds?.has(getDishId(dish))).length : 0, customExcludedCount: input.customDishIds ? input.dishes.filter((dish) => input.customDishIds?.has(getDishId(dish))).length - afterExclusions.filter((dish) => input.customDishIds?.has(getDishId(dish)) && matchesStrictDiet(dish, hardFilters.diet)).length : 0 }),
+      totalCatalogCount,
+      candidateCount: candidates.length,
+      candidateCountAfterExclusions: afterExclusions.length
     }
   };
 }
@@ -296,8 +332,8 @@ function interpolateWeights(warmth: number, criticalCandidates: boolean) {
   };
 }
 
-function pickCoreAndExplore(scored: ScoredDish[], deckSize: number, exploreShare: number): ScoredDish[] {
-  if (scored.length <= deckSize) return scored;
+function pickCoreAndExplore(scored: ScoredDish[], deckSize: number, exploreShare: number): { items: ScoredDish[]; coreCount: number; exploreCount: number } {
+  if (scored.length <= deckSize) return { items: scored, coreCount: scored.length, exploreCount: 0 };
 
   const exploreCount = Math.max(0, Math.min(deckSize, Math.floor(deckSize * exploreShare)));
   const coreCount = deckSize - exploreCount;
@@ -308,7 +344,8 @@ function pickCoreAndExplore(scored: ScoredDish[], deckSize: number, exploreShare
   const exploreCandidates = scored.slice(percentileStart, percentileEnd).filter((item) => !coreIds.has(getDishId(item.dish)));
   const explorePool = weightedPick(exploreCandidates.length > 0 ? exploreCandidates : scored.slice(coreCount).filter((item) => !coreIds.has(getDishId(item.dish))), exploreCount);
 
-  return [...corePool, ...explorePool].slice(0, deckSize);
+  const items = [...corePool, ...explorePool].slice(0, deckSize);
+  return { items, coreCount: Math.min(corePool.length, items.length), exploreCount: Math.max(0, items.length - corePool.length) };
 }
 
 function weightedPick(candidates: ScoredDish[], count: number): ScoredDish[] {

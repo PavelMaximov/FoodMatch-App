@@ -7,6 +7,7 @@ import { resolveDishByAnyId } from '../../dishes/utils/resolveDishByAnyId';
 import { LastFilterPresetService, normalizeFilterList } from '../../filters/services/lastFilterPresetService';
 import { SwipeModel } from '../../swipes/models/Swipe';
 import { buildRecommendedDeck, DeckRecommendationHistoryEntry, RecommendedDeckMeta } from '../../recommendations/deckRecommendationService';
+import { logRecommendationMeta } from '../../recommendations/recommendationTypes';
 import { SoloSwipeSessionModel } from '../models/SoloSwipeSession';
 
 const MAX_DECK_SIZE = 30;
@@ -21,7 +22,8 @@ export class SoloSwipeService {
   await this.assertNoActiveSession(userId);
   const normalized = this.normalizeFilter(filter);
   const result = await this.buildDeck(userId, normalized); const now = new Date();
-  const session = await SoloSwipeSessionModel.create({userId:new Types.ObjectId(userId), filter:normalized, deckDishIds:result.dishes.map(d=>d._id as Types.ObjectId), deckIndex:0, lastActivityAt:now});
+  logRecommendationMeta(result.meta);
+  const session = await SoloSwipeSessionModel.create({userId:new Types.ObjectId(userId), filter:normalized, deckDishIds:result.dishes.map(d=>d._id as Types.ObjectId), deckIndex:0, recommendationMeta: result.meta, lastActivityAt:now});
   return this.toDeck(session, result.dishes, result.meta);
  }
  async getDeck(userId:string, sessionId:string){ const session = await this.requireSession(userId, sessionId); session.lastActivityAt=new Date(); await session.save(); return this.toDeck(session); }
@@ -32,9 +34,11 @@ export class SoloSwipeService {
   const swipedDishIds = new Set(session.swipes.map((s:any)=>s.dishId.toString()));
   const currentDeckDishIds = new Set(session.deckDishIds.map((id:Types.ObjectId)=>id.toString()));
   const result = await this.buildDeck(userId, normalized, swipedDishIds, currentDeckDishIds);
+  logRecommendationMeta(result.meta, { sessionId: session.id });
   session.filter = normalized;
   session.deckDishIds = result.dishes.map(d=>d._id as Types.ObjectId);
   session.deckIndex = 0;
+  session.recommendationMeta = result.meta;
   session.matchedCount = session.resultDishIds.length;
   session.lastActivityAt = new Date();
   await session.save();
@@ -54,7 +58,7 @@ export class SoloSwipeService {
  async assertNoActiveSession(userId:string){ const [solo, paired] = await Promise.all([SoloSwipeSessionModel.exists({userId:new Types.ObjectId(userId),status:'active'}), CoupleSessionModel.exists({members:new Types.ObjectId(userId),status:'active'})]); if(solo || paired) throw new AppError('You already have an active swipe session.',409,'ACTIVE_SESSION_EXISTS'); }
  private normalizeFilter(filter:SoloFilterInput): NormalizedSoloFilter { return { cuisines:normalizeFilterList(filter.cuisines), moods:normalizeFilterList(filter.moods), diet:normalizeFilterList(filter.diet), exclusions:normalizeFilterList(filter.exclusions) }; }
  private async requireSession(userId:string, sessionId:string){ if(!Types.ObjectId.isValid(sessionId)) throw new AppError('Session not found',404); const session=await SoloSwipeSessionModel.findOne({_id:sessionId,userId:new Types.ObjectId(userId),status:'active'}); if(!session) throw new AppError('No active solo session',404,'NO_ACTIVE_SESSION'); return session; }
- private async toDeck(session:any, loaded?:DishDocument[], recommendationMeta?: RecommendedDeckMeta){ const ids=session.deckDishIds.slice(session.deckIndex); const dishes = loaded ?? await DishModel.find({_id:{$in:ids}}).select(DISH_DTO_SELECT); const byId=new Map(dishes.map(d=>[d._id.toString(),d])); return { sessionId:session.id, mode:'solo', status:session.status, deckIndex:session.deckIndex, matchedCount:session.matchedCount, filter:session.filter, dishes:ids.map((id:Types.ObjectId)=>byId.get(id.toString())).filter((d: DishDocument | undefined): d is DishDocument => Boolean(d)).map((d: DishDocument)=>toDishDto(d)), meta:{totalCatalogCount:recommendationMeta?.totalCatalogCount ?? session.deckDishIds.length,candidateCount:recommendationMeta?.candidateCount ?? session.deckDishIds.length,finalCount:ids.length,usedPartnerChoices:false,bothConfirmed:false,...(recommendationMeta ? { algorithm: recommendationMeta.algorithm, excludedByExclusionsCount: recommendationMeta.excludedByExclusionsCount, candidateCountAfterExclusions: recommendationMeta.candidateCountAfterExclusions, expansionApplied: recommendationMeta.expansionApplied, expansionReason: recommendationMeta.expansionReason ?? null } : {})} }; }
+ private async toDeck(session:any, loaded?:DishDocument[], recommendationMeta?: RecommendedDeckMeta){ recommendationMeta = recommendationMeta ?? session.recommendationMeta; const ids=session.deckDishIds.slice(session.deckIndex); const dishes = loaded ?? await DishModel.find({_id:{$in:ids}}).select(DISH_DTO_SELECT); const byId=new Map(dishes.map(d=>[d._id.toString(),d])); return { sessionId:session.id, mode:'solo', status:session.status, deckIndex:session.deckIndex, matchedCount:session.matchedCount, filter:session.filter, dishes:ids.map((id:Types.ObjectId)=>byId.get(id.toString())).filter((d: DishDocument | undefined): d is DishDocument => Boolean(d)).map((d: DishDocument)=>toDishDto(d)), meta:{totalCatalogCount:recommendationMeta?.totalCatalogCount ?? session.deckDishIds.length,candidateCount:recommendationMeta?.candidateCount ?? session.deckDishIds.length,finalCount:ids.length,usedPartnerChoices:false,bothConfirmed:false,...(recommendationMeta ? { recommendationMeta, algorithm: recommendationMeta.algorithm, excludedByExclusionsCount: recommendationMeta.excludedByExclusionsCount, candidateCountAfterExclusions: recommendationMeta.candidateCountAfterExclusions, expansionApplied: recommendationMeta.expansionApplied, expansionReason: recommendationMeta.expansionReason ?? null, diagnosticsNotes: recommendationMeta.diagnosticsNotes ?? [] } : {})} }; }
  private async buildDeck(userId:string, filter:NormalizedSoloFilter, excludeDishIds = new Set<string>(), recentlySeenDishIds = new Set<string>()): Promise<DeckBuildResult>{
   const query:FilterQuery<DishDocument>={$or:[{visibility:'public',status:'approved'},{isCustom:true,visibility:'private',status:'approved',createdBy:new Types.ObjectId(userId)}]};
   const [all, history] = await Promise.all([DishModel.find(query).select(DISH_DTO_SELECT), this.loadUserHistory(userId)]);

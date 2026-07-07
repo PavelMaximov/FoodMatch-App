@@ -5,6 +5,7 @@ import { DishDocument, DishModel } from '../../dishes/models/Dish';
 import { DISH_DTO_SELECT, toDishDto } from '../../dishes/dto/dishDto';
 import { dishMatchesExclusions } from '../../../shared/ingredients/exclusionMatcher';
 import { buildPairSharedRecommendedDeck, DeckRecommendationFilters, DeckRecommendationHistoryEntry, RecommendedDeckMeta } from '../../recommendations/deckRecommendationService';
+import { logRecommendationMeta, RecommendationMeta } from '../../recommendations/recommendationTypes';
 import { SwipeModel } from '../../swipes/models/Swipe';
 import { CoupleFilterUserChoice, CoupleSessionDocument, CoupleSessionModel } from '../models/CoupleSession';
 
@@ -27,7 +28,7 @@ interface DeckResponseMeta {
   fallbackReason: string | null;
   usedPartnerChoices: boolean;
   bothConfirmed: boolean;
-  algorithm?: RecommendedDeckMeta['algorithm'];
+  algorithm?: RecommendationMeta['algorithm'];
   excludedByExclusionsCount?: number;
   candidateCountAfterExclusions?: number;
   expansionApplied?: boolean;
@@ -80,13 +81,15 @@ export class CoupleDeckService {
       filtersHash,
       generatedAt,
       generatedBy: new Types.ObjectId(userId),
-      reason: fallbackReason
+      reason: fallbackReason,
+      recommendationMeta: { ...recommendationMeta, filtersHash, bothUsersConfirmed: filters.bothConfirmed }
     };
 
     console.log(`[PreparedDeck] totalCatalog=${totalCatalogCount} candidates=${candidateCount} final=${finalDishes.length}`);
     console.log(`[PreparedDeck] algorithm=${recommendationMeta.algorithm} excluded=${recommendationMeta.excludedByExclusionsCount} expansion=${recommendationMeta.expansionReason ?? 'none'}`);
     console.log(`[PreparedDeck] filtersHash=${filtersHash}`);
     console.log(`[PreparedDeck] fallback=${fallbackReason}`);
+    logRecommendationMeta(recommendationMeta, { sessionId: session.id });
 
     await session.save();
     console.log(`[PreparedDeck] Saved deck session=${session.id}`);
@@ -112,7 +115,7 @@ export class CoupleDeckService {
       .filter((dish): dish is NonNullable<typeof dish> => Boolean(dish));
 
     console.log(`[PreparedDeck] loaded existing deck final=${orderedDishes.length}`);
-    return this.toDeckResponse(session, orderedDishes, filters);
+    return this.toDeckResponse(session, orderedDishes, filters, deck.recommendationMeta ?? undefined);
   }
 
   async resetDeckForActiveSession(userId: string) {
@@ -210,7 +213,7 @@ export class CoupleDeckService {
     return new Set([...usersByDish.entries()].filter(([, users]) => users.size >= memberIds.size).map(([dishId]) => dishId));
   }
 
-  private toDeckResponse(session: CoupleSessionDocument, dishes: DishDocument[], filters: EffectiveDeckFilters, recommendationMeta?: RecommendedDeckMeta) {
+  private toDeckResponse(session: CoupleSessionDocument, dishes: DishDocument[], filters: EffectiveDeckFilters, recommendationMeta?: RecommendationMeta) {
     const deck = session.preparedDeck;
     const dishDtos = dishes.map((dish) => toDishDto(dish)).filter((dish): dish is NonNullable<ReturnType<typeof toDishDto>> => Boolean(dish));
     const meta: DeckResponseMeta = {
@@ -223,6 +226,7 @@ export class CoupleDeckService {
       usedPartnerChoices: filters.usedPartnerChoices,
       bothConfirmed: filters.bothConfirmed,
       ...(recommendationMeta ? {
+        recommendationMeta,
         algorithm: recommendationMeta.algorithm,
         excludedByExclusionsCount: recommendationMeta.excludedByExclusionsCount,
         candidateCountAfterExclusions: recommendationMeta.candidateCountAfterExclusions,
@@ -305,7 +309,8 @@ export function clearPreparedDeck(session: CoupleSessionDocument) {
     filtersHash: '',
     generatedAt: null,
     generatedBy: null,
-    reason: null
+    reason: null,
+    recommendationMeta: null
   };
 }
 
