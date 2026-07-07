@@ -1,0 +1,320 @@
+import { Types } from 'mongoose';
+import { DishDocument } from '../dishes/models/Dish';
+
+export const WEIGHTED_SCORING_MVP_ALGORITHM = 'weighted_scoring_mvp_v1' as const;
+
+export interface DeckRecommendationFilters {
+  cuisines: string[];
+  moods: string[];
+  diet: string[];
+  exclusions: string[];
+}
+
+export interface DeckRecommendationHistoryEntry {
+  dish: DishDocument;
+  direction: 'like' | 'dislike';
+}
+
+export interface BuildRecommendedDeckInput {
+  userId: string;
+  dishes: DishDocument[];
+  filters: DeckRecommendationFilters;
+  userHistory?: DeckRecommendationHistoryEntry[];
+  recentlySeenDishIds?: Set<string>;
+  excludedDishIds?: Set<string>;
+  deckSize: number;
+  mode: 'solo' | 'paired';
+}
+
+export interface RecommendedDeckMeta {
+  totalCatalogCount: number;
+  candidateCount: number;
+  finalCount: number;
+  algorithm: typeof WEIGHTED_SCORING_MVP_ALGORITHM;
+  expansionApplied: boolean;
+  expansionReason?: 'low_candidates_after_exclusions' | 'critical_candidates_after_exclusions';
+}
+
+export interface BuildRecommendedDeckResult {
+  dishes: DishDocument[];
+  meta: RecommendedDeckMeta;
+}
+
+interface ScoredDish {
+  dish: DishDocument;
+  score: number;
+  components: {
+    countryScore: number;
+    moodScore: number;
+    historyScore: number;
+    popularityScore: number;
+    recencyScore: number;
+  };
+}
+
+const EXCLUSION_GROUPS: Record<string, string[]> = {
+  no_meat: ['meat', 'chicken', 'beef', 'pork', 'lamb'],
+  no_dairy: ['milk', 'cheese', 'cream', 'butter', 'yogurt', 'mozzarella', 'parmesan', 'feta'],
+  no_gluten: ['flour', 'bread', 'pasta', 'wheat', 'spaghetti', 'lasagna sheets', 'pita', 'ciabatta'],
+  no_nuts: ['peanut', 'peanuts', 'almond', 'almonds', 'walnut', 'walnuts', 'cashew', 'cashews'],
+  no_seafood: ['fish', 'salmon', 'shrimp', 'prawn', 'prawns', 'tuna', 'mussels', 'seafood']
+};
+
+const COLD_WEIGHTS = { country: 0.35, mood: 0.30, history: 0.05, popularity: 0.20, recency: 0.10 };
+const WARM_WEIGHTS = { country: 0.20, mood: 0.20, history: 0.35, popularity: 0.15, recency: 0.10 };
+const LOW_CANDIDATE_THRESHOLD = 15;
+const CRITICAL_CANDIDATE_THRESHOLD = 5;
+const DEFAULT_EXPLORE_SHARE = 0.25;
+const EXPANDED_EXPLORE_SHARE = 0.5;
+
+export function buildRecommendedDeck(input: BuildRecommendedDeckInput): BuildRecommendedDeckResult {
+  const filters = normalizeFilters(input.filters);
+  const excludedDishIds = input.excludedDishIds ?? new Set<string>();
+  const recentlySeenDishIds = input.recentlySeenDishIds ?? new Set<string>();
+  const totalCatalogCount = input.dishes.length;
+
+  const candidates = input.dishes.filter((dish) => {
+    const dishId = dish._id instanceof Types.ObjectId ? dish._id.toString() : String(dish._id ?? '');
+    if (excludedDishIds.has(dishId)) return false;
+    if (!matchesStrictDiet(dish, filters.diet)) return false;
+    return !hasExcludedIngredient(dish, filters.exclusions);
+  });
+
+  let expansionReason: RecommendedDeckMeta['expansionReason'];
+  if (candidates.length < CRITICAL_CANDIDATE_THRESHOLD) {
+    expansionReason = 'critical_candidates_after_exclusions';
+  } else if (candidates.length < LOW_CANDIDATE_THRESHOLD) {
+    expansionReason = 'low_candidates_after_exclusions';
+  }
+
+  if (expansionReason) {
+    console.log('[filter_expansion_event]', {
+      algorithm: WEIGHTED_SCORING_MVP_ALGORITHM,
+      mode: input.mode,
+      userId: input.userId,
+      candidateCount: candidates.length,
+      reason: expansionReason
+    });
+  }
+
+  const scored = scoreCandidates({
+    candidates,
+    filters,
+    history: input.userHistory ?? [],
+    recentlySeenDishIds,
+    criticalCandidates: expansionReason === 'critical_candidates_after_exclusions'
+  });
+
+  const selected = pickCoreAndExplore(scored, input.deckSize, expansionReason ? EXPANDED_EXPLORE_SHARE : DEFAULT_EXPLORE_SHARE)
+    .map((scoredDish) => scoredDish.dish);
+
+  return {
+    dishes: selected,
+    meta: {
+      totalCatalogCount,
+      candidateCount: candidates.length,
+      finalCount: selected.length,
+      algorithm: WEIGHTED_SCORING_MVP_ALGORITHM,
+      expansionApplied: Boolean(expansionReason),
+      ...(expansionReason ? { expansionReason } : {})
+    }
+  };
+}
+
+function scoreCandidates({
+  candidates,
+  filters,
+  history,
+  recentlySeenDishIds,
+  criticalCandidates
+}: {
+  candidates: DishDocument[];
+  filters: DeckRecommendationFilters;
+  history: DeckRecommendationHistoryEntry[];
+  recentlySeenDishIds: Set<string>;
+  criticalCandidates: boolean;
+}): ScoredDish[] {
+  const totalMeaningfulSwipes = history.length;
+  const warmth = clamp(totalMeaningfulSwipes / 50, 0, 1);
+  const weights = interpolateWeights(warmth, criticalCandidates);
+  const historyTags = buildHistoryTags(history);
+
+  return candidates.map((dish) => {
+    const components = {
+      countryScore: countryScore(dish, filters.cuisines),
+      moodScore: moodScore(dish, filters.moods),
+      historyScore: historyScore(dish, historyTags),
+      popularityScore: popularityScore(dish),
+      recencyScore: recencyScore(dish, recentlySeenDishIds)
+    };
+    const score =
+      weights.country * components.countryScore +
+      weights.mood * components.moodScore +
+      weights.history * components.historyScore +
+      weights.popularity * components.popularityScore +
+      weights.recency * components.recencyScore;
+    return { dish, score, components };
+  }).sort((a, b) => b.score - a.score || getDishName(a.dish).localeCompare(getDishName(b.dish)) || getDishId(a.dish).localeCompare(getDishId(b.dish)));
+}
+
+function interpolateWeights(warmth: number, criticalCandidates: boolean) {
+  if (criticalCandidates) {
+    return { country: 0, mood: 0, history: 0.10, popularity: 0.60, recency: 0.30 };
+  }
+  return {
+    country: COLD_WEIGHTS.country * (1 - warmth) + WARM_WEIGHTS.country * warmth,
+    mood: COLD_WEIGHTS.mood * (1 - warmth) + WARM_WEIGHTS.mood * warmth,
+    history: COLD_WEIGHTS.history * (1 - warmth) + WARM_WEIGHTS.history * warmth,
+    popularity: COLD_WEIGHTS.popularity * (1 - warmth) + WARM_WEIGHTS.popularity * warmth,
+    recency: COLD_WEIGHTS.recency * (1 - warmth) + WARM_WEIGHTS.recency * warmth
+  };
+}
+
+function pickCoreAndExplore(scored: ScoredDish[], deckSize: number, exploreShare: number): ScoredDish[] {
+  if (scored.length <= deckSize) return scored;
+
+  const exploreCount = Math.max(0, Math.min(deckSize, Math.floor(deckSize * exploreShare)));
+  const coreCount = deckSize - exploreCount;
+  const corePool = scored.slice(0, coreCount);
+  const coreIds = new Set(corePool.map((item) => getDishId(item.dish)));
+  const percentileStart = Math.floor(scored.length * 0.50);
+  const percentileEnd = Math.max(percentileStart + 1, Math.ceil(scored.length * 0.80));
+  const exploreCandidates = scored.slice(percentileStart, percentileEnd).filter((item) => !coreIds.has(getDishId(item.dish)));
+  const explorePool = weightedPick(exploreCandidates.length > 0 ? exploreCandidates : scored.slice(coreCount).filter((item) => !coreIds.has(getDishId(item.dish))), exploreCount);
+
+  return [...corePool, ...explorePool].slice(0, deckSize);
+}
+
+function weightedPick(candidates: ScoredDish[], count: number): ScoredDish[] {
+  const remaining = [...candidates];
+  const picked: ScoredDish[] = [];
+  while (picked.length < count && remaining.length > 0) {
+    const totalWeight = remaining.reduce((sum, item) => sum + Math.max(item.score, 0.05), 0);
+    let cursor = seededRandom(remaining.map((item) => `${getDishId(item.dish)}:${item.score.toFixed(4)}`).join('|'), picked.length) * totalWeight;
+    let index = 0;
+    for (; index < remaining.length; index += 1) {
+      cursor -= Math.max(remaining[index].score, 0.05);
+      if (cursor <= 0) break;
+    }
+    picked.push(remaining.splice(Math.min(index, remaining.length - 1), 1)[0]);
+  }
+  return picked;
+}
+
+function countryScore(dish: DishDocument, cuisines: string[]) {
+  if (cuisines.length === 0) return 0.5;
+  return cuisines.includes(normalize(dish.cuisine)) ? 1.0 : 0.1;
+}
+
+function moodScore(dish: DishDocument, moods: string[]) {
+  if (moods.length === 0) return 0.5;
+  const dishMoods = normalizeList(dish.mood);
+  if (dishMoods.length === 0) return 0.2;
+  const matched = moods.filter((mood) => dishMoods.includes(mood)).length;
+  return clamp(matched / moods.length, 0, 1);
+}
+
+function popularityScore(dish: DishDocument) {
+  const base = dish.popular ? 1.0 : 0.3;
+  const quality = Number((dish as any).qualityScore ?? (dish as any).quality_score ?? (dish as any).rawSourceData?.quality_score ?? 0);
+  const normalizedQuality = Number.isFinite(quality) ? clamp(quality / 100, 0, 1) : 0;
+  return Math.max(base, normalizedQuality);
+}
+
+function recencyScore(dish: DishDocument, recentlySeenDishIds: Set<string>) {
+  return recentlySeenDishIds.has(getDishId(dish)) ? 0.3 : 1.0;
+}
+
+function historyScore(dish: DishDocument, historyTags: { liked: Set<string>; disliked: Set<string>; hasHistory: boolean }) {
+  if (!historyTags.hasHistory) return 0.5;
+  const tags = dishTags(dish);
+  const likedOverlap = overlapRatio(tags, historyTags.liked);
+  const dislikedOverlap = overlapRatio(tags, historyTags.disliked);
+  return clamp(0.5 + likedOverlap * 0.4 - dislikedOverlap * 0.3, 0, 1);
+}
+
+function buildHistoryTags(history: DeckRecommendationHistoryEntry[]) {
+  const liked = new Set<string>();
+  const disliked = new Set<string>();
+  for (const entry of history) {
+    const target = entry.direction === 'like' ? liked : disliked;
+    for (const tag of dishTags(entry.dish)) target.add(tag);
+  }
+  return { liked, disliked, hasHistory: history.length > 0 };
+}
+
+function dishTags(dish: DishDocument) {
+  return new Set([
+    normalize(dish.cuisine),
+    normalize(dish.type),
+    normalize(dish.effort),
+    ...normalizeList(dish.mood),
+    ...normalizeList(dish.diet),
+    ...normalizeList(dish.ingredients),
+    ...normalizeList(dish.source),
+    ...normalizeList(dish.season)
+  ].filter(Boolean));
+}
+
+function overlapRatio(candidateTags: Set<string>, historyTags: Set<string>) {
+  if (candidateTags.size === 0 || historyTags.size === 0) return 0;
+  let matches = 0;
+  for (const tag of candidateTags) {
+    if (historyTags.has(tag)) matches += 1;
+  }
+  return matches / candidateTags.size;
+}
+
+function matchesStrictDiet(dish: DishDocument, diet: string[]) {
+  const dishDiet = normalizeList(dish.diet);
+  if (diet.includes('vegan')) return dishDiet.includes('vegan');
+  if (diet.includes('vegetarian')) return dishDiet.includes('vegetarian') || dishDiet.includes('vegan');
+  return true;
+}
+
+function hasExcludedIngredient(dish: DishDocument, exclusions: string[]) {
+  const blockedWords = exclusions.flatMap((exclusion) => EXCLUSION_GROUPS[exclusion] ?? []).map(normalize);
+  if (blockedWords.length === 0) return false;
+  const structuredIngredients = Array.isArray(dish.structuredIngredients) ? dish.structuredIngredients.map((ingredient) => ingredient.name) : [];
+  const ingredients = (structuredIngredients.length > 0 ? structuredIngredients : dish.ingredients).map(normalize);
+  return ingredients.some((ingredient) => blockedWords.some((blocked) => ingredient.includes(blocked)));
+}
+
+function normalizeFilters(filters: DeckRecommendationFilters): DeckRecommendationFilters {
+  return {
+    cuisines: normalizeList(filters.cuisines),
+    moods: normalizeList(filters.moods),
+    diet: normalizeList(filters.diet),
+    exclusions: normalizeList(filters.exclusions).map((value) => value.replace(/ /g, '_'))
+  };
+}
+
+function normalizeList(values?: string[]) {
+  if (!Array.isArray(values)) return [];
+  return [...new Set(values.map(normalize).filter(Boolean))];
+}
+
+function normalize(value?: string) {
+  return (value ?? '').trim().toLowerCase().replace(/_/g, ' ');
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function getDishId(dish: DishDocument) {
+  return dish._id instanceof Types.ObjectId ? dish._id.toString() : String(dish._id ?? '');
+}
+
+function getDishName(dish: DishDocument) {
+  return (dish.name ?? '').trim().toLowerCase();
+}
+
+function seededRandom(seed: string, offset: number) {
+  let hash = 2166136261 + offset;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash ^= seed.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) / 4294967295;
+}
