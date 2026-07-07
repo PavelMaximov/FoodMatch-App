@@ -3,6 +3,7 @@ import { FilterQuery, Types } from 'mongoose';
 import { AppError } from '../../../core/errors/AppError';
 import { DishDocument, DishModel } from '../../dishes/models/Dish';
 import { DISH_DTO_SELECT, toDishDto } from '../../dishes/dto/dishDto';
+import { dishMatchesExclusions } from '../../../shared/ingredients/exclusionMatcher';
 import { CoupleFilterUserChoice, CoupleSessionDocument, CoupleSessionModel } from '../models/CoupleSession';
 
 export interface EffectiveDeckFilters {
@@ -25,14 +26,6 @@ interface DeckResponseMeta {
   usedPartnerChoices: boolean;
   bothConfirmed: boolean;
 }
-
-const EXCLUSION_GROUPS: Record<string, string[]> = {
-  no_meat: ['meat', 'chicken', 'beef', 'pork', 'lamb'],
-  no_dairy: ['milk', 'cheese', 'cream', 'butter', 'yogurt', 'mozzarella', 'parmesan', 'feta'],
-  no_gluten: ['flour', 'bread', 'pasta', 'wheat', 'spaghetti', 'lasagna sheets', 'pita', 'ciabatta'],
-  no_nuts: ['peanut', 'peanuts', 'almond', 'almonds', 'walnut', 'walnuts', 'cashew', 'cashews'],
-  no_seafood: ['fish', 'salmon', 'shrimp', 'prawn', 'prawns', 'tuna', 'mussels', 'seafood']
-};
 
 const MAX_DECK_SIZE = 30;
 const NARROW_CHOICE_THRESHOLD = 5;
@@ -378,15 +371,7 @@ function matchesDiet(dish: DishDocument, diet: string[]) {
 }
 
 function hasExcludedIngredient(dish: DishDocument, exclusions: string[]) {
-  const blockedWords = exclusions.flatMap((exclusion) => EXCLUSION_GROUPS[exclusion] ?? []);
-  if (blockedWords.length === 0) return false;
-
-  const structuredIngredients = Array.isArray(dish.structuredIngredients)
-    ? dish.structuredIngredients.map((ingredient) => ingredient.name)
-    : [];
-  const ingredients = (structuredIngredients.length > 0 ? structuredIngredients : dish.ingredients).map((ingredient) => normalize(ingredient));
-
-  return ingredients.some((ingredient) => blockedWords.some((blocked) => ingredient.includes(normalize(blocked))));
+  return dishMatchesExclusions(dish, exclusions);
 }
 
 function resolvePairCuisines(myCuisines: string[], partnerCuisines: string[]) {

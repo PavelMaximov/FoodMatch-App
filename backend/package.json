@@ -12,7 +12,9 @@
     "fix:sourceType": "ts-node src/scripts/fixMissingSourceType.ts",
     "migrate:swipe-indexes": "ts-node src/scripts/migrateSwipeIndexes.ts",
     "audit:user-emails": "ts-node src/scripts/auditUserEmails.ts",
-    "migrate:mark-existing-users-verified": "ts-node src/scripts/migrateMarkExistingUsersVerified.ts"
+    "migrate:mark-existing-users-verified": "ts-node src/scripts/migrateMarkExistingUsersVerified.ts",
+    "audit:ingredients": "ts-node src/scripts/auditIngredients.ts",
+    "test:exclusions": "ts-node src/scripts/testExclusionMatcher.ts"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

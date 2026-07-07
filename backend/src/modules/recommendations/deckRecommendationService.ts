@@ -1,5 +1,6 @@
 import { Types } from 'mongoose';
 import { DishDocument } from '../dishes/models/Dish';
+import { dishMatchesExclusions } from '../../shared/ingredients/exclusionMatcher';
 
 export const WEIGHTED_SCORING_MVP_ALGORITHM = 'weighted_scoring_mvp_v1' as const;
 
@@ -31,6 +32,8 @@ export interface RecommendedDeckMeta {
   candidateCount: number;
   finalCount: number;
   algorithm: typeof WEIGHTED_SCORING_MVP_ALGORITHM;
+  excludedByExclusionsCount: number;
+  candidateCountAfterExclusions: number;
   expansionApplied: boolean;
   expansionReason?: 'low_candidates_after_exclusions' | 'critical_candidates_after_exclusions';
 }
@@ -52,14 +55,6 @@ interface ScoredDish {
   };
 }
 
-const EXCLUSION_GROUPS: Record<string, string[]> = {
-  no_meat: ['meat', 'chicken', 'beef', 'pork', 'lamb'],
-  no_dairy: ['milk', 'cheese', 'cream', 'butter', 'yogurt', 'mozzarella', 'parmesan', 'feta'],
-  no_gluten: ['flour', 'bread', 'pasta', 'wheat', 'spaghetti', 'lasagna sheets', 'pita', 'ciabatta'],
-  no_nuts: ['peanut', 'peanuts', 'almond', 'almonds', 'walnut', 'walnuts', 'cashew', 'cashews'],
-  no_seafood: ['fish', 'salmon', 'shrimp', 'prawn', 'prawns', 'tuna', 'mussels', 'seafood']
-};
-
 const COLD_WEIGHTS = { country: 0.35, mood: 0.30, history: 0.05, popularity: 0.20, recency: 0.10 };
 const WARM_WEIGHTS = { country: 0.20, mood: 0.20, history: 0.35, popularity: 0.15, recency: 0.10 };
 const LOW_CANDIDATE_THRESHOLD = 15;
@@ -73,12 +68,17 @@ export function buildRecommendedDeck(input: BuildRecommendedDeckInput): BuildRec
   const recentlySeenDishIds = input.recentlySeenDishIds ?? new Set<string>();
   const totalCatalogCount = input.dishes.length;
 
-  const candidates = input.dishes.filter((dish) => {
+  let excludedByExclusionsCount = 0;
+  const afterExplicitExcludes = input.dishes.filter((dish) => {
     const dishId = dish._id instanceof Types.ObjectId ? dish._id.toString() : String(dish._id ?? '');
-    if (excludedDishIds.has(dishId)) return false;
-    if (!matchesStrictDiet(dish, filters.diet)) return false;
-    return !hasExcludedIngredient(dish, filters.exclusions);
+    return !excludedDishIds.has(dishId);
   });
+  const afterExclusions = afterExplicitExcludes.filter((dish) => {
+    const matched = dishMatchesExclusions(dish, filters.exclusions);
+    if (matched) excludedByExclusionsCount += 1;
+    return !matched;
+  });
+  const candidates = afterExclusions.filter((dish) => matchesStrictDiet(dish, filters.diet));
 
   let expansionReason: RecommendedDeckMeta['expansionReason'];
   if (candidates.length < CRITICAL_CANDIDATE_THRESHOLD) {
@@ -92,6 +92,8 @@ export function buildRecommendedDeck(input: BuildRecommendedDeckInput): BuildRec
       algorithm: WEIGHTED_SCORING_MVP_ALGORITHM,
       mode: input.mode,
       userId: input.userId,
+      excludedByExclusionsCount,
+      candidateCountAfterExclusions: afterExclusions.length,
       candidateCount: candidates.length,
       reason: expansionReason
     });
@@ -112,6 +114,8 @@ export function buildRecommendedDeck(input: BuildRecommendedDeckInput): BuildRec
     dishes: selected,
     meta: {
       totalCatalogCount,
+      excludedByExclusionsCount,
+      candidateCountAfterExclusions: afterExclusions.length,
       candidateCount: candidates.length,
       finalCount: selected.length,
       algorithm: WEIGHTED_SCORING_MVP_ALGORITHM,
@@ -270,14 +274,6 @@ function matchesStrictDiet(dish: DishDocument, diet: string[]) {
   if (diet.includes('vegan')) return dishDiet.includes('vegan');
   if (diet.includes('vegetarian')) return dishDiet.includes('vegetarian') || dishDiet.includes('vegan');
   return true;
-}
-
-function hasExcludedIngredient(dish: DishDocument, exclusions: string[]) {
-  const blockedWords = exclusions.flatMap((exclusion) => EXCLUSION_GROUPS[exclusion] ?? []).map(normalize);
-  if (blockedWords.length === 0) return false;
-  const structuredIngredients = Array.isArray(dish.structuredIngredients) ? dish.structuredIngredients.map((ingredient) => ingredient.name) : [];
-  const ingredients = (structuredIngredients.length > 0 ? structuredIngredients : dish.ingredients).map(normalize);
-  return ingredients.some((ingredient) => blockedWords.some((blocked) => ingredient.includes(blocked)));
 }
 
 function normalizeFilters(filters: DeckRecommendationFilters): DeckRecommendationFilters {
