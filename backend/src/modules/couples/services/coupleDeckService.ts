@@ -4,6 +4,8 @@ import { AppError } from '../../../core/errors/AppError';
 import { DishDocument, DishModel } from '../../dishes/models/Dish';
 import { DISH_DTO_SELECT, toDishDto } from '../../dishes/dto/dishDto';
 import { dishMatchesExclusions } from '../../../shared/ingredients/exclusionMatcher';
+import { buildPairSharedRecommendedDeck, DeckRecommendationFilters, DeckRecommendationHistoryEntry, RecommendedDeckMeta } from '../../recommendations/deckRecommendationService';
+import { SwipeModel } from '../../swipes/models/Swipe';
 import { CoupleFilterUserChoice, CoupleSessionDocument, CoupleSessionModel } from '../models/CoupleSession';
 
 export interface EffectiveDeckFilters {
@@ -25,10 +27,14 @@ interface DeckResponseMeta {
   fallbackReason: string | null;
   usedPartnerChoices: boolean;
   bothConfirmed: boolean;
+  algorithm?: RecommendedDeckMeta['algorithm'];
+  excludedByExclusionsCount?: number;
+  candidateCountAfterExclusions?: number;
+  expansionApplied?: boolean;
+  expansionReason?: string | null;
 }
 
 const MAX_DECK_SIZE = 30;
-const NARROW_CHOICE_THRESHOLD = 5;
 
 export class CoupleDeckService {
   async prepareDeckForActiveSession(userId: string) {
@@ -44,20 +50,23 @@ export class CoupleDeckService {
     const allDishes = await DishModel.find(visibilityFilter).select(DISH_DTO_SELECT);
     const totalCatalogCount = allDishes.length;
 
-    let candidateDishes = buildCandidateDishes(allDishes, filters);
-    let fallbackReason: string | null = filters.usedCuisineUnionFallback ? 'No common cuisine — showing both preferences.' : null;
-
-    if (candidateDishes.length === 0 && filters.cuisines.length > 0) {
-      const widenedFilters = { ...filters, cuisines: [] };
-      candidateDishes = buildCandidateDishes(allDishes, widenedFilters);
-      fallbackReason = 'No dishes matched cuisines, so cuisine was widened.';
-    } else if (candidateDishes.length > 0 && candidateDishes.length < NARROW_CHOICE_THRESHOLD && !fallbackReason) {
-      fallbackReason = 'Very narrow choice.';
-    }
-
-    const candidateCount = candidateDishes.length;
-    const shuffleSeed = `${session._id.toString()}:${filtersHash}`;
-    const finalDishes = scoreAndShuffleDishes(candidateDishes, filters, shuffleSeed).slice(0, MAX_DECK_SIZE);
+    const [userContexts, fullySwipedDishIds] = await Promise.all([
+      this.buildPairUserContexts(session),
+      this.loadFullySwipedDishIds(session)
+    ]);
+    const customDishIds = new Set(allDishes.filter(isSessionCustomDish).map((dish) => dish._id.toString()));
+    const result = buildPairSharedRecommendedDeck({
+      users: userContexts,
+      dishes: allDishes,
+      hardFilters: filters,
+      excludedDishIds: fullySwipedDishIds,
+      deckSize: MAX_DECK_SIZE,
+      customDishIds
+    });
+    const finalDishes = result.dishes;
+    const recommendationMeta = result.meta;
+    const fallbackReason: string | null = recommendationMeta.expansionReason ?? (filters.usedCuisineUnionFallback ? 'No common cuisine — scoring both preferences.' : null);
+    const candidateCount = recommendationMeta.candidateCount;
     const dishIds = finalDishes.map((dish) => dish._id as Types.ObjectId);
     const publicDishIds = finalDishes.map((dish) => toDishDto(dish)?.id ?? '').filter((id) => id.length > 0);
 
@@ -75,13 +84,14 @@ export class CoupleDeckService {
     };
 
     console.log(`[PreparedDeck] totalCatalog=${totalCatalogCount} candidates=${candidateCount} final=${finalDishes.length}`);
+    console.log(`[PreparedDeck] algorithm=${recommendationMeta.algorithm} excluded=${recommendationMeta.excludedByExclusionsCount} expansion=${recommendationMeta.expansionReason ?? 'none'}`);
     console.log(`[PreparedDeck] filtersHash=${filtersHash}`);
     console.log(`[PreparedDeck] fallback=${fallbackReason}`);
 
     await session.save();
     console.log(`[PreparedDeck] Saved deck session=${session.id}`);
 
-    return this.toDeckResponse(session, finalDishes, filters);
+    return this.toDeckResponse(session, finalDishes, filters, recommendationMeta);
   }
 
   async getDeckForActiveSession(userId: string) {
@@ -145,7 +155,62 @@ export class CoupleDeckService {
     };
   }
 
-  private toDeckResponse(session: CoupleSessionDocument, dishes: DishDocument[], filters: EffectiveDeckFilters) {
+
+  private async buildPairUserContexts(session: CoupleSessionDocument) {
+    const choices = session.filterState?.users ?? [];
+    const previousPreparedDeckIds = new Set((session.preparedDeck?.dishIds ?? []).map((id) => id.toString()));
+    const [histories, activeSwipes] = await Promise.all([
+      Promise.all(choices.map(async (choice) => ({ userId: choice.userId.toString(), history: await this.loadUserHistory(choice.userId) }))),
+      SwipeModel.find({ coupleId: session._id }).select('userId dishId direction').lean()
+    ]);
+    const historyByUser = new Map(histories.map((entry) => [entry.userId, entry.history]));
+    const swipedByUser = new Map<string, Set<string>>();
+    for (const swipe of activeSwipes as any[]) {
+      const swipeUserId = swipe.userId?.toString();
+      const dishId = swipe.dishId?.toString();
+      if (!swipeUserId || !dishId) continue;
+      const set = swipedByUser.get(swipeUserId) ?? new Set<string>();
+      set.add(dishId);
+      swipedByUser.set(swipeUserId, set);
+    }
+    return choices.map((choice) => {
+      const userId = choice.userId.toString();
+      return {
+        userId,
+        filters: filtersFromChoice(choice),
+        userHistory: historyByUser.get(userId) ?? [],
+        recencyScores: buildPairRecencyScores(swipedByUser.get(userId) ?? new Set<string>(), previousPreparedDeckIds)
+      };
+    });
+  }
+
+  private async loadUserHistory(userId: Types.ObjectId): Promise<DeckRecommendationHistoryEntry[]> {
+    const swipes = await SwipeModel.find({ userId }).select('dishId direction').populate({ path: 'dishId', select: DISH_DTO_SELECT }).sort({ createdAt: -1 }).limit(100).lean();
+    const history: DeckRecommendationHistoryEntry[] = [];
+    for (const swipe of swipes as any[]) {
+      if (swipe?.dishId && (swipe.direction === 'like' || swipe.direction === 'dislike')) {
+        history.push({ dish: swipe.dishId as DishDocument, direction: swipe.direction });
+      }
+    }
+    return history;
+  }
+
+  private async loadFullySwipedDishIds(session: CoupleSessionDocument) {
+    const memberIds = new Set(session.members.map((id) => id.toString()));
+    const swipes = await SwipeModel.find({ coupleId: session._id }).select('userId dishId').lean();
+    const usersByDish = new Map<string, Set<string>>();
+    for (const swipe of swipes as any[]) {
+      const userId = swipe.userId?.toString();
+      const dishId = swipe.dishId?.toString();
+      if (!userId || !dishId || !memberIds.has(userId)) continue;
+      const set = usersByDish.get(dishId) ?? new Set<string>();
+      set.add(userId);
+      usersByDish.set(dishId, set);
+    }
+    return new Set([...usersByDish.entries()].filter(([, users]) => users.size >= memberIds.size).map(([dishId]) => dishId));
+  }
+
+  private toDeckResponse(session: CoupleSessionDocument, dishes: DishDocument[], filters: EffectiveDeckFilters, recommendationMeta?: RecommendedDeckMeta) {
     const deck = session.preparedDeck;
     const dishDtos = dishes.map((dish) => toDishDto(dish)).filter((dish): dish is NonNullable<ReturnType<typeof toDishDto>> => Boolean(dish));
     const meta: DeckResponseMeta = {
@@ -156,7 +221,14 @@ export class CoupleDeckService {
       generatedAt: deck?.generatedAt ?? null,
       fallbackReason: deck?.reason ?? null,
       usedPartnerChoices: filters.usedPartnerChoices,
-      bothConfirmed: filters.bothConfirmed
+      bothConfirmed: filters.bothConfirmed,
+      ...(recommendationMeta ? {
+        algorithm: recommendationMeta.algorithm,
+        excludedByExclusionsCount: recommendationMeta.excludedByExclusionsCount,
+        candidateCountAfterExclusions: recommendationMeta.candidateCountAfterExclusions,
+        expansionApplied: recommendationMeta.expansionApplied,
+        expansionReason: recommendationMeta.expansionReason ?? null
+      } : {})
     };
 
     return { status: deck?.status ?? 'idle', dishes: dishDtos, meta };
@@ -187,6 +259,7 @@ export async function addSessionCustomDishToPreparedDeck(coupleId: Types.ObjectI
   const session = await CoupleSessionModel.findById(coupleId);
   const deck = session?.preparedDeck;
   if (!session || !deck || deck.status !== 'ready' || deck.dishIds.length === 0) return;
+  if (!dishPassesPairHardFilters(dish, buildEffectiveFilters(session))) return;
 
   const dishId = dish._id as Types.ObjectId;
   const dishIdString = dishId.toString();
@@ -274,104 +347,33 @@ export function createFiltersHash(filters: EffectiveDeckFilters) {
   return crypto.createHash('sha1').update(JSON.stringify(stable)).digest('hex');
 }
 
-export function scoreDishForDeck(dish: DishDocument, filters: EffectiveDeckFilters) {
-  let score = 0;
-  const cuisine = normalize(dish.cuisine);
-  if (filters.cuisines.includes(cuisine)) score += 30;
 
-  const dishMoods = normalizeList(dish.mood);
-  for (const mood of filters.moods) {
-    if (dishMoods.includes(mood)) score += 15;
-  }
-
-  if (dish.popular) score += 10;
-  score += Number((dish as any).qualityScore ?? (dish as any).rawSourceData?.quality_score ?? 0) || 0;
-
-  if (dish.cookTime > 0 && dish.cookTime <= 30) score += 3;
-  else if (dish.cookTime > 0 && dish.cookTime <= 60) score += 1;
-
-  return score;
+function dishPassesPairHardFilters(dish: DishDocument, filters: EffectiveDeckFilters) {
+  if (dishMatchesExclusions(dish, filters.exclusions)) return false;
+  return matchesStrictPairDiet(dish, filters.diet);
 }
 
-function scoreAndShuffleDishes(dishes: DishDocument[], filters: EffectiveDeckFilters, seed: string) {
-  const buckets = new Map<number, DishDocument[]>();
-  for (const dish of dishes) {
-    const score = Math.round(scoreDishForDeck(dish, filters) + (isSessionCustomDish(dish) ? 10000 : 0));
-    const bucket = buckets.get(score) ?? [];
-    bucket.push(dish);
-    buckets.set(score, bucket);
-  }
-
-  return [...buckets.keys()]
-    .sort((a, b) => b - a)
-    .flatMap((score) => {
-      const bucket = buckets.get(score) ?? [];
-      const stableBucket = [...bucket].sort((a, b) => a._id.toString().localeCompare(b._id.toString()));
-      return seededShuffle(stableBucket, `${seed}:${score}`);
-    });
-}
-
-function hashStringToSeed(input: string): number {
-  let hash = 2166136261;
-  for (let i = 0; i < input.length; i += 1) {
-    hash ^= input.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0;
-}
-
-function mulberry32(seed: number): () => number {
-  return function random() {
-    let t = seed += 0x6D2B79F5;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function seededShuffle<T>(items: T[], seedInput: string): T[] {
-  const result = [...items];
-  const random = mulberry32(hashStringToSeed(seedInput));
-
-  for (let i = result.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(random() * (i + 1));
-    [result[i], result[j]] = [result[j], result[i]];
-  }
-
-  return result;
-}
-
-function buildCandidateDishes(dishes: DishDocument[], filters: EffectiveDeckFilters) {
-  const byId = new Map<string, DishDocument>();
-  for (const dish of applyHardFilters(dishes.filter((candidate) => !isSessionCustomDish(candidate)), filters)) {
-    byId.set(dish._id.toString(), dish);
-  }
-  for (const dish of dishes.filter(isSessionCustomDish)) {
-    byId.set(dish._id.toString(), dish);
-  }
-  return [...byId.values()];
-}
-
-function applyHardFilters(dishes: DishDocument[], filters: EffectiveDeckFilters) {
-  return dishes.filter((dish) => {
-    const cuisine = normalize(dish.cuisine);
-    if (filters.cuisines.length > 0 && !filters.cuisines.includes(cuisine)) return false;
-    if (!matchesDiet(dish, filters.diet)) return false;
-    if (hasExcludedIngredient(dish, filters.exclusions)) return false;
-    return true;
-  });
-}
-
-function matchesDiet(dish: DishDocument, diet: string[]) {
-  if (diet.length === 0) return true;
+function matchesStrictPairDiet(dish: DishDocument, diet: string[]) {
   const dishDiet = normalizeList(dish.diet);
   if (diet.includes('vegan')) return dishDiet.includes('vegan');
   if (diet.includes('vegetarian')) return dishDiet.includes('vegetarian') || dishDiet.includes('vegan');
-  return diet.every((value) => dishDiet.includes(value));
+  return true;
 }
 
-function hasExcludedIngredient(dish: DishDocument, exclusions: string[]) {
-  return dishMatchesExclusions(dish, exclusions);
+function filtersFromChoice(choice: CoupleFilterUserChoice): DeckRecommendationFilters {
+  return {
+    cuisines: normalizeList(choice.cuisines),
+    moods: normalizeList(choice.moods),
+    diet: normalizeList(choice.diet),
+    exclusions: normalizeKeys(choice.exclusions)
+  };
+}
+
+function buildPairRecencyScores(userSwipedDishIds: Set<string>, previousPreparedDeckIds: Set<string>) {
+  const scores = new Map<string, number>();
+  for (const dishId of previousPreparedDeckIds) scores.set(dishId, 0.5);
+  for (const dishId of userSwipedDishIds) scores.set(dishId, 0.35);
+  return scores;
 }
 
 function resolvePairCuisines(myCuisines: string[], partnerCuisines: string[]) {

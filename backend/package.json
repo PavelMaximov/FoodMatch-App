@@ -16,7 +16,8 @@
     "audit:ingredients": "ts-node src/scripts/auditIngredients.ts --source mongo",
     "test:exclusions": "ts-node src/scripts/testExclusionMatcher.ts",
     "audit:ingredients:files": "ts-node src/scripts/auditIngredients.ts --source files",
-    "import:ingredients": "ts-node src/scripts/importIngredients.ts"
+    "import:ingredients": "ts-node src/scripts/importIngredients.ts",
+    "test:pair-recommendations": "ts-node src/scripts/testPairRecommendationService.ts"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

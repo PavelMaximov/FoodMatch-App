@@ -3,6 +3,7 @@ import { DishDocument } from '../dishes/models/Dish';
 import { dishMatchesExclusions } from '../../shared/ingredients/exclusionMatcher';
 
 export const WEIGHTED_SCORING_MVP_ALGORITHM = 'weighted_scoring_mvp_v1' as const;
+export const WEIGHTED_SCORING_PAIR_SHARED_MVP_ALGORITHM = 'weighted_scoring_pair_shared_mvp_v1' as const;
 
 export interface DeckRecommendationFilters {
   cuisines: string[];
@@ -31,7 +32,7 @@ export interface RecommendedDeckMeta {
   totalCatalogCount: number;
   candidateCount: number;
   finalCount: number;
-  algorithm: typeof WEIGHTED_SCORING_MVP_ALGORITHM;
+  algorithm: typeof WEIGHTED_SCORING_MVP_ALGORITHM | typeof WEIGHTED_SCORING_PAIR_SHARED_MVP_ALGORITHM;
   excludedByExclusionsCount: number;
   candidateCountAfterExclusions: number;
   expansionApplied: boolean;
@@ -41,6 +42,22 @@ export interface RecommendedDeckMeta {
 export interface BuildRecommendedDeckResult {
   dishes: DishDocument[];
   meta: RecommendedDeckMeta;
+}
+
+export interface PairRecommendedDeckUserInput {
+  userId: string;
+  filters: DeckRecommendationFilters;
+  userHistory?: DeckRecommendationHistoryEntry[];
+  recencyScores?: Map<string, number>;
+}
+
+export interface BuildPairRecommendedDeckInput {
+  users: PairRecommendedDeckUserInput[];
+  dishes: DishDocument[];
+  hardFilters: DeckRecommendationFilters;
+  excludedDishIds?: Set<string>;
+  deckSize: number;
+  customDishIds?: Set<string>;
 }
 
 interface ScoredDish {
@@ -125,6 +142,78 @@ export function buildRecommendedDeck(input: BuildRecommendedDeckInput): BuildRec
   };
 }
 
+
+export function buildPairSharedRecommendedDeck(input: BuildPairRecommendedDeckInput): BuildRecommendedDeckResult {
+  const hardFilters = normalizeFilters(input.hardFilters);
+  const excludedDishIds = input.excludedDishIds ?? new Set<string>();
+  const totalCatalogCount = input.dishes.length;
+
+  let excludedByExclusionsCount = 0;
+  const afterExplicitExcludes = input.dishes.filter((dish) => !excludedDishIds.has(getDishId(dish)));
+  const afterExclusions = afterExplicitExcludes.filter((dish) => {
+    const matched = dishMatchesExclusions(dish, hardFilters.exclusions);
+    if (matched) excludedByExclusionsCount += 1;
+    return !matched;
+  });
+  const candidates = afterExclusions.filter((dish) => matchesStrictDiet(dish, hardFilters.diet));
+
+  let expansionReason: RecommendedDeckMeta['expansionReason'];
+  if (candidates.length < CRITICAL_CANDIDATE_THRESHOLD) {
+    expansionReason = 'critical_candidates_after_exclusions';
+  } else if (candidates.length < LOW_CANDIDATE_THRESHOLD) {
+    expansionReason = 'low_candidates_after_exclusions';
+  }
+
+  if (expansionReason) {
+    console.log('[filter_expansion_event]', {
+      algorithm: WEIGHTED_SCORING_PAIR_SHARED_MVP_ALGORITHM,
+      mode: 'paired',
+      userIds: input.users.map((user) => user.userId),
+      excludedByExclusionsCount,
+      candidateCountAfterExclusions: afterExclusions.length,
+      candidateCount: candidates.length,
+      reason: expansionReason
+    });
+  }
+
+  const normalizedUsers = input.users.map((user) => ({
+    ...user,
+    filters: normalizeFilters(user.filters),
+    userHistory: user.userHistory ?? [],
+    recencyScores: user.recencyScores ?? new Map<string, number>()
+  }));
+
+  const scored = candidates.map((dish) => {
+    const userScores = normalizedUsers.map((user) => scoreDishForUser({
+      dish,
+      filters: user.filters,
+      history: user.userHistory,
+      recencyScores: user.recencyScores,
+      criticalCandidates: expansionReason === 'critical_candidates_after_exclusions'
+    }));
+    const pairScore = blendPairScores(userScores.map((score) => score.score));
+    const customBoost = input.customDishIds?.has(getDishId(dish)) ? 0.20 : 0;
+    return { dish, score: pairScore + customBoost, components: userScores[0]?.components ?? neutralComponents() };
+  }).sort((a, b) => b.score - a.score || getDishName(a.dish).localeCompare(getDishName(b.dish)) || getDishId(a.dish).localeCompare(getDishId(b.dish)));
+
+  const selected = pickCoreAndExplore(scored, input.deckSize, expansionReason ? EXPANDED_EXPLORE_SHARE : DEFAULT_EXPLORE_SHARE)
+    .map((scoredDish) => scoredDish.dish);
+
+  return {
+    dishes: selected,
+    meta: {
+      totalCatalogCount,
+      excludedByExclusionsCount,
+      candidateCountAfterExclusions: afterExclusions.length,
+      candidateCount: candidates.length,
+      finalCount: selected.length,
+      algorithm: WEIGHTED_SCORING_PAIR_SHARED_MVP_ALGORITHM,
+      expansionApplied: Boolean(expansionReason),
+      ...(expansionReason ? { expansionReason } : {})
+    }
+  };
+}
+
 function scoreCandidates({
   candidates,
   filters,
@@ -138,27 +227,60 @@ function scoreCandidates({
   recentlySeenDishIds: Set<string>;
   criticalCandidates: boolean;
 }): ScoredDish[] {
+  return candidates.map((dish) => scoreDishForUser({
+    dish,
+    filters,
+    history,
+    recentlySeenDishIds,
+    criticalCandidates
+  })).sort((a, b) => b.score - a.score || getDishName(a.dish).localeCompare(getDishName(b.dish)) || getDishId(a.dish).localeCompare(getDishId(b.dish)));
+}
+
+function scoreDishForUser({
+  dish,
+  filters,
+  history,
+  recentlySeenDishIds,
+  recencyScores,
+  criticalCandidates
+}: {
+  dish: DishDocument;
+  filters: DeckRecommendationFilters;
+  history: DeckRecommendationHistoryEntry[];
+  recentlySeenDishIds?: Set<string>;
+  recencyScores?: Map<string, number>;
+  criticalCandidates: boolean;
+}): ScoredDish {
   const totalMeaningfulSwipes = history.length;
   const warmth = clamp(totalMeaningfulSwipes / 50, 0, 1);
   const weights = interpolateWeights(warmth, criticalCandidates);
   const historyTags = buildHistoryTags(history);
+  const components = {
+    countryScore: countryScore(dish, filters.cuisines),
+    moodScore: moodScore(dish, filters.moods),
+    historyScore: historyScore(dish, historyTags),
+    popularityScore: popularityScore(dish),
+    recencyScore: recencyScores?.get(getDishId(dish)) ?? recencyScore(dish, recentlySeenDishIds ?? new Set<string>())
+  };
+  const score =
+    weights.country * components.countryScore +
+    weights.mood * components.moodScore +
+    weights.history * components.historyScore +
+    weights.popularity * components.popularityScore +
+    weights.recency * components.recencyScore;
+  return { dish, score, components };
+}
 
-  return candidates.map((dish) => {
-    const components = {
-      countryScore: countryScore(dish, filters.cuisines),
-      moodScore: moodScore(dish, filters.moods),
-      historyScore: historyScore(dish, historyTags),
-      popularityScore: popularityScore(dish),
-      recencyScore: recencyScore(dish, recentlySeenDishIds)
-    };
-    const score =
-      weights.country * components.countryScore +
-      weights.mood * components.moodScore +
-      weights.history * components.historyScore +
-      weights.popularity * components.popularityScore +
-      weights.recency * components.recencyScore;
-    return { dish, score, components };
-  }).sort((a, b) => b.score - a.score || getDishName(a.dish).localeCompare(getDishName(b.dish)) || getDishId(a.dish).localeCompare(getDishId(b.dish)));
+function blendPairScores(scores: number[]) {
+  if (scores.length === 0) return 0;
+  if (scores.length === 1) return scores[0];
+  const average = scores.reduce((sum, score) => sum + score, 0) / scores.length;
+  const minimum = Math.min(...scores);
+  return 0.65 * average + 0.35 * minimum;
+}
+
+function neutralComponents(): ScoredDish['components'] {
+  return { countryScore: 0.5, moodScore: 0.5, historyScore: 0.5, popularityScore: 0.3, recencyScore: 1.0 };
 }
 
 function interpolateWeights(warmth: number, criticalCandidates: boolean) {
