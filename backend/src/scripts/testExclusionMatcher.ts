@@ -1,7 +1,7 @@
 import { ingredientMatchesExclusions } from '../shared/ingredients/exclusionMatcher';
 
 const shouldExclude: Record<string, string[]> = {
-  no_nuts: ['pine nuts', 'pinenuts', 'peanuts', 'peanut butter', 'peanut oil', 'almond flour', 'almond milk', 'cashews', 'pistachios', 'walnut oil', 'nutella'],
+  no_nuts: ['pine nuts', 'pinenuts', 'peanuts', 'peanut butter', 'peanut oil', 'almond flour', 'almond milk', 'cashews', 'pistachios', 'walnut oil', 'nutella', 'peanut butter chips', 'nut butter', 'vanilla almond milk'],
   no_dairy: ['fresh mozzarella', 'parmesan', 'pecorino', 'mascarpone', 'yogurt', 'greek yogurt', 'ghee', 'sour cream', 'cream cheese', 'béchamel', 'bechamel'],
   no_gluten: ['spaghetti', 'pasta', 'pizza dough', 'lasagna sheets', 'gyoza wrappers', 'ramen noodles', 'soy sauce', 'wheat flour'],
   no_eggs: ['eggs', 'egg yolk', 'egg whites', 'mayonnaise', 'aioli', 'meringue'],
@@ -12,13 +12,14 @@ const shouldExclude: Record<string, string[]> = {
   no_fish: ['salmon', 'tuna', 'fish sauce', 'anchovy', 'dashi', 'bonito flakes'],
   no_seafood: ['prawns', 'shrimp', 'crab', 'scallops', 'mussels', 'calamari', 'cuttlefish', 'squid', 'fish sauce', 'nori', 'wakame'],
   no_spicy: ['chili flakes', 'red curry paste', 'green curry paste', 'sriracha', 'harissa', 'gochujang', 'adjika', 'hot paprika'],
-  no_alcohol: ['white wine', 'red wine', 'beer', 'sake', 'mirin', 'marsala wine', 'rum', 'vodka', 'brandy']
+  no_alcohol: ['white wine', 'red wine', 'beer', 'sake', 'mirin', 'marsala wine', 'sherry', 'rum', 'vodka', 'bourbon', 'brandy']
 };
 
 const shouldAllow: Record<string, string[]> = {
   no_nuts: ['nutmeg', 'donut', 'coconut', 'coconut milk'],
-  no_dairy: ['coconut milk', 'almond milk', 'soy milk', 'rice milk'],
-  no_gluten: ['rice noodles', 'rice flour', 'corn tortillas', 'gluten-free flour']
+  no_dairy: ['coconut milk', 'almond milk', 'soy milk', 'rice milk', 'oat milk', 'vegan butter', 'cocoa butter', 'apple butter', 'butter beans', 'butter lettuce', 'cream of tartar'],
+  no_gluten: ['rice noodles', 'rice flour', 'corn tortillas', 'gluten-free flour', 'gluten free soy sauce'],
+  no_alcohol: ['red wine vinegar', 'white wine vinegar', 'sherry vinegar', 'rice wine vinegar', 'root beer', 'ginger beer', 'rum extract', 'brandy extract']
 };
 
 const failures: string[] = [];
