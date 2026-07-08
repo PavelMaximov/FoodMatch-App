@@ -7,9 +7,41 @@ import { SoloSwipeSessionModel } from '../../solo-swipes/models/SoloSwipeSession
 import { CoupleFilterState, CoupleFilterUserChoice, CoupleSessionDocument, CoupleSessionModel } from '../models/CoupleSession';
 import { clearPreparedDeck } from './coupleDeckService';
 
+
+export type CoupleFilterStatePayload = {
+  cuisines?: string[];
+  moods?: string[];
+  diet?: string[];
+  exclusions?: string[];
+  choices?: {
+    cuisines?: string[];
+    moods?: string[];
+    diet?: string[];
+    exclusions?: string[];
+  };
+};
+
+export function normalizeCoupleFilterStatePayload(payload: CoupleFilterStatePayload) {
+  const source = payload.choices ?? payload;
+  return {
+    cuisines: normalizeFilterValues(source.cuisines),
+    moods: normalizeFilterValues(source.moods),
+    diet: normalizeFilterValues(source.diet),
+    exclusions: normalizeFilterValues(source.exclusions)
+  };
+}
+
+function normalizeFilterValues(values?: string[]) {
+  if (!Array.isArray(values)) return [];
+  const normalized = values.map((v) => (v ?? '').trim().toLowerCase()).filter((v) => v.length > 0);
+  return [...new Set(normalized)];
+}
+
 export class CoupleService {
   async getMyActiveSession(userId: string) {
-    return CoupleSessionModel.findOne({ members: new Types.ObjectId(userId), status: 'active' }).populate('members', 'email displayName avatarUrl');
+    return CoupleSessionModel.findOne({ members: new Types.ObjectId(userId), status: 'active' })
+      .sort({ updatedAt: -1, createdAt: -1 })
+      .populate('members', 'email displayName avatarUrl');
   }
 
   async createSession(userId: string) {
@@ -109,15 +141,16 @@ export class CoupleService {
     return response;
   }
 
-  async updateMyFilterState(userId: string, payload: { cuisines?: string[]; moods?: string[]; diet?: string[]; exclusions?: string[] }) {
+  async updateMyFilterState(userId: string, payload: CoupleFilterStatePayload) {
     const session = await this.requireActiveSession(userId);
     const now = new Date();
+    const choices = normalizeCoupleFilterStatePayload(payload);
     const entry = this.upsertUserFilterEntry(session, userId);
 
-    entry.cuisines = this.normalizeList(payload.cuisines);
-    entry.moods = this.normalizeList(payload.moods);
-    entry.diet = this.normalizeList(payload.diet);
-    entry.exclusions = this.normalizeList(payload.exclusions);
+    entry.cuisines = choices.cuisines;
+    entry.moods = choices.moods;
+    entry.diet = choices.diet;
+    entry.exclusions = choices.exclusions;
     console.log(
       `[FilterState] normalized choices cuisines=${entry.cuisines.join(',')} moods=${entry.moods.join(',')} diet=${entry.diet.join(',')} exclusions=${entry.exclusions.join(',')}`
     );
@@ -161,7 +194,7 @@ export class CoupleService {
   }
 
   private async requireActiveSession(userId: string) {
-    const session = await CoupleSessionModel.findOne({ members: new Types.ObjectId(userId), status: 'active' });
+    const session = await CoupleSessionModel.findOne({ members: new Types.ObjectId(userId), status: 'active' }).sort({ updatedAt: -1, createdAt: -1 });
     if (!session) throw new AppError('No active session found', 404);
     this.ensureFilterState(session);
     return session;
@@ -206,8 +239,7 @@ export class CoupleService {
 
   private normalizeList(values?: string[]) {
     if (!Array.isArray(values)) return [];
-    const normalized = values.map((v) => (v ?? '').trim().toLowerCase()).filter((v) => v.length > 0);
-    return [...new Set(normalized)];
+    return normalizeFilterValues(values);
   }
 
   private calculateCompatibility(mine: CoupleFilterUserChoice, partner?: CoupleFilterUserChoice | null) {
@@ -255,7 +287,11 @@ export class CoupleService {
         : null,
       bothConfirmed,
       compatibility: this.calculateCompatibility(myEntry, partnerEntry),
-      status: bothConfirmed ? 'ready' : session.filterState!.status || 'draft'
+      status: bothConfirmed ? 'ready' : session.filterState!.status || 'draft',
+      memberCount: session.members.length,
+      partnerPresent: session.members.some((memberId) => !this.idsEqual(memberId, userId)),
+      confirmedCount: session.filterState!.users.filter((entry) => entry.confirmed).length,
+      requiredConfirmedCount: session.members.length
     };
   }
 

@@ -180,9 +180,9 @@ class CoupleProvider extends ChangeNotifier {
     _safeNotify();
     try {
       currentCouple = await _repository.join(inviteCode);
-      _currentCoupleLoadedAt = DateTime.now();
+      _currentCoupleLoadedAt = null;
       _sessionStateVersion++;
-      await refreshFilterState();
+      await loadCouple(force: true);
     } on ApiException catch (e) {
       if (_isActiveSessionConflict(e)) {
         error = activeSessionMessage;
@@ -409,6 +409,10 @@ class CoupleProvider extends ChangeNotifier {
         );
         return;
       }
+      if (!hasPartner) {
+        loadCouple(force: true);
+        return;
+      }
       refreshFilterState(reason: 'poll_tick');
     });
   }
@@ -458,7 +462,7 @@ class CoupleProvider extends ChangeNotifier {
 
   Duration get _pollInterval {
     if (_pollErrorStreak > 0) return const Duration(seconds: 10);
-    if (!hasPartner) return const Duration(seconds: 6);
+    if (!hasPartner) return const Duration(seconds: 3);
     if (bothConfirmed) return const Duration(seconds: 20);
     if (isMyChoicesConfirmed && !isPartnerReady) return const Duration(seconds: 3);
     return const Duration(seconds: 5);

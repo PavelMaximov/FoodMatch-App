@@ -19,7 +19,8 @@
     "import:ingredients": "ts-node src/scripts/importIngredients.ts",
     "test:pair-recommendations": "ts-node src/scripts/testPairRecommendationService.ts",
     "inspect:recommendations": "ts-node src/scripts/inspectRecommendationState.ts",
-    "test:recommendation-observability": "ts-node src/scripts/testRecommendationObservability.ts"
+    "test:recommendation-observability": "ts-node src/scripts/testRecommendationObservability.ts",
+    "test:pair-filter-flow": "ts-node src/scripts/testPairFilterFlow.ts"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
