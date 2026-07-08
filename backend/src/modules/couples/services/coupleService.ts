@@ -109,15 +109,17 @@ export class CoupleService {
     return response;
   }
 
-  async updateMyFilterState(userId: string, payload: { cuisines?: string[]; moods?: string[]; diet?: string[]; exclusions?: string[] }) {
+  async updateMyFilterState(userId: string, payload: { cuisines?: string[]; moods?: string[]; diet?: string[]; exclusions?: string[]; choices?: { cuisines?: string[]; moods?: string[]; diet?: string[]; exclusions?: string[] } }) {
     const session = await this.requireActiveSession(userId);
     const now = new Date();
     const entry = this.upsertUserFilterEntry(session, userId);
 
-    entry.cuisines = this.normalizeList(payload.cuisines);
-    entry.moods = this.normalizeList(payload.moods);
-    entry.diet = this.normalizeList(payload.diet);
-    entry.exclusions = this.normalizeList(payload.exclusions);
+    const choices = this.normalizeChoices(payload);
+
+    entry.cuisines = choices.cuisines;
+    entry.moods = choices.moods;
+    entry.diet = choices.diet;
+    entry.exclusions = choices.exclusions;
     console.log(
       `[FilterState] normalized choices cuisines=${entry.cuisines.join(',')} moods=${entry.moods.join(',')} diet=${entry.diet.join(',')} exclusions=${entry.exclusions.join(',')}`
     );
@@ -204,6 +206,17 @@ export class CoupleService {
     return entry;
   }
 
+
+  private normalizeChoices(payload: { cuisines?: string[]; moods?: string[]; diet?: string[]; exclusions?: string[]; choices?: { cuisines?: string[]; moods?: string[]; diet?: string[]; exclusions?: string[] } }) {
+    const source = payload.choices ?? payload;
+    return {
+      cuisines: this.normalizeList(source.cuisines),
+      moods: this.normalizeList(source.moods),
+      diet: this.normalizeList(source.diet),
+      exclusions: this.normalizeList(source.exclusions)
+    };
+  }
+
   private normalizeList(values?: string[]) {
     if (!Array.isArray(values)) return [];
     const normalized = values.map((v) => (v ?? '').trim().toLowerCase()).filter((v) => v.length > 0);
@@ -238,7 +251,9 @@ export class CoupleService {
     this.ensureFilterState(session);
     const myEntry = this.upsertUserFilterEntry(session, userId);
     const partnerEntry = session.filterState!.users.find((u) => !this.idsEqual(u.userId, userId)) ?? null;
-    const bothConfirmed = Boolean(partnerEntry && myEntry.confirmed && partnerEntry.confirmed);
+    const memberCount = session.members.length;
+    const confirmedCount = session.filterState!.users.filter((entry) => entry.confirmed).length;
+    const bothConfirmed = Boolean(memberCount >= 2 && partnerEntry && myEntry.confirmed && partnerEntry.confirmed);
     if (bothConfirmed && session.filterState!.status !== 'ready') session.filterState!.status = 'ready';
 
     console.log(
@@ -255,7 +270,11 @@ export class CoupleService {
         : null,
       bothConfirmed,
       compatibility: this.calculateCompatibility(myEntry, partnerEntry),
-      status: bothConfirmed ? 'ready' : session.filterState!.status || 'draft'
+      status: bothConfirmed ? 'ready' : session.filterState!.status || 'draft',
+      memberCount,
+      partnerPresent: memberCount >= 2,
+      confirmedCount,
+      requiredConfirmedCount: Math.min(memberCount, 2)
     };
   }
 

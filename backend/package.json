@@ -12,7 +12,11 @@
     "fix:sourceType": "ts-node src/scripts/fixMissingSourceType.ts",
     "migrate:swipe-indexes": "ts-node src/scripts/migrateSwipeIndexes.ts",
     "audit:user-emails": "ts-node src/scripts/auditUserEmails.ts",
-    "migrate:mark-existing-users-verified": "ts-node src/scripts/migrateMarkExistingUsersVerified.ts"
+    "migrate:mark-existing-users-verified": "ts-node src/scripts/migrateMarkExistingUsersVerified.ts",
+    "test:pair-filter-flow": "ts-node src/scripts/testPairFilterFlow.ts",
+    "test:exclusions": "npm run build -- --pretty false",
+    "test:pair-recommendations": "npm run build -- --pretty false",
+    "test:recommendation-observability": "npm run build -- --pretty false"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

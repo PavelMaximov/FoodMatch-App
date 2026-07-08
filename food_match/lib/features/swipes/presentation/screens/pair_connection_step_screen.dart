@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -30,6 +32,7 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
   final FocusNode _codeFocusNode = FocusNode();
   bool _isJoining = false;
   bool _handledConnectedSession = false;
+  Timer? _waitingPollTimer;
 
   @override
   void initState() {
@@ -39,6 +42,7 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
 
   @override
   void dispose() {
+    _stopWaitingForPartnerPolling();
     _codeController.dispose();
     _codeFocusNode.dispose();
     super.dispose();
@@ -48,7 +52,7 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
 
   Future<void> _createSession(CoupleProvider provider) async {
     await provider.createCouple();
-    provider.startFilterStatePolling(reason: 'pair_connection_step_create');
+    _startWaitingForPartnerPolling(provider);
     if (!mounted) return;
     context.read<SwipeProvider>().clearPreparedDeck();
     final MatchProvider matchProvider = context.read<MatchProvider>();
@@ -60,17 +64,50 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
     final String code = _code;
     if (code.length != 6 || _isJoining) return;
     setState(() => _isJoining = true);
-    await provider.joinCouple(code);
-    provider.startFilterStatePolling(reason: 'pair_connection_step_join');
-    if (!mounted) return;
-    setState(() => _isJoining = false);
-    context.read<SwipeProvider>().clearPreparedDeck();
-    context.read<MatchProvider>().setMode('paired');
-    context.read<MatchProvider>().clearMatches();
-    if (provider.hasPartner) {
-      _handledConnectedSession = true;
-      await widget.onPairConnected();
+    try {
+      await provider.joinCouple(code);
+      await provider.loadCouple(force: true);
+      provider.startFilterStatePolling(reason: 'pair_connection_step_join');
+      if (!mounted) return;
+      context.read<SwipeProvider>().clearPreparedDeck();
+      context.read<MatchProvider>().setMode('paired');
+      context.read<MatchProvider>().clearMatches();
+      if (provider.hasPartner) {
+        _handledConnectedSession = true;
+        _stopWaitingForPartnerPolling();
+        await widget.onPairConnected();
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isJoining = false);
+      }
     }
+  }
+
+  void _startWaitingForPartnerPolling(CoupleProvider provider) {
+    _stopWaitingForPartnerPolling();
+    if (!provider.hasCouple || provider.hasPartner) {
+      return;
+    }
+    _waitingPollTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+      if (!mounted || _handledConnectedSession) {
+        _stopWaitingForPartnerPolling();
+        return;
+      }
+      await provider.loadCouple(force: true);
+      if (!mounted) return;
+      if (provider.hasPartner && !_handledConnectedSession) {
+        _handledConnectedSession = true;
+        _stopWaitingForPartnerPolling();
+        provider.startFilterStatePolling(reason: 'pair_connection_partner_joined');
+        await widget.onPairConnected();
+      }
+    });
+  }
+
+  void _stopWaitingForPartnerPolling() {
+    _waitingPollTimer?.cancel();
+    _waitingPollTimer = null;
   }
 
   Future<void> _pasteCode() async {
@@ -95,7 +132,6 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
     context.read<PreSwipeProvider>().clearDraft();
     context.read<MatchProvider>().clearMatches();
   }
-
 
   Future<void> _handleBack(CoupleProvider provider) async {
     final bool hasSession = provider.currentCouple != null && provider.currentCouple!.inviteCode.trim().isNotEmpty;
@@ -152,7 +188,15 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
           _handledConnectedSession = true;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
+              _stopWaitingForPartnerPolling();
               widget.onPairConnected();
+            }
+          });
+        }
+        if (hasSession && !coupleProvider.hasPartner && _waitingPollTimer == null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              _startWaitingForPartnerPolling(coupleProvider);
             }
           });
         }
