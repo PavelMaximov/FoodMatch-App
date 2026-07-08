@@ -20,7 +20,8 @@
     "test:pair-recommendations": "ts-node src/scripts/testPairRecommendationService.ts",
     "inspect:recommendations": "ts-node src/scripts/inspectRecommendationState.ts",
     "test:recommendation-observability": "ts-node src/scripts/testRecommendationObservability.ts",
-    "test:pair-filter-flow": "ts-node src/scripts/testPairFilterFlow.ts"
+    "test:pair-filter-flow": "ts-node src/scripts/testPairFilterFlow.ts",
+    "test:pair-session-lifecycle": "ts-node src/scripts/testPairSessionLifecycle.ts"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

@@ -142,8 +142,8 @@ export class CoupleDeckService {
   }
 
   private async requireActiveSession(userId: string) {
-    const session = await CoupleSessionModel.findOne({ members: new Types.ObjectId(userId), status: 'active' });
-    if (!session) throw new AppError('No active session', 404);
+    const session = await CoupleSessionModel.findOne({ members: new Types.ObjectId(userId), status: 'active' }).sort({ updatedAt: -1, createdAt: -1 });
+    if (!session) throw new AppError('This pair session is no longer active.', 404, 'PAIR_SESSION_INACTIVE');
     if (!session.filterState) session.filterState = { users: [], status: 'draft', updatedAt: null };
     if (!Array.isArray(session.filterState.users)) session.filterState.users = [];
     return session;

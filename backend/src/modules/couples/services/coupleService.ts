@@ -122,7 +122,7 @@ export class CoupleService {
 
   async resetSession(userId: string) {
     const session = await this.getMyActiveSession(userId);
-    if (!session) throw new AppError('No active session found', 404);
+    if (!session) throw new AppError('This pair session is no longer active.', 404, 'PAIR_SESSION_INACTIVE');
 
     await SwipeModel.deleteMany({ coupleId: session._id });
     await MatchModel.deleteMany({ coupleId: session._id });
@@ -195,7 +195,7 @@ export class CoupleService {
 
   private async requireActiveSession(userId: string) {
     const session = await CoupleSessionModel.findOne({ members: new Types.ObjectId(userId), status: 'active' }).sort({ updatedAt: -1, createdAt: -1 });
-    if (!session) throw new AppError('No active session found', 404);
+    if (!session) throw new AppError('This pair session is no longer active.', 404, 'PAIR_SESSION_INACTIVE');
     this.ensureFilterState(session);
     return session;
   }
