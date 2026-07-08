@@ -1,5 +1,6 @@
 import { Types } from 'mongoose';
-import { buildPairSharedRecommendedDeck } from '../modules/recommendations/deckRecommendationService';
+import { readFileSync } from 'fs';
+import { buildPairSharedRecommendedDeck, combinePairScoresGeometric, PAIR_SCORE_FLOOR } from '../modules/recommendations/deckRecommendationService';
 import { DishDocument } from '../modules/dishes/models/Dish';
 
 function dish(overrides: Partial<DishDocument> & { name: string; cuisine: string; ingredients?: string[]; diet?: string[]; mood?: string[] }) {
@@ -96,6 +97,19 @@ const customResult = buildPairSharedRecommendedDeck({
 });
 assert(customResult.dishes[0].name === 'Safe Custom Dish', 'Safe custom/session dishes should receive a boost.');
 assert(!customResult.dishes.some((item) => item.name === 'Custom Nut Dish'), 'Excluded custom/session dishes must not bypass exclusions.');
-assert(customResult.meta.algorithm === 'weighted_scoring_pair_shared_mvp_v1', 'Pair deck should use the shared pair recommendation algorithm label.');
+assert(customResult.meta.algorithm === 'weighted_scoring_pair_shared_v2', 'Pair deck should use the shared pair v2 recommendation algorithm label.');
+assert(customResult.meta.pairCombineFunction === 'geometric_mean', 'Pair v2 meta should report geometric mean combine function.');
+assert(customResult.meta.pairScoreFloor === PAIR_SCORE_FLOOR, 'Pair v2 meta should report pair score floor.');
+assert(customResult.meta.commonPool === true && customResult.meta.poolOverlapRate === 1.0, 'Pair v2 meta should report a full-overlap common pool.');
+assert(customResult.meta.exploreStrategy === 'pair_score_percentile_50_80', 'Pair v2 meta should report pair-score percentile exploration.');
+
+assert(Math.abs(combinePairScoresGeometric([0.9, 0.1]) - 0.3) < 0.000001, 'One-sided scores should be geometrically penalized.');
+assert(Math.abs(combinePairScoresGeometric([0.5, 0.5]) - 0.5) < 0.000001, 'Balanced scores should remain balanced under geometric mean.');
+assert(Math.abs(combinePairScoresGeometric([0.9, 0.9]) - 0.9) < 0.000001, 'Strong mutual scores should stay high under geometric mean.');
+assert(combinePairScoresGeometric([0, 0]) === PAIR_SCORE_FLOOR, 'Pair score should never fall below the floor.');
+
+const recommendationSource = readFileSync('src/modules/recommendations/deckRecommendationService.ts', 'utf8');
+assert(!recommendationSource.includes('0.65 * average'), 'Old 0.65 average + 0.35 min formula should not be used.');
+assert(!recommendationSource.includes('0.35 * minimum'), 'Old min blend term should not be used.');
 
 console.log('Pair recommendation assertions passed.');

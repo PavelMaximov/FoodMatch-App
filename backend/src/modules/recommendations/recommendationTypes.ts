@@ -1,4 +1,4 @@
-export type RecommendationAlgorithm = 'weighted_scoring_mvp_v1' | 'weighted_scoring_pair_shared_mvp_v1';
+export type RecommendationAlgorithm = 'weighted_scoring_mvp_v1' | 'weighted_scoring_pair_shared_mvp_v1' | 'weighted_scoring_pair_shared_v2';
 export type RecommendationMode = 'solo' | 'pair';
 
 export interface RecommendationMeta {
@@ -31,6 +31,11 @@ export interface RecommendationMeta {
     strictDiet: string[];
   };
   diagnosticsNotes?: string[];
+  pairCombineFunction?: 'geometric_mean';
+  pairScoreFloor?: number;
+  commonPool?: boolean;
+  poolOverlapRate?: number;
+  exploreStrategy?: 'pair_score_percentile_50_80';
 
   // Backward-compatible aliases used by existing API meta consumers.
   totalCatalogCount: number;
@@ -52,5 +57,6 @@ export function buildRecommendationDiagnostics(meta: Pick<RecommendationMeta,
 
 export function logRecommendationMeta(meta: RecommendationMeta, context: { sessionId?: string } = {}) {
   const sessionPart = context.sessionId ? ` session=${context.sessionId}` : '';
-  console.log(`[recommendation] mode=${meta.mode} algorithm=${meta.algorithm}${sessionPart} total=${meta.totalDishCount} visible=${meta.visibleDishCount} candidates=${meta.candidateCountAfterHardFilters} exclusions=${meta.excludedByExclusionsCount} diet=${meta.excludedByDietCount} final=${meta.finalCount} core=${meta.coreCount} explore=${meta.exploreCount} expansion=${meta.expansionApplied}${meta.expansionReason ? ` reason=${meta.expansionReason}` : ''}`);
+  const pairPart = meta.mode === 'pair' ? ` combine=${meta.pairCombineFunction ?? 'unknown'} commonPool=${meta.commonPool === true} poolOverlapRate=${meta.poolOverlapRate ?? 'n/a'}` : '';
+  console.log(`[recommendation] mode=${meta.mode} algorithm=${meta.algorithm}${pairPart}${sessionPart} total=${meta.totalDishCount} visible=${meta.visibleDishCount} candidates=${meta.candidateCountAfterHardFilters} exclusions=${meta.excludedByExclusionsCount} diet=${meta.excludedByDietCount} final=${meta.finalCount} core=${meta.coreCount} explore=${meta.exploreCount} expansion=${meta.expansionApplied}${meta.expansionReason ? ` reason=${meta.expansionReason}` : ''}`);
 }

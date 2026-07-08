@@ -53,13 +53,15 @@ const pairResult = buildPairSharedRecommendedDeck({
   hardFilters: { cuisines: ['italian', 'german'], moods: [], diet: [], exclusions: ['no_nuts'] },
   deckSize: 30
 });
-assert(pairResult.meta.algorithm === 'weighted_scoring_pair_shared_mvp_v1', 'Pair meta should include pair algorithm.');
+assert(pairResult.meta.algorithm === 'weighted_scoring_pair_shared_v2', 'Pair meta should include pair algorithm.');
 assert(pairResult.meta.mode === 'pair', 'Pair meta should include mode.');
+assert(pairResult.meta.pairCombineFunction === 'geometric_mean', 'Pair meta should include geometric mean combine function.');
+assert(pairResult.meta.commonPool === true && pairResult.meta.poolOverlapRate === 1.0, 'Pair meta should report common pool full overlap.');
 assert(pairResult.meta.excludedByExclusionsCount === 1, 'Pair meta should count exclusion removals.');
 assert(Array.isArray(pairResult.meta.diagnosticsNotes), 'Pair meta should include diagnostics notes.');
 
 const persistedPreparedDeck = { recommendationMeta: pairResult.meta };
-assert(persistedPreparedDeck.recommendationMeta.algorithm === 'weighted_scoring_pair_shared_mvp_v1', 'Prepared deck should be able to store recommendationMeta.');
+assert(persistedPreparedDeck.recommendationMeta.algorithm === 'weighted_scoring_pair_shared_v2', 'Prepared deck should be able to store recommendationMeta.');
 
 const emptyResult = buildRecommendedDeck({
   userId: new Types.ObjectId().toString(),

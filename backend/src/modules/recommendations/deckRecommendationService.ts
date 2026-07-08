@@ -5,6 +5,7 @@ import { buildRecommendationDiagnostics, RecommendationAlgorithm, Recommendation
 
 export const WEIGHTED_SCORING_MVP_ALGORITHM = 'weighted_scoring_mvp_v1' as const;
 export const WEIGHTED_SCORING_PAIR_SHARED_MVP_ALGORITHM = 'weighted_scoring_pair_shared_mvp_v1' as const;
+export const WEIGHTED_SCORING_PAIR_SHARED_V2_ALGORITHM = 'weighted_scoring_pair_shared_v2' as const;
 
 export interface DeckRecommendationFilters {
   cuisines: string[];
@@ -37,7 +38,7 @@ export interface RecommendedDeckMeta extends RecommendationMeta {
   excludedByExclusionsCount: number;
   candidateCountAfterExclusions: number;
   expansionApplied: boolean;
-  expansionReason?: 'low_candidates_after_exclusions' | 'critical_candidates_after_exclusions';
+  expansionReason?: 'low_candidates_after_exclusions' | 'critical_candidates_after_exclusions' | 'low_pair_candidates_after_hard_filters' | 'critical_pair_candidates_after_hard_filters';
 }
 
 export interface BuildRecommendedDeckResult {
@@ -79,6 +80,7 @@ const LOW_CANDIDATE_THRESHOLD = 15;
 const CRITICAL_CANDIDATE_THRESHOLD = 5;
 const DEFAULT_EXPLORE_SHARE = 0.25;
 const EXPANDED_EXPLORE_SHARE = 0.5;
+export const PAIR_SCORE_FLOOR = 0.05;
 
 export function buildRecommendedDeck(input: BuildRecommendedDeckInput): BuildRecommendedDeckResult {
   const filters = normalizeFilters(input.filters);
@@ -176,14 +178,14 @@ export function buildPairSharedRecommendedDeck(input: BuildPairRecommendedDeckIn
 
   let expansionReason: RecommendedDeckMeta['expansionReason'];
   if (candidates.length < CRITICAL_CANDIDATE_THRESHOLD) {
-    expansionReason = 'critical_candidates_after_exclusions';
+    expansionReason = 'critical_pair_candidates_after_hard_filters' as RecommendedDeckMeta['expansionReason'];
   } else if (candidates.length < LOW_CANDIDATE_THRESHOLD) {
-    expansionReason = 'low_candidates_after_exclusions';
+    expansionReason = 'low_pair_candidates_after_hard_filters' as RecommendedDeckMeta['expansionReason'];
   }
 
   if (expansionReason) {
     console.log('[filter_expansion_event]', {
-      algorithm: WEIGHTED_SCORING_PAIR_SHARED_MVP_ALGORITHM,
+      algorithm: WEIGHTED_SCORING_PAIR_SHARED_V2_ALGORITHM,
       mode: 'paired',
       userIds: input.users.map((user) => user.userId),
       excludedByExclusionsCount,
@@ -206,9 +208,13 @@ export function buildPairSharedRecommendedDeck(input: BuildPairRecommendedDeckIn
       filters: user.filters,
       history: user.userHistory,
       recencyScores: user.recencyScores,
-      criticalCandidates: expansionReason === 'critical_candidates_after_exclusions'
+      criticalCandidates: expansionReason === 'critical_pair_candidates_after_hard_filters',
+      scoringOptions: {
+        moodWeightMultiplier: expansionReason === 'low_pair_candidates_after_hard_filters' ? 0.5 : 1,
+        ignoreCuisineAndMood: expansionReason === 'critical_pair_candidates_after_hard_filters'
+      }
     }));
-    const pairScore = blendPairScores(userScores.map((score) => score.score));
+    const pairScore = combinePairScoresGeometric(userScores.map((score) => score.score));
     const customBoost = input.customDishIds?.has(getDishId(dish)) ? 0.20 : 0;
     return { dish, score: pairScore + customBoost, components: userScores[0]?.components ?? neutralComponents() };
   }).sort((a, b) => b.score - a.score || getDishName(a.dish).localeCompare(getDishName(b.dish)) || getDishId(a.dish).localeCompare(getDishId(b.dish)));
@@ -219,7 +225,7 @@ export function buildPairSharedRecommendedDeck(input: BuildPairRecommendedDeckIn
   return {
     dishes: selected,
     meta: {
-      algorithm: WEIGHTED_SCORING_PAIR_SHARED_MVP_ALGORITHM,
+      algorithm: WEIGHTED_SCORING_PAIR_SHARED_V2_ALGORITHM,
       mode: 'pair',
       generatedAt: new Date().toISOString(),
       deckSize: input.deckSize,
@@ -236,6 +242,11 @@ export function buildPairSharedRecommendedDeck(input: BuildPairRecommendedDeckIn
       exploreCount: selection.exploreCount,
       expansionApplied: Boolean(expansionReason),
       ...(expansionReason ? { expansionReason } : {}),
+      pairCombineFunction: 'geometric_mean',
+      pairScoreFloor: PAIR_SCORE_FLOOR,
+      commonPool: true,
+      poolOverlapRate: 1.0,
+      exploreStrategy: 'pair_score_percentile_50_80',
       customCandidateCount: input.customDishIds ? input.dishes.filter((dish) => input.customDishIds?.has(getDishId(dish))).length : 0,
       customIncludedCount: input.customDishIds ? selected.filter((dish) => input.customDishIds?.has(getDishId(dish))).length : 0,
       customExcludedCount: input.customDishIds ? input.dishes.filter((dish) => input.customDishIds?.has(getDishId(dish))).length - afterExclusions.filter((dish) => input.customDishIds?.has(getDishId(dish)) && matchesStrictDiet(dish, hardFilters.diet)).length : 0,
@@ -278,7 +289,8 @@ function scoreDishForUser({
   history,
   recentlySeenDishIds,
   recencyScores,
-  criticalCandidates
+  criticalCandidates,
+  scoringOptions
 }: {
   dish: DishDocument;
   filters: DeckRecommendationFilters;
@@ -286,10 +298,11 @@ function scoreDishForUser({
   recentlySeenDishIds?: Set<string>;
   recencyScores?: Map<string, number>;
   criticalCandidates: boolean;
+  scoringOptions?: { moodWeightMultiplier?: number; ignoreCuisineAndMood?: boolean };
 }): ScoredDish {
   const totalMeaningfulSwipes = history.length;
   const warmth = clamp(totalMeaningfulSwipes / 50, 0, 1);
-  const weights = interpolateWeights(warmth, criticalCandidates);
+  const weights = applyScoringOptions(interpolateWeights(warmth, criticalCandidates), scoringOptions);
   const historyTags = buildHistoryTags(history);
   const components = {
     countryScore: countryScore(dish, filters.cuisines),
@@ -307,16 +320,21 @@ function scoreDishForUser({
   return { dish, score, components };
 }
 
-function blendPairScores(scores: number[]) {
-  if (scores.length === 0) return 0;
-  if (scores.length === 1) return scores[0];
-  const average = scores.reduce((sum, score) => sum + score, 0) / scores.length;
-  const minimum = Math.min(...scores);
-  return 0.65 * average + 0.35 * minimum;
+export function combinePairScoresGeometric(scores: number[]) {
+  if (scores.length === 0) return PAIR_SCORE_FLOOR;
+  if (scores.length === 1) return Math.max(scores[0], PAIR_SCORE_FLOOR);
+  const product = scores.reduce((value, score) => value * Math.max(score, 0), 1);
+  return Math.max(Math.pow(product, 1 / scores.length), PAIR_SCORE_FLOOR);
 }
 
 function neutralComponents(): ScoredDish['components'] {
   return { countryScore: 0.5, moodScore: 0.5, historyScore: 0.5, popularityScore: 0.3, recencyScore: 1.0 };
+}
+
+function applyScoringOptions(weights: ReturnType<typeof interpolateWeights>, options?: { moodWeightMultiplier?: number; ignoreCuisineAndMood?: boolean }) {
+  if (options?.ignoreCuisineAndMood) return { ...weights, country: 0, mood: 0 };
+  if (typeof options?.moodWeightMultiplier === 'number') return { ...weights, mood: weights.mood * options.moodWeightMultiplier };
+  return weights;
 }
 
 function interpolateWeights(warmth: number, criticalCandidates: boolean) {
