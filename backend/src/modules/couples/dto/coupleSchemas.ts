@@ -13,4 +13,8 @@ const coupleFilterChoicesSchema = z.object({
 
 export const updateCoupleFilterStateSchema = coupleFilterChoicesSchema.or(z.object({
   choices: coupleFilterChoicesSchema
+}).strict()).or(z.object({
+  filter: coupleFilterChoicesSchema
+}).strict()).or(z.object({
+  filters: coupleFilterChoicesSchema
 }).strict());

@@ -26,7 +26,17 @@ const nested = normalizeCoupleFilterStatePayload({
   }
 });
 assert(JSON.stringify(nested.cuisines) === JSON.stringify(['american', 'german']), 'Nested choices payload should be supported.');
+const filterWrapped = normalizeCoupleFilterStatePayload({
+  filter: { cuisines: ['American'], moods: ['Quick'], diet: [], exclusions: ['no_seafood', 'no_nuts'] }
+});
+assert(JSON.stringify(filterWrapped.exclusions) === JSON.stringify(['no_seafood', 'no_nuts']), 'filter payload should preserve exclusions.');
+const filtersWrapped = normalizeCoupleFilterStatePayload({
+  filters: { cuisines: ['German'], moods: ['Comfort'], diet: [], exclusions: ['no_dairy'] }
+});
+assert(JSON.stringify(filtersWrapped.cuisines) === JSON.stringify(['german']), 'filters payload should preserve cuisines.');
 assert(updateCoupleFilterStateSchema.safeParse({ choices: { cuisines: ['American'], moods: ['Comfort'], diet: [], exclusions: ['no_nuts'] } }).success, 'Schema should accept nested choices payload.');
+assert(updateCoupleFilterStateSchema.safeParse({ filter: { cuisines: ['American'], moods: ['Quick'], diet: [], exclusions: ['no_nuts'] } }).success, 'Schema should accept filter payload.');
+assert(updateCoupleFilterStateSchema.safeParse({ filters: { cuisines: ['German'], moods: ['Comfort'], diet: [], exclusions: ['no_dairy'] } }).success, 'Schema should accept filters payload.');
 assert(updateCoupleFilterStateSchema.safeParse({ cuisines: ['American'], moods: ['Comfort'], diet: [], exclusions: ['no_nuts'] }).success, 'Schema should accept direct choices payload.');
 
 const req = { headers: { 'if-none-match': 'abc', 'if-modified-since': 'yesterday' } } as any;

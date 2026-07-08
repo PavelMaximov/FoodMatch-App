@@ -35,7 +35,11 @@ class CoupleRepository {
   Future<void> leave() async => _apiService.post(ApiConstants.coupleLeave, {});
 
   Future<CoupleFilterState> getFilterState() async => CoupleFilterState.fromJson(await _apiService.get(ApiConstants.coupleFilterState) as Map<String, dynamic>);
-  Future<CoupleFilterState> updateMyFilterState(CoupleFilterChoices choices) async => CoupleFilterState.fromJson(await _apiService.put(ApiConstants.coupleFilterStateMe, choices.toJson()) as Map<String, dynamic>);
+  Future<CoupleFilterState> updateMyFilterState(CoupleFilterChoices choices) async {
+    final Map<String, dynamic> body = choices.toJson();
+    AppLogger.info('[FilterState] PUT /me body=$body');
+    return CoupleFilterState.fromJson(await _apiService.put(ApiConstants.coupleFilterStateMe, body) as Map<String, dynamic>);
+  }
   Future<CoupleFilterState> confirmMyFilterState() async => CoupleFilterState.fromJson(await _apiService.post(ApiConstants.coupleFilterStateConfirm, {}) as Map<String, dynamic>);
   Future<CoupleFilterState> resetFilterState() async => CoupleFilterState.fromJson(await _apiService.post(ApiConstants.coupleFilterStateReset, {}) as Map<String, dynamic>);
 

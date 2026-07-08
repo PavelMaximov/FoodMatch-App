@@ -26,7 +26,8 @@ assert(!obsoletePairOnlyUniqueIndex, 'Paired presets must not keep a unique mode
 
 const lastFilterService = readFileSync('src/modules/filters/services/lastFilterPresetService.ts', 'utf8');
 assert(lastFilterService.includes('userId: new Types.ObjectId(userId), pairKey: buildPairKey'), 'Paired preset scope should include current userId and pairKey.');
-assert(lastFilterService.includes('userId: null, pairKey: scope.pairKey'), 'Legacy paired presets should only be queried as userId=null fallback.');
+assert(!lastFilterService.includes('return LastFilterPresetModel.findOne({ mode, userId: null'), 'Legacy paired presets must not be returned as the prefill preset.');
+assert(lastFilterService.includes('hasLegacyPairedPreset'), 'Legacy paired presets should only be exposed as availability metadata.');
 assert(!lastFilterService.includes('return { mode, pairKey:'), 'Paired preset scope must not omit userId.');
 
 const coupleService = readFileSync('src/modules/couples/services/coupleService.ts', 'utf8');

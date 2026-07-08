@@ -21,7 +21,9 @@
     "inspect:recommendations": "ts-node src/scripts/inspectRecommendationState.ts",
     "test:recommendation-observability": "ts-node src/scripts/testRecommendationObservability.ts",
     "test:pair-filter-flow": "ts-node src/scripts/testPairFilterFlow.ts",
-    "test:pair-session-lifecycle": "ts-node src/scripts/testPairSessionLifecycle.ts"
+    "test:pair-session-lifecycle": "ts-node src/scripts/testPairSessionLifecycle.ts",
+    "fix:filter-preset-indexes": "ts-node src/scripts/fixFilterPresetIndexes.ts",
+    "test:pair-deck-idempotency": "ts-node src/scripts/testPairDeckIdempotency.ts"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

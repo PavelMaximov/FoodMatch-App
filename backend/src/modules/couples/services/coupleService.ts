@@ -19,10 +19,22 @@ export type CoupleFilterStatePayload = {
     diet?: string[];
     exclusions?: string[];
   };
+  filter?: {
+    cuisines?: string[];
+    moods?: string[];
+    diet?: string[];
+    exclusions?: string[];
+  };
+  filters?: {
+    cuisines?: string[];
+    moods?: string[];
+    diet?: string[];
+    exclusions?: string[];
+  };
 };
 
 export function normalizeCoupleFilterStatePayload(payload: CoupleFilterStatePayload) {
-  const source = payload.choices ?? payload;
+  const source = payload.choices ?? payload.filter ?? payload.filters ?? payload;
   return {
     cuisines: normalizeFilterValues(source.cuisines),
     moods: normalizeFilterValues(source.moods),
@@ -145,6 +157,7 @@ export class CoupleService {
     const session = await this.requireActiveSession(userId);
     const now = new Date();
     const choices = normalizeCoupleFilterStatePayload(payload);
+    const payloadKeys = Object.keys(payload ?? {}).join(',') || 'none';
     const entry = this.upsertUserFilterEntry(session, userId);
 
     entry.cuisines = choices.cuisines;
@@ -152,7 +165,8 @@ export class CoupleService {
     entry.diet = choices.diet;
     entry.exclusions = choices.exclusions;
     console.log(
-      `[FilterState] normalized choices cuisines=${entry.cuisines.join(',')} moods=${entry.moods.join(',')} diet=${entry.diet.join(',')} exclusions=${entry.exclusions.join(',')}`
+      `[FilterState] save body user=${userId} keys=${payloadKeys} normalizedLengths=` +
+        `c${entry.cuisines.length}/m${entry.moods.length}/d${entry.diet.length}/e${entry.exclusions.length}`
     );
     entry.confirmed = false;
     entry.updatedAt = now;

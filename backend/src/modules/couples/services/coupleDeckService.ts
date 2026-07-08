@@ -36,15 +36,63 @@ interface DeckResponseMeta {
 }
 
 const MAX_DECK_SIZE = 30;
+const PREPARE_WAIT_ATTEMPTS = 6;
+const PREPARE_WAIT_MS = 150;
 
 export class CoupleDeckService {
   async prepareDeckForActiveSession(userId: string) {
-    const session = await this.requireActiveSession(userId);
+    let session = await this.requireActiveSession(userId);
     this.assertDeckCanPrepare(session);
     const filters = buildEffectiveFilters(session, userId);
     const filtersHash = createFiltersHash(filters);
-    const generatedAt = new Date();
+    const existingDeck = session.preparedDeck;
+    if (this.isReusablePreparedDeck(existingDeck, filtersHash)) {
+      console.log(`[PreparedDeck] reuse existing deck session=${session.id} filtersHash=${filtersHash}`);
+      const existingDishes = await this.loadPreparedDeckDishes(session);
+      return this.toDeckResponse(session, existingDishes, filters, existingDeck?.recommendationMeta ?? undefined);
+    }
 
+    if (existingDeck?.status === 'preparing' && existingDeck.filtersHash === filtersHash) {
+      const ready = await this.waitForPreparedDeck(session.id, filtersHash);
+      if (ready) {
+        const readyDishes = await this.loadPreparedDeckDishes(ready);
+        return this.toDeckResponse(ready, readyDishes, filters, ready.preparedDeck?.recommendationMeta ?? undefined);
+      }
+      throw new AppError('Deck is still preparing.', 409, 'DECK_PREPARING', { filtersHash });
+    }
+
+    const generatedAt = new Date();
+    const lockedSession = await CoupleSessionModel.findOneAndUpdate(
+      {
+        _id: session._id,
+        status: 'active',
+        $or: [
+          { 'preparedDeck.status': { $ne: 'preparing' } },
+          { 'preparedDeck.filtersHash': { $ne: filtersHash } },
+          { preparedDeck: { $exists: false } }
+        ]
+      },
+      {
+        $set: {
+          'preparedDeck.status': 'preparing',
+          'preparedDeck.filtersHash': filtersHash,
+          'preparedDeck.generatedAt': generatedAt,
+          'preparedDeck.generatedBy': new Types.ObjectId(userId)
+        }
+      },
+      { new: true }
+    );
+    if (!lockedSession) {
+      const ready = await this.waitForPreparedDeck(session.id, filtersHash);
+      if (ready) {
+        const readyDishes = await this.loadPreparedDeckDishes(ready);
+        return this.toDeckResponse(ready, readyDishes, filters, ready.preparedDeck?.recommendationMeta ?? undefined);
+      }
+      throw new AppError('Deck is still preparing.', 409, 'DECK_PREPARING', { filtersHash });
+    }
+    session = lockedSession;
+
+    try {
     console.log(`[PreparedDeck] Preparing deck session=${session.id}`);
 
     const visibilityFilter = this.buildVisibilityFilter(session);
@@ -95,6 +143,23 @@ export class CoupleDeckService {
     console.log(`[PreparedDeck] Saved deck session=${session.id}`);
 
     return this.toDeckResponse(session, finalDishes, filters, recommendationMeta);
+    } catch (error) {
+      session.preparedDeck = {
+        status: 'failed',
+        dishIds: [],
+        publicDishIds: [],
+        totalCatalogCount: 0,
+        candidateCount: 0,
+        finalCount: 0,
+        filtersHash,
+        generatedAt: new Date(),
+        generatedBy: new Types.ObjectId(userId),
+        reason: 'prepare_failed',
+        recommendationMeta: null
+      };
+      await session.save().catch(() => undefined);
+      throw error;
+    }
   }
 
   async getDeckForActiveSession(userId: string) {
@@ -147,6 +212,43 @@ export class CoupleDeckService {
     if (!session.filterState) session.filterState = { users: [], status: 'draft', updatedAt: null };
     if (!Array.isArray(session.filterState.users)) session.filterState.users = [];
     return session;
+  }
+
+  private isReusablePreparedDeck(deck: CoupleSessionDocument['preparedDeck'], filtersHash: string) {
+    return Boolean(
+      deck &&
+        deck.status === 'ready' &&
+        deck.filtersHash === filtersHash &&
+        deck.finalCount > 0 &&
+        Array.isArray(deck.dishIds) &&
+        deck.dishIds.length > 0
+    );
+  }
+
+  private async waitForPreparedDeck(sessionId: string, filtersHash: string) {
+    for (let attempt = 0; attempt < PREPARE_WAIT_ATTEMPTS; attempt += 1) {
+      await delay(PREPARE_WAIT_MS);
+      const latest = await CoupleSessionModel.findById(sessionId);
+      if (latest?.preparedDeck && this.isReusablePreparedDeck(latest.preparedDeck, filtersHash)) {
+        console.log(`[PreparedDeck] waited for existing deck session=${sessionId} filtersHash=${filtersHash}`);
+        return latest;
+      }
+      if (!latest?.preparedDeck || latest.preparedDeck.status !== 'preparing' || latest.preparedDeck.filtersHash !== filtersHash) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  private async loadPreparedDeckDishes(session: CoupleSessionDocument) {
+    const deck = session.preparedDeck;
+    if (!deck?.dishIds?.length) return [];
+    const dishes = await DishModel.find({ _id: { $in: deck.dishIds } }).select(DISH_DTO_SELECT);
+    const visibleDishes = dishes.filter((dish) => isDeckVisibleDish(dish, session));
+    const byId = new Map(visibleDishes.map((dish) => [dish._id.toString(), dish]));
+    return deck.dishIds
+      .map((id) => byId.get(id.toString()))
+      .filter((dish): dish is NonNullable<typeof dish> => Boolean(dish));
   }
 
   private buildVisibilityFilter(session: CoupleSessionDocument): FilterQuery<DishDocument> {
@@ -414,6 +516,9 @@ function normalize(value?: string) {
   return (value ?? '').trim().toLowerCase().replace(/_/g, ' ');
 }
 
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function isSessionCustomDish(dish: DishDocument) {
   return dish.isCustom === true && dish.visibility === 'session' && dish.status === 'approved' && Boolean(dish.coupleId);

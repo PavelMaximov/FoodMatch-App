@@ -18,7 +18,7 @@ export interface CoupleFilterState {
 }
 
 export interface CouplePreparedDeck {
-  status: 'idle' | 'ready' | 'failed';
+  status: 'idle' | 'preparing' | 'ready' | 'failed';
   dishIds: Types.ObjectId[];
   publicDishIds: string[];
   totalCatalogCount: number;
@@ -66,7 +66,7 @@ const filterStateSchema = new Schema<CoupleFilterState>(
 
 const preparedDeckSchema = new Schema<CouplePreparedDeck>(
   {
-    status: { type: String, enum: ['idle', 'ready', 'failed'], default: 'idle' },
+    status: { type: String, enum: ['idle', 'preparing', 'ready', 'failed'], default: 'idle' },
     dishIds: [{ type: Schema.Types.ObjectId, ref: 'Dish' }],
     publicDishIds: { type: [String], default: [] },
     totalCatalogCount: { type: Number, default: 0 },
