@@ -8,7 +8,6 @@ import '../../../../core/utils/image_utils.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../shared/widgets/media/safe_dish_image.dart';
 
-
 class _SwipeCardPillStyle {
   const _SwipeCardPillStyle({
     required this.background,
@@ -18,18 +17,6 @@ class _SwipeCardPillStyle {
 
   final Color background;
   final Color text;
-  final Color border;
-}
-
-class _SwipeCardIconButtonStyle {
-  const _SwipeCardIconButtonStyle({
-    required this.background,
-    required this.icon,
-    required this.border,
-  });
-
-  final Color background;
-  final Color icon;
   final Color border;
 }
 
@@ -58,24 +45,7 @@ _SwipeCardPillStyle _pillStyle(BuildContext context) {
   return const _SwipeCardPillStyle(
     background: Color.fromRGBO(255, 255, 255, 0.697),
     text: Color(0xFF52433E),
-    border:Color.fromRGBO(255, 255, 255, 0.50),
-  );
-}
-
-_SwipeCardIconButtonStyle _neutralIconButtonStyle(BuildContext context) {
-  final bool isDark = Theme.of(context).brightness == Brightness.dark;
-  if (isDark) {
-    return const _SwipeCardIconButtonStyle(
-      background: Color.fromRGBO(38, 29, 26, 0),
-      icon: Color(0xFFF0E8E2),
-      border: Color(0xFFF0E8E2),
-    );
-  }
-
-  return const _SwipeCardIconButtonStyle(
-    background: Color.fromRGBO(255, 255, 255, 0),
-    icon: Color.fromARGB(255, 255, 255, 255),
-    border: Color.fromARGB(255, 255, 255, 255),
+    border: Color.fromRGBO(255, 255, 255, 0.50),
   );
 }
 
@@ -102,7 +72,6 @@ class SwipeCardWidget extends StatelessWidget {
     this.onLike,
     this.onDislike,
     this.onBack,
-    this.onRefresh,
     this.onInfoTap,
     this.showSeenBadge = false,
     super.key,
@@ -112,23 +81,20 @@ class SwipeCardWidget extends StatelessWidget {
   final VoidCallback? onLike;
   final VoidCallback? onDislike;
   final VoidCallback? onBack;
-  final VoidCallback? onRefresh;
   final VoidCallback? onInfoTap;
   final bool showSeenBadge;
-
 
   @override
   Widget build(BuildContext context) {
     final FoodMatchThemeColors colors = context.fmColors;
-    final _SwipeCardIconButtonStyle neutralIconStyle = _neutralIconButtonStyle(context);
     final Dish dish = this.dish;
     final String heroImageUrl = ImageUtils.getImageUrl(dish.imageUrl, usage: ImageUsage.swipeCard);
     return RepaintBoundary(
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AppDimensions.radiusL),
         child: Stack(
-        fit: StackFit.expand,
-        children: <Widget>[
+          fit: StackFit.expand,
+          children: <Widget>[
           Hero(
             tag: 'dish-image-${dish.id}',
             child: SafeDishImage(
@@ -136,15 +102,13 @@ class SwipeCardWidget extends StatelessWidget {
               fit: BoxFit.cover,
               width: double.infinity,
               height: double.infinity,
-
-
             ),
           ),
 
           if (showSeenBadge)
             Positioned(
               top: 16,
-              right: 16,
+              left: 16,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
@@ -218,21 +182,19 @@ class SwipeCardWidget extends StatelessWidget {
               ],
             ),
           ),
+          if (onBack != null)
+            Positioned(
+              top: 20,
+              right: 20,
+              child: _buildPreviousButton(context),
+            ),
           Positioned(
             bottom: 20,
-            left: 12,
-            right: 12,
+            left: 42,
+            right: 42,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: <Widget>[
-                _buildCircleSvgButton(
-                  size: 50,
-                  bgColor: neutralIconStyle.background,
-                  assetPath: 'assets/icons/swipe/back_swipe.svg',
-                  iconColor: neutralIconStyle.icon,
-                  borderColor: neutralIconStyle.border,
-                  onTap: onBack,
-                ),
                 _buildCircleSvgButton(
                   size: 64,
                   bgColor: const Color(0xFFFFFFFF),
@@ -246,18 +208,32 @@ class SwipeCardWidget extends StatelessWidget {
                   assetPath: 'assets/icons/swipe/like_swipe.svg',
                   onTap: onLike,
                 ),
-                _buildCircleSvgButton(
-                  size: 50,
-                  bgColor: neutralIconStyle.background,
-                  assetPath: 'assets/icons/swipe/reset_swipe.svg',
-                  iconColor: neutralIconStyle.icon,
-                  borderColor: neutralIconStyle.border,
-                  onTap: onRefresh,
-                ),
               ],
             ),
           ),
         ],
+        )
+      ),
+    );
+  }
+
+  Widget _buildPreviousButton(BuildContext context) {
+    final _SwipeCardInfoStyle infoStyle = _infoStyle(context);
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onBack,
+      child: Container(
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: infoStyle.background,
+          border: Border.all(color: infoStyle.border),
+        ),
+        child: Icon(
+          Icons.arrow_back_ios_new_rounded,
+          color: infoStyle.icon,
+          size: 16,
         ),
       ),
     );
