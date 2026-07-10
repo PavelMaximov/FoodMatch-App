@@ -80,7 +80,7 @@ class DeckEndChoiceScreen extends StatelessWidget {
                 foregroundColor: colors.primary,
                 side: BorderSide(color: colors.primary, width: 2),
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
                 textStyle: GoogleFonts.nunito(fontSize: 17, fontWeight: FontWeight.w800),
               ),
               child: const Text('Start new'),

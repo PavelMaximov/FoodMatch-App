@@ -1,4 +1,5 @@
 import { Document, Schema, Types, model } from 'mongoose';
+import { RecommendationMeta } from '../../recommendations/recommendationTypes';
 
 export interface CoupleFilterUserChoice {
   userId: Types.ObjectId;
@@ -17,7 +18,7 @@ export interface CoupleFilterState {
 }
 
 export interface CouplePreparedDeck {
-  status: 'idle' | 'ready' | 'failed';
+  status: 'idle' | 'preparing' | 'ready' | 'failed';
   dishIds: Types.ObjectId[];
   publicDishIds: string[];
   totalCatalogCount: number;
@@ -27,6 +28,7 @@ export interface CouplePreparedDeck {
   generatedAt: Date | null;
   generatedBy: Types.ObjectId | null;
   reason: string | null;
+  recommendationMeta?: RecommendationMeta | null;
 }
 
 export interface CoupleSessionDocument extends Document {
@@ -64,7 +66,7 @@ const filterStateSchema = new Schema<CoupleFilterState>(
 
 const preparedDeckSchema = new Schema<CouplePreparedDeck>(
   {
-    status: { type: String, enum: ['idle', 'ready', 'failed'], default: 'idle' },
+    status: { type: String, enum: ['idle', 'preparing', 'ready', 'failed'], default: 'idle' },
     dishIds: [{ type: Schema.Types.ObjectId, ref: 'Dish' }],
     publicDishIds: { type: [String], default: [] },
     totalCatalogCount: { type: Number, default: 0 },
@@ -73,7 +75,8 @@ const preparedDeckSchema = new Schema<CouplePreparedDeck>(
     filtersHash: { type: String, default: '' },
     generatedAt: { type: Date, default: null },
     generatedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
-    reason: { type: String, default: null }
+    reason: { type: String, default: null },
+    recommendationMeta: { type: Schema.Types.Mixed, default: null }
   },
   { _id: false }
 );

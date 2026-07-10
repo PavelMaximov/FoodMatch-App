@@ -14,6 +14,8 @@ class CoupleProvider extends ChangeNotifier {
   CoupleProvider({required CoupleRepository repository}) : _repository = repository;
 
   static const String activeSessionMessage = 'You already have an active session.';
+  static const String partnerLeftSessionMessage =
+      'Your partner has left this session. Please start or join a new session.';
 
   final CoupleRepository _repository;
   Couple? currentCouple;
@@ -36,6 +38,7 @@ class CoupleProvider extends ChangeNotifier {
 
   bool isLoading = false;
   String? error;
+  String? sessionEndedMessage;
   int _sessionStateVersion = 0;
 
   bool get hasCouple {
@@ -101,6 +104,7 @@ class CoupleProvider extends ChangeNotifier {
     }
     final int requestVersion = _sessionStateVersion;
     final String? requestUserId = _activeUserId;
+    final bool previouslyHadSession = hasCouple;
     if (!force && _hasFreshCurrentCoupleCache) {
       final int age = DateTime.now().difference(_currentCoupleLoadedAt!).inSeconds;
       AppLogger.info('[Cache] couple/me hit hasCouple=$hasCouple age=${age}s');
@@ -123,13 +127,11 @@ class CoupleProvider extends ChangeNotifier {
       if (hasCouple) {
         await refreshFilterState();
       } else {
-        currentCouple = null;
-        _clearFilterState();
-        stopFilterStatePolling(reason: 'no active couple');
+        _handleSessionEndedIfNeeded(previouslyHadSession: previouslyHadSession);
       }
     } catch (e) {
       if (e is ApiException && e.statusCode == 404) {
-        _clearSessionState(incrementVersion: false);
+        _handleSessionEndedIfNeeded(previouslyHadSession: previouslyHadSession, incrementVersion: false);
       } else {
         error = _mapError(e);
       }
@@ -180,9 +182,9 @@ class CoupleProvider extends ChangeNotifier {
     _safeNotify();
     try {
       currentCouple = await _repository.join(inviteCode);
-      _currentCoupleLoadedAt = DateTime.now();
+      _currentCoupleLoadedAt = null;
       _sessionStateVersion++;
-      await refreshFilterState();
+      await loadCouple(force: true);
     } on ApiException catch (e) {
       if (_isActiveSessionConflict(e)) {
         error = activeSessionMessage;
@@ -346,9 +348,9 @@ class CoupleProvider extends ChangeNotifier {
       return nextState;
     } on ApiException catch (e) {
       _pollErrorStreak++;
-      if (e.statusCode == 404) {
+      if (_isPairSessionInactive(e)) {
         AppLogger.info('[SessionSync] no active couple while refreshing; clearing session state');
-        _clearSessionState();
+        _handleSessionEndedIfNeeded(previouslyHadSession: true);
         _safeNotify();
         return null;
       }
@@ -409,6 +411,10 @@ class CoupleProvider extends ChangeNotifier {
         );
         return;
       }
+      if (!hasPartner) {
+        loadCouple(force: true);
+        return;
+      }
       refreshFilterState(reason: 'poll_tick');
     });
   }
@@ -458,7 +464,7 @@ class CoupleProvider extends ChangeNotifier {
 
   Duration get _pollInterval {
     if (_pollErrorStreak > 0) return const Duration(seconds: 10);
-    if (!hasPartner) return const Duration(seconds: 6);
+    if (!hasPartner) return const Duration(seconds: 3);
     if (bothConfirmed) return const Duration(seconds: 20);
     if (isMyChoicesConfirmed && !isPartnerReady) return const Duration(seconds: 3);
     return const Duration(seconds: 5);
@@ -525,13 +531,19 @@ class CoupleProvider extends ChangeNotifier {
     }
   }
 
-  void _clearSessionState({bool incrementVersion = true}) {
+  void _clearSessionState({
+    bool incrementVersion = true,
+    bool clearEndedMessage = true,
+  }) {
     stopFilterStatePolling(reason: 'session_clear');
     currentCouple = null;
     _currentCoupleLoadedAt = null;
     _clearFilterState();
     _filterStateRefreshFuture = null;
     error = null;
+    if (clearEndedMessage) {
+      sessionEndedMessage = null;
+    }
     _joinInFlight = false;
     _leaveInFlight = false;
     if (incrementVersion) {
@@ -541,6 +553,22 @@ class CoupleProvider extends ChangeNotifier {
 
   void _clearFilterState() {
     _filterState = null;
+  }
+
+  void clearSessionEndedMessage() {
+    sessionEndedMessage = null;
+    _safeNotify();
+  }
+
+  void _handleSessionEndedIfNeeded({
+    required bool previouslyHadSession,
+    bool incrementVersion = true,
+  }) {
+    if (previouslyHadSession) {
+      sessionEndedMessage = partnerLeftSessionMessage;
+      AppLogger.info('[SessionSync] pair session ended or partner left');
+    }
+    _clearSessionState(incrementVersion: incrementVersion, clearEndedMessage: false);
   }
 
   Future<void> _refreshActiveSessionAfterConflict() async {
@@ -588,6 +616,9 @@ class CoupleProvider extends ChangeNotifier {
   }
 
   String _syncErrorMessage(Object e) {
+    if (e is ApiException && _isPairSessionInactive(e)) {
+      return partnerLeftSessionMessage;
+    }
     if (e is ApiException && e.statusCode == 404) return 'Create or join a session';
     if (e is ApiException && (e.message.toLowerCase().contains('timeout') || e.message.toLowerCase().contains('internet'))) {
       return 'Connection is slow. We’ll keep checking.';
@@ -596,4 +627,9 @@ class CoupleProvider extends ChangeNotifier {
   }
 
   String _mapError(Object e) => ErrorMessages.fromException(e);
+
+  bool _isPairSessionInactive(ApiException e) {
+    final String lower = e.message.toLowerCase();
+    return e.statusCode == 404 || e.statusCode == 409 || lower.contains('pair_session_inactive') || lower.contains('no active paired session') || lower.contains('no active session');
+  }
 }

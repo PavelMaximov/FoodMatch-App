@@ -284,7 +284,8 @@ class PreSwipeProvider extends ChangeNotifier {
     debugPrint('[PreparedDeck] prepare started');
 
     try {
-      final PreparedDeck backendDeck = await _coupleRepository.prepareDeck();
+      final PreparedDeck preparedDeck = await _coupleRepository.prepareDeck();
+      final PreparedDeck backendDeck = await _loadCanonicalBackendDeck(preparedDeck);
       preparedDeckMeta = backendDeck.meta;
       debugPrint('[PreparedDeck] prepare success final=${backendDeck.meta.finalCount}');
       final List<String> messages = <String>[...fallback.messages];
@@ -303,11 +304,46 @@ class PreSwipeProvider extends ChangeNotifier {
       );
     } on ApiException catch (e) {
       final bool filtersNotReady = e.statusCode == 409 && e.message.toLowerCase().contains('filter');
+      final bool deckPreparing = e.statusCode == 409 && e.message.toLowerCase().contains('preparing');
+      if (deckPreparing) {
+        try {
+          await Future<void>.delayed(const Duration(milliseconds: 500));
+          final PreparedDeck backendDeck = await _coupleRepository.getPreparedDeck();
+          preparedDeckMeta = backendDeck.meta;
+          return PreparedPoolResult(
+            dishes: backendDeck.dishes,
+            seenDishIds: const <String>{},
+            usedFallback: false,
+            relaxed: fallback.relaxed,
+            messages: fallback.messages,
+            config: fallback.config,
+            preparedDeckMeta: backendDeck.meta,
+          );
+        } catch (_) {
+          // Fall through to normal safe fallback handling below.
+        }
+      }
       backendDeckError = filtersNotReady ? 'Waiting for partner choices' : ErrorMessages.fromApiException(e);
       debugPrint('[PreparedDeck] prepare failed $e');
       if (filtersNotReady) {
         debugPrint('[Deck] prepare skipped: filters not ready');
         rethrow;
+      }
+      final bool requiresSafeBackendDeck = fallback.config?.blocked.isNotEmpty ?? false;
+      if (requiresSafeBackendDeck) {
+        debugPrint('[PreparedDeck] Backend prepare failed with exclusions selected; local fallback suppressed');
+        return PreparedPoolResult(
+          dishes: const <Dish>[],
+          seenDishIds: const <String>{},
+          usedFallback: false,
+          relaxed: true,
+          messages: <String>[
+            ...fallback.messages,
+            'Could not prepare a safe deck. Please try again.',
+          ],
+          config: fallback.config,
+          preparedDeckMeta: fallback.preparedDeckMeta,
+        );
       }
       debugPrint('[PreparedDeck] Backend prepare failed, using local fallback');
       return PreparedPoolResult(
@@ -326,6 +362,19 @@ class PreSwipeProvider extends ChangeNotifier {
       isPreparingBackendDeck = false;
       notifyListeners();
     }
+  }
+
+  Future<PreparedDeck> _loadCanonicalBackendDeck(PreparedDeck preparedDeck) async {
+    if (preparedDeck.dishes.isEmpty) return preparedDeck;
+    try {
+      final PreparedDeck canonical = await _coupleRepository.getPreparedDeck();
+      if (canonical.meta.filtersHash == preparedDeck.meta.filtersHash && canonical.dishes.isNotEmpty) {
+        return canonical;
+      }
+    } catch (e) {
+      debugPrint('[PreparedDeck] canonical deck reload skipped $e');
+    }
+    return preparedDeck;
   }
 
   FilterAvailabilitySummary buildAvailabilitySummary({

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -44,6 +46,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
   bool _isOpeningPreSwipe = false;
   bool _isCardActionInProgress = false;
   bool _showPairConnectionStep = false;
+  bool _isHandlingSessionEnded = false;
   CoupleProvider? _coupleProvider;
   bool _isLoadingInitialSession = false;
   String? _initialSessionError;
@@ -59,6 +62,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
       }
       final CoupleProvider coupleProvider = context.read<CoupleProvider>();
       _coupleProvider = coupleProvider;
+      coupleProvider.addListener(_handleCoupleSessionEnded);
       coupleProvider.startFilterStatePolling(reason: 'swipes_screen');
       _loadExistingBackendDeckOrStart();
     });
@@ -66,8 +70,55 @@ class _SwipesScreenState extends State<SwipesScreen> {
 
   @override
   void dispose() {
+    _coupleProvider?.removeListener(_handleCoupleSessionEnded);
     _coupleProvider?.stopFilterStatePolling(reason: 'swipes_dispose');
     super.dispose();
+  }
+
+  void _handleCoupleSessionEnded() {
+    unawaited(_showCoupleSessionEndedDialog());
+  }
+
+  Future<void> _showCoupleSessionEndedDialog() async {
+    final CoupleProvider? coupleProvider = _coupleProvider;
+    final String? message = coupleProvider?.sessionEndedMessage;
+    if (!mounted || coupleProvider == null || message == null || _isHandlingSessionEnded) {
+      return;
+    }
+    _isHandlingSessionEnded = true;
+    final SwipeProvider swipeProvider = context.read<SwipeProvider>();
+    swipeProvider.resetToModeSelection();
+    swipeProvider.clearPreparedDeck();
+    context.read<PreSwipeProvider>().clearDraft();
+    context.read<MatchProvider>().clearMatches();
+    setState(() {
+      _activeSessionChoiceType = null;
+      _showPairConnectionStep = false;
+      _isOpeningPreSwipe = false;
+    });
+
+    await showDialog<void>(
+      context: context,
+      builder: (BuildContext dialogContext) => AlertDialog(
+        title: const Text('Session ended'),
+        content: const Text('Your partner has left this session. You can start a new session or join another one.'),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+    if (mounted) {
+      Navigator.of(context).popUntil((Route<dynamic> route) => route.isFirst);
+    }
+    coupleProvider.clearSessionEndedMessage();
+    if (mounted) {
+      setState(() => _isHandlingSessionEnded = false);
+    } else {
+      _isHandlingSessionEnded = false;
+    }
   }
 
   Future<void> _loadExistingBackendDeckOrStart() async {

@@ -192,16 +192,31 @@ class SwipeProvider extends ChangeNotifier {
     if (_isApplyingSoloFilterRequest) {
       return false;
     }
+    if (activeSoloSessionId != null) {
+      return rebuildActiveSoloSessionFilters(cuisines: cuisines, moods: moods, blocked: blocked, diet: diet);
+    }
     _isApplyingSoloFilterRequest = true;
-    isLoading = true; error = null; notifyListeners();
+    isLoading = true;
+    error = null;
+    notifyListeners();
     try {
-      final dynamic data = await _swipeRepository.createSoloSession(filter: <String, dynamic>{'cuisines': cuisines, 'moods': moods, 'exclusions': blocked, 'diet': diet});
-      final dynamic session = data is Map<String, dynamic> ? data['session'] : null;
-      if (session is Map<String, dynamic>) {
-        _applySoloSession(session);
-        return true;
+      return await _createSoloSessionRequest(cuisines: cuisines, moods: moods, blocked: blocked, diet: diet);
+    } on ApiException catch (e) {
+      final bool activeSessionConflict = e.statusCode == 409 && e.message.toLowerCase().contains('active');
+      if (activeSessionConflict) {
+        final bool loadedActiveSolo = await _loadActiveSoloSessionRequest();
+        if (loadedActiveSolo && activeSoloSessionId != null) {
+          return await _rebuildActiveSoloSessionRequest(cuisines: cuisines, moods: moods, blocked: blocked, diet: diet);
+        }
       }
-    } catch (e) { error = _mapSwipeError(e); } finally { _isApplyingSoloFilterRequest = false; isLoading = false; notifyListeners(); }
+      error = _mapSwipeError(e);
+    } catch (e) {
+      error = _mapSwipeError(e);
+    } finally {
+      _isApplyingSoloFilterRequest = false;
+      isLoading = false;
+      notifyListeners();
+    }
     return false;
   }
 
@@ -211,15 +226,45 @@ class SwipeProvider extends ChangeNotifier {
       return false;
     }
     _isApplyingSoloFilterRequest = true;
-    isLoading = true; error = null; notifyListeners();
+    isLoading = true;
+    error = null;
+    notifyListeners();
     try {
-      final dynamic data = await _swipeRepository.updateActiveSoloFilter(filter: <String, dynamic>{'cuisines': cuisines, 'moods': moods, 'exclusions': blocked, 'diet': diet});
-      final dynamic session = data is Map<String, dynamic> ? data['session'] : null;
-      if (session is Map<String, dynamic>) {
-        _applySoloSession(session);
-        return true;
-      }
-    } catch (e) { error = _mapSwipeError(e); } finally { _isApplyingSoloFilterRequest = false; isLoading = false; notifyListeners(); }
+      return await _rebuildActiveSoloSessionRequest(cuisines: cuisines, moods: moods, blocked: blocked, diet: diet);
+    } catch (e) {
+      error = _mapSwipeError(e);
+    } finally {
+      _isApplyingSoloFilterRequest = false;
+      isLoading = false;
+      notifyListeners();
+    }
+    return false;
+  }
+
+  Future<bool> _createSoloSessionRequest({required List<String> cuisines, required List<String> moods, required List<String> blocked, required List<String> diet}) async {
+    final dynamic data = await _swipeRepository.createSoloSession(filter: _soloFilterPayload(cuisines: cuisines, moods: moods, blocked: blocked, diet: diet));
+    return _applySoloSessionFromResponse(data);
+  }
+
+  Future<bool> _rebuildActiveSoloSessionRequest({required List<String> cuisines, required List<String> moods, required List<String> blocked, required List<String> diet}) async {
+    final dynamic data = await _swipeRepository.updateActiveSoloFilter(filter: _soloFilterPayload(cuisines: cuisines, moods: moods, blocked: blocked, diet: diet));
+    return _applySoloSessionFromResponse(data);
+  }
+
+  Future<bool> _loadActiveSoloSessionRequest() async {
+    final dynamic data = await _swipeRepository.getActiveSoloSession();
+    return _applySoloSessionFromResponse(data);
+  }
+
+  Map<String, dynamic> _soloFilterPayload({required List<String> cuisines, required List<String> moods, required List<String> blocked, required List<String> diet}) =>
+      <String, dynamic>{'cuisines': cuisines, 'moods': moods, 'exclusions': blocked, 'diet': diet};
+
+  bool _applySoloSessionFromResponse(dynamic data) {
+    final dynamic session = data is Map<String, dynamic> ? data['session'] : null;
+    if (session is Map<String, dynamic>) {
+      _applySoloSession(session);
+      return true;
+    }
     return false;
   }
 
