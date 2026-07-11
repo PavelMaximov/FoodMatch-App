@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/animations/app_motion.dart';
+import '../../../../core/navigation/navigation_targets.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/theme/app_dimensions.dart';
@@ -56,6 +57,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
   final Set<String> _preloadedImageUrls = <String>{};
   Timer? _pairMatchPollingTimer;
   OverlayEntry? _matchNotificationEntry;
+  OverlayEntry? _flyingHeartEntry;
 
   @override
   void initState() {
@@ -78,6 +80,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
     _coupleProvider?.stopFilterStatePolling(reason: 'swipes_dispose');
     _stopPairMatchPolling();
     _dismissMatchNotification();
+    _dismissFlyingHeart();
     super.dispose();
   }
 
@@ -532,6 +535,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
       builder: (BuildContext overlayContext) => MatchNotificationOverlay(
         dishName: dishName,
         onDismiss: _dismissMatchNotification,
+        onAutoDismiss: _handleMatchNotificationAutoDismiss,
         onView: () {
           if (mounted) {
             context.go('/matches');
@@ -546,6 +550,41 @@ class _SwipesScreenState extends State<SwipesScreen> {
   void _dismissMatchNotification() {
     _matchNotificationEntry?.remove();
     _matchNotificationEntry = null;
+  }
+
+  void _handleMatchNotificationAutoDismiss(Rect? heartRect) {
+    _dismissMatchNotification();
+    if (!mounted || heartRect == null) {
+      return;
+    }
+    _showFlyingHeart(
+      startRect: heartRect,
+      targetRect: NavigationTargets.matchesTabRect(context),
+    );
+  }
+
+  void _showFlyingHeart({required Rect startRect, required Rect? targetRect}) {
+    _dismissFlyingHeart();
+    if (targetRect == null) {
+      return;
+    }
+
+    final OverlayState overlay = Overlay.of(context);
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (BuildContext overlayContext) => FlyingMatchHeartOverlay(
+        startRect: startRect,
+        targetRect: targetRect,
+        onComplete: _dismissFlyingHeart,
+      ),
+    );
+    _flyingHeartEntry = entry;
+    overlay.insert(entry);
+  }
+
+  void _dismissFlyingHeart() {
+    _flyingHeartEntry?.remove();
+    _flyingHeartEntry = null;
   }
 
   void _resetSwipeStackController() {

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -11,6 +12,7 @@ class MatchNotificationOverlay extends StatefulWidget {
     required this.dishName,
     required this.onView,
     required this.onDismiss,
+    required this.onAutoDismiss,
     super.key,
   });
 
@@ -19,6 +21,7 @@ class MatchNotificationOverlay extends StatefulWidget {
   final String? dishName;
   final VoidCallback onView;
   final VoidCallback onDismiss;
+  final void Function(Rect? heartRect) onAutoDismiss;
 
   @override
   State<MatchNotificationOverlay> createState() => _MatchNotificationOverlayState();
@@ -26,7 +29,9 @@ class MatchNotificationOverlay extends StatefulWidget {
 
 class _MatchNotificationOverlayState extends State<MatchNotificationOverlay>
     with SingleTickerProviderStateMixin {
+  final GlobalKey _heartKey = GlobalKey(debugLabel: 'matchSnackbarHeart');
   late final AnimationController _controller;
+  bool _isClosing = false;
 
   @override
   void initState() {
@@ -48,12 +53,31 @@ class _MatchNotificationOverlayState extends State<MatchNotificationOverlay>
   }
 
   void _handleStatus(AnimationStatus status) {
-    if (status == AnimationStatus.completed && mounted) {
-      widget.onDismiss();
+    if (status == AnimationStatus.completed && mounted && !_isClosing) {
+      _isClosing = true;
+      widget.onAutoDismiss(_heartRect());
     }
   }
 
+  Rect? _heartRect() {
+    final BuildContext? heartContext = _heartKey.currentContext;
+    final RenderObject? renderObject = heartContext?.findRenderObject();
+    if (renderObject is RenderBox && renderObject.hasSize) {
+      final Offset origin = renderObject.localToGlobal(Offset.zero);
+      return origin & renderObject.size;
+    }
+    return null;
+  }
+
+  void _handleClose() {
+    if (_isClosing) return;
+    _isClosing = true;
+    widget.onDismiss();
+  }
+
   void _handleView() {
+    if (_isClosing) return;
+    _isClosing = true;
     widget.onDismiss();
     scheduleMicrotask(widget.onView);
   }
@@ -107,62 +131,74 @@ class _MatchNotificationOverlayState extends State<MatchNotificationOverlay>
                   ),
                   Positioned.fill(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(18, 14, 52, 16),
+                      padding: const EdgeInsets.fromLTRB(18, 14, 10, 16),
                       child: Row(
                         children: <Widget>[
                           Container(
+                            key: _heartKey,
                             width: 48,
                             height: 48,
                             decoration: const BoxDecoration(
                               shape: BoxShape.circle,
                               color: Color(0xFFFF7A1A),
                             ),
-                            child: const Icon(
-                              Icons.favorite_rounded,
-                              color: Colors.white,
-                              size: 25,
+                            child: Center(
+                              child: SvgPicture.asset(
+                                'assets/icons/swipe/like_swipe.svg',
+                                width: 18,
+                                height: 18,
+                                colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                              ),
                             ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: <Widget>[
-                                Text(
-                                  "It's a match!",
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.nunito(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                    color: titleColor,
+                            child: Padding(
+                              padding: const EdgeInsets.only(right: 4),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
+                                  Text(
+                                    "It's a match!",
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.nunito(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800,
+                                      color: titleColor,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  subtitle,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.nunito(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: subtitleColor,
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    subtitle,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.nunito(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: subtitleColor,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          TextButton(
-                            onPressed: _handleView,
-                            style: TextButton.styleFrom(
-                              foregroundColor: accentColor,
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                              minimumSize: const Size(44, 36),
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          SizedBox(
+                            width: 58,
+                            child: Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton(
+                                onPressed: _handleView,
+                                style: TextButton.styleFrom(
+                                  foregroundColor: accentColor,
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                  minimumSize: const Size(48, 36),
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                child: const Text('View'),
+                              ),
                             ),
-                            child: const Text('View'),
                           ),
                         ],
                       ),
@@ -170,9 +206,9 @@ class _MatchNotificationOverlayState extends State<MatchNotificationOverlay>
                   ),
                   Positioned(
                     right: 8,
-                    top: 8,
+                    top: 2,
                     child: IconButton(
-                      onPressed: widget.onDismiss,
+                      onPressed: _handleClose,
                       icon: Icon(Icons.close_rounded, color: subtitleColor, size: 18),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
@@ -221,5 +257,107 @@ class _MatchNotificationOverlayState extends State<MatchNotificationOverlay>
       return name;
     }
     return '${chars.take(10).join()}...';
+  }
+}
+
+class FlyingMatchHeartOverlay extends StatefulWidget {
+  const FlyingMatchHeartOverlay({
+    required this.startRect,
+    required this.targetRect,
+    required this.onComplete,
+    super.key,
+  });
+
+  final Rect startRect;
+  final Rect targetRect;
+  final VoidCallback onComplete;
+
+  @override
+  State<FlyingMatchHeartOverlay> createState() => _FlyingMatchHeartOverlayState();
+}
+
+class _FlyingMatchHeartOverlayState extends State<FlyingMatchHeartOverlay>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _curve;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 760),
+    )
+      ..addStatusListener(_handleStatus)
+      ..forward();
+    _curve = CurvedAnimation(parent: _controller, curve: Curves.easeInOutCubic);
+  }
+
+  @override
+  void dispose() {
+    _controller
+      ..removeStatusListener(_handleStatus)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _handleStatus(AnimationStatus status) {
+    if (status == AnimationStatus.completed && mounted) {
+      widget.onComplete();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final Offset start = widget.startRect.center;
+    final Offset target = widget.targetRect.center;
+
+    return IgnorePointer(
+      child: AnimatedBuilder(
+        animation: _curve,
+        builder: (BuildContext context, Widget? child) {
+          final double t = _curve.value;
+          final Offset linear = Offset.lerp(start, target, t) ?? target;
+          final double lift = -72 * math.sin(math.pi * t);
+          final Offset center = linear.translate(0, lift);
+          final double size = 48 - (18 * t);
+          final double opacity = t < 0.76 ? 1 : 1 - ((t - 0.76) / 0.24).clamp(0.0, 1.0);
+
+          return Positioned(
+            left: center.dx - (size / 2),
+            top: center.dy - (size / 2),
+            child: Opacity(
+              opacity: opacity,
+              child: Transform.scale(
+                scale: 1 - (0.18 * t),
+                child: Container(
+                  width: size,
+                  height: size,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFFFF7A1A),
+                    boxShadow: <BoxShadow>[
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.18),
+                        blurRadius: 14,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: SvgPicture.asset(
+                      'assets/icons/swipe/like_swipe.svg',
+                      width: size * 0.38,
+                      height: size * 0.38,
+                      colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 }
