@@ -7,7 +7,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/animations/app_motion.dart';
-import '../../../core/navigation/navigation_targets.dart';
 import '../../../core/theme/theme_extensions.dart';
 import '../../../features/couple/logic/couple_provider.dart';
 import '../../../features/matches/logic/match_provider.dart';
@@ -186,7 +185,6 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
                 onTap: () => _onTabTap(index),
                 behavior: HitTestBehavior.opaque,
                 child: SizedBox(
-                  key: index == 1 ? NavigationTargets.matchesTabKey : null,
                   width: 64,
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,

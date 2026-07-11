@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/animations/app_motion.dart';
@@ -361,19 +362,24 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   Widget _buildStepContent() {
     if (_step == 1) {
       return SingleChildScrollView(
-        child: _buildChipGrid(
+        child: Align(
+          alignment: Alignment.topLeft,
+          child: _buildChipGrid(
           options: _cuisineOptions,
           selected: _cuisines,
           onTap: _toggleCuisine,
           chipStates: context.read<PreSwipeProvider>().buildCuisineChipStates(_cuisineOptions, _allDishes),
           anyWhenEmpty: true,
+          ),
         ),
       );
     }
 
     if (_step == 2) {
       return SingleChildScrollView(
-        child: _buildChipGrid(
+        child: Align(
+          alignment: Alignment.topLeft,
+          child: _buildChipGrid(
           options: _moodOptions,
           selected: _moods,
           onTap: (String value) {
@@ -390,12 +396,15 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
                 allDishes: _allDishes,
                 selectedCuisines: _cuisines.toList(),
               ),
+          ),
         ),
       );
     }
 
     return SingleChildScrollView(
-      child: Column(
+      child: Align(
+        alignment: Alignment.topLeft,
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           _buildChipGrid(
@@ -424,6 +433,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
                 ),
           ),
         ],
+        ),
       ),
     );
   }
@@ -436,6 +446,8 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     List<FilterChipState> chipStates = const <FilterChipState>[],
   }) {
     return Wrap(
+      alignment: WrapAlignment.start,
+      runAlignment: WrapAlignment.start,
       spacing: 10,
       runSpacing: 10,
       children: options.map((String option) {
@@ -672,65 +684,86 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
 
   Widget _buildWaitingForPartnerScreen() {
     final CoupleProvider coupleProvider = context.read<CoupleProvider>();
-    final String title = !coupleProvider.hasCouple
+    final bool needsSession = !coupleProvider.hasCouple;
+    final bool waitingForJoin = coupleProvider.hasCouple && !coupleProvider.hasPartner;
+    final bool preparingDeck = _isPreparingSharedDeck;
+    final String title = needsSession
         ? 'Create or join a session'
-        : !coupleProvider.hasPartner
+        : waitingForJoin
             ? 'Waiting for your partner to join'
-            : _isPreparingSharedDeck
+            : preparingDeck
                 ? 'Preparing your shared deck'
                 : 'Waiting for partner choices';
-    final String subtitle = coupleProvider.syncMessage ??
-        (!coupleProvider.hasCouple
+    final String description = coupleProvider.syncMessage ??
+        (needsSession
             ? 'Start a couple session to swipe together.'
-            : !coupleProvider.hasPartner
-                ? 'Share your invite code. We’ll keep checking at a slower pace.'
-                : _isPreparingSharedDeck
+            : waitingForJoin
+                ? 'Share your invite code. We’ll start when your partner joins.'
+                : preparingDeck
                     ? 'Both filter sets are ready. We’re preparing your shared deck now.'
                     : 'Your choices are saved. We’ll start swiping when your partner finishes their filters.');
+
     return Scaffold(
       backgroundColor: context.fmColors.background,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                Container(
-                  width: 96,
-                  height: 96,
-                  decoration: BoxDecoration(
-                    color: context.fmColors.primarySoft,
-                    borderRadius: BorderRadius.circular(48),
-                  ),
-                  child: Icon(Icons.hourglass_empty, size: 44, color: context.fmColors.primary),
-                ),
-                const SizedBox(height: 28),
-                Text(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+          child: Column(
+            children: <Widget>[
+              const Spacer(flex: 1),
+              Image.asset(
+                'assets/media/pre_swipe_intro.png',
+                height: 190,
+                fit: BoxFit.contain,
+              ),
+              const SizedBox(height: 28),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 320),
+                child: Text(
                   title,
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.fredoka(fontWeight: FontWeight.w700, fontSize: 38, color: context.fmColors.textPrimary),
+                  style: GoogleFonts.fredoka(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 34,
+                    color: context.fmColors.textPrimary,
+                    height: 1.12,
+                  ),
                 ),
-                const SizedBox(height: 14),
-                Text(
-                  subtitle,
+              ),
+              const SizedBox(height: 14),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 340),
+                child: Text(
+                  description,
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.nunito(fontSize: 17, color: context.fmColors.textSecondary, height: 1.35),
+                  style: GoogleFonts.nunito(
+                    fontSize: 16,
+                    color: context.fmColors.textSecondary,
+                    height: 1.38,
+                  ),
                 ),
-                const SizedBox(height: 24),
-                const CircularProgressIndicator(),
-                const SizedBox(height: 28),
-                TextButton(
-                  onPressed: _isPreparingSharedDeck ? null : () => Navigator.of(context).pop(),
-                  child: const Text('Back to session'),
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 22),
+              Lottie.asset(
+                'assets/animations/waiting.json',
+                width: 84,
+                height: 84,
+                fit: BoxFit.contain,
+                repeat: true,
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: _isPreparingSharedDeck ? null : () => Navigator.of(context).pop(),
+                child: const Text('Back to session settings'),
+              ),
+              const Spacer(flex: 2),
+            ],
           ),
         ),
       ),
     );
   }
+
 
   void _startWaitingPolling() {
     _coupleProvider.startFilterStatePolling(reason: 'waiting_partner_choices');
