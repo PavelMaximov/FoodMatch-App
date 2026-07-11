@@ -203,11 +203,10 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
                 ),
                 const SizedBox(height: 30),
               ],
-              if (!hasSession) ...<Widget>[
-                Text(
-                  'Join an existing session',
-                  style: _sectionTitleStyle(context),
-                ),
+              Text(
+                'Join an existing session',
+                style: _sectionTitleStyle(context),
+              ),
                 const SizedBox(height: 14),
                 _CodeInput(
                   code: _code,
@@ -221,7 +220,6 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
                   isLoading: _isJoining || coupleProvider.isJoining,
                   onPressed: _code.length == 6 ? () => _joinSession(coupleProvider) : null,
                 ),
-              ],
               if (coupleProvider.error != null) ...<Widget>[
                 const SizedBox(height: 12),
                 Text(
@@ -306,7 +304,7 @@ class _InviteCard extends StatelessWidget {
           Row(
             children: <Widget>[
               Text('Partner:', style: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w700, color: colors.textPrimary)),
-              const SizedBox(width: 8),
+              const SizedBox(width: 4),
               if (hasPartner)
                 Flexible(
                   child: Text(
@@ -318,8 +316,8 @@ class _InviteCard extends StatelessWidget {
               else
                 Lottie.asset(
                   'assets/animations/loading_3_dots.json',
-                  width: 42,
-                  height: 22,
+                  width: 32,
+                  height: 18,
                   fit: BoxFit.contain,
                   repeat: true,
                 ),
