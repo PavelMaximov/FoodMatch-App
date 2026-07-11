@@ -21,6 +21,7 @@ import '../../../../shared/widgets/shimmer_card.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../couple/logic/couple_provider.dart';
 import '../../../matches/logic/match_provider.dart';
+import '../../../matches/presentation/widgets/match_notification_overlay.dart';
 import '../../logic/pre_swipe_provider.dart';
 import '../../logic/swipe_provider.dart';
 import '../widgets/session_settings_sheet.dart';
@@ -54,6 +55,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
   _ActiveSessionChoiceType? _activeSessionChoiceType;
   final Set<String> _preloadedImageUrls = <String>{};
   Timer? _pairMatchPollingTimer;
+  OverlayEntry? _matchNotificationEntry;
 
   @override
   void initState() {
@@ -75,6 +77,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
     _coupleProvider?.removeListener(_handleCoupleSessionEnded);
     _coupleProvider?.stopFilterStatePolling(reason: 'swipes_dispose');
     _stopPairMatchPolling();
+    _dismissMatchNotification();
     super.dispose();
   }
 
@@ -518,16 +521,31 @@ class _SwipesScreenState extends State<SwipesScreen> {
     if (swipeProvider.isSoloMode) return;
     final List<MatchItem> newMatches = await context.read<MatchProvider>().syncPairedMatchesForNotifications(seedOnly: seedOnly);
     if (!mounted || seedOnly || newMatches.isEmpty) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('New match found!'),
-        action: SnackBarAction(
-          label: 'View matches',
-          onPressed: () => context.push('/matches'),
-        ),
-        behavior: SnackBarBehavior.floating,
+    _showMatchNotification(newMatches.first.dish.name);
+  }
+
+  void _showMatchNotification(String? dishName) {
+    _dismissMatchNotification();
+    final OverlayState overlay = Overlay.of(context);
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (BuildContext overlayContext) => MatchNotificationOverlay(
+        dishName: dishName,
+        onDismiss: _dismissMatchNotification,
+        onView: () {
+          if (mounted) {
+            context.go('/matches');
+          }
+        },
       ),
     );
+    _matchNotificationEntry = entry;
+    overlay.insert(entry);
+  }
+
+  void _dismissMatchNotification() {
+    _matchNotificationEntry?.remove();
+    _matchNotificationEntry = null;
   }
 
   void _resetSwipeStackController() {

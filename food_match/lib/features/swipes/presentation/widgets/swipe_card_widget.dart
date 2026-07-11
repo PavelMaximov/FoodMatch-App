@@ -190,10 +190,11 @@ class SwipeCardWidget extends StatelessWidget {
             ),
           Positioned(
             bottom: 20,
-            left: 42,
-            right: 42,
+            left: 0,
+            right: 0,
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 _buildCircleSvgButton(
                   size: 64,
@@ -202,6 +203,7 @@ class SwipeCardWidget extends StatelessWidget {
                   iconColor: colors.error,
                   onTap: onDislike,
                 ),
+                const SizedBox(width: 32),
                 _buildCircleSvgButton(
                   size: 64,
                   bgColor: colors.buttonPrimaryBackground,
