@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:food_match/data/local/cache_service.dart';
 import 'package:food_match/data/models/dish.dart';
+import 'package:food_match/data/models/match_item.dart';
 import 'package:food_match/data/repositories/swipe_repository.dart';
 import 'package:food_match/data/services/api_service.dart';
 import 'package:food_match/features/matches/logic/match_provider.dart';
@@ -17,7 +18,10 @@ void main() {
   ];
 
   setUp(() {
-    fakeRepo = _FakeSwipeRepository()..matches = dishes;
+    fakeRepo = _FakeSwipeRepository()
+      ..matches = dishes
+          .map((Dish dish) => MatchItem(dish: dish, mode: 'paired', matchType: 'pair_match'))
+          .toList();
     fakeCacheService = _FakeCacheService();
     provider = MatchProvider(
       swipeRepository: fakeRepo,
@@ -30,12 +34,14 @@ void main() {
     await provider.loadMatches();
 
     expect(provider.matchCount, 1);
-    expect(provider.matches.first.name, 'Borscht');
+    expect(provider.matches.first.dish.name, 'Borscht');
     expect(fakeCacheService.cachedMatches, dishes);
   });
 
   test('clearMatches clears matches', () {
-    provider.matches = dishes.toList();
+    provider.matches = dishes
+        .map((Dish dish) => MatchItem(dish: dish, mode: 'paired', matchType: 'pair_match'))
+        .toList();
 
     provider.clearMatches();
 
@@ -47,10 +53,14 @@ void main() {
 class _FakeSwipeRepository extends SwipeRepository {
   _FakeSwipeRepository() : super(ApiService());
 
-  List<Dish> matches = <Dish>[];
+  List<MatchItem> matches = <MatchItem>[];
 
   @override
-  Future<List<Dish>> getMatches() async => matches;
+  Future<List<MatchItem>> getMatches({
+    String mode = 'all',
+    String? scope,
+    String? soloSessionId,
+  }) async => matches;
 }
 
 class _FakeCacheService extends CacheService {

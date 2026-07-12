@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:food_match/data/local/cache_service.dart';
 import 'package:food_match/data/local/user_profile_hive_service.dart';
 import 'package:food_match/data/models/dish.dart';
+import 'package:food_match/data/repositories/couple_repository.dart';
 import 'package:food_match/data/repositories/dish_repository.dart';
 import 'package:food_match/data/repositories/swipe_repository.dart';
 import 'package:food_match/data/services/api_service.dart';
@@ -28,6 +29,7 @@ void main() {
     provider = SwipeProvider(
       dishRepository: fakeDishRepo,
       swipeRepository: fakeSwipeRepo,
+      coupleRepository: _FakeCoupleRepository(),
       cacheService: fakeCacheService,
       userProfileService: _FakeUserProfileHiveService(),
     );
@@ -70,13 +72,17 @@ class _FakeDishRepository extends DishRepository {
   Future<List<Dish>> getDishes({String? cuisine}) async => dishes;
 }
 
+class _FakeCoupleRepository extends CoupleRepository {
+  _FakeCoupleRepository() : super(ApiService());
+}
+
 class _FakeSwipeRepository extends SwipeRepository {
   _FakeSwipeRepository() : super(ApiService());
 
   final List<(String, String)> sentSwipes = <(String, String)>[];
 
   @override
-  Future<dynamic> sendSwipe({required String dishId, required String direction}) async {
+  Future<dynamic> sendSwipe({required String dishId, required String direction, String? soloSessionId}) async {
     sentSwipes.add((dishId, direction));
     return <String, dynamic>{};
   }

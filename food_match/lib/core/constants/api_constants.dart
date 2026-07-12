@@ -3,14 +3,35 @@ import 'package:flutter/foundation.dart';
 class ApiConstants {
   ApiConstants._();
 
+  static const int _defaultPort = 4000;
+  static const String _androidEmulatorBaseUrl = 'http://10.0.2.2:4000';
+  static const String _desktopBaseUrl = 'http://localhost:4000';
+
   static String get baseUrl {
     const String envBaseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: '');
-    if (envBaseUrl.isNotEmpty) {
-      return envBaseUrl;
+    if (envBaseUrl.trim().isNotEmpty) {
+      return _trimTrailingSlash(envBaseUrl.trim());
     }
 
-    return kIsWeb ? 'http://localhost:4000' : 'http://192.168.0.39:4000';
+    if (kIsWeb) {
+      final String host = Uri.base.host;
+      final String resolvedHost = host.isEmpty ? 'localhost' : host;
+      return 'http://$resolvedHost:$_defaultPort';
+    }
+
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      return _androidEmulatorBaseUrl;
+    }
+
+    return _desktopBaseUrl;
   }
+
+  static String get platformLabel {
+    if (kIsWeb) return 'web';
+    return describeEnum(defaultTargetPlatform);
+  }
+
+  static String _trimTrailingSlash(String value) => value.endsWith('/') ? value.substring(0, value.length - 1) : value;
 
   static const String health = '/health';
   static const String register = '/api/auth/register';

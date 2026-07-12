@@ -7,7 +7,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/animations/app_motion.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/utils/cloudinary_image_url.dart';

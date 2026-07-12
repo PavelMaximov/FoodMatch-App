@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
@@ -24,6 +24,9 @@ class ApiService {
   static const Duration _timeout = Duration(seconds: 15);
   static const int _maxRetries = 1;
   static const Duration _minRequestInterval = Duration(milliseconds: 300);
+  static bool _didLogApiConfig = false;
+
+  bool _isSocketException(Object error) => error.runtimeType.toString() == 'SocketException';
 
   String? _token;
   String? _refreshToken;
@@ -33,6 +36,12 @@ class ApiService {
   bool _handlingUnauthorized = false;
 
   String? get token => _token;
+
+  void _logApiConfigOnce() {
+    if (_didLogApiConfig) return;
+    _didLogApiConfig = true;
+    AppLogger.info('[ApiConfig] platform=${ApiConstants.platformLabel} baseUrl=${ApiConstants.baseUrl}');
+  }
 
   static const String _tokenKey = 'foodmatch_token';
   static const String _accessTokenKey = 'foodmatch_access_token';
@@ -88,6 +97,8 @@ class ApiService {
   Future<dynamic> get(String endpoint) async {
     final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint');
     try {
+      _logApiConfigOnce();
+      _logApiConfigOnce();
       await _throttle();
       AppLogger.api('GET', uri.toString());
       final stopwatch = Stopwatch()..start();
@@ -107,9 +118,10 @@ class ApiService {
       return _handleResponse(response);
     } on TimeoutException {
       throw const ApiException(AppStrings.requestTimeout);
-    } on SocketException {
-      throw const ApiException(AppStrings.noInternet);
     } catch (e) {
+      if (_isSocketException(e)) {
+        throw const ApiException(AppStrings.noInternet);
+      }
       AppLogger.error('GET request failed', e);
       rethrow;
     }
@@ -141,9 +153,14 @@ class ApiService {
       return _handleResponse(response);
     } on TimeoutException {
       throw const ApiException(AppStrings.requestTimeout);
-    } on SocketException {
-      throw const ApiException(AppStrings.noInternet);
     } catch (e) {
+      if (_isSocketException(e)) {
+        throw const ApiException(AppStrings.noInternet);
+      }
+      if (kIsWeb && e is http.ClientException) {
+        AppLogger.error('Network request failed. Check API_BASE_URL, backend status, and CORS.', e);
+        throw const ApiException('Could not connect to the server. Please try again.');
+      }
       AppLogger.error('POST request failed', e);
       rethrow;
     }
@@ -175,9 +192,10 @@ class ApiService {
       return _handleResponse(response);
     } on TimeoutException {
       throw const ApiException(AppStrings.requestTimeout);
-    } on SocketException {
-      throw const ApiException(AppStrings.noInternet);
     } catch (e) {
+      if (_isSocketException(e)) {
+        throw const ApiException(AppStrings.noInternet);
+      }
       AppLogger.error('PUT request failed', e);
       rethrow;
     }
@@ -210,9 +228,10 @@ class ApiService {
       return _handleResponse(response);
     } on TimeoutException {
       throw const ApiException(AppStrings.requestTimeout);
-    } on SocketException {
-      throw const ApiException(AppStrings.noInternet);
     } catch (e) {
+      if (_isSocketException(e)) {
+        throw const ApiException(AppStrings.noInternet);
+      }
       AppLogger.error('PATCH request failed', e);
       rethrow;
     }
@@ -240,9 +259,10 @@ class ApiService {
       return _handleResponse(response);
     } on TimeoutException {
       throw const ApiException(AppStrings.requestTimeout);
-    } on SocketException {
-      throw const ApiException(AppStrings.noInternet);
     } catch (e) {
+      if (_isSocketException(e)) {
+        throw const ApiException(AppStrings.noInternet);
+      }
       AppLogger.error('DELETE request failed', e);
       rethrow;
     }
@@ -307,9 +327,10 @@ class ApiService {
       throw const ApiException(AppStrings.unknownError);
     } on TimeoutException {
       throw const ApiException(AppStrings.requestTimeout);
-    } on SocketException {
-      throw const ApiException(AppStrings.noInternet);
     } catch (e) {
+      if (_isSocketException(e)) {
+        throw const ApiException(AppStrings.noInternet);
+      }
       AppLogger.error('POST multipart request failed', e);
       rethrow;
     }

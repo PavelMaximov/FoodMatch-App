@@ -42,7 +42,6 @@ class PreSwipeFilterScreen extends StatefulWidget {
 
 class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   static const double _chipRadius = 15;
-  static const double _buttonRadius = 15;
   static const double _chipFontSize = 17;
 
   int _step = 1;

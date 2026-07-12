@@ -6,8 +6,8 @@ async function bootstrap() {
   await connectDatabase();
 
   const app = createApp();
-  app.listen(env.PORT, () => {
-    console.log(`Server listening on port ${env.PORT}`);
+  app.listen(env.PORT, env.HOST, () => {
+    console.log(`Server listening on ${env.HOST}:${env.PORT}`);
   });
 }
 

@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:food_match/data/local/cache_service.dart';
 import 'package:food_match/data/models/auth_response.dart';
@@ -16,14 +15,12 @@ void main() {
   late _FakeCacheService fakeCacheService;
 
   setUp(() {
-    FlutterSecureStorage.setMockInitialValues(<String, String>{});
     fakeRepo = _FakeAuthRepository();
     fakeApi = _FakeApiService();
     fakeCacheService = _FakeCacheService();
     provider = AuthProvider(
       repository: fakeRepo,
       apiService: fakeApi,
-      secureStorage: const FlutterSecureStorage(),
       cacheService: fakeCacheService,
     );
   });
@@ -35,7 +32,7 @@ void main() {
       displayName: 'Test',
       coupleId: null,
     );
-    fakeRepo.loginResponse = const AuthResponse(token: 'jwt123', user: user);
+    fakeRepo.loginResponse = const AuthResponse(token: 'jwt123', refreshToken: 'refresh123', user: user);
 
     await provider.login('test@test.com', 'password');
 
@@ -90,6 +87,9 @@ class _FakeAuthRepository extends AuthRepository {
   Object? loginError;
 
   @override
+  Future<void> logout({String? refreshToken}) async {}
+
+  @override
   Future<AuthResponse> login(String email, String password) async {
     final Object? error = loginError;
     if (error != null) {
@@ -112,6 +112,19 @@ class _FakeApiService extends ApiService {
   @override
   void setToken(String? token) {
     _token = token;
+  }
+
+  @override
+  Future<void> saveTokenPair({required String accessToken, required String refreshToken}) async {
+    _token = accessToken;
+  }
+
+  @override
+  Future<String?> getRefreshToken() async => null;
+
+  @override
+  Future<void> clearTokens() async {
+    _token = null;
   }
 }
 
