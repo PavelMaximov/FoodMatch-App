@@ -5,7 +5,10 @@ class ApiConstants {
 
   static const int _defaultPort = 4000;
   static const String _androidEmulatorBaseUrl = 'http://10.0.2.2:4000';
+  static const String _physicalAndroidFallbackBaseUrl = 'http://192.168.0.39:4000';
   static const String _desktopBaseUrl = 'http://localhost:4000';
+  static const bool _forceAndroidEmulator = bool.fromEnvironment('ANDROID_EMULATOR', defaultValue: false);
+  static const bool _hasEnvBaseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: '').length > 0;
 
   static String get baseUrl {
     const String envBaseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: '');
@@ -20,14 +23,21 @@ class ApiConstants {
     }
 
     if (defaultTargetPlatform == TargetPlatform.android) {
-      return _androidEmulatorBaseUrl;
+      return _forceAndroidEmulator ? _androidEmulatorBaseUrl : _physicalAndroidFallbackBaseUrl;
     }
 
     return _desktopBaseUrl;
   }
 
+  static bool get isPhysicalAndroid => !kIsWeb && defaultTargetPlatform == TargetPlatform.android && !_forceAndroidEmulator;
+
+  static bool get requiresPhysicalAndroidBaseUrl => isPhysicalAndroid && !_hasEnvBaseUrl;
+
   static String get platformLabel {
     if (kIsWeb) return 'web';
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      return _forceAndroidEmulator ? 'android-emulator' : 'android';
+    }
     return describeEnum(defaultTargetPlatform);
   }
 

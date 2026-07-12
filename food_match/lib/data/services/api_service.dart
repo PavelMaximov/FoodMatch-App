@@ -40,7 +40,10 @@ class ApiService {
   void _logApiConfigOnce() {
     if (_didLogApiConfig) return;
     _didLogApiConfig = true;
-    AppLogger.info('[ApiConfig] platform=${ApiConstants.platformLabel} baseUrl=${ApiConstants.baseUrl}');
+    if (ApiConstants.requiresPhysicalAndroidBaseUrl) {
+      AppLogger.info('[ApiConfig] Physical Android device requires API_BASE_URL with your PC LAN IP. Example: --dart-define=API_BASE_URL=http://192.168.x.x:4000');
+    }
+    AppLogger.info('[ApiConfig] platform=${ApiConstants.platformLabel} physicalDevice=${ApiConstants.isPhysicalAndroid} baseUrl=${ApiConstants.baseUrl}');
   }
 
   static const String _tokenKey = 'foodmatch_token';

@@ -72,7 +72,7 @@ Flutter examples:
 flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:4000
 
 # Android emulator
-flutter run -d emulator-5554 --dart-define=API_BASE_URL=http://10.0.2.2:4000
+flutter run -d emulator-5554 --dart-define=ANDROID_EMULATOR=true --dart-define=API_BASE_URL=http://10.0.2.2:4000
 
 # Physical Android/iOS device on the same Wi-Fi (replace with your LAN IP)
 flutter run -d <deviceId> --dart-define=API_BASE_URL=http://192.168.0.39:4000
