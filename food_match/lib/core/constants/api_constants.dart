@@ -38,7 +38,7 @@ class ApiConstants {
     if (defaultTargetPlatform == TargetPlatform.android) {
       return _forceAndroidEmulator ? 'android-emulator' : 'android';
     }
-    return describeEnum(defaultTargetPlatform);
+    return defaultTargetPlatform.name;
   }
 
   static String _trimTrailingSlash(String value) => value.endsWith('/') ? value.substring(0, value.length - 1) : value;

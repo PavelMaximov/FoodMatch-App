@@ -616,10 +616,9 @@ class _AvatarContent extends StatelessWidget {
 }
 
 class _FavoritesCard extends StatelessWidget {
-  const _FavoritesCard({required this.onTap, this.value});
+  const _FavoritesCard({required this.onTap});
 
   final VoidCallback onTap;
-  final String? value;
 
   @override
   Widget build(BuildContext context) {
@@ -661,15 +660,6 @@ class _FavoritesCard extends StatelessWidget {
                   ],
                 ),
               ),
-              if (value != null)
-                Text(
-                  value!,
-                  style: GoogleFonts.nunito(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: context.fmColors.textMuted,
-                  ),
-                ),
               Icon(Icons.chevron_right, size: 28, color: context.fmColors.textPrimary),
             ],
           ),
@@ -750,12 +740,11 @@ class _SettingsGroup extends StatelessWidget {
 }
 
 class _SettingsRow extends StatelessWidget {
-  const _SettingsRow({required this.icon, required this.label, required this.onTap, this.value});
+  const _SettingsRow({required this.icon, required this.label, required this.onTap});
 
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-  final String? value;
 
   @override
   Widget build(BuildContext context) {
@@ -779,15 +768,6 @@ class _SettingsRow extends StatelessWidget {
                   ),
                 ),
               ),
-              if (value != null)
-                Text(
-                  value!,
-                  style: GoogleFonts.nunito(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: context.fmColors.textMuted,
-                  ),
-                ),
               Icon(Icons.chevron_right, size: 28, color: context.fmColors.textPrimary),
             ],
           ),

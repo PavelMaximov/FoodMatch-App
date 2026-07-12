@@ -220,11 +220,13 @@ class _ModeCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                Radio<bool>(
-                  value: true,
+                RadioGroup<bool>(
                   groupValue: selected,
                   onChanged: (_) => onTap(),
-                  activeColor: colors.primary,
+                  child: Radio<bool>(
+                    value: true,
+                    activeColor: colors.primary,
+                  ),
                 ),
               ],
             ),

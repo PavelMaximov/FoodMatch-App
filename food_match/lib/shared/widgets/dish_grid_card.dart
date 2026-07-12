@@ -201,11 +201,9 @@ class _FavoriteButton extends StatelessWidget {
 }
 
 class _MetaPill extends StatelessWidget {
-  const _MetaPill({required this.label, this.icon, this.iconColor, this.iconWidget});
+  const _MetaPill({required this.label, this.iconWidget});
 
-  final IconData? icon;
   final String label;
-  final Color? iconColor;
   final Widget? iconWidget;
 
   @override
@@ -219,13 +217,8 @@ class _MetaPill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          if (iconWidget != null)
-            iconWidget!
-          else if (icon != null)
-            Icon(icon, size: 12, color: iconColor ?? context.fmColors.metadataIcon)
-          else
-            const SizedBox.shrink(),
-          if (iconWidget != null || icon != null) const SizedBox(width: 3),
+          if (iconWidget != null) iconWidget!,
+          if (iconWidget != null) const SizedBox(width: 3),
           Text(
             label,
             maxLines: 1,

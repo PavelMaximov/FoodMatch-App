@@ -54,6 +54,8 @@ class _SwipesScreenState extends State<SwipesScreen> {
   _ActiveSessionChoiceType? _activeSessionChoiceType;
   final Set<String> _preloadedImageUrls = <String>{};
   Timer? _pairMatchPollingTimer;
+  Timer? _pairMatchBurstTimer;
+  DateTime? _pairMatchBurstUntil;
   OverlayEntry? _matchNotificationEntry;
 
   @override
@@ -76,6 +78,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
     _coupleProvider?.removeListener(_handleCoupleSessionEnded);
     _coupleProvider?.stopFilterStatePolling(reason: 'swipes_dispose');
     _stopPairMatchPolling();
+    _stopPairMatchBurstPolling();
     _dismissMatchNotification();
     super.dispose();
   }
@@ -503,7 +506,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
 
   void _startPairMatchPolling() {
     _pairMatchPollingTimer?.cancel();
-    _pairMatchPollingTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+    _pairMatchPollingTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       unawaited(_pollForPairMatches());
     });
     unawaited(_pollForPairMatches(seedOnly: true));
@@ -512,6 +515,35 @@ class _SwipesScreenState extends State<SwipesScreen> {
   void _stopPairMatchPolling() {
     _pairMatchPollingTimer?.cancel();
     _pairMatchPollingTimer = null;
+    _stopPairMatchBurstPolling();
+  }
+
+  void _startPairMatchBurstPolling() {
+    if (!mounted || context.read<SwipeProvider>().isSoloMode) {
+      return;
+    }
+    _pairMatchBurstUntil = DateTime.now().add(const Duration(seconds: 9));
+    if (_pairMatchBurstTimer != null) {
+      return;
+    }
+    _pairMatchBurstTimer = Timer.periodic(const Duration(milliseconds: 1800), (_) {
+      final DateTime? burstUntil = _pairMatchBurstUntil;
+      if (!mounted ||
+          context.read<SwipeProvider>().isSoloMode ||
+          burstUntil == null ||
+          DateTime.now().isAfter(burstUntil)) {
+        _stopPairMatchBurstPolling();
+        return;
+      }
+      unawaited(_pollForPairMatches());
+    });
+    unawaited(_pollForPairMatches());
+  }
+
+  void _stopPairMatchBurstPolling() {
+    _pairMatchBurstTimer?.cancel();
+    _pairMatchBurstTimer = null;
+    _pairMatchBurstUntil = null;
   }
 
   Future<void> _pollForPairMatches({bool seedOnly = false}) async {
@@ -573,9 +605,9 @@ class _SwipesScreenState extends State<SwipesScreen> {
       if (!mounted) {
         return;
       }
-      if (result is Map<String, dynamic> &&
-          result['swipe']?['matchCreated'] == true &&
-          swipedDish != null) {
+      final bool createdMatch = result is Map<String, dynamic> &&
+          result['swipe']?['matchCreated'] == true;
+      if (createdMatch && swipedDish != null) {
         final String? matchId = result['swipe']?['matchId']?.toString();
         if (matchId != null && matchId.isNotEmpty) {
           context.read<MatchProvider>().markMatchSeen(matchId);
@@ -602,7 +634,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
                     ),
                   );
                 },
-                child: Row(
+                child: const Row(
                   children: <Widget>[
                     Icon(Icons.favorite, color: Colors.white, size: 18),
                     SizedBox(width: 8),
@@ -617,6 +649,10 @@ class _SwipesScreenState extends State<SwipesScreen> {
           return;
         }
         context.push('/match-overlay', extra: swipedDish);
+        return;
+      }
+      if (!wasSoloMode && result != null) {
+        _startPairMatchBurstPolling();
       }
     });
   }

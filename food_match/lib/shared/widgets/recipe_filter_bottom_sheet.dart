@@ -130,7 +130,7 @@ class _RecipeFilterBottomSheetState extends State<RecipeFilterBottomSheet> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      _FilterSectionTitle('Meal category'),
+                      const _FilterSectionTitle('Meal category'),
                       const SizedBox(height: 12),
                       _ChipWrap(
                         options: widget.mealOptions,
@@ -140,7 +140,7 @@ class _RecipeFilterBottomSheetState extends State<RecipeFilterBottomSheet> {
                         },
                       ),
                       const SizedBox(height: 26),
-                      _FilterSectionTitle('Cooking time'),
+                      const _FilterSectionTitle('Cooking time'),
                       const SizedBox(height: 8),
                       SliderTheme(
                         data: SliderTheme.of(context).copyWith(
@@ -173,7 +173,7 @@ class _RecipeFilterBottomSheetState extends State<RecipeFilterBottomSheet> {
                             .toList(),
                       ),
                       const SizedBox(height: 26),
-                      _FilterSectionTitle('Difficulty'),
+                      const _FilterSectionTitle('Difficulty'),
                       const SizedBox(height: 12),
                       _ChipWrap(
                         options: _difficulties,
@@ -184,7 +184,7 @@ class _RecipeFilterBottomSheetState extends State<RecipeFilterBottomSheet> {
                       ),
                       if (widget.cuisineOptions.isNotEmpty) ...<Widget>[
                         const SizedBox(height: 26),
-                        _FilterSectionTitle('Cuisine'),
+                        const _FilterSectionTitle('Cuisine'),
                         const SizedBox(height: 12),
                         _ChipWrap(
                           options: widget.cuisineOptions,
