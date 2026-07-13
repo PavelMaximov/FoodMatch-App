@@ -52,17 +52,20 @@ class MatchOverlayScreen extends StatelessWidget {
           ),
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(30, 56, 30, 24),
+              padding: const EdgeInsets.fromLTRB(30, 56, 30, 32),
               child: Column(
                 children: <Widget>[
-                  Text(
-                    'It\'s a match!',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.fredoka(
-                      fontSize: 36,
-                      fontWeight: FontWeight.w700,
-                      height: 1.05,
-                      color: AppColors.primary,
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      'It\'s a match!',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.fredoka(
+                        fontSize: 53,
+                        fontWeight: FontWeight.w700,
+                        height: 1.05,
+                        color: AppColors.primary,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 18),

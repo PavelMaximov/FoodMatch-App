@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -12,10 +13,11 @@ import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/utils/cloudinary_image_url.dart';
 import '../../../../core/utils/image_utils.dart';
 import '../../../../data/models/couple.dart';
-import '../../../../data/models/couple_filter_state.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../data/models/match_item.dart';
 import '../../../../data/models/prepared_deck.dart';
+import '../../../../data/models/user_profile.dart';
+import '../../../../data/repositories/swipe_repository.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
@@ -268,6 +270,160 @@ class _SwipesScreenState extends State<SwipesScreen> {
       return;
     }
     await _clearActiveSessionAndShowModeSelection(choiceType);
+  }
+
+  Future<LastFilterPreset?> _loadDeckEndPreset(bool isSoloMode) async {
+    final String mode = isSoloMode ? 'solo' : 'paired';
+    try {
+      final dynamic data = await context.read<SwipeRepository>().getLastFilterPreset(mode);
+      final dynamic presetJson = data is Map<String, dynamic> ? data['preset'] : null;
+      if (presetJson is Map) {
+        final LastFilterPreset preset = LastFilterPreset.fromJson(Map<String, dynamic>.from(presetJson));
+        if (kDebugMode) {
+          final String? userId = context.read<AuthProvider>().currentUser?.id;
+          final Couple? couple = context.read<CoupleProvider>().currentCouple;
+          debugPrint('[PreviousSetup] loaded mode=$mode userId=$userId pairKey=${couple?.members.join('_')} usedAt=${preset.usedAt.toIso8601String()}');
+        }
+        return preset;
+      }
+      if (kDebugMode) {
+        final Object? legacyAvailable = data is Map<String, dynamic> ? data['legacyPresetAvailable'] : false;
+        debugPrint('[PreviousSetup] no preset for mode=$mode legacyAvailable=$legacyAvailable');
+      }
+    } catch (e) {
+      debugPrint('[PreviousSetup] load failed mode=$mode error=$e');
+    }
+    return null;
+  }
+
+  Future<void> _continueDeckEndAsBefore({required bool isSoloMode, required LastFilterPreset? preset}) async {
+    if (preset == null) {
+      if (isSoloMode) {
+        await _runSoloPreSwipeFlow(intent: PreSwipeFilterIntent.updateActiveSoloSession);
+      } else {
+        await _runPreSwipeFlow(fromHeaderAction: true);
+      }
+      return;
+    }
+
+    if (_isOpeningPreSwipe) {
+      return;
+    }
+    _isOpeningPreSwipe = true;
+
+    try {
+      final String? userId = context.read<AuthProvider>().currentUser?.id;
+      if (userId == null || userId.isEmpty) {
+        return;
+      }
+
+      if (isSoloMode) {
+        final SwipeProvider swipeProvider = context.read<SwipeProvider>();
+        swipeProvider.setActiveUser(userId);
+        final bool shouldUpdateActiveSession = swipeProvider.activeSoloSessionId != null;
+        final bool ready = shouldUpdateActiveSession
+            ? await swipeProvider.rebuildActiveSoloSessionFilters(
+                cuisines: preset.cuisines,
+                moods: preset.moods,
+                blocked: preset.exclusions,
+                diet: preset.diet,
+              )
+            : await swipeProvider.createSoloSession(
+                cuisines: preset.cuisines,
+                moods: preset.moods,
+                blocked: preset.exclusions,
+                diet: preset.diet,
+              );
+        if (!mounted) {
+          return;
+        }
+        if (ready) {
+          _resetSwipeStackController();
+          _stopPairMatchPolling();
+          context.read<MatchProvider>().setSoloSession(swipeProvider.activeSoloSessionId);
+          swipeProvider.applyPreparedDeck(swipeProvider.deck, preparedDeckMeta: swipeProvider.preparedDeckMeta);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(swipeProvider.error ?? 'Could not restore previous setup.')),
+          );
+        }
+        return;
+      }
+
+      final CoupleProvider coupleProvider = context.read<CoupleProvider>();
+      if (!coupleProvider.hasCouple || !coupleProvider.hasPartner) {
+        if (mounted) {
+          setState(() => _showPairConnectionStep = true);
+        }
+        return;
+      }
+
+      final PreSwipeProvider preSwipeProvider = context.read<PreSwipeProvider>();
+      await preSwipeProvider.saveAndConfirmChoices(
+        userId: userId,
+        coupleProvider: coupleProvider,
+        cuisines: preset.cuisines,
+        moods: preset.moods,
+        blocked: preset.exclusions,
+        diet: preset.diet,
+      );
+      if (!mounted) {
+        return;
+      }
+      await coupleProvider.refreshFilterState(reason: 'continue_previous_setup');
+      if (!mounted) {
+        return;
+      }
+      if (!coupleProvider.bothConfirmed) {
+        context.read<SwipeProvider>().clearPreparedDeck();
+        coupleProvider.startFilterStatePolling(reason: 'waiting_partner_choices');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Waiting for partner choices')),
+        );
+        setState(() {});
+        return;
+      }
+
+      final PreparedPoolResult localResult = await preSwipeProvider.prepare(
+        userId: userId,
+        coupleProvider: coupleProvider,
+        cuisines: preset.cuisines,
+        moods: preset.moods,
+        blocked: preset.exclusions,
+        diet: preset.diet,
+        saveChoicesFirst: false,
+      );
+      coupleProvider.pauseFilterStatePollingForDeckPrepare();
+      PreparedPoolResult result;
+      try {
+        result = await preSwipeProvider.prepareBackendDeckWithFallback(localResult);
+      } finally {
+        coupleProvider.resumeFilterStatePollingAfterDeckPrepare(reason: 'continue_previous_setup');
+      }
+      if (!mounted) {
+        return;
+      }
+      final SwipeProvider swipeProvider = context.read<SwipeProvider>();
+      swipeProvider.applyPreparedDeck(
+        result.dishes,
+        seenDishIds: result.seenDishIds,
+        preparedDeckMeta: result.preparedDeckMeta,
+      );
+      _startPairMatchPolling();
+      _resetSwipeStackController();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not restore previous setup. $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isOpeningPreSwipe = false);
+      } else {
+        _isOpeningPreSwipe = false;
+      }
+    }
   }
 
   Future<void> _startNewFromDeckEnd(bool wasSoloMode) async {
@@ -899,16 +1055,14 @@ class _SwipesScreenState extends State<SwipesScreen> {
                         couple: context.read<CoupleProvider>().currentCouple,
                         currentUserId: context.read<AuthProvider>().currentUser?.id,
                       );
-                      final CoupleFilterChoices choices = soloContext
-                          ? const CoupleFilterChoices()
-                          : context.read<CoupleProvider>().myChoices;
                       return DeckEndChoiceScreen(
                         isSoloMode: soloContext,
                         partner: partner,
-                        choices: choices,
-                        onUsePreviousFilter: () => soloContext
-                            ? _runSoloPreSwipeFlow(intent: PreSwipeFilterIntent.updateActiveSoloSession)
-                            : _runPreSwipeFlow(fromHeaderAction: true),
+                        onLoadPreviousSetup: () => _loadDeckEndPreset(soloContext),
+                        onUsePreviousFilter: (LastFilterPreset? preset) => _continueDeckEndAsBefore(
+                          isSoloMode: soloContext,
+                          preset: preset,
+                        ),
                         onStartNew: () => _startNewFromDeckEnd(soloContext),
                       );
                     }

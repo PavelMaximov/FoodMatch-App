@@ -3,29 +3,63 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../data/models/couple.dart';
-import '../../../../data/models/couple_filter_state.dart';
+import '../../../../data/models/user_profile.dart';
 import '../../../../shared/widgets/media/safe_avatar_image.dart';
 
-class DeckEndChoiceScreen extends StatelessWidget {
+class DeckEndChoiceScreen extends StatefulWidget {
   const DeckEndChoiceScreen({
     super.key,
     required this.isSoloMode,
+    required this.onLoadPreviousSetup,
     required this.onUsePreviousFilter,
     required this.onStartNew,
     this.partner,
-    this.choices = const CoupleFilterChoices(),
   });
 
   final bool isSoloMode;
-  final VoidCallback onUsePreviousFilter;
+  final Future<LastFilterPreset?> Function() onLoadPreviousSetup;
+  final ValueChanged<LastFilterPreset?> onUsePreviousFilter;
   final VoidCallback onStartNew;
   final CoupleMemberProfile? partner;
-  final CoupleFilterChoices choices;
+
+  @override
+  State<DeckEndChoiceScreen> createState() => _DeckEndChoiceScreenState();
+}
+
+class _DeckEndChoiceScreenState extends State<DeckEndChoiceScreen> {
+  late Future<LastFilterPreset?> _presetFuture;
+  LastFilterPreset? _preset;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPreset();
+  }
+
+  @override
+  void didUpdateWidget(covariant DeckEndChoiceScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isSoloMode != widget.isSoloMode || oldWidget.partner?.id != widget.partner?.id) {
+      _loadPreset();
+    }
+  }
+
+  void _loadPreset() {
+    _presetFuture = widget.onLoadPreviousSetup().then((LastFilterPreset? preset) {
+      _preset = preset;
+      return preset;
+    });
+  }
+
+  Future<void> _handleContinue() async {
+    final LastFilterPreset? preset = _preset ?? await _presetFuture;
+    widget.onUsePreviousFilter(preset);
+  }
 
   @override
   Widget build(BuildContext context) {
     final FoodMatchThemeColors colors = context.fmColors;
-    final String partnerName = _partnerName(partner);
+    final String partnerName = _partnerName(widget.partner);
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(27, 24, 27, 24),
       child: Column(
@@ -63,7 +97,7 @@ class DeckEndChoiceScreen extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton(
-              onPressed: onUsePreviousFilter,
+              onPressed: _handleContinue,
               style: OutlinedButton.styleFrom(
                 backgroundColor: colors.background,
                 foregroundColor: colors.primary,
@@ -79,7 +113,7 @@ class DeckEndChoiceScreen extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: onStartNew,
+              onPressed: widget.onStartNew,
               style: ElevatedButton.styleFrom(
                 backgroundColor: colors.buttonPrimaryBackground,
                 foregroundColor: colors.buttonPrimaryText,
@@ -92,20 +126,33 @@ class DeckEndChoiceScreen extends StatelessWidget {
           ),
           const SizedBox(height: 26),
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              Expanded(
+              Flexible(
                 child: Text(
-                  isSoloMode ? 'Solo' : 'With $partnerName',
+                  widget.isSoloMode ? 'Solo' : 'With $partnerName',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w800, color: colors.textPrimary),
                 ),
               ),
-              if (!isSoloMode) _PartnerAvatar(partner: partner, partnerName: partnerName),
+              if (!widget.isSoloMode) ...<Widget>[
+                const SizedBox(width: 8),
+                _PartnerAvatar(partner: widget.partner, partnerName: partnerName),
+              ],
             ],
           ),
           const SizedBox(height: 12),
-          _FilterSummaryCard(choices: choices),
+          FutureBuilder<LastFilterPreset?>(
+            future: _presetFuture,
+            builder: (BuildContext context, AsyncSnapshot<LastFilterPreset?> snapshot) {
+              final LastFilterPreset? preset = snapshot.data ?? _preset;
+              if (snapshot.connectionState == ConnectionState.waiting && preset == null) {
+                return _FilterSummaryCard.loading();
+              }
+              return _FilterSummaryCard.fromPreset(preset);
+            },
+          ),
         ],
       ),
     );
@@ -137,9 +184,30 @@ class _PartnerAvatar extends StatelessWidget {
 }
 
 class _FilterSummaryCard extends StatelessWidget {
-  const _FilterSummaryCard({required this.choices});
+  const _FilterSummaryCard({
+    required this.cuisines,
+    required this.moods,
+    required this.exclusions,
+    this.isLoading = false,
+  });
 
-  final CoupleFilterChoices choices;
+  factory _FilterSummaryCard.fromPreset(LastFilterPreset? preset) => _FilterSummaryCard(
+        cuisines: preset?.cuisines ?? const <String>[],
+        moods: preset?.moods ?? const <String>[],
+        exclusions: preset?.exclusions ?? const <String>[],
+      );
+
+  factory _FilterSummaryCard.loading() => const _FilterSummaryCard(
+        cuisines: <String>[],
+        moods: <String>[],
+        exclusions: <String>[],
+        isLoading: true,
+      );
+
+  final List<String> cuisines;
+  final List<String> moods;
+  final List<String> exclusions;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -152,11 +220,11 @@ class _FilterSummaryCard extends StatelessWidget {
       ),
       child: Column(
         children: <Widget>[
-          _FilterSection(icon: Icons.room_service_outlined, label: 'Cuisine:', values: choices.cuisines),
+          _FilterSection(icon: Icons.room_service_outlined, label: 'Cuisine:', values: cuisines, isLoading: isLoading),
           Divider(height: 1, color: colors.divider),
-          _FilterSection(icon: Icons.auto_awesome, label: 'Mood:', values: choices.moods),
+          _FilterSection(icon: Icons.auto_awesome, label: 'Mood:', values: moods, isLoading: isLoading),
           Divider(height: 1, color: colors.divider),
-          _FilterSection(icon: Icons.do_not_disturb_alt_outlined, label: 'Exceptions:', values: choices.exclusions),
+          _FilterSection(icon: Icons.do_not_disturb_alt_outlined, label: 'Exceptions:', values: exclusions, isLoading: isLoading),
         ],
       ),
     );
@@ -164,16 +232,17 @@ class _FilterSummaryCard extends StatelessWidget {
 }
 
 class _FilterSection extends StatelessWidget {
-  const _FilterSection({required this.icon, required this.label, required this.values});
+  const _FilterSection({required this.icon, required this.label, required this.values, this.isLoading = false});
 
   final IconData icon;
   final String label;
   final List<String> values;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
     final FoodMatchThemeColors colors = context.fmColors;
-    final List<String> chips = values.isEmpty ? <String>['None'] : values;
+    final List<String> chips = isLoading ? <String>['Loading...'] : values.isEmpty ? <String>['None'] : values;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
       child: Column(
@@ -203,7 +272,7 @@ class _FilterSection extends StatelessWidget {
                       border: Border.all(color: colors.chipBorder),
                     ),
                     child: Text(
-                      values.isEmpty ? value : _formatOptionLabel(value),
+                      isLoading || values.isEmpty ? value : _formatOptionLabel(value),
                       style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w800, color: colors.textPrimary),
                     ),
                   ),
