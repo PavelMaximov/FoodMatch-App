@@ -11,6 +11,8 @@ import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/utils/cloudinary_image_url.dart';
 import '../../../../core/utils/image_utils.dart';
+import '../../../../data/models/couple.dart';
+import '../../../../data/models/couple_filter_state.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../data/models/match_item.dart';
 import '../../../../data/models/prepared_deck.dart';
@@ -893,8 +895,17 @@ class _SwipesScreenState extends State<SwipesScreen> {
 
                     if (provider.isDeckEmpty) {
                       final bool soloContext = provider.isSoloMode;
+                      final CoupleMemberProfile? partner = resolvePartnerProfile(
+                        couple: context.read<CoupleProvider>().currentCouple,
+                        currentUserId: context.read<AuthProvider>().currentUser?.id,
+                      );
+                      final CoupleFilterChoices choices = soloContext
+                          ? const CoupleFilterChoices()
+                          : context.read<CoupleProvider>().myChoices;
                       return DeckEndChoiceScreen(
                         isSoloMode: soloContext,
+                        partner: partner,
+                        choices: choices,
                         onUsePreviousFilter: () => soloContext
                             ? _runSoloPreSwipeFlow(intent: PreSwipeFilterIntent.updateActiveSoloSession)
                             : _runPreSwipeFlow(fromHeaderAction: true),
