@@ -430,36 +430,37 @@ class ApiService {
     }
 
     final String errorMessage = _extractErrorMessage(response);
+    final String? errorCode = _extractErrorCode(response);
 
     if (response.statusCode == 401) {
-      throw ApiException(errorMessage, statusCode: 401);
+      throw ApiException(errorMessage, statusCode: 401, code: errorCode);
     }
 
     if (response.statusCode == 404) {
-      throw ApiException(errorMessage, statusCode: 404);
+      throw ApiException(errorMessage, statusCode: 404, code: errorCode);
     }
 
     if (response.statusCode == 400) {
-      throw ApiException(errorMessage, statusCode: 400);
+      throw ApiException(errorMessage, statusCode: 400, code: errorCode);
     }
 
     if (response.statusCode == 413) {
-      throw ApiException(errorMessage, statusCode: 413);
+      throw ApiException(errorMessage, statusCode: 413, code: errorCode);
     }
 
     if (response.statusCode == 409) {
-      throw ApiException(errorMessage, statusCode: 409);
+      throw ApiException(errorMessage, statusCode: 409, code: errorCode);
     }
 
     if (response.statusCode == 422) {
-      throw ApiException(errorMessage, statusCode: 422);
+      throw ApiException(errorMessage, statusCode: 422, code: errorCode);
     }
 
     if (response.statusCode >= 500) {
       throw const ApiException(AppStrings.serverError, statusCode: 500);
     }
 
-    throw ApiException(errorMessage, statusCode: response.statusCode);
+    throw ApiException(errorMessage, statusCode: response.statusCode, code: errorCode);
   }
 
   Future<bool> refreshTokens() {
@@ -526,13 +527,27 @@ class ApiService {
       return '${AppStrings.error}: ${response.statusCode}';
     }
   }
+
+  String? _extractErrorCode(http.Response response) {
+    try {
+      final dynamic body = jsonDecode(response.body);
+      if (body is Map<String, dynamic>) {
+        final dynamic code = body['code'];
+        return code is String && code.trim().isNotEmpty ? code.trim() : null;
+      }
+    } catch (_) {
+      return null;
+    }
+    return null;
+  }
 }
 
 class ApiException implements Exception {
-  const ApiException(this.message, {this.statusCode});
+  const ApiException(this.message, {this.statusCode, this.code});
 
   final String message;
   final int? statusCode;
+  final String? code;
 
   @override
   String toString() => 'ApiException: $message';

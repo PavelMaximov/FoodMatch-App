@@ -49,6 +49,10 @@ function normalizeFilterValues(values?: string[]) {
   return [...new Set(normalized)];
 }
 
+export type JoinSessionOptions = {
+  replaceEmptyCurrentSession?: boolean;
+};
+
 export class CoupleService {
   async getMyActiveSession(userId: string) {
     return CoupleSessionModel.findOne({ members: new Types.ObjectId(userId), status: 'active' })
@@ -72,20 +76,48 @@ export class CoupleService {
     return this.getMyActiveSession(userId);
   }
 
-  async joinSession(userId: string, inviteCode: string) {
-    const active = await this.getMyActiveSession(userId);
+  async joinSession(userId: string, inviteCode: string, options: JoinSessionOptions = {}) {
+    const normalizedInviteCode = inviteCode.trim().toUpperCase();
+    const targetSession = await CoupleSessionModel.findOne({ inviteCode: normalizedInviteCode });
+
+    if (!targetSession) throw new AppError('Invalid session code.', 404, 'INVALID_INVITE_CODE');
+    if (targetSession.status !== 'active') throw new AppError('This session is no longer active.', 409, 'SESSION_INACTIVE');
+    if (this.idsEqual(targetSession.createdBy, userId) && targetSession.members.some((memberId) => this.idsEqual(memberId, userId))) {
+      throw new AppError('You can’t join your own session.', 409, 'CANNOT_JOIN_OWN_SESSION');
+    }
+    if (targetSession.members.some((memberId) => this.idsEqual(memberId, userId))) {
+      throw new AppError('You are already in this session.', 409, 'ALREADY_IN_TARGET_SESSION');
+    }
+    if (targetSession.members.length >= 2) throw new AppError('This session is already full.', 409, 'SESSION_FULL');
+
     const activeSolo = await SoloSwipeSessionModel.exists({ userId: new Types.ObjectId(userId), status: 'active' });
-    if (active || activeSolo) throw new AppError('You already have an active swipe session.', 409, 'ACTIVE_SESSION_EXISTS');
+    if (activeSolo) {
+      throw new AppError('Please finish or leave your solo session before joining a pair session.', 409, 'ACTIVE_SOLO_SESSION_EXISTS');
+    }
 
-    const session = await CoupleSessionModel.findOne({ inviteCode: inviteCode.toUpperCase(), status: 'active' });
-    if (!session) throw new AppError('Session not found', 404);
-    if (session.members.some((memberId) => this.idsEqual(memberId, userId))) throw new AppError('You are already in this session', 409);
-    if (session.members.length >= 2) throw new AppError('Session is full', 409);
+    const active = await CoupleSessionModel.findOne({ members: new Types.ObjectId(userId), status: 'active' }).sort({ updatedAt: -1, createdAt: -1 });
+    if (active) {
+      if (!options.replaceEmptyCurrentSession) {
+        throw new AppError('You already have an active swipe session.', 409, 'ACTIVE_SESSION_EXISTS');
+      }
+      if (active.members.length >= 2) {
+        throw new AppError('Please leave your current session before joining another one.', 409, 'ACTIVE_SESSION_HAS_PARTNER');
+      }
+      const currentUserIsOnlyMember = active.members.length === 1 && this.idsEqual(active.members[0], userId);
+      if (!currentUserIsOnlyMember) {
+        throw new AppError('Please leave your current session before joining another one.', 409, 'ACTIVE_SESSION_HAS_PARTNER');
+      }
 
-    session.members.push(new Types.ObjectId(userId));
-    this.ensureFilterState(session);
-    clearPreparedDeck(session);
-    await session.save();
+      this.clearFilterState(active);
+      clearPreparedDeck(active);
+      active.status = 'closed';
+      await active.save();
+    }
+
+    targetSession.members.push(new Types.ObjectId(userId));
+    this.ensureFilterState(targetSession);
+    clearPreparedDeck(targetSession);
+    await targetSession.save();
     return this.getMyActiveSession(userId);
   }
 

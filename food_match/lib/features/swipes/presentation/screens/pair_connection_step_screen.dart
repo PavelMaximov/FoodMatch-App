@@ -61,16 +61,21 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
     final String code = _code;
     if (code.length != 6 || _isJoining) return;
     setState(() => _isJoining = true);
-    await provider.joinCouple(code);
-    provider.startFilterStatePolling(reason: 'pair_connection_step_join');
-    if (!mounted) return;
-    setState(() => _isJoining = false);
-    context.read<SwipeProvider>().clearPreparedDeck();
-    context.read<MatchProvider>().setMode('paired');
-    context.read<MatchProvider>().clearMatches();
-    if (provider.hasPartner) {
-      _handledConnectedSession = true;
-      await widget.onPairConnected();
+    try {
+      await provider.joinCouple(code, replaceEmptyCurrentSession: true);
+      if (!mounted || provider.error != null) return;
+      provider.startFilterStatePolling(reason: 'pair_connection_step_join');
+      context.read<SwipeProvider>().clearPreparedDeck();
+      context.read<MatchProvider>().setMode('paired');
+      context.read<MatchProvider>().clearMatches();
+      if (provider.hasPartner) {
+        _handledConnectedSession = true;
+        await widget.onPairConnected();
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isJoining = false);
+      }
     }
   }
 

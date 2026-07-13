@@ -8,7 +8,7 @@ const coupleDeckService = new CoupleDeckService();
 
 export class CoupleController {
   async create(req: AuthRequest, res: Response) { res.status(201).json({ session: await coupleService.createSession(req.userId!) }); }
-  async join(req: AuthRequest, res: Response) { res.json({ session: await coupleService.joinSession(req.userId!, req.body.inviteCode) }); }
+  async join(req: AuthRequest, res: Response) { res.json({ session: await coupleService.joinSession(req.userId!, req.body.inviteCode, { replaceEmptyCurrentSession: req.body.replaceEmptyCurrentSession === true }) }); }
   async me(req: AuthRequest, res: Response) { res.json({ session: await coupleService.getMyActiveSession(req.userId!) }); }
   async leave(req: AuthRequest, res: Response) { res.json(await coupleService.leaveSession(req.userId!)); }
   async reset(req: AuthRequest, res: Response) { res.json(await coupleService.resetSession(req.userId!)); }

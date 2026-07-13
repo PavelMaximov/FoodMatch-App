@@ -1,7 +1,8 @@
 import { z } from 'zod';
 
 export const joinCoupleSchema = z.object({
-  inviteCode: z.string().trim().regex(/^[A-Z0-9]{4,8}$/i, 'Invalid invite code')
+  inviteCode: z.string().trim().regex(/^[A-Z0-9]{4,8}$/i, 'Invalid invite code'),
+  replaceEmptyCurrentSession: z.boolean().optional().default(false)
 }).strict();
 
 const coupleFilterChoicesSchema = z.object({
