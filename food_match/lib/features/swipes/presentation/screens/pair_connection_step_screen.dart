@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/theme/theme_extensions.dart';
@@ -60,16 +61,21 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
     final String code = _code;
     if (code.length != 6 || _isJoining) return;
     setState(() => _isJoining = true);
-    await provider.joinCouple(code);
-    provider.startFilterStatePolling(reason: 'pair_connection_step_join');
-    if (!mounted) return;
-    setState(() => _isJoining = false);
-    context.read<SwipeProvider>().clearPreparedDeck();
-    context.read<MatchProvider>().setMode('paired');
-    context.read<MatchProvider>().clearMatches();
-    if (provider.hasPartner) {
-      _handledConnectedSession = true;
-      await widget.onPairConnected();
+    try {
+      await provider.joinCouple(code, replaceEmptyCurrentSession: true);
+      if (!mounted || provider.error != null) return;
+      provider.startFilterStatePolling(reason: 'pair_connection_step_join');
+      context.read<SwipeProvider>().clearPreparedDeck();
+      context.read<MatchProvider>().setMode('paired');
+      context.read<MatchProvider>().clearMatches();
+      if (provider.hasPartner) {
+        _handledConnectedSession = true;
+        await widget.onPairConnected();
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isJoining = false);
+      }
     }
   }
 
@@ -133,7 +139,6 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
   }
 
   String _partnerLabel(BuildContext context, CoupleProvider provider) {
-    if (!provider.hasPartner) return 'Waiting...';
     return resolvePartnerDisplayName(
       couple: provider.currentCouple,
       currentUserId: context.read<AuthProvider>().currentUser?.id,
@@ -185,6 +190,7 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
                 _InviteCard(
                   inviteCode: couple.inviteCode,
                   partnerLabel: _partnerLabel(context, coupleProvider),
+                  hasPartner: coupleProvider.hasPartner,
                   onReset: coupleProvider.isLoading ? null : () => _resetSession(coupleProvider),
                   onLeave: coupleProvider.isLoading ? null : () => _handleBack(coupleProvider),
                 ),
@@ -206,19 +212,19 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
                 'Join an existing session',
                 style: _sectionTitleStyle(context),
               ),
-              const SizedBox(height: 14),
-              _CodeInput(
-                code: _code,
-                focusNode: _codeFocusNode,
-                controller: _codeController,
-                onPaste: _pasteCode,
-              ),
-              const SizedBox(height: 16),
-              _OrangeButton(
-                label: 'Connect to session',
-                isLoading: _isJoining || coupleProvider.isJoining,
-                onPressed: _code.length == 6 ? () => _joinSession(coupleProvider) : null,
-              ),
+                const SizedBox(height: 14),
+                _CodeInput(
+                  code: _code,
+                  focusNode: _codeFocusNode,
+                  controller: _codeController,
+                  onPaste: _pasteCode,
+                ),
+                const SizedBox(height: 16),
+                _OrangeButton(
+                  label: 'Connect to session',
+                  isLoading: _isJoining || coupleProvider.isJoining,
+                  onPressed: _code.length == 6 ? () => _joinSession(coupleProvider) : null,
+                ),
               if (coupleProvider.error != null) ...<Widget>[
                 const SizedBox(height: 12),
                 Text(
@@ -247,12 +253,14 @@ class _InviteCard extends StatelessWidget {
   const _InviteCard({
     required this.inviteCode,
     required this.partnerLabel,
+    required this.hasPartner,
     required this.onReset,
     required this.onLeave,
   });
 
   final String inviteCode;
   final String partnerLabel;
+  final bool hasPartner;
   final VoidCallback? onReset;
   final VoidCallback? onLeave;
 
@@ -298,10 +306,32 @@ class _InviteCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          Text('Partner: $partnerLabel', style: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w700, color: colors.textPrimary)),
-          const SizedBox(height: 16),
           Row(
             children: <Widget>[
+              Text('Partner:', style: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+              const SizedBox(width: 4),
+              if (hasPartner)
+                Flexible(
+                  child: Text(
+                    partnerLabel,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w700, color: colors.textPrimary),
+                  ),
+                )
+              else
+                Lottie.asset(
+                  'assets/animations/loading_3_dots.json',
+                  width: 24,
+                  height: 14,
+                  fit: BoxFit.contain,
+                  repeat: true,
+                ),
+            ],
+          ),
+          if (hasPartner) ...<Widget>[
+            const SizedBox(height: 16),
+            Row(
+              children: <Widget>[
               Expanded(
                 child: OutlinedButton(
                   onPressed: onReset,
@@ -326,8 +356,9 @@ class _InviteCard extends StatelessWidget {
                   child: const Text('Leave'),
                 ),
               ),
-            ],
-          ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -397,9 +428,10 @@ class _CodeInput extends StatelessWidget {
                 icon: const Icon(Icons.content_paste_rounded, size: 15),
                 label: const Text('paste'),
               ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
+        
       ),
     );
   }

@@ -6,6 +6,7 @@ dotenv.config();
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().default(3000),
+  HOST: z.string().default('0.0.0.0'),
   MONGODB_URI: z.string().min(1),
   JWT_SECRET: z.string().min(32),
   JWT_EXPIRES_IN: z.string().optional(),
@@ -14,6 +15,7 @@ const envSchema = z.object({
   EMAIL_VERIFICATION_EXPIRES_IN: z.string().default('24h'),
   EMAIL_PROVIDER: z.enum(['dev', 'production']).default('dev'),
   APP_PUBLIC_URL: z.string().default('http://localhost:4000'),
+  FRONTEND_URL: z.string().optional(),
   EMAIL_FROM: z.string().email().default('no-reply@foodmatch.app'),
   REQUIRE_EMAIL_VERIFICATION: z.coerce.boolean().default(false),
   AUTH_LOGIN_RATE_LIMIT_WINDOW_MS: z.coerce.number().default(15 * 60 * 1000),

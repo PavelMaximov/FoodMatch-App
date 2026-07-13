@@ -54,3 +54,26 @@ Existing catalog `imageUrl` values remain valid and do not require migration. Ne
 ### Flutter static assets
 
 Flutter should continue bundling core UI media locally in `assets/icons/`, `assets/logos/`, `assets/media/`, and `assets/images/`, including logos, bottom navigation icons, empty states, default avatar placeholders, default dish placeholders, and decorative SVG/PNG assets. Static UI assets should not be uploaded to Cloudinary.
+
+## Local mobile/web API URLs
+
+Backend defaults for local development:
+
+```bash
+PORT=4000
+HOST=0.0.0.0
+FRONTEND_URL=http://localhost:3000
+```
+
+Flutter examples:
+
+```bash
+# Flutter Web / Chrome on the same machine
+flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:4000
+
+# Android emulator
+flutter run -d emulator-5554 --dart-define=ANDROID_EMULATOR=true --dart-define=API_BASE_URL=http://10.0.2.2:4000
+
+# Physical Android/iOS device on the same Wi-Fi (replace with your LAN IP)
+flutter run -d <deviceId> --dart-define=API_BASE_URL=http://192.168.0.39:4000
+```

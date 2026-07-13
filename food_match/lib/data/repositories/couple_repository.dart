@@ -15,8 +15,11 @@ class CoupleRepository {
     return Couple.fromJson(_extractSessionMap(data));
   }
 
-  Future<Couple> join(String inviteCode) async {
-    final data = await _apiService.post(ApiConstants.coupleJoin, {'inviteCode': inviteCode});
+  Future<Couple> join(String inviteCode, {bool replaceEmptyCurrentSession = false}) async {
+    final data = await _apiService.post(ApiConstants.coupleJoin, <String, dynamic>{
+      'inviteCode': inviteCode,
+      if (replaceEmptyCurrentSession) 'replaceEmptyCurrentSession': true,
+    });
     return Couple.fromJson(_extractSessionMap(data));
   }
 

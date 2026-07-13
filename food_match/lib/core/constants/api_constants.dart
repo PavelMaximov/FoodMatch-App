@@ -3,14 +3,45 @@ import 'package:flutter/foundation.dart';
 class ApiConstants {
   ApiConstants._();
 
+  static const int _defaultPort = 4000;
+  static const String _androidEmulatorBaseUrl = 'http://10.0.2.2:4000';
+  static const String _physicalAndroidFallbackBaseUrl = 'http://192.168.0.39:4000';
+  static const String _desktopBaseUrl = 'http://localhost:4000';
+  static const bool _forceAndroidEmulator = bool.fromEnvironment('ANDROID_EMULATOR', defaultValue: false);
+  static const bool _hasEnvBaseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: '').length > 0;
+
   static String get baseUrl {
     const String envBaseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: '');
-    if (envBaseUrl.isNotEmpty) {
-      return envBaseUrl;
+    if (envBaseUrl.trim().isNotEmpty) {
+      return _trimTrailingSlash(envBaseUrl.trim());
     }
 
-    return kIsWeb ? 'http://localhost:4000' : 'http://192.168.0.39:4000';
+    if (kIsWeb) {
+      final String host = Uri.base.host;
+      final String resolvedHost = host.isEmpty ? 'localhost' : host;
+      return 'http://$resolvedHost:$_defaultPort';
+    }
+
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      return _forceAndroidEmulator ? _androidEmulatorBaseUrl : _physicalAndroidFallbackBaseUrl;
+    }
+
+    return _desktopBaseUrl;
   }
+
+  static bool get isPhysicalAndroid => !kIsWeb && defaultTargetPlatform == TargetPlatform.android && !_forceAndroidEmulator;
+
+  static bool get requiresPhysicalAndroidBaseUrl => isPhysicalAndroid && !_hasEnvBaseUrl;
+
+  static String get platformLabel {
+    if (kIsWeb) return 'web';
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      return _forceAndroidEmulator ? 'android-emulator' : 'android';
+    }
+    return defaultTargetPlatform.name;
+  }
+
+  static String _trimTrailingSlash(String value) => value.endsWith('/') ? value.substring(0, value.length - 1) : value;
 
   static const String health = '/health';
   static const String register = '/api/auth/register';

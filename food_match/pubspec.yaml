@@ -24,6 +24,7 @@ dependencies:
   shimmer: ^3.0.0
   google_fonts: ^6.1.0
   flutter_svg: ^2.0.9
+  lottie: ^3.1.2
   hive: ^2.2.3
   hive_flutter: ^1.1.0
 
@@ -46,3 +47,7 @@ flutter:
     - assets/logos/
     - assets/images/
     - assets/illustrations/
+    - assets/animations/loading_3_dots.json
+    - assets/animations/waiting.json
+    - assets/ui/match_snackbar_light.svg
+    - assets/ui/match_snackbar_dark.svg

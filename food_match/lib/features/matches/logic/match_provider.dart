@@ -24,6 +24,8 @@ class MatchProvider extends ChangeNotifier {
   int _sessionStateVersion = 0;
   DateTime? _matchesLoadedAt;
   Future<void>? _matchesLoadFuture;
+  final Set<String> _knownPairedMatchIds = <String>{};
+  bool _hasSeededPairedMatchNotifications = false;
 
   List<MatchItem> matches = <MatchItem>[];
   bool isLoading = false;
@@ -142,6 +144,7 @@ class MatchProvider extends ChangeNotifier {
       _matchesLoadFuture = null;
       notifyListeners();
       _cacheService.clearCachedMatches();
+      _clearPairNotificationState();
       return;
     }
     if (normalized == _activeCoupleId && nextVersion == _sessionStateVersion && _mode == 'paired') {
@@ -159,6 +162,7 @@ class MatchProvider extends ChangeNotifier {
     _matchesLoadFuture = null;
     notifyListeners();
     _cacheService.clearCachedMatches();
+    _clearPairNotificationState();
 
     loadMatches();
   }
@@ -177,6 +181,7 @@ class MatchProvider extends ChangeNotifier {
     _matchesLoadedAt = null;
     _matchesLoadFuture = null;
     _cacheService.clearCachedMatches();
+    _clearPairNotificationState();
     notifyListeners();
   }
 
@@ -204,6 +209,7 @@ class MatchProvider extends ChangeNotifier {
     _matchesLoadedAt = null;
     _matchesLoadFuture = null;
     _cacheService.clearCachedMatches();
+    _clearPairNotificationState();
     AppLogger.info('[Cache] matches invalidated reason=clear');
     notifyListeners();
   }
@@ -225,10 +231,56 @@ class MatchProvider extends ChangeNotifier {
     _matchesLoadedAt = null;
     _matchesLoadFuture = null;
     _cacheService.clearCachedMatches();
+    _clearPairNotificationState();
     AppLogger.info('[Cache] matches invalidated reason=logout');
     if (changed && notify) {
       notifyListeners();
     }
+  }
+
+
+  void markMatchSeen(String matchId) {
+    final String normalized = matchId.trim();
+    if (normalized.isNotEmpty) {
+      _knownPairedMatchIds.add(normalized);
+    }
+  }
+
+  Future<List<MatchItem>> syncPairedMatchesForNotifications({bool seedOnly = false}) async {
+    if (_mode != 'paired' || _activeCoupleId == null) {
+      return <MatchItem>[];
+    }
+
+    try {
+      final List<MatchItem> latest = _filterForMode(await _swipeRepository.getMatches(mode: 'paired'));
+      final Set<String> latestIds = latest
+          .map((MatchItem item) => item.id)
+          .whereType<String>()
+          .where((String id) => id.isNotEmpty)
+          .toSet();
+      final bool shouldSeed = seedOnly || !_hasSeededPairedMatchNotifications;
+      final List<MatchItem> newMatches = shouldSeed
+          ? <MatchItem>[]
+          : latest
+              .where((MatchItem item) => item.id != null && !_knownPairedMatchIds.contains(item.id))
+              .toList();
+
+      _knownPairedMatchIds.addAll(latestIds);
+      _hasSeededPairedMatchNotifications = true;
+      matches = latest;
+      _matchesLoadedAt = DateTime.now();
+      await _cacheService.cacheMatches(matches.map((MatchItem item) => item.dish).toList(), coupleId: _cacheKey);
+      notifyListeners();
+      return newMatches;
+    } catch (e) {
+      AppLogger.error('MatchProvider: paired notification sync failed', e);
+      return <MatchItem>[];
+    }
+  }
+
+  void _clearPairNotificationState() {
+    _knownPairedMatchIds.clear();
+    _hasSeededPairedMatchNotifications = false;
   }
 
   String _mapError(Object e) {

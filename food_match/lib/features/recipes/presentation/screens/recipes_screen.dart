@@ -263,7 +263,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
       builder: (BuildContext context) => Container(
         decoration: BoxDecoration(
           color: context.fmColors.modalBackground,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: _FilterSheet(
           cuisines: _availableCuisines,
@@ -326,7 +326,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
                     ],
                   ),
                   const SizedBox(height: 14),
-                  _RecipeSearchBar(onSearchTap: _openSearch),
+                  _RecipeSearchBar(onSearchTap: _openSearch, onFilterTap: _openFilters),
                 ],
               ),
             ),
@@ -1036,10 +1036,10 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
   static const int _pageSize = 20;
 
   late final MealTabType? _selectedTab = widget.initialTab;
-  late Set<String> _selectedCuisines = Set<String>.from(widget.initialCuisines);
-  late Set<String> _selectedMoods = Set<String>.from(widget.initialMoods);
-  late Set<String> _selectedDiet = Set<String>.from(widget.initialDiet);
-  late Set<String> _selectedTypes = Set<String>.from(widget.initialTypes);
+  late final Set<String> _selectedCuisines = Set<String>.from(widget.initialCuisines);
+  late final Set<String> _selectedMoods = Set<String>.from(widget.initialMoods);
+  late final Set<String> _selectedDiet = Set<String>.from(widget.initialDiet);
+  late final Set<String> _selectedTypes = Set<String>.from(widget.initialTypes);
   RecipeListFilters _listFilters = const RecipeListFilters();
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
@@ -1071,7 +1071,7 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
     if (_selectedTab == null) {
       return widget.title;
     }
-    final String name = _selectedTab!.name;
+    final String name = _selectedTab.name;
     return name[0].toUpperCase() + name.substring(1);
   }
 
@@ -1540,9 +1540,10 @@ class _FavoritesPillButton extends StatelessWidget {
 }
 
 class _RecipeSearchBar extends StatelessWidget {
-  const _RecipeSearchBar({required this.onSearchTap});
+  const _RecipeSearchBar({required this.onSearchTap, required this.onFilterTap});
 
   final VoidCallback onSearchTap;
+  final VoidCallback onFilterTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1576,6 +1577,11 @@ class _RecipeSearchBar extends StatelessWidget {
                       color: colors.textMuted,
                     ),
                   ),
+                ),
+                IconButton(
+                  tooltip: 'Filter recipes',
+                  onPressed: onFilterTap,
+                  icon: Icon(Icons.tune, color: colors.primary, size: 20),
                 ),
               ],
             ),

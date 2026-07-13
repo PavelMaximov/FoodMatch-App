@@ -7,12 +7,12 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/animations/app_motion.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/utils/cloudinary_image_url.dart';
 import '../../../../core/utils/image_utils.dart';
 import '../../../../data/models/dish.dart';
+import '../../../../data/models/match_item.dart';
 import '../../../../data/models/prepared_deck.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
@@ -20,6 +20,7 @@ import '../../../../shared/widgets/shimmer_card.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../couple/logic/couple_provider.dart';
 import '../../../matches/logic/match_provider.dart';
+import '../../../matches/presentation/widgets/match_notification_overlay.dart';
 import '../../logic/pre_swipe_provider.dart';
 import '../../logic/swipe_provider.dart';
 import '../widgets/session_settings_sheet.dart';
@@ -52,6 +53,10 @@ class _SwipesScreenState extends State<SwipesScreen> {
   String? _initialSessionError;
   _ActiveSessionChoiceType? _activeSessionChoiceType;
   final Set<String> _preloadedImageUrls = <String>{};
+  Timer? _pairMatchPollingTimer;
+  Timer? _pairMatchBurstTimer;
+  DateTime? _pairMatchBurstUntil;
+  OverlayEntry? _matchNotificationEntry;
 
   @override
   void initState() {
@@ -72,6 +77,9 @@ class _SwipesScreenState extends State<SwipesScreen> {
   void dispose() {
     _coupleProvider?.removeListener(_handleCoupleSessionEnded);
     _coupleProvider?.stopFilterStatePolling(reason: 'swipes_dispose');
+    _stopPairMatchPolling();
+    _stopPairMatchBurstPolling();
+    _dismissMatchNotification();
     super.dispose();
   }
 
@@ -90,6 +98,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
     swipeProvider.resetToModeSelection();
     swipeProvider.clearPreparedDeck();
     context.read<PreSwipeProvider>().clearDraft();
+    _stopPairMatchPolling();
     context.read<MatchProvider>().clearMatches();
     setState(() {
       _activeSessionChoiceType = null;
@@ -155,6 +164,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
               coupleProvider.currentCouple?.id,
               sessionStateVersion: coupleProvider.sessionStateVersion,
             );
+        _startPairMatchPolling();
         await coupleProvider.refreshFilterState(reason: 'swipes_load_existing_deck');
         if (!mounted) {
           return;
@@ -168,6 +178,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
       final bool loadedSolo = await swipeProvider.loadActiveSoloSession();
       if (loadedSolo) {
         final MatchProvider matchProvider = context.read<MatchProvider>();
+        _stopPairMatchPolling();
         matchProvider.setSoloSession(swipeProvider.activeSoloSessionId);
         await matchProvider.loadMatches(force: true, mode: 'solo', soloSessionId: swipeProvider.activeSoloSessionId);
         if (mounted) {
@@ -221,6 +232,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
           coupleProvider.currentCouple?.id,
           sessionStateVersion: coupleProvider.sessionStateVersion,
         );
+    _startPairMatchPolling();
     await coupleProvider.refreshFilterState(reason: 'swipes_continue_active_pair');
     if (!mounted) {
       return;
@@ -306,6 +318,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
     }
     swipeProvider.resetToModeSelection();
     context.read<PreSwipeProvider>().clearDraft();
+    _stopPairMatchPolling();
     context.read<MatchProvider>().clearMatches();
     setState(() {
       _activeSessionChoiceType = null;
@@ -323,6 +336,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
     if (!mounted) { _isOpeningPreSwipe = false; return; }
     if (result != null && result.dishes.isNotEmpty) {
       _resetSwipeStackController();
+      _stopPairMatchPolling();
       context.read<MatchProvider>().setSoloSession(swipeProvider.activeSoloSessionId);
       swipeProvider.applyPreparedDeck(result.dishes, preparedDeckMeta: result.preparedDeckMeta);
     }
@@ -402,6 +416,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
       seenDishIds: result.seenDishIds,
       preparedDeckMeta: result.preparedDeckMeta,
     );
+    _startPairMatchPolling();
     _resetSwipeStackController();
 
     final String? waitingMessage = _partnerWaitingMessage(
@@ -489,6 +504,81 @@ class _SwipesScreenState extends State<SwipesScreen> {
     );
   }
 
+  void _startPairMatchPolling() {
+    _pairMatchPollingTimer?.cancel();
+    _pairMatchPollingTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      unawaited(_pollForPairMatches());
+    });
+    unawaited(_pollForPairMatches(seedOnly: true));
+  }
+
+  void _stopPairMatchPolling() {
+    _pairMatchPollingTimer?.cancel();
+    _pairMatchPollingTimer = null;
+    _stopPairMatchBurstPolling();
+  }
+
+  void _startPairMatchBurstPolling() {
+    if (!mounted || context.read<SwipeProvider>().isSoloMode) {
+      return;
+    }
+    _pairMatchBurstUntil = DateTime.now().add(const Duration(seconds: 9));
+    if (_pairMatchBurstTimer != null) {
+      return;
+    }
+    _pairMatchBurstTimer = Timer.periodic(const Duration(milliseconds: 1800), (_) {
+      final DateTime? burstUntil = _pairMatchBurstUntil;
+      if (!mounted ||
+          context.read<SwipeProvider>().isSoloMode ||
+          burstUntil == null ||
+          DateTime.now().isAfter(burstUntil)) {
+        _stopPairMatchBurstPolling();
+        return;
+      }
+      unawaited(_pollForPairMatches());
+    });
+    unawaited(_pollForPairMatches());
+  }
+
+  void _stopPairMatchBurstPolling() {
+    _pairMatchBurstTimer?.cancel();
+    _pairMatchBurstTimer = null;
+    _pairMatchBurstUntil = null;
+  }
+
+  Future<void> _pollForPairMatches({bool seedOnly = false}) async {
+    if (!mounted) return;
+    final SwipeProvider swipeProvider = context.read<SwipeProvider>();
+    if (swipeProvider.isSoloMode) return;
+    final List<MatchItem> newMatches = await context.read<MatchProvider>().syncPairedMatchesForNotifications(seedOnly: seedOnly);
+    if (!mounted || seedOnly || newMatches.isEmpty) return;
+    _showMatchNotification(newMatches.first.dish.name);
+  }
+
+  void _showMatchNotification(String? dishName) {
+    _dismissMatchNotification();
+    final OverlayState overlay = Overlay.of(context);
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (BuildContext overlayContext) => MatchNotificationOverlay(
+        dishName: dishName,
+        onDismiss: _dismissMatchNotification,
+        onView: () {
+          if (mounted) {
+            context.go('/matches');
+          }
+        },
+      ),
+    );
+    _matchNotificationEntry = entry;
+    overlay.insert(entry);
+  }
+
+  void _dismissMatchNotification() {
+    _matchNotificationEntry?.remove();
+    _matchNotificationEntry = null;
+  }
+
   void _resetSwipeStackController() {
     _swiperController.reset();
     _swiperController = SwipeableStackController();
@@ -515,9 +605,13 @@ class _SwipesScreenState extends State<SwipesScreen> {
       if (!mounted) {
         return;
       }
-      if (result is Map<String, dynamic> &&
-          result['swipe']?['matchCreated'] == true &&
-          swipedDish != null) {
+      final bool createdMatch = result is Map<String, dynamic> &&
+          result['swipe']?['matchCreated'] == true;
+      if (createdMatch && swipedDish != null) {
+        final String? matchId = result['swipe']?['matchId']?.toString();
+        if (matchId != null && matchId.isNotEmpty) {
+          context.read<MatchProvider>().markMatchSeen(matchId);
+        }
         context.read<MatchProvider>().loadMatches(
               force: true,
               mode: wasSoloMode ? 'solo' : 'paired',
@@ -540,7 +634,7 @@ class _SwipesScreenState extends State<SwipesScreen> {
                     ),
                   );
                 },
-                child: Row(
+                child: const Row(
                   children: <Widget>[
                     Icon(Icons.favorite, color: Colors.white, size: 18),
                     SizedBox(width: 8),
@@ -555,6 +649,10 @@ class _SwipesScreenState extends State<SwipesScreen> {
           return;
         }
         context.push('/match-overlay', extra: swipedDish);
+        return;
+      }
+      if (!wasSoloMode && result != null) {
+        _startPairMatchBurstPolling();
       }
     });
   }
@@ -595,22 +693,6 @@ class _SwipesScreenState extends State<SwipesScreen> {
     }
   }
 
-  Future<void> _handleReload(SwipeProvider provider) async {
-    if (_isCardActionInProgress || provider.isLoading) {
-      return;
-    }
-    if (provider.isSoloMode && provider.activeSoloSessionId != null) {
-      await _runSoloPreSwipeFlow(intent: PreSwipeFilterIntent.updateActiveSoloSession);
-      return;
-    }
-    _isCardActionInProgress = true;
-    try {
-      await provider.loadDeck();
-      _resetSwipeStackController();
-    } finally {
-      _isCardActionInProgress = false;
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -846,9 +928,6 @@ class _SwipesScreenState extends State<SwipesScreen> {
                           onBack: provider.canUndo && !provider.isSendingSwipe && !_isCardActionInProgress
                               ? () => _handleBack(provider)
                               : null,
-                          onRefresh: provider.isLoading || provider.isSendingSwipe || _isCardActionInProgress
-                              ? null
-                              : () => _handleReload(provider),
                           onInfoTap: () => context.push('/recipe-detail/${dish.id}', extra: dish),
                           showSeenBadge: provider.isSeenDish(dish.id),
                         );

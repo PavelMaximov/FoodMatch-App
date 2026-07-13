@@ -627,9 +627,8 @@ class _TabPanel extends StatelessWidget {
 }
 
 class _IngredientDisplayRow {
-  const _IngredientDisplayRow({required this.name, this.measurement});
+  const _IngredientDisplayRow({required this.name});
 
-  final String? measurement;
   final String name;
 }
 
@@ -676,21 +675,7 @@ class _IngredientText extends StatelessWidget {
       height: 1.35,
       color: colors.textPrimary,
     );
-    final String measurement = row.measurement?.trim() ?? '';
-
-    if (measurement.isEmpty) {
-      return Text(row.name, textAlign: TextAlign.start, style: baseStyle);
-    }
-
-    return Text.rich(
-      TextSpan(
-        children: <InlineSpan>[
-          TextSpan(text: measurement, style: baseStyle.copyWith(fontWeight: FontWeight.w800)),
-          TextSpan(text: ' ${row.name}', style: baseStyle),
-        ],
-      ),
-      textAlign: TextAlign.start,
-    );
+    return Text(row.name, textAlign: TextAlign.start, style: baseStyle);
   }
 }
 

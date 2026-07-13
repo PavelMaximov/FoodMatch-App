@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
@@ -24,6 +24,9 @@ class ApiService {
   static const Duration _timeout = Duration(seconds: 15);
   static const int _maxRetries = 1;
   static const Duration _minRequestInterval = Duration(milliseconds: 300);
+  static bool _didLogApiConfig = false;
+
+  bool _isSocketException(Object error) => error.runtimeType.toString() == 'SocketException';
 
   String? _token;
   String? _refreshToken;
@@ -33,6 +36,15 @@ class ApiService {
   bool _handlingUnauthorized = false;
 
   String? get token => _token;
+
+  void _logApiConfigOnce() {
+    if (_didLogApiConfig) return;
+    _didLogApiConfig = true;
+    if (ApiConstants.requiresPhysicalAndroidBaseUrl) {
+      AppLogger.info('[ApiConfig] Physical Android device requires API_BASE_URL with your PC LAN IP. Example: --dart-define=API_BASE_URL=http://192.168.x.x:4000');
+    }
+    AppLogger.info('[ApiConfig] platform=${ApiConstants.platformLabel} physicalDevice=${ApiConstants.isPhysicalAndroid} baseUrl=${ApiConstants.baseUrl}');
+  }
 
   static const String _tokenKey = 'foodmatch_token';
   static const String _accessTokenKey = 'foodmatch_access_token';
@@ -88,6 +100,8 @@ class ApiService {
   Future<dynamic> get(String endpoint) async {
     final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint');
     try {
+      _logApiConfigOnce();
+      _logApiConfigOnce();
       await _throttle();
       AppLogger.api('GET', uri.toString());
       final stopwatch = Stopwatch()..start();
@@ -107,9 +121,10 @@ class ApiService {
       return _handleResponse(response);
     } on TimeoutException {
       throw const ApiException(AppStrings.requestTimeout);
-    } on SocketException {
-      throw const ApiException(AppStrings.noInternet);
     } catch (e) {
+      if (_isSocketException(e)) {
+        throw const ApiException(AppStrings.noInternet);
+      }
       AppLogger.error('GET request failed', e);
       rethrow;
     }
@@ -141,9 +156,14 @@ class ApiService {
       return _handleResponse(response);
     } on TimeoutException {
       throw const ApiException(AppStrings.requestTimeout);
-    } on SocketException {
-      throw const ApiException(AppStrings.noInternet);
     } catch (e) {
+      if (_isSocketException(e)) {
+        throw const ApiException(AppStrings.noInternet);
+      }
+      if (kIsWeb && e is http.ClientException) {
+        AppLogger.error('Network request failed. Check API_BASE_URL, backend status, and CORS.', e);
+        throw const ApiException('Could not connect to the server. Please try again.');
+      }
       AppLogger.error('POST request failed', e);
       rethrow;
     }
@@ -175,9 +195,10 @@ class ApiService {
       return _handleResponse(response);
     } on TimeoutException {
       throw const ApiException(AppStrings.requestTimeout);
-    } on SocketException {
-      throw const ApiException(AppStrings.noInternet);
     } catch (e) {
+      if (_isSocketException(e)) {
+        throw const ApiException(AppStrings.noInternet);
+      }
       AppLogger.error('PUT request failed', e);
       rethrow;
     }
@@ -210,9 +231,10 @@ class ApiService {
       return _handleResponse(response);
     } on TimeoutException {
       throw const ApiException(AppStrings.requestTimeout);
-    } on SocketException {
-      throw const ApiException(AppStrings.noInternet);
     } catch (e) {
+      if (_isSocketException(e)) {
+        throw const ApiException(AppStrings.noInternet);
+      }
       AppLogger.error('PATCH request failed', e);
       rethrow;
     }
@@ -240,9 +262,10 @@ class ApiService {
       return _handleResponse(response);
     } on TimeoutException {
       throw const ApiException(AppStrings.requestTimeout);
-    } on SocketException {
-      throw const ApiException(AppStrings.noInternet);
     } catch (e) {
+      if (_isSocketException(e)) {
+        throw const ApiException(AppStrings.noInternet);
+      }
       AppLogger.error('DELETE request failed', e);
       rethrow;
     }
@@ -307,9 +330,10 @@ class ApiService {
       throw const ApiException(AppStrings.unknownError);
     } on TimeoutException {
       throw const ApiException(AppStrings.requestTimeout);
-    } on SocketException {
-      throw const ApiException(AppStrings.noInternet);
     } catch (e) {
+      if (_isSocketException(e)) {
+        throw const ApiException(AppStrings.noInternet);
+      }
       AppLogger.error('POST multipart request failed', e);
       rethrow;
     }
@@ -406,36 +430,37 @@ class ApiService {
     }
 
     final String errorMessage = _extractErrorMessage(response);
+    final String? errorCode = _extractErrorCode(response);
 
     if (response.statusCode == 401) {
-      throw ApiException(errorMessage, statusCode: 401);
+      throw ApiException(errorMessage, statusCode: 401, code: errorCode);
     }
 
     if (response.statusCode == 404) {
-      throw ApiException(errorMessage, statusCode: 404);
+      throw ApiException(errorMessage, statusCode: 404, code: errorCode);
     }
 
     if (response.statusCode == 400) {
-      throw ApiException(errorMessage, statusCode: 400);
+      throw ApiException(errorMessage, statusCode: 400, code: errorCode);
     }
 
     if (response.statusCode == 413) {
-      throw ApiException(errorMessage, statusCode: 413);
+      throw ApiException(errorMessage, statusCode: 413, code: errorCode);
     }
 
     if (response.statusCode == 409) {
-      throw ApiException(errorMessage, statusCode: 409);
+      throw ApiException(errorMessage, statusCode: 409, code: errorCode);
     }
 
     if (response.statusCode == 422) {
-      throw ApiException(errorMessage, statusCode: 422);
+      throw ApiException(errorMessage, statusCode: 422, code: errorCode);
     }
 
     if (response.statusCode >= 500) {
       throw const ApiException(AppStrings.serverError, statusCode: 500);
     }
 
-    throw ApiException(errorMessage, statusCode: response.statusCode);
+    throw ApiException(errorMessage, statusCode: response.statusCode, code: errorCode);
   }
 
   Future<bool> refreshTokens() {
@@ -502,13 +527,27 @@ class ApiService {
       return '${AppStrings.error}: ${response.statusCode}';
     }
   }
+
+  String? _extractErrorCode(http.Response response) {
+    try {
+      final dynamic body = jsonDecode(response.body);
+      if (body is Map<String, dynamic>) {
+        final dynamic code = body['code'];
+        return code is String && code.trim().isNotEmpty ? code.trim() : null;
+      }
+    } catch (_) {
+      return null;
+    }
+    return null;
+  }
 }
 
 class ApiException implements Exception {
-  const ApiException(this.message, {this.statusCode});
+  const ApiException(this.message, {this.statusCode, this.code});
 
   final String message;
   final int? statusCode;
+  final String? code;
 
   @override
   String toString() => 'ApiException: $message';

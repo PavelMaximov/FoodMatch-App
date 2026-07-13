@@ -14,6 +14,12 @@ class CoupleProvider extends ChangeNotifier {
   CoupleProvider({required CoupleRepository repository}) : _repository = repository;
 
   static const String activeSessionMessage = 'You already have an active session.';
+  static const String activeSessionHasPartnerMessage = 'Please leave your current session before joining another one.';
+  static const String activeSoloSessionMessage = 'Please finish or leave your solo session before joining a pair session.';
+  static const String invalidInviteCodeMessage = 'Invalid session code.';
+  static const String sessionFullMessage = 'This session is already full.';
+  static const String sessionInactiveMessage = 'This session is no longer active.';
+  static const String ownSessionMessage = 'You can’t join your own session.';
   static const String partnerLeftSessionMessage =
       'Your partner has left this session. Please start or join a new session.';
 
@@ -167,9 +173,9 @@ class CoupleProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> joinCouple(String inviteCode) async {
+  Future<void> joinCouple(String inviteCode, {bool replaceEmptyCurrentSession = false}) async {
     if (_joinInFlight || isLoading) return;
-    if (hasCouple) {
+    if (hasCouple && !replaceEmptyCurrentSession) {
       error = activeSessionMessage;
       await refreshFilterState();
       _safeNotify();
@@ -181,10 +187,20 @@ class CoupleProvider extends ChangeNotifier {
     error = null;
     _safeNotify();
     try {
-      currentCouple = await _repository.join(inviteCode);
+      if (replaceEmptyCurrentSession) {
+        stopFilterStatePolling(reason: 'join_replace_empty_session');
+      }
+      currentCouple = await _repository.join(
+        inviteCode,
+        replaceEmptyCurrentSession: replaceEmptyCurrentSession,
+      );
+      _filterState = null;
       _currentCoupleLoadedAt = null;
       _sessionStateVersion++;
       await loadCouple(force: true);
+      if (hasCouple) {
+        startFilterStatePolling(reason: 'join_success');
+      }
     } on ApiException catch (e) {
       if (_isActiveSessionConflict(e)) {
         error = activeSessionMessage;
@@ -626,7 +642,21 @@ class CoupleProvider extends ChangeNotifier {
     return 'We’re having trouble syncing. We’ll keep checking.';
   }
 
-  String _mapError(Object e) => ErrorMessages.fromException(e);
+  String _mapError(Object e) {
+    if (e is ApiException) {
+      return switch (e.code) {
+        'INVALID_INVITE_CODE' => invalidInviteCodeMessage,
+        'SESSION_FULL' => sessionFullMessage,
+        'SESSION_INACTIVE' => sessionInactiveMessage,
+        'ALREADY_IN_TARGET_SESSION' => activeSessionMessage,
+        'CANNOT_JOIN_OWN_SESSION' => ownSessionMessage,
+        'ACTIVE_SESSION_HAS_PARTNER' => activeSessionHasPartnerMessage,
+        'ACTIVE_SOLO_SESSION_EXISTS' => activeSoloSessionMessage,
+        _ => ErrorMessages.fromApiException(e),
+      };
+    }
+    return ErrorMessages.fromException(e);
+  }
 
   bool _isPairSessionInactive(ApiException e) {
     final String lower = e.message.toLowerCase();
