@@ -706,16 +706,16 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       backgroundColor: context.fmColors.background,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
           child: Column(
             children: <Widget>[
               const Spacer(flex: 1),
               Image.asset(
-                'assets/media/pre_swipe_intro.png',
-                height: 190,
+                'assets/media/Waiting_for_partner.png',
+                height: 240,
                 fit: BoxFit.contain,
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 8),
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 320),
                 child: Text(
@@ -742,15 +742,15 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 22),
+              const SizedBox(height: 12),
               Lottie.asset(
                 'assets/animations/waiting.json',
-                width: 84,
-                height: 84,
+                width: 144,
+                height: 144,
                 fit: BoxFit.contain,
                 repeat: true,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 6),
               TextButton(
                 onPressed: _isPreparingSharedDeck ? null : () => Navigator.of(context).pop(),
                 child: const Text('Back to session settings'),

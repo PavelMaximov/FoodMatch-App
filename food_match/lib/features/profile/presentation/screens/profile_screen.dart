@@ -740,10 +740,16 @@ class _SettingsGroup extends StatelessWidget {
 }
 
 class _SettingsRow extends StatelessWidget {
-  const _SettingsRow({required this.icon, required this.label, required this.onTap});
+  const _SettingsRow({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.value,
+  });
 
   final IconData icon;
   final String label;
+  final String? value;
   final VoidCallback onTap;
 
   @override
@@ -768,6 +774,17 @@ class _SettingsRow extends StatelessWidget {
                   ),
                 ),
               ),
+              if (value != null) ...[
+                Text(
+                  value!,
+                  style: GoogleFonts.nunito(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: context.fmColors.textMuted,
+                  ),
+                ),
+                const SizedBox(width: 6),
+              ],
               Icon(Icons.chevron_right, size: 28, color: context.fmColors.textPrimary),
             ],
           ),

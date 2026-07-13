@@ -1071,7 +1071,7 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
     if (_selectedTab == null) {
       return widget.title;
     }
-    final String name = _selectedTab!.name;
+    final String name = _selectedTab.name;
     return name[0].toUpperCase() + name.substring(1);
   }
 

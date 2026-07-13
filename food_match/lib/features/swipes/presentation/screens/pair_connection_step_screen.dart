@@ -321,8 +321,8 @@ class _InviteCard extends StatelessWidget {
               else
                 Lottie.asset(
                   'assets/animations/loading_3_dots.json',
-                  width: 32,
-                  height: 18,
+                  width: 24,
+                  height: 14,
                   fit: BoxFit.contain,
                   repeat: true,
                 ),
@@ -431,7 +431,7 @@ class _CodeInput extends StatelessWidget {
               ],
             ),
           ],
-        ],
+        
       ),
     );
   }
