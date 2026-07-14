@@ -2,9 +2,11 @@ import { Response } from 'express';
 import { AuthRequest } from '../../../core/middleware/authMiddleware';
 import { CoupleService } from '../services/coupleService';
 import { CoupleDeckService } from '../services/coupleDeckService';
+import { CoupleInvitationService } from '../services/coupleInvitationService';
 
 const coupleService = new CoupleService();
 const coupleDeckService = new CoupleDeckService();
+const coupleInvitationService = new CoupleInvitationService();
 
 export class CoupleController {
   async create(req: AuthRequest, res: Response) { res.status(201).json({ session: await coupleService.createSession(req.userId!) }); }
@@ -19,6 +21,10 @@ export class CoupleController {
   async prepareDeck(req: AuthRequest, res: Response) { res.json(await coupleDeckService.prepareDeckForActiveSession(req.userId!)); }
   async getDeck(req: AuthRequest, res: Response) { res.json(await coupleDeckService.getDeckForActiveSession(req.userId!)); }
   async resetDeck(req: AuthRequest, res: Response) { res.json(await coupleDeckService.resetDeckForActiveSession(req.userId!)); }
+  async continueAsBefore(req: AuthRequest, res: Response) { res.status(201).json({ invite: await coupleInvitationService.createContinueAsBeforeInvite(req.userId!) }); }
+  async pendingInvitations(req: AuthRequest, res: Response) { res.json({ invitations: await coupleInvitationService.getPending(req.userId!) }); }
+  async acceptInvitation(req: AuthRequest, res: Response) { res.json(await coupleInvitationService.accept(req.userId!, req.params.id as string)); }
+  async declineInvitation(req: AuthRequest, res: Response) { res.json({ invite: await coupleInvitationService.decline(req.userId!, req.params.id as string) }); }
 }
 
 export const coupleController = new CoupleController();

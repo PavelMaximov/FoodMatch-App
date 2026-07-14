@@ -14,6 +14,10 @@ router.post('/join', authMiddleware, coupleRateLimiter, validateBody(joinCoupleS
 router.get('/me', authMiddleware, noStore, asyncHandler(coupleController.me.bind(coupleController)));
 router.post('/leave', authMiddleware, coupleRateLimiter, asyncHandler(coupleController.leave.bind(coupleController)));
 router.post('/reset', authMiddleware, coupleRateLimiter, asyncHandler(coupleController.reset.bind(coupleController)));
+router.post('/continue-as-before', authMiddleware, noStore, coupleRateLimiter, asyncHandler(coupleController.continueAsBefore.bind(coupleController)));
+router.get('/invitations/pending', authMiddleware, noStore, asyncHandler(coupleController.pendingInvitations.bind(coupleController)));
+router.post('/invitations/:id/accept', authMiddleware, noStore, coupleRateLimiter, asyncHandler(coupleController.acceptInvitation.bind(coupleController)));
+router.post('/invitations/:id/decline', authMiddleware, noStore, coupleRateLimiter, asyncHandler(coupleController.declineInvitation.bind(coupleController)));
 
 router.post('/deck/prepare', authMiddleware, noStore, coupleRateLimiter, asyncHandler(coupleController.prepareDeck.bind(coupleController)));
 router.get('/deck', authMiddleware, noStore, asyncHandler(coupleController.getDeck.bind(coupleController)));

@@ -351,66 +351,22 @@ class _SwipesScreenState extends State<SwipesScreen> {
       }
 
       final CoupleProvider coupleProvider = context.read<CoupleProvider>();
-      if (!coupleProvider.hasCouple || !coupleProvider.hasPartner) {
-        if (mounted) {
-          setState(() => _showPairConnectionStep = true);
-        }
-        return;
-      }
-
-      final PreSwipeProvider preSwipeProvider = context.read<PreSwipeProvider>();
-      await preSwipeProvider.saveAndConfirmChoices(
-        userId: userId,
-        coupleProvider: coupleProvider,
-        cuisines: preset.cuisines,
-        moods: preset.moods,
-        blocked: preset.exclusions,
-        diet: preset.diet,
-      );
+      final invitation = await coupleProvider.createContinueAsBeforeInvite();
       if (!mounted) {
         return;
       }
-      await coupleProvider.refreshFilterState(reason: 'continue_previous_setup');
-      if (!mounted) {
-        return;
-      }
-      if (!coupleProvider.bothConfirmed) {
-        context.read<SwipeProvider>().clearPreparedDeck();
-        coupleProvider.startFilterStatePolling(reason: 'waiting_partner_choices');
+      if (invitation == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Waiting for partner choices')),
+          SnackBar(content: Text(coupleProvider.error ?? 'Could not invite your partner.')),
         );
-        setState(() {});
         return;
       }
-
-      final PreparedPoolResult localResult = await preSwipeProvider.prepare(
-        userId: userId,
-        coupleProvider: coupleProvider,
-        cuisines: preset.cuisines,
-        moods: preset.moods,
-        blocked: preset.exclusions,
-        diet: preset.diet,
-        saveChoicesFirst: false,
+      coupleProvider.startInvitationPolling(reason: 'continue_as_before_sent');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Your invitation was sent.')),
       );
-      coupleProvider.pauseFilterStatePollingForDeckPrepare();
-      PreparedPoolResult result;
-      try {
-        result = await preSwipeProvider.prepareBackendDeckWithFallback(localResult);
-      } finally {
-        coupleProvider.resumeFilterStatePollingAfterDeckPrepare(reason: 'continue_previous_setup');
-      }
-      if (!mounted) {
-        return;
-      }
-      final SwipeProvider swipeProvider = context.read<SwipeProvider>();
-      swipeProvider.applyPreparedDeck(
-        result.dishes,
-        seenDishIds: result.seenDishIds,
-        preparedDeckMeta: result.preparedDeckMeta,
-      );
-      _startPairMatchPolling();
-      _resetSwipeStackController();
+      setState(() {});
+      return;
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1033,6 +989,15 @@ class _SwipesScreenState extends State<SwipesScreen> {
                             : 'Your shared deck will be ready after both of you confirm filters.',
                         buttonText: 'Filters',
                         onButtonPressed: () => provider.isSoloMode ? _runSoloPreSwipeFlow(intent: PreSwipeFilterIntent.updateActiveSoloSession) : _runPreSwipeFlow(fromHeaderAction: true),
+                      );
+                    }
+
+                    final outgoingInvite = context.watch<CoupleProvider>().outgoingContinuationInvite;
+                    if (outgoingInvite != null && outgoingInvite.isPending && !provider.isSoloMode) {
+                      return const EmptyState(
+                        icon: Icons.hourglass_empty,
+                        title: 'Waiting for partner',
+                        subtitle: 'Your invitation was sent. We’ll continue when your partner joins.',
                       );
                     }
 

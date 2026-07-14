@@ -56,6 +56,10 @@ class ApiConstants {
   static const String coupleMe = '/api/couples/me';
   static const String coupleReset = '/api/couples/reset';
   static const String coupleLeave = '/api/couples/leave';
+  static const String coupleContinueAsBefore = '/api/couples/continue-as-before';
+  static const String coupleInvitationsPending = '/api/couples/invitations/pending';
+  static String coupleInvitationAccept(String id) => '/api/couples/invitations/$id/accept';
+  static String coupleInvitationDecline(String id) => '/api/couples/invitations/$id/decline';
   static const String coupleFilterState = '/api/couples/filter-state';
   static const String coupleFilterStateMe = '/api/couples/filter-state/me';
   static const String coupleFilterStateConfirm = '/api/couples/filter-state/confirm';

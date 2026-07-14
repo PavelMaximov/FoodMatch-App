@@ -220,11 +220,11 @@ class _FilterSummaryCard extends StatelessWidget {
       ),
       child: Column(
         children: <Widget>[
-          _FilterSection(icon: Icons.room_service_outlined, label: 'Cuisine:', values: cuisines, isLoading: isLoading),
+          _FilterSection(icon: Icons.room_service_outlined, label: 'Cuisine:', values: cuisines, type: _FilterChipType.cuisine, isLoading: isLoading),
           Divider(height: 1, color: colors.divider),
-          _FilterSection(icon: Icons.auto_awesome, label: 'Mood:', values: moods, isLoading: isLoading),
+          _FilterSection(icon: Icons.auto_awesome, label: 'Mood:', values: moods, type: _FilterChipType.mood, isLoading: isLoading),
           Divider(height: 1, color: colors.divider),
-          _FilterSection(icon: Icons.do_not_disturb_alt_outlined, label: 'Exceptions:', values: exclusions, isLoading: isLoading),
+          _FilterSection(icon: Icons.do_not_disturb_alt_outlined, label: 'Exceptions:', values: exclusions, type: _FilterChipType.exception, isLoading: isLoading),
         ],
       ),
     );
@@ -232,17 +232,19 @@ class _FilterSummaryCard extends StatelessWidget {
 }
 
 class _FilterSection extends StatelessWidget {
-  const _FilterSection({required this.icon, required this.label, required this.values, this.isLoading = false});
+  const _FilterSection({required this.icon, required this.label, required this.values, required this.type, this.isLoading = false});
 
   final IconData icon;
   final String label;
   final List<String> values;
+  final _FilterChipType type;
   final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
     final FoodMatchThemeColors colors = context.fmColors;
     final List<String> chips = isLoading ? <String>['Loading...'] : values.isEmpty ? <String>['None'] : values;
+    final _ChipColors chipColors = isLoading || values.isEmpty ? _emptyChipColors(colors) : _filterChipColors(context, type);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
       child: Column(
@@ -250,7 +252,7 @@ class _FilterSection extends StatelessWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
-              Icon(icon, color: colors.primary, size: 21),
+              Icon(icon, color: chipColors.foreground, size: 21),
               const SizedBox(width: 10),
               Text(
                 label,
@@ -267,13 +269,13 @@ class _FilterSection extends StatelessWidget {
                   (String value) => Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
-                      color: colors.chipBackground,
+                      color: chipColors.background,
                       borderRadius: BorderRadius.circular(99),
-                      border: Border.all(color: colors.chipBorder),
+                      border: Border.all(color: chipColors.border),
                     ),
                     child: Text(
                       isLoading || values.isEmpty ? value : _formatOptionLabel(value),
-                      style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w800, color: colors.textPrimary),
+                      style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w800, color: chipColors.foreground),
                     ),
                   ),
                 )
@@ -303,3 +305,42 @@ String _formatOptionLabel(String value) => value
     .where((String word) => word.isNotEmpty)
     .map((String word) => word[0].toUpperCase() + word.substring(1))
     .join(' ');
+
+
+enum _FilterChipType { cuisine, mood, exception }
+
+class _ChipColors {
+  const _ChipColors({required this.background, required this.foreground, required this.border});
+
+  final Color background;
+  final Color foreground;
+  final Color border;
+}
+
+_ChipColors _emptyChipColors(FoodMatchThemeColors colors) => _ChipColors(
+      background: colors.chipBackground,
+      foreground: colors.textMuted,
+      border: colors.chipBorder,
+    );
+
+_ChipColors _filterChipColors(BuildContext context, _FilterChipType type) {
+  final bool isDark = Theme.of(context).brightness == Brightness.dark;
+  if (isDark) {
+    switch (type) {
+      case _FilterChipType.cuisine:
+        return const _ChipColors(background: Color(0xFF4A3218), foreground: Color(0xFFF0A03A), border: Color(0xFF5A3A1D));
+      case _FilterChipType.mood:
+        return const _ChipColors(background: Color(0xFF4A462C), foreground: Color(0xFFE2C403), border: Color(0xFF5A552F));
+      case _FilterChipType.exception:
+        return const _ChipColors(background: Color(0xFF4A211B), foreground: Color(0xFFFF4E2F), border: Color(0xFF5A2A22));
+    }
+  }
+  switch (type) {
+    case _FilterChipType.cuisine:
+      return const _ChipColors(background: Color(0xFFFFEDDE), foreground: Color(0xFFEE8C04), border: Color(0xFFFFD7BB));
+    case _FilterChipType.mood:
+      return const _ChipColors(background: Color(0xFFFFF8C7), foreground: Color(0xFFC39A00), border: Color(0xFFFFECB0));
+    case _FilterChipType.exception:
+      return const _ChipColors(background: Color(0xFFFFE4DF), foreground: Color(0xFFFF4E2F), border: Color(0xFFFFC9C0));
+  }
+}
