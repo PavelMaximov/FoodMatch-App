@@ -2,6 +2,7 @@ import { Types } from 'mongoose';
 import { AppError } from '../../../core/errors/AppError';
 import { LastFilterPresetModel } from '../../filters/models/LastFilterPreset';
 import { buildPairKey } from '../../filters/services/lastFilterPresetService';
+import { MatchModel } from '../../matches/models/Match';
 import { UserModel } from '../../users/models/User';
 import { CoupleSessionModel } from '../models/CoupleSession';
 import { CoupleInvitationDocument, CoupleInvitationModel } from '../models/CoupleInvitation';
@@ -34,6 +35,12 @@ export class CoupleInvitationService {
       throw new AppError('No previous pair setup found.', 404, 'PREVIOUS_PARTNER_NOT_FOUND');
     }
 
+    const previousSession = activeSession && activePartnerId
+      ? activeSession
+      : await CoupleSessionModel.findOne({ members: { $all: [fromUserId, new Types.ObjectId(partnerId)] } })
+          .sort({ updatedAt: -1, createdAt: -1 });
+    const mutualMatchCount = previousSession ? await MatchModel.countDocuments({ coupleId: previousSession._id }) : null;
+
     let session = activeSession && activeSession.members.length === 1 ? activeSession : activeSession && activePartnerId ? activeSession : null;
     if (!session) {
       const createdSession = await this.coupleService.createSession(userId);
@@ -47,10 +54,11 @@ export class CoupleInvitationService {
       { fromUserId, toUserId, pairKey, status: 'pending' },
       {
         $set: {
-          previousCoupleSessionId: activeSession?._id ?? null,
+          previousCoupleSessionId: previousSession?._id ?? null,
           newCoupleSessionId: session._id,
           mode: 'paired',
           matchedLastTime: lastPreset?.matchedLastTime ?? null,
+          mutualMatchCount,
           previousFilterPresetId: lastPreset?._id ?? null,
           expiresAt
         },
@@ -129,6 +137,9 @@ export class CoupleInvitationService {
       status: invite.status,
       mode: invite.mode,
       matchedLastTime: invite.matchedLastTime ?? null,
+      mutualMatchCount: invite.mutualMatchCount ?? null,
+      previousFilterPresetId: invite.previousFilterPresetId?.toString() ?? null,
+      createdAt: invite.createdAt,
       expiresAt: invite.expiresAt,
       fromUser: this.userDto(from, invite.fromUserId.toString()),
       toUser: this.userDto(to, invite.toUserId.toString())

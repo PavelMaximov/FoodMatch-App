@@ -23,6 +23,7 @@ class CoupleInvitation {
     required this.fromUser,
     required this.toUser,
     this.matchedLastTime,
+    this.mutualMatchCount,
     this.expiresAt,
   });
 
@@ -35,6 +36,7 @@ class CoupleInvitation {
   final CoupleInvitationUser fromUser;
   final CoupleInvitationUser toUser;
   final int? matchedLastTime;
+  final int? mutualMatchCount;
   final DateTime? expiresAt;
 
   bool get isIncoming => direction == 'incoming';
@@ -51,6 +53,7 @@ class CoupleInvitation {
         fromUser: CoupleInvitationUser.fromJson(json['fromUser'] is Map<String, dynamic> ? json['fromUser'] as Map<String, dynamic> : null),
         toUser: CoupleInvitationUser.fromJson(json['toUser'] is Map<String, dynamic> ? json['toUser'] as Map<String, dynamic> : null),
         matchedLastTime: (json['matchedLastTime'] as num?)?.toInt(),
+        mutualMatchCount: (json['mutualMatchCount'] as num?)?.toInt(),
         expiresAt: DateTime.tryParse(json['expiresAt']?.toString() ?? ''),
       );
 }

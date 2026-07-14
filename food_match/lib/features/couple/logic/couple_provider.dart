@@ -51,6 +51,8 @@ class CoupleProvider extends ChangeNotifier {
   List<CoupleInvitation> pendingInvitations = <CoupleInvitation>[];
   CoupleInvitation? outgoingContinuationInvite;
   final Set<String> hiddenInvitationIds = <String>{};
+  bool shouldOpenPreviousChoiceAfterInvite = false;
+  final Set<String> _consumedAcceptedInviteIds = <String>{};
 
   bool get hasCouple {
     final Couple? couple = currentCouple;
@@ -105,6 +107,8 @@ class CoupleProvider extends ChangeNotifier {
       pendingInvitations = <CoupleInvitation>[];
       outgoingContinuationInvite = null;
       hiddenInvitationIds.clear();
+      _consumedAcceptedInviteIds.clear();
+      shouldOpenPreviousChoiceAfterInvite = false;
       AppLogger.info('[CoupleProvider] session state cleared for account switch');
     }
   }
@@ -521,7 +525,12 @@ class CoupleProvider extends ChangeNotifier {
       final List<CoupleInvitation> invitations = await _repository.getPendingInvitations();
       pendingInvitations = invitations;
       final List<CoupleInvitation> outgoing = invitations.where((CoupleInvitation invite) => invite.isOutgoing).toList();
-      outgoingContinuationInvite = outgoing.isEmpty ? null : outgoing.first;
+      final CoupleInvitation? outgoingInvite = outgoing.isEmpty ? null : outgoing.first;
+      outgoingContinuationInvite = outgoingInvite;
+      if (outgoingInvite != null && outgoingInvite.status == 'accepted' && _consumedAcceptedInviteIds.add(outgoingInvite.id)) {
+        shouldOpenPreviousChoiceAfterInvite = true;
+        await loadCouple(force: true);
+      }
       _safeNotify();
     } catch (e) {
       AppLogger.error('[InvitationSync] refresh failed', e);
@@ -552,6 +561,8 @@ class CoupleProvider extends ChangeNotifier {
       startFilterStatePolling(reason: 'invitation_accept');
       await refreshFilterState(reason: 'invitation_accept');
     }
+    shouldOpenPreviousChoiceAfterInvite = true;
+    _consumedAcceptedInviteIds.add(invitation.id);
     _safeNotify();
   }
 
@@ -560,6 +571,13 @@ class CoupleProvider extends ChangeNotifier {
     hiddenInvitationIds.add(invitation.id);
     pendingInvitations = pendingInvitations.where((CoupleInvitation item) => item.id != invitation.id).toList();
     _safeNotify();
+  }
+
+  bool consumeOpenPreviousChoiceAfterInvite() {
+    final bool shouldOpen = shouldOpenPreviousChoiceAfterInvite;
+    shouldOpenPreviousChoiceAfterInvite = false;
+    if (shouldOpen) _safeNotify();
+    return shouldOpen;
   }
 
   void hideInvitationLocally(CoupleInvitation invitation) {

@@ -21,7 +21,7 @@ class ContinuationInvitationSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final FoodMatchThemeColors colors = context.fmColors;
     final String name = invitation.fromUser.displayName.trim().isEmpty ? 'Partner' : invitation.fromUser.displayName.trim();
-    final int? matchCount = invitation.matchedLastTime;
+    final int? matchCount = invitation.mutualMatchCount;
     return SafeArea(
       top: false,
       child: Container(
@@ -93,18 +93,21 @@ class ContinuationInvitationSheet extends StatelessWidget {
                       text: TextSpan(
                         style: GoogleFonts.nunito(fontSize: 14, color: colors.textSecondary, height: 1.3),
                         children: <TextSpan>[
-                          const TextSpan(text: 'You had '),
-                          if (matchCount != null)
+                          if (matchCount == null)
                             TextSpan(
-                              text: '$matchCount matches',
+                              text: 'Ready to continue your last session?',
                               style: GoogleFonts.nunito(fontWeight: FontWeight.w900, color: colors.textPrimary),
                             )
-                          else
+                          else ...<TextSpan>[
+                            const TextSpan(text: 'You had '),
                             TextSpan(
-                              text: 'matches',
+                              text: _matchCountLabel(matchCount),
                               style: GoogleFonts.nunito(fontWeight: FontWeight.w900, color: colors.textPrimary),
                             ),
-                          const TextSpan(text: ' together last time. Ready for more?'),
+                            TextSpan(
+                              text: matchCount == 0 ? ' together last time. Ready to try again?' : ' together last time. Ready for more?',
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -148,4 +151,11 @@ class ContinuationInvitationSheet extends StatelessWidget {
       ),
     );
   }
+}
+
+
+String _matchCountLabel(int count) {
+  if (count == 0) return 'no matches';
+  if (count == 1) return '1 match';
+  return '$count matches';
 }

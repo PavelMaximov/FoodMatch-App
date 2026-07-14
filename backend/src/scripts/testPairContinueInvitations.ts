@@ -12,7 +12,8 @@ function assert(condition: unknown, message: string) {
 
 assert(model.includes("'pending' | 'accepted' | 'declined' | 'expired' | 'cancelled'"), 'Invite model must include lifecycle statuses.');
 assert(model.includes('fromUserId') && model.includes('toUserId') && model.includes('pairKey'), 'Invite model must include sender, recipient, and pairKey.');
-assert(model.includes('matchedLastTime'), 'Invite model must include matchedLastTime.');
+assert(model.includes('matchedLastTime'), 'Invite model must include matchedLastTime for legacy metadata.');
+assert(model.includes('mutualMatchCount'), 'Invite model must include mutualMatchCount.');
 assert(routes.includes("/continue-as-before"), 'Continue-as-before route must exist.');
 assert(routes.includes("/invitations/pending"), 'Pending invitations route must exist.');
 assert(routes.includes("/invitations/:id/accept"), 'Accept route must exist.');
@@ -27,6 +28,8 @@ assert(service.includes("invite.status = 'accepted'"), 'Accept must mark invite 
 assert(service.includes("invite.status = 'declined'"), 'Decline must mark invite declined.');
 assert(service.includes("invite.status = 'expired'"), 'Expired invite cannot be accepted.');
 assert(service.includes('getMyActiveSession(userId)'), 'Accept should return/activate current pair session.');
+assert(service.includes('MatchModel.countDocuments'), 'mutualMatchCount must count MatchModel records.');
+assert(service.includes('mutualMatchCount') && !service.includes('mutualMatchCount: lastPreset?.matchedLastTime'), 'mutualMatchCount must not use matchedLastTime/prepared count.');
 assert(lastFilterService.includes('userId: new Types.ObjectId(userId), pairKey: buildPairKey'), 'Paired presets must remain user-scoped by pairKey.');
 assert(!service.includes('userId: null'), 'Invitation flow must not use legacy userId:null paired presets.');
 

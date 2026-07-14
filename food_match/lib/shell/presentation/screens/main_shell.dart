@@ -204,6 +204,13 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
       _shownInvitationId = invitation.id;
       WidgetsBinding.instance.addPostFrameCallback((_) => _showContinuationInvitation(invitation));
     }
+    final bool shouldOpenPreviousChoice = context.select<CoupleProvider, bool>((CoupleProvider provider) => provider.shouldOpenPreviousChoiceAfterInvite);
+    if (shouldOpenPreviousChoice) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        widget.navigationShell.goBranch(2);
+      });
+    }
 
     return Scaffold(
       body: Column(

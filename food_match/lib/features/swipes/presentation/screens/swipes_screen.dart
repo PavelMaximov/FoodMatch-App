@@ -919,6 +919,16 @@ class _SwipesScreenState extends State<SwipesScreen> {
                 ),
                 child: Consumer<SwipeProvider>(
                   builder: (BuildContext context, SwipeProvider provider, _) {
+                    final CoupleProvider inviteCoupleProvider = context.watch<CoupleProvider>();
+                    if (inviteCoupleProvider.shouldOpenPreviousChoiceAfterInvite && !_isOpeningPreSwipe) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (!mounted) return;
+                        if (context.read<CoupleProvider>().consumeOpenPreviousChoiceAfterInvite()) {
+                          _runPreSwipeFlow(fromHeaderAction: true);
+                        }
+                      });
+                    }
+
                     if (_isLoadingInitialSession) {
                       return const ShimmerCard();
                     }

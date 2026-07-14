@@ -11,6 +11,7 @@ export interface CoupleInvitationDocument extends Document {
   status: CoupleInvitationStatus;
   mode: 'paired';
   matchedLastTime?: number | null;
+  mutualMatchCount?: number | null;
   previousFilterPresetId?: Types.ObjectId | null;
   expiresAt: Date;
   createdAt: Date;
@@ -27,6 +28,7 @@ const coupleInvitationSchema = new Schema<CoupleInvitationDocument>(
     status: { type: String, enum: ['pending', 'accepted', 'declined', 'expired', 'cancelled'], default: 'pending', index: true },
     mode: { type: String, enum: ['paired'], default: 'paired' },
     matchedLastTime: { type: Number, default: null },
+    mutualMatchCount: { type: Number, default: null },
     previousFilterPresetId: { type: Schema.Types.ObjectId, ref: 'LastFilterPreset', default: null },
     expiresAt: { type: Date, required: true, index: true }
   },
