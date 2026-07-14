@@ -18,6 +18,9 @@ assert(routes.includes("/invitations/pending"), 'Pending invitations route must 
 assert(routes.includes("/invitations/:id/accept"), 'Accept route must exist.');
 assert(routes.includes("/invitations/:id/decline"), 'Decline route must exist.');
 assert(controller.includes('createContinueAsBeforeInvite'), 'Controller must create continue-as-before invite.');
+assert(service.includes("pairKey: { $type: 'string', $ne: null }"), 'Continue invite should read last user-scoped paired preset without requiring active session.');
+assert(service.includes('PREVIOUS_PARTNER_NOT_FOUND'), 'Missing previous partner should use a stable error code.');
+assert(service.includes('pairKey.split'), 'Continue invite should resolve previous partner from pairKey.');
 assert(service.includes('findOneAndUpdate') && service.includes('status: \'pending\''), 'Duplicate pending invite should be upserted, not duplicated.');
 assert(service.includes('requireInviteForTarget') && service.includes('toUserId: new Types.ObjectId(userId)'), 'Only recipient can accept/decline invite.');
 assert(service.includes("invite.status = 'accepted'"), 'Accept must mark invite accepted.');

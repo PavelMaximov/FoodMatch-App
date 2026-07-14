@@ -744,6 +744,7 @@ class CoupleProvider extends ChangeNotifier {
         'CANNOT_JOIN_OWN_SESSION' => ownSessionMessage,
         'ACTIVE_SESSION_HAS_PARTNER' => activeSessionHasPartnerMessage,
         'ACTIVE_SOLO_SESSION_EXISTS' => activeSoloSessionMessage,
+        'PREVIOUS_PARTNER_NOT_FOUND' => 'No previous pair setup found.',
         _ => ErrorMessages.fromApiException(e),
       };
     }

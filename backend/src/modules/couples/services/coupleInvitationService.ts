@@ -14,22 +14,44 @@ export class CoupleInvitationService {
 
   async createContinueAsBeforeInvite(userId: string) {
     const fromUserId = new Types.ObjectId(userId);
-    const session = await CoupleSessionModel.findOne({ members: fromUserId, status: 'active' }).sort({ updatedAt: -1, createdAt: -1 });
-    if (!session || session.members.length < 2) throw new AppError('No previous partner available.', 404, 'NO_PREVIOUS_PARTNER');
-    const toUserId = session.members.find((memberId) => memberId.toString() !== userId);
-    if (!toUserId) throw new AppError('No previous partner available.', 404, 'NO_PREVIOUS_PARTNER');
-    const pairKey = buildPairKey(session.members.map((memberId) => memberId.toString()));
-    const preset = await LastFilterPresetModel.findOne({ mode: 'paired', userId: fromUserId, pairKey }).lean();
+    const activeSession = await CoupleSessionModel.findOne({ members: fromUserId, status: 'active' }).sort({ updatedAt: -1, createdAt: -1 });
+    const activePartnerId = activeSession?.members.find((memberId) => memberId.toString() !== userId) ?? null;
+    const lastPreset = await LastFilterPresetModel.findOne({
+      mode: 'paired',
+      userId: fromUserId,
+      pairKey: { $type: 'string', $ne: null }
+    })
+      .sort({ usedAt: -1, updatedAt: -1 })
+      .lean();
+
+    const pairKey = activeSession?.members.length && activeSession.members.length >= 2
+      ? buildPairKey(activeSession.members.map((memberId) => memberId.toString()))
+      : lastPreset?.pairKey;
+    if (!pairKey) throw new AppError('No previous pair setup found.', 404, 'PREVIOUS_PARTNER_NOT_FOUND');
+
+    const partnerId = activePartnerId?.toString() ?? pairKey.split('_').find((memberId) => memberId !== userId);
+    if (!partnerId || !Types.ObjectId.isValid(partnerId) || partnerId === userId) {
+      throw new AppError('No previous pair setup found.', 404, 'PREVIOUS_PARTNER_NOT_FOUND');
+    }
+
+    let session = activeSession && activeSession.members.length === 1 ? activeSession : activeSession && activePartnerId ? activeSession : null;
+    if (!session) {
+      const createdSession = await this.coupleService.createSession(userId);
+      session = await CoupleSessionModel.findById(createdSession?._id ?? createdSession?.id);
+    }
+    if (!session) throw new AppError('Could not create continuation session.', 500, 'CONTINUATION_SESSION_CREATE_FAILED');
+
+    const toUserId = new Types.ObjectId(partnerId);
     const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
     const invite = await CoupleInvitationModel.findOneAndUpdate(
       { fromUserId, toUserId, pairKey, status: 'pending' },
       {
         $set: {
-          previousCoupleSessionId: session._id,
+          previousCoupleSessionId: activeSession?._id ?? null,
           newCoupleSessionId: session._id,
           mode: 'paired',
-          matchedLastTime: preset?.matchedLastTime ?? null,
-          previousFilterPresetId: preset?._id ?? null,
+          matchedLastTime: lastPreset?.matchedLastTime ?? null,
+          previousFilterPresetId: lastPreset?._id ?? null,
           expiresAt
         },
         $setOnInsert: { fromUserId, toUserId, pairKey, status: 'pending' }

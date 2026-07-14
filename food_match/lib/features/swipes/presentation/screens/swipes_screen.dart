@@ -300,8 +300,10 @@ class _SwipesScreenState extends State<SwipesScreen> {
     if (preset == null) {
       if (isSoloMode) {
         await _runSoloPreSwipeFlow(intent: PreSwipeFilterIntent.updateActiveSoloSession);
-      } else {
-        await _runPreSwipeFlow(fromHeaderAction: true);
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No previous pair setup found.')),
+        );
       }
       return;
     }
