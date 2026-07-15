@@ -68,6 +68,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
   bool _isPairRestartWaiting = false;
   bool _isPairRestartLoading = false;
   String? _pairRestartError;
+  int _loadedAuthBoundaryVersion = -1;
 
   @override
   void initState() {
@@ -81,7 +82,42 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       _coupleProvider = coupleProvider;
       coupleProvider.addListener(_handleCoupleSessionEnded);
       coupleProvider.startFilterStatePolling(reason: 'swipes_screen');
+      _loadedAuthBoundaryVersion = context.read<AuthProvider>().authBoundaryVersion;
       _loadExistingBackendDeckOrStart();
+    });
+  }
+
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final int authBoundaryVersion = context.watch<AuthProvider>().authBoundaryVersion;
+    if (_loadedAuthBoundaryVersion == -1 || _loadedAuthBoundaryVersion == authBoundaryVersion) {
+      return;
+    }
+    _loadedAuthBoundaryVersion = authBoundaryVersion;
+    _resetLocalFlowStateForAuthBoundary();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _loadExistingBackendDeckOrStart();
+      }
+    });
+  }
+
+  void _resetLocalFlowStateForAuthBoundary() {
+    _stopPairMatchPolling();
+    _stopPairMatchBurstPolling();
+    _stopPairRestartPolling();
+    _dismissMatchNotification();
+    _resetSwipeStackController();
+    setState(() {
+      _showPairConnectionStep = false;
+      _isHandlingSessionEnded = false;
+      _initialSessionError = null;
+      _sessionResumeChoiceType = null;
+      _isPairRestartWaiting = false;
+      _isPairRestartLoading = false;
+      _pairRestartError = null;
     });
   }
 

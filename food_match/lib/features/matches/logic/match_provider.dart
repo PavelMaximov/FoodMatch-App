@@ -26,6 +26,7 @@ class MatchProvider extends ChangeNotifier {
   Future<void>? _matchesLoadFuture;
   final Set<String> _knownPairedMatchIds = <String>{};
   bool _hasSeededPairedMatchNotifications = false;
+  int _authBoundaryVersion = -1;
 
   List<MatchItem> matches = <MatchItem>[];
   bool isLoading = false;
@@ -212,6 +213,18 @@ class MatchProvider extends ChangeNotifier {
     _clearPairNotificationState();
     AppLogger.info('[Cache] matches invalidated reason=clear');
     notifyListeners();
+  }
+
+  void resetForAuthBoundary({bool notify = true}) {
+    clearForLogout(notify: notify);
+  }
+
+  void handleAuthBoundary(int version) {
+    if (_authBoundaryVersion == version) {
+      return;
+    }
+    _authBoundaryVersion = version;
+    resetForAuthBoundary(notify: false);
   }
 
   void clearForLogout({bool notify = true}) {

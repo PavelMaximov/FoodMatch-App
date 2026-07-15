@@ -30,6 +30,7 @@ class AuthProvider extends ChangeNotifier {
   Future<void>? _loadUserFuture;
   bool isLoading = false;
   String? error;
+  int authBoundaryVersion = 0;
 
   bool requireEmailVerification = false;
 
@@ -61,6 +62,7 @@ class AuthProvider extends ChangeNotifier {
       token = response.effectiveAccessToken;
       requireEmailVerification = response.requireEmailVerification;
       currentUser = response.user ?? await _repository.getMe();
+      _markAuthBoundaryChanged(reason: 'register');
       _currentUserLoadedAt = DateTime.now();
       await _cacheUserDataIfAvailable();
     } catch (e) {
@@ -89,6 +91,7 @@ class AuthProvider extends ChangeNotifier {
       token = response.effectiveAccessToken;
       requireEmailVerification = response.requireEmailVerification;
       currentUser = response.user ?? await _repository.getMe();
+      _markAuthBoundaryChanged(reason: 'login');
       _currentUserLoadedAt = DateTime.now();
       await _cacheUserDataIfAvailable();
     } catch (e) {
@@ -150,9 +153,13 @@ class AuthProvider extends ChangeNotifier {
       }
 
       token = await _apiService.getAccessToken();
+      final String? previousUserId = currentUser?.id;
       final me = await _repository.getMeWithVerificationRequirement();
       currentUser = me.user;
       requireEmailVerification = me.requireEmailVerification;
+      if (previousUserId != currentUser?.id) {
+        _markAuthBoundaryChanged(reason: 'loadUser');
+      }
       _currentUserLoadedAt = DateTime.now();
       await _cacheUserDataIfAvailable();
     } on ApiException catch (e) {
@@ -230,6 +237,11 @@ class AuthProvider extends ChangeNotifier {
   }
 
 
+  void _markAuthBoundaryChanged({required String reason}) {
+    authBoundaryVersion++;
+    AppLogger.info('[Auth] boundary changed reason=$reason version=$authBoundaryVersion');
+  }
+
   Future<void> _clearAuthState() async {
     await _apiService.clearTokens();
     token = null;
@@ -239,7 +251,8 @@ class AuthProvider extends ChangeNotifier {
     _apiService.setToken(null);
     _apiService.setRefreshToken(null);
     requireEmailVerification = false;
-    await _cacheService.clearAll();
+    _markAuthBoundaryChanged(reason: 'clearAuthState');
+    await _cacheService.clearAuthBoundaryTransient();
   }
 
   Future<void> updateCurrentUserAvatar({

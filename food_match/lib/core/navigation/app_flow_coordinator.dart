@@ -33,6 +33,10 @@ class AppFlowCoordinator {
 
   static const Duration resumeRouteResetThreshold = Duration(minutes: 15);
 
+  void resetForAuthBoundary() {
+    debugPrint('[AppFlow] authBoundary -> reset transient flow state');
+  }
+
   bool shouldResolveStartupOnResume(DateTime? lastPausedAt, DateTime resumedAt) {
     if (lastPausedAt == null) {
       debugPrint('[AppFlow] resume: shortResume -> keepCurrentRoute');

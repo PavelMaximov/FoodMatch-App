@@ -53,6 +53,7 @@ class CoupleProvider extends ChangeNotifier {
   final Set<String> hiddenInvitationIds = <String>{};
   bool shouldOpenPreviousChoiceAfterInvite = false;
   final Set<String> _consumedAcceptedInviteIds = <String>{};
+  int _authBoundaryVersion = -1;
 
   bool get hasCouple {
     final Couple? couple = currentCouple;
@@ -684,6 +685,20 @@ class CoupleProvider extends ChangeNotifier {
         rethrow;
       }
     }
+  }
+
+  void resetForAuthBoundary({bool notify = true}) {
+    stopInvitationPolling(reason: 'auth_boundary');
+    clearSessionStateForLogout(notify: notify);
+    shouldOpenPreviousChoiceAfterInvite = false;
+  }
+
+  void handleAuthBoundary(int version) {
+    if (_authBoundaryVersion == version) {
+      return;
+    }
+    _authBoundaryVersion = version;
+    resetForAuthBoundary(notify: false);
   }
 
   void clearSessionStateForLogout({bool notify = true}) {

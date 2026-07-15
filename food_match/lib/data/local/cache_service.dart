@@ -17,6 +17,18 @@ class CacheService {
   static const String _userDisplayNameKey = 'user_displayName';
   static const String _userEmailKey = 'user_email';
   static const String _userCoupleIdKey = 'user_coupleId';
+  static const List<String> _authBoundaryRouteKeys = <String>[
+    'lastRoute',
+    'lastScreen',
+    'lastSwipeMode',
+    'activeSessionId',
+    'currentDeckId',
+    'preFilterDraft',
+    'sessionResumeChoice',
+    'currentTab',
+    'swipesState',
+    'pairWaitingState',
+  ];
 
   Future<void> cacheDishes(List<Dish> dishes) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -186,6 +198,21 @@ class CacheService {
   Future<String?> get cachedEmail async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getString(_userEmailKey);
+  }
+
+  Future<void> clearAuthBoundaryTransient() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_matchesKey);
+    await prefs.remove(_matchesCachedAtKey);
+    await prefs.remove(_matchesCoupleIdKey);
+    await prefs.remove(_pendingSwipesKey);
+    await prefs.remove(_userDisplayNameKey);
+    await prefs.remove(_userEmailKey);
+    await prefs.remove(_userCoupleIdKey);
+    for (final String key in _authBoundaryRouteKeys) {
+      await prefs.remove(key);
+    }
+    AppLogger.info('CacheService: cleared auth-boundary transient cache');
   }
 
   Future<void> clearAll() async {

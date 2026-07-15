@@ -44,6 +44,7 @@ class SwipeProvider extends ChangeNotifier {
   PreparedDeckMeta? _preparedDeckMeta;
   Future<bool>? _existingPreparedDeckLoadFuture;
   bool _isApplyingSoloFilterRequest = false;
+  int _authBoundaryVersion = -1;
 
   List<Dish> deck = <Dish>[];
   int currentIndex = 0;
@@ -79,6 +80,18 @@ class SwipeProvider extends ChangeNotifier {
     }
     _activeUserId = normalized;
     clearForLogout(notify: false);
+  }
+
+  void resetForAuthBoundary({bool notify = true}) {
+    clearForLogout(notify: notify);
+  }
+
+  void handleAuthBoundary(int version) {
+    if (_authBoundaryVersion == version) {
+      return;
+    }
+    _authBoundaryVersion = version;
+    resetForAuthBoundary(notify: false);
   }
 
   void clearForLogout({bool notify = true}) {

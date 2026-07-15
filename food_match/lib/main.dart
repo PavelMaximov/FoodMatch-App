@@ -60,6 +60,7 @@ Future<void> main() async {
           create: (_) => CoupleProvider(repository: coupleRepo),
           update: (_, AuthProvider authProvider, CoupleProvider? coupleProvider) {
             final CoupleProvider provider = coupleProvider ?? CoupleProvider(repository: coupleRepo);
+            provider.handleAuthBoundary(authProvider.authBoundaryVersion);
             provider.setAuthenticatedUser(
               authProvider.currentUser?.id,
               isAuthenticated: authProvider.isAuthenticated,
@@ -82,6 +83,7 @@ Future<void> main() async {
                   profileService: userProfileService,
                   scoringService: context.read<FilterScoringService>(),
                 );
+            provider.handleAuthBoundary(authProvider.authBoundaryVersion);
             if (!authProvider.isAuthenticated) {
               provider.clearForLogout(notify: false);
             }
@@ -105,6 +107,7 @@ Future<void> main() async {
                   cacheService: cacheService,
                   userProfileService: userProfileService,
                 );
+            provider.handleAuthBoundary(authProvider.authBoundaryVersion);
             provider.setActiveUser(authProvider.currentUser?.id);
             return provider;
           },
@@ -129,6 +132,7 @@ Future<void> main() async {
                   swipeRepository: swipeRepo,
                   cacheService: cacheService,
                 );
+            provider.handleAuthBoundary(authProvider.authBoundaryVersion);
             if (!authProvider.isAuthenticated) {
               provider.clearForLogout(notify: false);
               return provider;

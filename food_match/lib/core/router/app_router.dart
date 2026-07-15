@@ -100,7 +100,10 @@ class AppRouter {
                 GoRouterState state,
                 StatefulNavigationShell navigationShell,
               ) =>
-                  MainShell(navigationShell: navigationShell),
+                  MainShell(
+                    key: ValueKey<String>(authProvider.currentUser?.id ?? 'anonymous'),
+                    navigationShell: navigationShell,
+                  ),
               branches: <StatefulShellBranch>[
                 StatefulShellBranch(
                   routes: <RouteBase>[

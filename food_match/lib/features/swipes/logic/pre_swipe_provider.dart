@@ -96,6 +96,7 @@ class PreSwipeProvider extends ChangeNotifier {
   final FilterScoringService _scoringService;
 
   bool isPreparingBackendDeck = false;
+  int _authBoundaryVersion = -1;
   PreparedDeckMeta? preparedDeckMeta;
   String? backendDeckError;
 
@@ -119,6 +120,18 @@ class PreSwipeProvider extends ChangeNotifier {
         exclusions: blocked,
         matchedLastTime: matchedLastTime,
       );
+
+  void resetForAuthBoundary({bool notify = true}) {
+    clearForLogout(notify: notify);
+  }
+
+  void handleAuthBoundary(int version) {
+    if (_authBoundaryVersion == version) {
+      return;
+    }
+    _authBoundaryVersion = version;
+    resetForAuthBoundary(notify: false);
+  }
 
   void clearForLogout({bool notify = true}) {
     _clearLocalDraftState(notify: notify, forceNotify: false);
