@@ -61,22 +61,22 @@ class _DeckEndChoiceScreenState extends State<DeckEndChoiceScreen> {
     final FoodMatchThemeColors colors = context.fmColors;
     final String partnerName = _partnerName(widget.partner);
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(27, 24, 27, 24),
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Center(
             child: Image.asset(
-              'assets/media/pre_swipe_intro.png',
-              height: 190,
+              'assets/media/Session_complete.png',
+              height: 230,
               fit: BoxFit.contain,
             ),
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 5),
           Text(
             'Session complete',
             style: GoogleFonts.fredoka(
-              fontSize: 30,
+              fontSize: 35,
               fontWeight: FontWeight.w700,
               height: 1.05,
               color: colors.textPrimary,
