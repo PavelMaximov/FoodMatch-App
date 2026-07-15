@@ -6,8 +6,8 @@ import '../../../../data/models/couple.dart';
 import '../../../../data/models/user_profile.dart';
 import '../../../../shared/widgets/media/safe_avatar_image.dart';
 
-class DeckEndChoiceScreen extends StatefulWidget {
-  const DeckEndChoiceScreen({
+class SessionResumeChoiceScreen extends StatefulWidget {
+  const SessionResumeChoiceScreen({
     super.key,
     required this.isSoloMode,
     required this.onLoadPreviousSetup,
@@ -23,10 +23,10 @@ class DeckEndChoiceScreen extends StatefulWidget {
   final CoupleMemberProfile? partner;
 
   @override
-  State<DeckEndChoiceScreen> createState() => _DeckEndChoiceScreenState();
+  State<SessionResumeChoiceScreen> createState() => _SessionResumeChoiceScreenState();
 }
 
-class _DeckEndChoiceScreenState extends State<DeckEndChoiceScreen> {
+class _SessionResumeChoiceScreenState extends State<SessionResumeChoiceScreen> {
   late Future<LastFilterPreset?> _presetFuture;
   LastFilterPreset? _preset;
 
@@ -37,7 +37,7 @@ class _DeckEndChoiceScreenState extends State<DeckEndChoiceScreen> {
   }
 
   @override
-  void didUpdateWidget(covariant DeckEndChoiceScreen oldWidget) {
+  void didUpdateWidget(covariant SessionResumeChoiceScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.isSoloMode != widget.isSoloMode || oldWidget.partner?.id != widget.partner?.id) {
       _loadPreset();
@@ -74,7 +74,7 @@ class _DeckEndChoiceScreenState extends State<DeckEndChoiceScreen> {
           ),
           const SizedBox(height: 5),
           Text(
-            'Session complete',
+            'You’re done for now',
             style: GoogleFonts.fredoka(
               fontSize: 35,
               fontWeight: FontWeight.w700,

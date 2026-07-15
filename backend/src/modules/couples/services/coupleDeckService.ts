@@ -183,6 +183,17 @@ export class CoupleDeckService {
     return this.toDeckResponse(session, orderedDishes, filters, deck.recommendationMeta ?? undefined);
   }
 
+
+  async requestDeckRestart(userId: string) {
+    const session = await this.requireActiveSession(userId);
+    return this.updateRestartRequest(session, userId, true);
+  }
+
+  async getDeckRestartStatus(userId: string) {
+    const session = await this.requireActiveSession(userId);
+    return this.updateRestartRequest(session, userId, false);
+  }
+
   async resetDeckForActiveSession(userId: string) {
     const session = await this.requireActiveSession(userId);
     clearPreparedDeck(session);
@@ -191,6 +202,57 @@ export class CoupleDeckService {
     return this.emptyDeckResponse('idle', buildEffectiveFilters(session, userId), createFiltersHash(buildEffectiveFilters(session, userId)), null);
   }
 
+
+
+  private async updateRestartRequest(session: CoupleSessionDocument, userId: string, shouldRecordRequest: boolean) {
+    const memberIds = session.members.map((memberId) => memberId.toString());
+    const now = new Date();
+    if (!session.restartState) {
+      session.restartState = { requestedBy: [], status: 'idle', generation: 0, updatedAt: null };
+    }
+    if (!Array.isArray(session.restartState.requestedBy)) {
+      session.restartState.requestedBy = [];
+    }
+
+    if (!shouldRecordRequest && session.restartState.status === 'ready') {
+      return this.toRestartResponse(session, memberIds, true);
+    }
+
+    if (shouldRecordRequest && !session.restartState.requestedBy.some((id) => id.toString() === userId)) {
+      session.restartState.requestedBy.push(new Types.ObjectId(userId));
+      session.restartState.updatedAt = now;
+    }
+
+    const requestedBy = session.restartState.requestedBy.map((id) => id.toString());
+    const allRequested = memberIds.length >= 2 && memberIds.every((memberId) => requestedBy.includes(memberId));
+
+    if (allRequested) {
+      clearPreparedDeck(session);
+      session.filterState = { users: [], status: 'draft', updatedAt: now };
+      session.restartState = {
+        requestedBy: [],
+        status: 'ready',
+        generation: (session.restartState.generation ?? 0) + 1,
+        updatedAt: now
+      };
+      await session.save();
+      return this.toRestartResponse(session, memberIds, true);
+    }
+
+    session.restartState.status = requestedBy.length > 0 ? 'waiting' : 'idle';
+    await session.save();
+    return this.toRestartResponse(session, memberIds, false);
+  }
+
+  private toRestartResponse(session: CoupleSessionDocument, requiredUserIds: string[], allRequested: boolean) {
+    return {
+      status: allRequested ? 'ready' : session.restartState?.status ?? 'idle',
+      requestedBy: (session.restartState?.requestedBy ?? []).map((id) => id.toString()),
+      requiredUserIds,
+      allRequested,
+      generation: session.restartState?.generation ?? 0
+    };
+  }
 
   private assertDeckCanPrepare(session: CoupleSessionDocument) {
     const memberIds = session.members.map((memberId) => memberId.toString());

@@ -72,6 +72,10 @@ class CoupleRepository {
   Future<PreparedDeck> prepareDeck() async => PreparedDeck.fromJson(await _apiService.post(ApiConstants.coupleDeckPrepare, {}) as Map<String, dynamic>);
   Future<PreparedDeck> getPreparedDeck() async => PreparedDeck.fromJson(await _apiService.get(ApiConstants.coupleDeck) as Map<String, dynamic>);
   Future<void> resetPreparedDeck() async => _apiService.post(ApiConstants.coupleDeckReset, {});
+  Future<Map<String, dynamic>> requestDeckRestart() async =>
+      Map<String, dynamic>.from(await _apiService.post(ApiConstants.coupleDeckRestartRequest, <String, dynamic>{}) as Map);
+  Future<Map<String, dynamic>> getDeckRestartStatus() async =>
+      Map<String, dynamic>.from(await _apiService.get(ApiConstants.coupleDeckRestartStatus) as Map);
 
   Map<String, dynamic> _extractSessionMap(dynamic data) {
     if (data is Map<String, dynamic>) {

@@ -206,6 +206,7 @@ export class CoupleService {
     session.filterState!.status = 'draft';
     session.filterState!.updatedAt = now;
     clearPreparedDeck(session);
+    session.restartState = { requestedBy: [], status: 'idle', generation: session.restartState?.generation ?? 0, updatedAt: now };
 
     await session.save();
     console.log(`[CoupleFilterState] update user=${userId} choices=c${entry.cuisines.length}/m${entry.moods.length}/d${entry.diet.length}/e${entry.exclusions.length}`);

@@ -67,6 +67,8 @@ class ApiConstants {
   static const String coupleDeckPrepare = '/api/couples/deck/prepare';
   static const String coupleDeck = '/api/couples/deck';
   static const String coupleDeckReset = '/api/couples/deck/reset';
+  static const String coupleDeckRestartRequest = '/api/couples/deck/restart-request';
+  static const String coupleDeckRestartStatus = '/api/couples/deck/restart-status';
   static const String dishes = '/api/dishes';
   static const String dishesCatalog = '/api/dishes?limit=all';
   static const String dishesCustom = '/api/dishes/custom';

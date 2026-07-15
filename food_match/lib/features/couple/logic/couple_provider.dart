@@ -239,6 +239,50 @@ class CoupleProvider extends ChangeNotifier {
     }
   }
 
+
+  Future<Map<String, dynamic>?> requestDeckRestart() async {
+    try {
+      error = null;
+      final Map<String, dynamic> status = await _repository.requestDeckRestart();
+      if (status['allRequested'] == true) {
+        _filterState = const CoupleFilterState(
+          myChoices: CoupleFilterChoices(),
+          bothConfirmed: false,
+          compatibility: 0,
+          status: 'draft',
+        );
+        _sessionStateVersion++;
+      }
+      _safeNotify();
+      return status;
+    } catch (e) {
+      error = _mapError(e);
+      _safeNotify();
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>?> getDeckRestartStatus() async {
+    try {
+      final Map<String, dynamic> status = await _repository.getDeckRestartStatus();
+      if (status['allRequested'] == true) {
+        _filterState = const CoupleFilterState(
+          myChoices: CoupleFilterChoices(),
+          bothConfirmed: false,
+          compatibility: 0,
+          status: 'draft',
+        );
+        _sessionStateVersion++;
+      }
+      _safeNotify();
+      return status;
+    } catch (e) {
+      error = _mapError(e);
+      _safeNotify();
+      return null;
+    }
+  }
+
   Future<void> resetCouple() async {
     if (isLoading) return;
     isLoading = true;

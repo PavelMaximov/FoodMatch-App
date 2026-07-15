@@ -22,6 +22,8 @@ router.post('/invitations/:id/decline', authMiddleware, noStore, coupleRateLimit
 router.post('/deck/prepare', authMiddleware, noStore, coupleRateLimiter, asyncHandler(coupleController.prepareDeck.bind(coupleController)));
 router.get('/deck', authMiddleware, noStore, asyncHandler(coupleController.getDeck.bind(coupleController)));
 router.post('/deck/reset', authMiddleware, coupleRateLimiter, asyncHandler(coupleController.resetDeck.bind(coupleController)));
+router.post('/deck/restart-request', authMiddleware, noStore, coupleRateLimiter, asyncHandler(coupleController.requestDeckRestart.bind(coupleController)));
+router.get('/deck/restart-status', authMiddleware, noStore, asyncHandler(coupleController.getDeckRestartStatus.bind(coupleController)));
 
 router.get('/filter-state', authMiddleware, noStore, asyncHandler(coupleController.getFilterState.bind(coupleController)));
 router.put('/filter-state/me', authMiddleware, noStore, coupleRateLimiter, validateBody(updateCoupleFilterStateSchema), asyncHandler(coupleController.updateMyFilterState.bind(coupleController)));
