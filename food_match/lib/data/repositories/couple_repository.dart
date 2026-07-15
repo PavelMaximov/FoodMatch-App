@@ -2,6 +2,7 @@ import '../../core/constants/api_constants.dart';
 import '../../core/utils/logger.dart';
 import '../models/couple.dart';
 import '../models/couple_filter_state.dart';
+import '../models/couple_invitation.dart';
 import '../models/prepared_deck.dart';
 import '../services/api_service.dart';
 
@@ -36,6 +37,28 @@ class CoupleRepository {
 
   Future<void> reset() async => _apiService.post(ApiConstants.coupleReset, {});
   Future<void> leave() async => _apiService.post(ApiConstants.coupleLeave, {});
+
+  Future<CoupleInvitation> continueAsBefore() async {
+    final data = await _apiService.post(ApiConstants.coupleContinueAsBefore, <String, dynamic>{});
+    return CoupleInvitation.fromJson(Map<String, dynamic>.from((data as Map<String, dynamic>)['invite'] as Map));
+  }
+
+  Future<List<CoupleInvitation>> getPendingInvitations() async {
+    final data = await _apiService.get(ApiConstants.coupleInvitationsPending);
+    final List<dynamic> raw = data is Map<String, dynamic> ? data['invitations'] as List<dynamic>? ?? <dynamic>[] : <dynamic>[];
+    return raw.whereType<Map>().map((Map item) => CoupleInvitation.fromJson(Map<String, dynamic>.from(item))).toList();
+  }
+
+  Future<Couple?> acceptInvitation(String id) async {
+    final data = await _apiService.post(ApiConstants.coupleInvitationAccept(id), <String, dynamic>{});
+    if (data is Map<String, dynamic> && data['session'] is Map<String, dynamic>) {
+      return Couple.fromJson(Map<String, dynamic>.from(data['session'] as Map));
+    }
+    return null;
+  }
+
+  Future<void> declineInvitation(String id) async =>
+      _apiService.post(ApiConstants.coupleInvitationDecline(id), <String, dynamic>{});
 
   Future<CoupleFilterState> getFilterState() async => CoupleFilterState.fromJson(await _apiService.get(ApiConstants.coupleFilterState) as Map<String, dynamic>);
   Future<CoupleFilterState> updateMyFilterState(CoupleFilterChoices choices) async {

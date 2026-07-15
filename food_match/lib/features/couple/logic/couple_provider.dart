@@ -7,6 +7,7 @@ import '../../../core/utils/logger.dart';
 import '../../../data/local/cache_policy.dart';
 import '../../../data/models/couple.dart';
 import '../../../data/models/couple_filter_state.dart';
+import '../../../data/models/couple_invitation.dart';
 import '../../../data/repositories/couple_repository.dart';
 import '../../../data/services/api_service.dart';
 
@@ -27,6 +28,7 @@ class CoupleProvider extends ChangeNotifier {
   Couple? currentCouple;
   CoupleFilterState? _filterState;
   Timer? _pollTimer;
+  Timer? _invitationPollTimer;
   Duration? _activePollInterval;
   bool _pollingWanted = false;
   bool _isAppActive = true;
@@ -46,6 +48,11 @@ class CoupleProvider extends ChangeNotifier {
   String? error;
   String? sessionEndedMessage;
   int _sessionStateVersion = 0;
+  List<CoupleInvitation> pendingInvitations = <CoupleInvitation>[];
+  CoupleInvitation? outgoingContinuationInvite;
+  final Set<String> hiddenInvitationIds = <String>{};
+  bool shouldOpenPreviousChoiceAfterInvite = false;
+  final Set<String> _consumedAcceptedInviteIds = <String>{};
 
   bool get hasCouple {
     final Couple? couple = currentCouple;
@@ -64,6 +71,14 @@ class CoupleProvider extends ChangeNotifier {
   bool get isJoining => _joinInFlight;
   bool get isLeaving => _leaveInFlight;
   bool get hasActiveSessionConflict => error == activeSessionMessage;
+  CoupleInvitation? get nextIncomingInvitation {
+    for (final CoupleInvitation invitation in pendingInvitations) {
+      if (invitation.isIncoming && invitation.isPending && !hiddenInvitationIds.contains(invitation.id)) {
+        return invitation;
+      }
+    }
+    return null;
+  }
   bool get _canPollFilterState => !_disposed && _isAppActive && _isAuthenticated && (_activeUserId?.isNotEmpty ?? false) && hasCouple;
   bool get _hasFreshCurrentCoupleCache {
     final DateTime? loadedAt = _currentCoupleLoadedAt;
@@ -82,12 +97,18 @@ class CoupleProvider extends ChangeNotifier {
     _activeUserId = normalized;
     _isAuthenticated = nextAuthenticated;
     if (!nextAuthenticated) {
+      stopInvitationPolling(reason: 'unauthenticated');
       clearSessionStateForLogout(notify: false);
       return;
     }
 
     if (userChanged) {
       _clearSessionState();
+      pendingInvitations = <CoupleInvitation>[];
+      outgoingContinuationInvite = null;
+      hiddenInvitationIds.clear();
+      _consumedAcceptedInviteIds.clear();
+      shouldOpenPreviousChoiceAfterInvite = false;
       AppLogger.info('[CoupleProvider] session state cleared for account switch');
     }
   }
@@ -96,6 +117,7 @@ class CoupleProvider extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     stopFilterStatePolling(reason: 'dispose');
+    stopInvitationPolling(reason: 'dispose');
     super.dispose();
   }
 
@@ -465,6 +487,7 @@ class CoupleProvider extends ChangeNotifier {
   Future<void> handleAppPaused() async {
     _isAppActive = false;
     _stopPollingTimer(reason: 'app_paused');
+    stopInvitationPolling(reason: 'app_paused');
     AppLogger.info('[SessionSync] app paused: polling stopped');
   }
 
@@ -476,6 +499,90 @@ class CoupleProvider extends ChangeNotifier {
     if (_pollingWanted && hasCouple) {
       startFilterStatePolling(reason: 'app_resumed');
     }
+    startInvitationPolling(reason: 'app_resumed');
+    await refreshInvitations();
+  }
+
+
+  void startInvitationPolling({String reason = 'manual'}) {
+    if (!_isAuthenticated || (_activeUserId?.isEmpty ?? true) || !_isAppActive) return;
+    _invitationPollTimer?.cancel();
+    AppLogger.info('[InvitationSync] polling started reason=$reason');
+    _invitationPollTimer = Timer.periodic(const Duration(seconds: 8), (_) => refreshInvitations());
+    unawaited(refreshInvitations());
+  }
+
+  void stopInvitationPolling({String reason = 'manual'}) {
+    final bool hadTimer = _invitationPollTimer != null;
+    _invitationPollTimer?.cancel();
+    _invitationPollTimer = null;
+    if (hadTimer) AppLogger.info('[InvitationSync] polling stopped reason=$reason');
+  }
+
+  Future<void> refreshInvitations() async {
+    if (!_isAuthenticated || (_activeUserId?.isEmpty ?? true)) return;
+    try {
+      final List<CoupleInvitation> invitations = await _repository.getPendingInvitations();
+      pendingInvitations = invitations;
+      final List<CoupleInvitation> outgoing = invitations.where((CoupleInvitation invite) => invite.isOutgoing).toList();
+      final CoupleInvitation? outgoingInvite = outgoing.isEmpty ? null : outgoing.first;
+      outgoingContinuationInvite = outgoingInvite;
+      if (outgoingInvite != null && outgoingInvite.status == 'accepted' && _consumedAcceptedInviteIds.add(outgoingInvite.id)) {
+        shouldOpenPreviousChoiceAfterInvite = true;
+        await loadCouple(force: true);
+      }
+      _safeNotify();
+    } catch (e) {
+      AppLogger.error('[InvitationSync] refresh failed', e);
+    }
+  }
+
+  Future<CoupleInvitation?> createContinueAsBeforeInvite() async {
+    try {
+      final CoupleInvitation invite = await _repository.continueAsBefore();
+      outgoingContinuationInvite = invite;
+      await refreshInvitations();
+      _safeNotify();
+      return invite;
+    } catch (e) {
+      error = _mapError(e);
+      _safeNotify();
+      return null;
+    }
+  }
+
+  Future<void> acceptInvitation(CoupleInvitation invitation) async {
+    final Couple? couple = await _repository.acceptInvitation(invitation.id);
+    currentCouple = couple ?? await _repository.getMyCouple();
+    _currentCoupleLoadedAt = DateTime.now();
+    hiddenInvitationIds.add(invitation.id);
+    pendingInvitations = pendingInvitations.where((CoupleInvitation item) => item.id != invitation.id).toList();
+    if (hasCouple) {
+      startFilterStatePolling(reason: 'invitation_accept');
+      await refreshFilterState(reason: 'invitation_accept');
+    }
+    shouldOpenPreviousChoiceAfterInvite = true;
+    _consumedAcceptedInviteIds.add(invitation.id);
+    _safeNotify();
+  }
+
+  Future<void> declineInvitation(CoupleInvitation invitation) async {
+    await _repository.declineInvitation(invitation.id);
+    hiddenInvitationIds.add(invitation.id);
+    pendingInvitations = pendingInvitations.where((CoupleInvitation item) => item.id != invitation.id).toList();
+    _safeNotify();
+  }
+
+  bool consumeOpenPreviousChoiceAfterInvite() {
+    final bool shouldOpen = shouldOpenPreviousChoiceAfterInvite;
+    shouldOpenPreviousChoiceAfterInvite = false;
+    if (shouldOpen) _safeNotify();
+    return shouldOpen;
+  }
+
+  void hideInvitationLocally(CoupleInvitation invitation) {
+    hiddenInvitationIds.add(invitation.id);
+    _safeNotify();
   }
 
   Duration get _pollInterval {
@@ -541,6 +648,9 @@ class CoupleProvider extends ChangeNotifier {
     _isRefreshingCurrentCouple = false;
     _isRefreshingFilterState = false;
     _filterStateRefreshFuture = null;
+    pendingInvitations = <CoupleInvitation>[];
+    outgoingContinuationInvite = null;
+    hiddenInvitationIds.clear();
     AppLogger.info('[CoupleProvider] session state cleared for logout');
     if (notify) {
       _safeNotify();
@@ -652,6 +762,7 @@ class CoupleProvider extends ChangeNotifier {
         'CANNOT_JOIN_OWN_SESSION' => ownSessionMessage,
         'ACTIVE_SESSION_HAS_PARTNER' => activeSessionHasPartnerMessage,
         'ACTIVE_SOLO_SESSION_EXISTS' => activeSoloSessionMessage,
+        'PREVIOUS_PARTNER_NOT_FOUND' => 'No previous pair setup found.',
         _ => ErrorMessages.fromApiException(e),
       };
     }

@@ -38,7 +38,9 @@ class _FoodMatchAppState extends State<FoodMatchApp> with WidgetsBindingObserver
       final auth = context.read<AuthProvider>();
       await auth.loadUser();
       if (auth.isAuthenticated && mounted) {
-        await context.read<CoupleProvider>().loadCouple();
+        final CoupleProvider coupleProvider = context.read<CoupleProvider>();
+        await coupleProvider.loadCouple();
+        coupleProvider.startInvitationPolling(reason: 'app_boot');
       }
     });
   }

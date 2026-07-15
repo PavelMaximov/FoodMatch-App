@@ -8,7 +8,9 @@ import 'package:provider/provider.dart';
 
 import '../../../core/animations/app_motion.dart';
 import '../../../core/theme/theme_extensions.dart';
+import '../../../data/models/couple_invitation.dart';
 import '../../../features/couple/logic/couple_provider.dart';
+import '../../../features/couple/presentation/widgets/continuation_invitation_sheet.dart';
 import '../../../features/matches/logic/match_provider.dart';
 import '../../../features/swipes/logic/swipe_provider.dart';
 import '../../../shared/widgets/network_status_bar.dart';
@@ -59,6 +61,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   final Map<String, Future<bool>> _iconAssetAvailability =
       <String, Future<bool>>{};
   bool _isBootstrappingMatchesBadge = false;
+  String? _shownInvitationId;
 
   Future<bool> _hasIconAsset(String assetPath) {
     return _iconAssetAvailability.putIfAbsent(assetPath, () async {
@@ -81,6 +84,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _bootstrapMatchesBadge();
+        context.read<CoupleProvider>().startInvitationPolling(reason: 'main_shell');
       }
     });
   }
@@ -157,11 +161,56 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     }
   }
 
+
+  Future<void> _showContinuationInvitation(CoupleInvitation invitation) async {
+    if (!mounted) return;
+    final CoupleProvider coupleProvider = context.read<CoupleProvider>();
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      isDismissible: true,
+      enableDrag: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.58),
+      builder: (BuildContext sheetContext) => ContinuationInvitationSheet(
+        invitation: invitation,
+        onJoin: () async {
+          Navigator.pop(sheetContext);
+          await coupleProvider.acceptInvitation(invitation);
+          if (!mounted) return;
+          widget.navigationShell.goBranch(2);
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Session joined.')));
+        },
+        onDecline: () async {
+          Navigator.pop(sheetContext);
+          await coupleProvider.declineInvitation(invitation);
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invitation declined.')));
+        },
+      ),
+    );
+    if (mounted) {
+      coupleProvider.hideInvitationLocally(invitation);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final int matchCount = context.select<MatchProvider, int>((MatchProvider p) => p.matchCount);
     final int currentIndex = widget.navigationShell.currentIndex;
     final FoodMatchThemeColors colors = context.fmColors;
+    final CoupleInvitation? invitation = context.select<CoupleProvider, CoupleInvitation?>((CoupleProvider provider) => provider.nextIncomingInvitation);
+    if (invitation != null && invitation.id != _shownInvitationId) {
+      _shownInvitationId = invitation.id;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _showContinuationInvitation(invitation));
+    }
+    final bool shouldOpenPreviousChoice = context.select<CoupleProvider, bool>((CoupleProvider provider) => provider.shouldOpenPreviousChoiceAfterInvite);
+    if (shouldOpenPreviousChoice) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        widget.navigationShell.goBranch(2);
+      });
+    }
 
     return Scaffold(
       body: Column(
