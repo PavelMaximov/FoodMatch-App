@@ -34,7 +34,7 @@ class ActiveSessionChoiceScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            'You already have an active swipe session.',
+            'Choose whether to continue your previous setup or start a new session.',
             style: GoogleFonts.nunito(
               fontSize: 16,
               height: 1.35,
@@ -79,7 +79,7 @@ class ActiveSessionChoiceScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Choose whether to resume it or start fresh.',
+                        'Continue as before or create a new session.',
                         style: GoogleFonts.nunito(fontSize: 14, color: colors.textSecondary),
                       ),
                     ],
@@ -100,7 +100,7 @@ class ActiveSessionChoiceScreen extends StatelessWidget {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
                 textStyle: GoogleFonts.nunito(fontSize: 17, fontWeight: FontWeight.w800),
               ),
-              child: const Text('Continue'),
+              child: const Text('Continue as before'),
             ),
           ),
           const SizedBox(height: 12),
@@ -116,7 +116,7 @@ class ActiveSessionChoiceScreen extends StatelessWidget {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
                 textStyle: GoogleFonts.nunito(fontSize: 17, fontWeight: FontWeight.w800),
               ),
-              child: const Text('Start new'),
+              child: const Text('Create a new session'),
             ),
           ),
         ],
