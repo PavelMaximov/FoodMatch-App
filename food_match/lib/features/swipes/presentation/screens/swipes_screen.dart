@@ -178,6 +178,62 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     }
   }
 
+
+  Future<void> _handlePairNeedsResync() async {
+    final CoupleProvider coupleProvider = context.read<CoupleProvider>();
+    if (!coupleProvider.consumeOpenSessionResumeForResync()) {
+      return;
+    }
+    _stopPairMatchPolling();
+    _stopPairMatchBurstPolling();
+    _stopPairRestartPolling();
+    context.read<SwipeProvider>().clearPreparedDeck();
+    context.read<PreSwipeProvider>().clearDraft();
+    context.read<MatchProvider>().clearMatches();
+    setState(() {
+      _showPairConnectionStep = false;
+      _isOpeningPreSwipe = false;
+      _isPairRestartWaiting = false;
+      _isPairRestartLoading = false;
+      _pairRestartError = null;
+      _sessionResumeChoiceType = _SessionResumeChoiceType.paired;
+    });
+    await _showPartnerLeftResyncDialog();
+  }
+
+  Future<void> _showPartnerLeftResyncDialog() async {
+    if (!mounted) {
+      return;
+    }
+    final bool startNew = await showDialog<bool>(
+          context: context,
+          builder: (BuildContext dialogContext) => AlertDialog(
+            title: const Text('Partner left the session'),
+            content: const Text('Your partner left this session. You can wait for them to continue or start a new session.'),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Wait here'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Start new session'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!mounted || !startNew) {
+      return;
+    }
+    context.read<SwipeProvider>().resetToModeSelection();
+    context.read<PreSwipeProvider>().clearDraft();
+    setState(() {
+      _sessionResumeChoiceType = null;
+      _showPairConnectionStep = false;
+    });
+  }
+
   void _handleCoupleSessionEnded() {
     unawaited(_showCoupleSessionEndedDialog());
   }
@@ -981,6 +1037,11 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                 child: Consumer<SwipeProvider>(
                   builder: (BuildContext context, SwipeProvider provider, _) {
                     final CoupleProvider inviteCoupleProvider = context.watch<CoupleProvider>();
+                    if (inviteCoupleProvider.needsPairResync && !_isOpeningPreSwipe) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted) unawaited(_handlePairNeedsResync());
+                      });
+                    }
                     if (inviteCoupleProvider.shouldOpenPreviousChoiceAfterInvite && !_isOpeningPreSwipe) {
                       WidgetsBinding.instance.addPostFrameCallback((_) {
                         if (!mounted) return;

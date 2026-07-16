@@ -52,6 +52,9 @@ class CoupleProvider extends ChangeNotifier {
   CoupleInvitation? outgoingContinuationInvite;
   final Set<String> hiddenInvitationIds = <String>{};
   bool shouldOpenPreviousChoiceAfterInvite = false;
+  bool shouldOpenSessionResumeForResync = false;
+  String? pairNeedsResyncMessage;
+  final Set<int> _handledLifecycleGenerations = <int>{};
   final Set<String> _consumedAcceptedInviteIds = <String>{};
   int _authBoundaryVersion = -1;
 
@@ -72,6 +75,8 @@ class CoupleProvider extends ChangeNotifier {
   bool get isJoining => _joinInFlight;
   bool get isLeaving => _leaveInFlight;
   bool get hasActiveSessionConflict => error == activeSessionMessage;
+  bool get needsPairResync => shouldOpenSessionResumeForResync;
+
   CoupleInvitation? get nextIncomingInvitation {
     for (final CoupleInvitation invitation in pendingInvitations) {
       if (invitation.isIncoming && invitation.isPending && !hiddenInvitationIds.contains(invitation.id)) {
@@ -153,6 +158,7 @@ class CoupleProvider extends ChangeNotifier {
       if (!_isCurrentSession(requestVersion, requestUserId)) return;
       currentCouple = loadedCouple;
       _currentCoupleLoadedAt = DateTime.now();
+      _detectPairLifecycleResync();
       if (hasCouple) {
         await refreshFilterState();
       } else {
@@ -179,6 +185,7 @@ class CoupleProvider extends ChangeNotifier {
     try {
       currentCouple = await _repository.create();
       _currentCoupleLoadedAt = DateTime.now();
+      _detectPairLifecycleResync();
       _sessionStateVersion++;
       await refreshFilterState();
     } on ApiException catch (e) {
@@ -603,6 +610,8 @@ class CoupleProvider extends ChangeNotifier {
     hiddenInvitationIds.add(invitation.id);
     pendingInvitations = pendingInvitations.where((CoupleInvitation item) => item.id != invitation.id).toList();
     if (hasCouple) {
+      shouldOpenSessionResumeForResync = false;
+      pairNeedsResyncMessage = null;
       startFilterStatePolling(reason: 'invitation_accept');
       await refreshFilterState(reason: 'invitation_accept');
     }
@@ -616,6 +625,19 @@ class CoupleProvider extends ChangeNotifier {
     hiddenInvitationIds.add(invitation.id);
     pendingInvitations = pendingInvitations.where((CoupleInvitation item) => item.id != invitation.id).toList();
     _safeNotify();
+  }
+
+  void markPairNeedsResyncFromDeckError() {
+    shouldOpenSessionResumeForResync = true;
+    pairNeedsResyncMessage = 'Your pair session changed. Please continue together or start a new session.';
+    _safeNotify();
+  }
+
+  bool consumeOpenSessionResumeForResync() {
+    final bool shouldOpen = shouldOpenSessionResumeForResync;
+    shouldOpenSessionResumeForResync = false;
+    if (shouldOpen) _safeNotify();
+    return shouldOpen;
   }
 
   bool consumeOpenPreviousChoiceAfterInvite() {
@@ -636,6 +658,24 @@ class CoupleProvider extends ChangeNotifier {
     if (bothConfirmed) return const Duration(seconds: 20);
     if (isMyChoicesConfirmed && !isPartnerReady) return const Duration(seconds: 3);
     return const Duration(seconds: 5);
+  }
+
+
+  void _detectPairLifecycleResync() {
+    final Couple? couple = currentCouple;
+    if (couple == null || couple.pairLifecycleStatus != 'needs_resync') {
+      return;
+    }
+    final String? changedBy = couple.lifecycleChangedBy;
+    if (changedBy == null || changedBy == _activeUserId) {
+      return;
+    }
+    if (!_handledLifecycleGenerations.add(couple.lifecycleGeneration)) {
+      return;
+    }
+    shouldOpenSessionResumeForResync = true;
+    pairNeedsResyncMessage = 'Your partner left this session. You can wait for them to continue or start a new session.';
+    AppLogger.info('[SessionSync] pair lifecycle needs resync generation=${couple.lifecycleGeneration}');
   }
 
   void _restartPollingIfNeeded({required String reason}) {
@@ -672,6 +712,7 @@ class CoupleProvider extends ChangeNotifier {
       if (!_isCurrentSession(requestVersion, requestUserId)) return;
       currentCouple = loadedCouple;
       _currentCoupleLoadedAt = DateTime.now();
+      _detectPairLifecycleResync();
       _sessionStateVersion++;
       if (!hasCouple) {
         _clearSessionState();
@@ -691,6 +732,8 @@ class CoupleProvider extends ChangeNotifier {
     stopInvitationPolling(reason: 'auth_boundary');
     clearSessionStateForLogout(notify: notify);
     shouldOpenPreviousChoiceAfterInvite = false;
+    shouldOpenSessionResumeForResync = false;
+    pairNeedsResyncMessage = null;
   }
 
   void handleAuthBoundary(int version) {
@@ -710,6 +753,8 @@ class CoupleProvider extends ChangeNotifier {
     pendingInvitations = <CoupleInvitation>[];
     outgoingContinuationInvite = null;
     hiddenInvitationIds.clear();
+    shouldOpenSessionResumeForResync = false;
+    pairNeedsResyncMessage = null;
     AppLogger.info('[CoupleProvider] session state cleared for logout');
     if (notify) {
       _safeNotify();
@@ -764,6 +809,7 @@ class CoupleProvider extends ChangeNotifier {
       if (!_isCurrentSession(requestVersion, requestUserId)) return;
       currentCouple = loadedCouple;
       _currentCoupleLoadedAt = DateTime.now();
+      _detectPairLifecycleResync();
       if (hasCouple) {
         _sessionStateVersion++;
         await refreshFilterState();

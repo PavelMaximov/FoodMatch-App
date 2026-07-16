@@ -71,7 +71,8 @@ export class CoupleService {
       members: [new Types.ObjectId(userId)],
       createdBy: new Types.ObjectId(userId),
       status: 'active',
-      filterState: { users: [], status: 'draft', updatedAt: null }
+      filterState: { users: [], status: 'draft', updatedAt: null },
+      pairLifecycleState: { status: 'active', reason: null, changedBy: null, generation: 0, updatedAt: null }
     });
     return this.getMyActiveSession(userId);
   }
@@ -119,6 +120,25 @@ export class CoupleService {
     clearPreparedDeck(targetSession);
     await targetSession.save();
     return this.getMyActiveSession(userId);
+  }
+
+
+  async markPartnerDisconnected(userId: string) {
+    const session = await CoupleSessionModel.findOne({ members: new Types.ObjectId(userId), status: 'active' }).sort({ updatedAt: -1, createdAt: -1 });
+    if (!session) return { status: 'none' };
+    const now = new Date();
+    session.pairLifecycleState = {
+      status: 'needs_resync',
+      reason: 'partner_logged_out',
+      changedBy: new Types.ObjectId(userId),
+      generation: (session.pairLifecycleState?.generation ?? 0) + 1,
+      updatedAt: now
+    };
+    this.clearFilterState(session);
+    clearPreparedDeck(session);
+    session.restartState = { requestedBy: [], status: 'idle', generation: session.restartState?.generation ?? 0, updatedAt: now };
+    await session.save();
+    return { status: 'needs_resync', sessionId: session.id, generation: session.pairLifecycleState.generation };
   }
 
   async leaveSession(userId: string) {
@@ -207,6 +227,7 @@ export class CoupleService {
     session.filterState!.updatedAt = now;
     clearPreparedDeck(session);
     session.restartState = { requestedBy: [], status: 'idle', generation: session.restartState?.generation ?? 0, updatedAt: now };
+    session.pairLifecycleState = { status: 'active', reason: null, changedBy: null, generation: session.pairLifecycleState?.generation ?? 0, updatedAt: now };
 
     await session.save();
     console.log(`[CoupleFilterState] update user=${userId} choices=c${entry.cuisines.length}/m${entry.moods.length}/d${entry.diet.length}/e${entry.exclusions.length}`);

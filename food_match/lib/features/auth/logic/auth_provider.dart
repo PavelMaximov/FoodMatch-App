@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import '../../../core/constants/api_constants.dart';
 import '../../../core/errors/error_messages.dart';
 import '../../../core/utils/logger.dart';
 import '../../../data/local/cache_policy.dart';
@@ -224,6 +225,7 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      await _notifyPairDisconnectBeforeLogout();
       final String? refreshToken = await _apiService.getRefreshToken();
       await _repository.logout(refreshToken: refreshToken);
       await _clearAuthState();
@@ -236,6 +238,15 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+
+  Future<void> _notifyPairDisconnectBeforeLogout() async {
+    try {
+      await _apiService.post(ApiConstants.couplePartnerDisconnect, <String, dynamic>{});
+      AppLogger.info('[Auth] pair disconnect notified before logout');
+    } catch (e) {
+      AppLogger.info('[Auth] pair disconnect notify skipped or failed: $e');
+    }
+  }
 
   void _markAuthBoundaryChanged({required String reason}) {
     authBoundaryVersion++;

@@ -98,8 +98,9 @@ export class CoupleInvitationService {
       const active = await CoupleSessionModel.findOne({ members: userObjectId, status: 'active' }).sort({ updatedAt: -1, createdAt: -1 });
       if (active && active.id !== session.id) throw new AppError('Please leave your current session before joining another one.', 409, 'ACTIVE_SESSION_HAS_PARTNER');
       session.members.push(userObjectId);
-      await session.save();
     }
+    session.pairLifecycleState = { status: 'active', reason: null, changedBy: null, generation: session.pairLifecycleState?.generation ?? 0, updatedAt: new Date() };
+    await session.save();
     invite.status = 'accepted';
     await invite.save();
     return { invite: await this.toDto(invite, userId), session: await this.coupleService.getMyActiveSession(userId) };

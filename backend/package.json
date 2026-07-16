@@ -26,7 +26,8 @@
     "test:pair-deck-idempotency": "ts-node src/scripts/testPairDeckIdempotency.ts",
     "test:pair-join-replace": "ts-node src/scripts/testPairJoinReplace.ts",
     "test:pair-continue-invitations": "ts-node src/scripts/testPairContinueInvitations.ts",
-    "test:pair-deck-restart": "ts-node src/scripts/testPairDeckRestart.ts"
+    "test:pair-deck-restart": "ts-node src/scripts/testPairDeckRestart.ts",
+    "test:pair-session-resync": "ts-node src/scripts/testPairSessionResync.ts"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

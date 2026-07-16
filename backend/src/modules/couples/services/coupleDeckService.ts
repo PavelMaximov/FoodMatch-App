@@ -255,6 +255,13 @@ export class CoupleDeckService {
   }
 
   private assertDeckCanPrepare(session: CoupleSessionDocument) {
+    if (session.pairLifecycleState?.status === 'needs_resync') {
+      throw new AppError('Pair session needs to be refreshed.', 409, 'PAIR_SESSION_NEEDS_RESYNC', {
+        pairLifecycleStatus: session.pairLifecycleState.status,
+        lifecycleReason: session.pairLifecycleState.reason,
+        generation: session.pairLifecycleState.generation
+      });
+    }
     const memberIds = session.members.map((memberId) => memberId.toString());
     const users = session.filterState?.users ?? [];
     const allMembersConfirmed = memberIds.length >= 2 && memberIds.every((memberId) => {

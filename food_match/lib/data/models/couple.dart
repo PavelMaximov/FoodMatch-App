@@ -4,12 +4,20 @@ class Couple {
     required this.inviteCode,
     required this.members,
     required this.memberProfiles,
+    this.pairLifecycleStatus = 'active',
+    this.lifecycleReason,
+    this.lifecycleChangedBy,
+    this.lifecycleGeneration = 0,
   });
 
   final String id;
   final String inviteCode;
   final List<String> members;
   final List<CoupleMemberProfile> memberProfiles;
+  final String pairLifecycleStatus;
+  final String? lifecycleReason;
+  final String? lifecycleChangedBy;
+  final int lifecycleGeneration;
 
   factory Couple.fromJson(Map<String, dynamic> json) {
     final dynamic idRaw = json['_id'] ?? json['id'];
@@ -24,11 +32,19 @@ class Couple {
         .where((String id) => id.isNotEmpty)
         .toList();
 
+    final Map<String, dynamic> lifecycle = json['pairLifecycleState'] is Map
+        ? Map<String, dynamic>.from(json['pairLifecycleState'] as Map)
+        : const <String, dynamic>{};
+
     return Couple(
       id: idRaw?.toString() ?? '',
       inviteCode: json['inviteCode']?.toString() ?? '',
       members: parsedMembers,
       memberProfiles: parsedProfiles,
+      pairLifecycleStatus: lifecycle['status']?.toString() ?? json['pairLifecycleStatus']?.toString() ?? 'active',
+      lifecycleReason: lifecycle['reason']?.toString() ?? json['lifecycleReason']?.toString(),
+      lifecycleChangedBy: lifecycle['changedBy']?.toString() ?? json['changedBy']?.toString(),
+      lifecycleGeneration: (lifecycle['generation'] as num?)?.toInt() ?? (json['generation'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -37,6 +53,10 @@ class Couple {
         'inviteCode': inviteCode,
         'members': members,
         'memberProfiles': memberProfiles.map((CoupleMemberProfile p) => p.toJson()).toList(),
+        'pairLifecycleStatus': pairLifecycleStatus,
+        'lifecycleReason': lifecycleReason,
+        'changedBy': lifecycleChangedBy,
+        'generation': lifecycleGeneration,
       };
 }
 

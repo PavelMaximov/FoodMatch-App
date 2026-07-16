@@ -13,6 +13,7 @@ import '../../../../core/theme/theme_extensions.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../data/models/user_profile.dart';
 import '../../../../data/repositories/swipe_repository.dart';
+import '../../../../data/services/api_service.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../couple/logic/couple_provider.dart';
 import '../../../matches/logic/match_provider.dart';
@@ -832,6 +833,13 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         );
       }
     } catch (e) {
+      if (e is ApiException && e.code == 'PAIR_SESSION_NEEDS_RESYNC') {
+        coupleProvider.markPairNeedsResyncFromDeckError();
+        if (mounted) {
+          Navigator.pop(context);
+        }
+        return;
+      }
       debugPrint('[PreSwipe] shared deck prepare deferred $e');
       if (!mounted) {
         return;
