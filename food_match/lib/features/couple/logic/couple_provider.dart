@@ -52,6 +52,7 @@ class CoupleProvider extends ChangeNotifier {
   CoupleInvitation? outgoingContinuationInvite;
   final Set<String> hiddenInvitationIds = <String>{};
   bool shouldOpenPreviousChoiceAfterInvite = false;
+  bool previousChoiceAfterInviteWasUserAccepted = false;
   bool shouldOpenSessionResumeForResync = false;
   String? pairNeedsResyncMessage;
   final Set<int> _handledLifecycleGenerations = <int>{};
@@ -115,6 +116,7 @@ class CoupleProvider extends ChangeNotifier {
       hiddenInvitationIds.clear();
       _consumedAcceptedInviteIds.clear();
       shouldOpenPreviousChoiceAfterInvite = false;
+      previousChoiceAfterInviteWasUserAccepted = false;
       AppLogger.info('[CoupleProvider] session state cleared for account switch');
     }
   }
@@ -581,6 +583,7 @@ class CoupleProvider extends ChangeNotifier {
       outgoingContinuationInvite = outgoingInvite;
       if (outgoingInvite != null && outgoingInvite.status == 'accepted' && _consumedAcceptedInviteIds.add(outgoingInvite.id)) {
         shouldOpenPreviousChoiceAfterInvite = true;
+        previousChoiceAfterInviteWasUserAccepted = false;
         await loadCouple(force: true);
       }
       _safeNotify();
@@ -616,6 +619,7 @@ class CoupleProvider extends ChangeNotifier {
       await refreshFilterState(reason: 'invitation_accept');
     }
     shouldOpenPreviousChoiceAfterInvite = true;
+    previousChoiceAfterInviteWasUserAccepted = true;
     _consumedAcceptedInviteIds.add(invitation.id);
     _safeNotify();
   }
@@ -643,6 +647,7 @@ class CoupleProvider extends ChangeNotifier {
   bool consumeOpenPreviousChoiceAfterInvite() {
     final bool shouldOpen = shouldOpenPreviousChoiceAfterInvite;
     shouldOpenPreviousChoiceAfterInvite = false;
+    previousChoiceAfterInviteWasUserAccepted = false;
     if (shouldOpen) _safeNotify();
     return shouldOpen;
   }
@@ -732,6 +737,7 @@ class CoupleProvider extends ChangeNotifier {
     stopInvitationPolling(reason: 'auth_boundary');
     clearSessionStateForLogout(notify: notify);
     shouldOpenPreviousChoiceAfterInvite = false;
+    previousChoiceAfterInviteWasUserAccepted = false;
     shouldOpenSessionResumeForResync = false;
     pairNeedsResyncMessage = null;
   }

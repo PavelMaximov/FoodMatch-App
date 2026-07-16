@@ -39,6 +39,31 @@ import 'swipe_mode_selection_screen.dart';
 
 enum _SessionResumeChoiceType { solo, paired }
 
+enum _PreSwipeFlowOrigin {
+  sessionResumeContinue,
+  pairInvitationAccepted,
+  filtersButton,
+  pairConnectionReady,
+  deckRestart,
+}
+
+extension _PreSwipeFlowOriginLogName on _PreSwipeFlowOrigin {
+  String get logName {
+    switch (this) {
+      case _PreSwipeFlowOrigin.sessionResumeContinue:
+        return 'sessionResumeContinue';
+      case _PreSwipeFlowOrigin.pairInvitationAccepted:
+        return 'pairInvitationAccepted';
+      case _PreSwipeFlowOrigin.filtersButton:
+        return 'filtersButton';
+      case _PreSwipeFlowOrigin.pairConnectionReady:
+        return 'pairConnectionReady';
+      case _PreSwipeFlowOrigin.deckRestart:
+        return 'deckRestart';
+    }
+  }
+}
+
 class SwipesScreen extends StatefulWidget {
   const SwipesScreen({super.key});
 
@@ -70,6 +95,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
   bool _isPairRestartLoading = false;
   String? _pairRestartError;
   int _loadedAuthBoundaryVersion = -1;
+  bool _suppressPreviousChoiceAutoOpen = true;
 
   @override
   void initState() {
@@ -120,8 +146,10 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       _isPairRestartWaiting = false;
       _isPairRestartLoading = false;
       _pairRestartError = null;
+      _suppressPreviousChoiceAutoOpen = true;
     });
-    debugPrint('[AppFlow] authBoundary -> suppress previousFilterChoice auto-open');
+    context.read<CoupleProvider>().consumeOpenPreviousChoiceAfterInvite();
+    debugPrint('[AppFlow] authBoundary startup: suppress previous choice auto-open');
   }
 
   @override
@@ -319,6 +347,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       _showPairConnectionStep = false;
       _isOpeningPreSwipe = false;
       _sessionResumeChoiceType = null;
+      _suppressPreviousChoiceAutoOpen = true;
     });
 
     final SwipeProvider swipeProvider = context.read<SwipeProvider>();
@@ -358,12 +387,14 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       });
 
       if (decision.route == StartupRoute.newOld) {
+        debugPrint('[AppFlow] startup resolved -> SessionResumeChoiceScreen');
         setState(() {
           _sessionResumeChoiceType = decision.previousMode == AppFlowMode.paired
               ? _SessionResumeChoiceType.paired
               : _SessionResumeChoiceType.solo;
         });
       } else {
+        debugPrint('[AppFlow] startup resolved -> ModeSelection');
         swipeProvider.resetToModeSelection();
       }
     } catch (e) {
@@ -387,9 +418,11 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     if (choiceType == null) {
       return;
     }
+    _suppressPreviousChoiceAutoOpen = false;
     setState(() => _sessionResumeChoiceType = null);
     if (choiceType == _SessionResumeChoiceType.solo) {
       _appFlow.logPreviousChoiceContinue(AppFlowMode.solo);
+      debugPrint('[AppFlow] previousChoice open requested: origin=sessionResumeContinue');
       await _runSoloPreSwipeFlow();
       return;
     }
@@ -421,6 +454,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       );
       return;
     }
+    _suppressPreviousChoiceAutoOpen = false;
     coupleProvider.startInvitationPolling(reason: 'session_resume_continue_pair');
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Your invitation was sent.')),
@@ -506,6 +540,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       return;
     }
     if (status['allRequested'] == true || status['status'] == 'ready') {
+      _suppressPreviousChoiceAutoOpen = false;
       _stopPairRestartPolling();
       context.read<SwipeProvider>().clearPreparedDeck();
       context.read<PreSwipeProvider>().clearDraft();
@@ -513,7 +548,8 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
         _isPairRestartWaiting = false;
         _pairRestartError = null;
       });
-      await _runPreSwipeFlow(fromHeaderAction: true);
+      debugPrint('[AppFlow] previousChoice open requested: origin=${_PreSwipeFlowOrigin.deckRestart.logName}');
+      await _runPreSwipeFlow(origin: _PreSwipeFlowOrigin.deckRestart);
       return;
     }
     setState(() {
@@ -603,7 +639,8 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     }
   }
 
-  Future<void> _runPreSwipeFlow({bool fromHeaderAction = false}) async {
+  Future<void> _runPreSwipeFlow({required _PreSwipeFlowOrigin origin}) async {
+    debugPrint('[AppFlow] _runPreSwipeFlow requested: origin=${origin.logName}');
     if (_isOpeningPreSwipe) {
       return;
     }
@@ -623,11 +660,6 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     final SwipeProvider swipeProvider = context.read<SwipeProvider>();
     final String? userId = context.read<AuthProvider>().currentUser?.id;
     swipeProvider.setActiveUser(userId);
-
-    if (!fromHeaderAction && swipeProvider.hasPreparedDeck) {
-      _isOpeningPreSwipe = false;
-      return;
-    }
 
     final PreparedPoolResult? result = await Navigator.of(context).push<PreparedPoolResult>(
       MaterialPageRoute<PreparedPoolResult>(
@@ -1050,7 +1082,8 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                   GestureDetector(
                     onTap: () {
                       _appFlow.logFiltersButton();
-                      context.read<SwipeProvider>().isSoloMode ? _runSoloPreSwipeFlow(intent: PreSwipeFilterIntent.updateActiveSoloSession) : _runPreSwipeFlow(fromHeaderAction: true);
+                      _suppressPreviousChoiceAutoOpen = false;
+                      context.read<SwipeProvider>().isSoloMode ? _runSoloPreSwipeFlow(intent: PreSwipeFilterIntent.updateActiveSoloSession) : _runPreSwipeFlow(origin: _PreSwipeFlowOrigin.filtersButton);
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -1094,15 +1127,32 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                   builder: (BuildContext context, SwipeProvider provider, _) {
                     final CoupleProvider inviteCoupleProvider = context.watch<CoupleProvider>();
                     if (inviteCoupleProvider.needsPairResync && !_isOpeningPreSwipe) {
+                      final int versionAtSchedule = context.read<AuthProvider>().authBoundaryVersion;
                       WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (mounted) unawaited(_handlePairNeedsResync());
+                        if (!mounted) return;
+                        if (context.read<AuthProvider>().authBoundaryVersion != versionAtSchedule) {
+                          return;
+                        }
+                        unawaited(_handlePairNeedsResync());
                       });
                     }
                     if (inviteCoupleProvider.shouldOpenPreviousChoiceAfterInvite && !_isOpeningPreSwipe) {
+                      final int versionAtSchedule = context.read<AuthProvider>().authBoundaryVersion;
                       WidgetsBinding.instance.addPostFrameCallback((_) {
                         if (!mounted) return;
-                        if (context.read<CoupleProvider>().consumeOpenPreviousChoiceAfterInvite()) {
-                          _runPreSwipeFlow(fromHeaderAction: true);
+                        if (context.read<AuthProvider>().authBoundaryVersion != versionAtSchedule) {
+                          return;
+                        }
+                        final CoupleProvider coupleProvider = context.read<CoupleProvider>();
+                        if (_suppressPreviousChoiceAutoOpen &&
+                            !coupleProvider.previousChoiceAfterInviteWasUserAccepted) {
+                          coupleProvider.consumeOpenPreviousChoiceAfterInvite();
+                          debugPrint('[AppFlow] authBoundary -> blocked previous choice auto-open');
+                          return;
+                        }
+                        if (coupleProvider.consumeOpenPreviousChoiceAfterInvite()) {
+                          debugPrint('[AppFlow] previousChoice open requested: origin=${_PreSwipeFlowOrigin.pairInvitationAccepted.logName}');
+                          _runPreSwipeFlow(origin: _PreSwipeFlowOrigin.pairInvitationAccepted);
                         }
                       });
                     }
@@ -1138,11 +1188,13 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                       return SwipeModeSelectionScreen(
                         onSolo: () {
                           _appFlow.logModeSelection(AppFlowMode.solo);
+                          _suppressPreviousChoiceAutoOpen = false;
                           setState(() => _showPairConnectionStep = false);
                           _runSoloPreSwipeFlow();
                         },
                         onPairUp: () {
                           _appFlow.logModeSelection(AppFlowMode.paired);
+                          _suppressPreviousChoiceAutoOpen = false;
                           context.read<SwipeProvider>().setPairedMode();
                           context.read<MatchProvider>().clearMatches();
                           setState(() => _showPairConnectionStep = true);
@@ -1166,9 +1218,11 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                         },
                         onPairConnected: () async {
                           if (!mounted) return;
+                          _suppressPreviousChoiceAutoOpen = false;
                           setState(() => _showPairConnectionStep = false);
                           _appFlow.logInviteAccepted();
-                          await _runPreSwipeFlow(fromHeaderAction: true);
+                          debugPrint('[AppFlow] previousChoice open requested: origin=${_PreSwipeFlowOrigin.pairConnectionReady.logName}');
+                          await _runPreSwipeFlow(origin: _PreSwipeFlowOrigin.pairConnectionReady);
                         },
                       );
                     }
@@ -1192,7 +1246,8 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                         buttonText: 'Filters',
                         onButtonPressed: () {
                           _appFlow.logFiltersButton();
-                          provider.isSoloMode ? _runSoloPreSwipeFlow(intent: PreSwipeFilterIntent.updateActiveSoloSession) : _runPreSwipeFlow(fromHeaderAction: true);
+                          _suppressPreviousChoiceAutoOpen = false;
+                          provider.isSoloMode ? _runSoloPreSwipeFlow(intent: PreSwipeFilterIntent.updateActiveSoloSession) : _runPreSwipeFlow(origin: _PreSwipeFlowOrigin.filtersButton);
                         },
                       );
                     }

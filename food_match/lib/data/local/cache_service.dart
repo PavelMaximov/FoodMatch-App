@@ -28,6 +28,15 @@ class CacheService {
     'currentTab',
     'swipesState',
     'pairWaitingState',
+    'previous_filter_choice',
+    'PreviousFilterChoiceScreen',
+    'currentPreFilterStep',
+    'activeFlow',
+    'pendingPreviousChoice',
+    'pendingPreSwipeFlow',
+    'pendingHeaderFilterAction',
+    'pendingPairConnectionReadyAction',
+    'startupIntent',
   ];
 
   Future<void> cacheDishes(List<Dish> dishes) async {

@@ -13,6 +13,7 @@ const authProvider = readFileSync('../food_match/lib/features/auth/logic/auth_pr
 const coupleProvider = readFileSync('../food_match/lib/features/couple/logic/couple_provider.dart', 'utf8');
 const swipesScreen = readFileSync('../food_match/lib/features/swipes/presentation/screens/swipes_screen.dart', 'utf8');
 const preSwipeScreen = readFileSync('../food_match/lib/features/swipes/presentation/screens/pre_swipe_filter_screen.dart', 'utf8');
+const cacheService = readFileSync('../food_match/lib/data/local/cache_service.dart', 'utf8');
 
 assert(model.includes('pairLifecycleState'), 'CoupleSession should persist pairLifecycleState.');
 assert(model.includes("'needs_resync'"), 'Pair lifecycle should support needs_resync.');
@@ -38,7 +39,16 @@ assert(swipesScreen.includes('_pairLifecyclePollingTimer'), 'Swipes screen shoul
 assert(swipesScreen.includes('_startPairLifecyclePolling'), 'Pair lifecycle polling should start during pair flows.');
 assert(swipesScreen.includes('_sendPairContinuationInvite'), 'Pair continue should send an invitation instead of opening filters directly.');
 assert(swipesScreen.includes('[PairLifecycle] poll -> needs_resync detected'), 'Pair lifecycle polling should log needs_resync detection.');
+assert(swipesScreen.includes('enum _PreSwipeFlowOrigin'), '_runPreSwipeFlow should require an explicit origin.');
+assert(swipesScreen.includes('required _PreSwipeFlowOrigin origin'), '_runPreSwipeFlow should not allow a default/null origin.');
+assert(swipesScreen.includes('[AppFlow] authBoundary -> blocked previous choice auto-open'), 'Auth-boundary startup should block previous-choice auto-open.');
+assert(swipesScreen.includes('authBoundaryVersion != versionAtSchedule'), 'Post-frame previous-choice callbacks should be auth-boundary version guarded.');
+assert(coupleProvider.includes('previousChoiceAfterInviteWasUserAccepted'), 'Manual invitation accept should remain distinguishable from stale auto-restore.');
+assert(swipesScreen.includes('[AppFlow] startup resolved -> SessionResumeChoiceScreen'), 'Startup newOld should render SessionResumeChoiceScreen.');
+assert(swipesScreen.includes('[AppFlow] startup resolved -> ModeSelection'), 'Startup modeSelection should render Mode Selection.');
 assert(preSwipeScreen.includes('PAIR_SESSION_NEEDS_RESYNC'), 'Frontend should handle pair deck resync error.');
 assert(preSwipeScreen.includes('deckPrepare blocked -> PAIR_SESSION_NEEDS_RESYNC'), 'Frontend should log blocked pair deck prepare.');
+assert(cacheService.includes('previous_filter_choice'), 'Auth-boundary cache cleanup should remove previous filter choice route keys.');
+assert(cacheService.includes('pendingPreviousChoice'), 'Auth-boundary cache cleanup should remove pending previous-choice keys.');
 
 console.log('Pair session resync assertions passed.');
