@@ -241,10 +241,11 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> _notifyPairDisconnectBeforeLogout() async {
     try {
+      AppLogger.info('[PairLifecycle] logout -> partner-disconnect requested');
       await _apiService.post(ApiConstants.couplePartnerDisconnect, <String, dynamic>{});
-      AppLogger.info('[Auth] pair disconnect notified before logout');
+      AppLogger.info('[PairLifecycle] logout -> partner-disconnect success');
     } catch (e) {
-      AppLogger.info('[Auth] pair disconnect notify skipped or failed: $e');
+      AppLogger.info('[PairLifecycle] logout -> partner-disconnect failed');
     }
   }
 

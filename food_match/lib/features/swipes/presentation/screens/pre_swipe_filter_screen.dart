@@ -834,6 +834,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       }
     } catch (e) {
       if (e is ApiException && e.code == 'PAIR_SESSION_NEEDS_RESYNC') {
+        debugPrint('[PairLifecycle] deckPrepare blocked -> PAIR_SESSION_NEEDS_RESYNC');
         coupleProvider.markPairNeedsResyncFromDeckError();
         if (mounted) {
           Navigator.pop(context);

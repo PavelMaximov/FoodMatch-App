@@ -7,6 +7,7 @@ function assert(condition: unknown, message: string) {
 const model = readFileSync('src/modules/couples/models/CoupleSession.ts', 'utf8');
 const coupleService = readFileSync('src/modules/couples/services/coupleService.ts', 'utf8');
 const deckService = readFileSync('src/modules/couples/services/coupleDeckService.ts', 'utf8');
+const invitationService = readFileSync('src/modules/couples/services/coupleInvitationService.ts', 'utf8');
 const routes = readFileSync('src/modules/couples/routes/coupleRoutes.ts', 'utf8');
 const authProvider = readFileSync('../food_match/lib/features/auth/logic/auth_provider.dart', 'utf8');
 const coupleProvider = readFileSync('../food_match/lib/features/couple/logic/couple_provider.dart', 'utf8');
@@ -23,12 +24,21 @@ assert(coupleService.includes("filterState = { users: [], status: 'draft'"), 'Di
 const disconnectBody = coupleService.slice(coupleService.indexOf('async markPartnerDisconnected'), coupleService.indexOf('async leaveSession'));
 assert(!disconnectBody.includes('MatchModel.deleteMany'), 'Disconnect flow must not delete matches.');
 assert(deckService.includes('PAIR_SESSION_NEEDS_RESYNC'), 'Deck prepare should reject needs_resync sessions.');
+assert(!coupleService.includes("session.pairLifecycleState = { status: 'active'"), 'Filter updates must not reset lifecycle to active.');
+assert(invitationService.includes("session.pairLifecycleState = { status: 'active'"), 'Continuation accept should reset lifecycle to active.');
+assert(invitationService.includes('clearPreparedDeck(session)'), 'Continuation accept should clear stale prepared decks.');
 assert(authProvider.includes('couplePartnerDisconnect'), 'Logout should call pair disconnect before token clear.');
+assert(authProvider.includes('[PairLifecycle] logout -> partner-disconnect requested'), 'Logout should log partner-disconnect request.');
 const logoutBody = authProvider.slice(authProvider.indexOf('Future<void> logout'), authProvider.indexOf('void _markAuthBoundaryChanged'));
 assert(logoutBody.indexOf('_notifyPairDisconnectBeforeLogout') < logoutBody.indexOf('_clearAuthState'), 'Pair disconnect should be called before auth state is cleared.');
 assert(coupleProvider.includes('needsPairResync'), 'Frontend should expose pair resync signal.');
 assert(swipesScreen.includes('Partner left the session'), 'Partner disconnect dialog title should exist.');
 assert(swipesScreen.includes('SessionResumeChoiceScreen'), 'Pair resync should land on SessionResumeChoiceScreen.');
+assert(swipesScreen.includes('_pairLifecyclePollingTimer'), 'Swipes screen should poll pair lifecycle independently.');
+assert(swipesScreen.includes('_startPairLifecyclePolling'), 'Pair lifecycle polling should start during pair flows.');
+assert(swipesScreen.includes('_sendPairContinuationInvite'), 'Pair continue should send an invitation instead of opening filters directly.');
+assert(swipesScreen.includes('[PairLifecycle] poll -> needs_resync detected'), 'Pair lifecycle polling should log needs_resync detection.');
 assert(preSwipeScreen.includes('PAIR_SESSION_NEEDS_RESYNC'), 'Frontend should handle pair deck resync error.');
+assert(preSwipeScreen.includes('deckPrepare blocked -> PAIR_SESSION_NEEDS_RESYNC'), 'Frontend should log blocked pair deck prepare.');
 
 console.log('Pair session resync assertions passed.');

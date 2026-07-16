@@ -6,6 +6,7 @@ import { MatchModel } from '../../matches/models/Match';
 import { UserModel } from '../../users/models/User';
 import { CoupleSessionModel } from '../models/CoupleSession';
 import { CoupleInvitationDocument, CoupleInvitationModel } from '../models/CoupleInvitation';
+import { clearPreparedDeck } from './coupleDeckService';
 import { CoupleService } from './coupleService';
 
 const INVITE_TTL_MS = 20 * 60 * 1000;
@@ -99,7 +100,11 @@ export class CoupleInvitationService {
       if (active && active.id !== session.id) throw new AppError('Please leave your current session before joining another one.', 409, 'ACTIVE_SESSION_HAS_PARTNER');
       session.members.push(userObjectId);
     }
-    session.pairLifecycleState = { status: 'active', reason: null, changedBy: null, generation: session.pairLifecycleState?.generation ?? 0, updatedAt: new Date() };
+    const now = new Date();
+    clearPreparedDeck(session);
+    session.filterState = { users: [], status: 'draft', updatedAt: now };
+    session.restartState = { requestedBy: [], status: 'idle', generation: session.restartState?.generation ?? 0, updatedAt: now };
+    session.pairLifecycleState = { status: 'active', reason: null, changedBy: null, generation: session.pairLifecycleState?.generation ?? 0, updatedAt: now };
     await session.save();
     invite.status = 'accepted';
     await invite.save();

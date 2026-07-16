@@ -59,6 +59,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
   _SessionResumeChoiceType? _sessionResumeChoiceType;
   final AppFlowCoordinator _appFlow = const AppFlowCoordinator();
   final Set<String> _preloadedImageUrls = <String>{};
+  Timer? _pairLifecyclePollingTimer;
   Timer? _pairMatchPollingTimer;
   Timer? _pairMatchBurstTimer;
   DateTime? _pairMatchBurstUntil;
@@ -105,6 +106,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
   }
 
   void _resetLocalFlowStateForAuthBoundary() {
+    _stopPairLifecyclePolling();
     _stopPairMatchPolling();
     _stopPairMatchBurstPolling();
     _stopPairRestartPolling();
@@ -119,12 +121,14 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       _isPairRestartLoading = false;
       _pairRestartError = null;
     });
+    debugPrint('[AppFlow] authBoundary -> suppress previousFilterChoice auto-open');
   }
 
   @override
   void dispose() {
     _coupleProvider?.removeListener(_handleCoupleSessionEnded);
     _coupleProvider?.stopFilterStatePolling(reason: 'swipes_dispose');
+    _stopPairLifecyclePolling();
     _stopPairMatchPolling();
     _stopPairMatchBurstPolling();
     _dismissMatchNotification();
@@ -184,6 +188,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     if (!coupleProvider.consumeOpenSessionResumeForResync()) {
       return;
     }
+    _stopPairLifecyclePolling();
     _stopPairMatchPolling();
     _stopPairMatchBurstPolling();
     _stopPairRestartPolling();
@@ -198,27 +203,40 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       _pairRestartError = null;
       _sessionResumeChoiceType = _SessionResumeChoiceType.paired;
     });
-    await _showPartnerLeftResyncDialog();
+    debugPrint('[PairLifecycle] partnerChanged -> SessionResumeChoiceScreen');
+    await _showPairResyncDialog(
+      message: coupleProvider.pairNeedsResyncMessage,
+    );
   }
 
-  Future<void> _showPartnerLeftResyncDialog() async {
+  Future<void> _showPairResyncDialog({String? message}) async {
     if (!mounted) {
       return;
     }
+    final bool isPartnerLeft = message == null ||
+        message.contains('partner left') ||
+        message.contains('Partner left');
+    final String title = isPartnerLeft
+        ? 'Partner left the session'
+        : 'Session needs to be refreshed';
+    final String body = isPartnerLeft
+        ? 'Your partner left this session. You can wait for them to continue or start a new session.'
+        : 'Your pair session changed. Please continue together or start a new session.';
     final bool startNew = await showDialog<bool>(
           context: context,
           builder: (BuildContext dialogContext) => AlertDialog(
-            title: const Text('Partner left the session'),
-            content: const Text('Your partner left this session. You can wait for them to continue or start a new session.'),
+            title: Text(title),
+            content: Text(body),
             actions: <Widget>[
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext, false),
-                child: const Text('Wait here'),
+                child: Text(isPartnerLeft ? 'Wait here' : 'OK'),
               ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(dialogContext, true),
-                child: const Text('Start new session'),
-              ),
+              if (isPartnerLeft)
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(dialogContext, true),
+                  child: const Text('Start new session'),
+                ),
             ],
           ),
         ) ??
@@ -328,6 +346,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
 
       swipeProvider.clearPreparedDeck();
       context.read<PreSwipeProvider>().clearDraft();
+      _stopPairLifecyclePolling();
       _stopPairMatchPolling();
       _stopPairRestartPolling();
       context.read<MatchProvider>().clearMatches();
@@ -381,25 +400,32 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     final SwipeProvider swipeProvider = context.read<SwipeProvider>();
     final CoupleProvider coupleProvider = context.read<CoupleProvider>();
     swipeProvider.setPairedMode();
+    swipeProvider.clearPreparedDeck();
     context.read<MatchProvider>().setActiveCouple(
           coupleProvider.currentCouple?.id,
           sessionStateVersion: coupleProvider.sessionStateVersion,
         );
+    _startPairLifecyclePolling();
     _startPairMatchPolling();
-    await coupleProvider.refreshFilterState(reason: 'swipes_continue_active_pair');
+    await _sendPairContinuationInvite(coupleProvider);
+  }
+
+  Future<void> _sendPairContinuationInvite(CoupleProvider coupleProvider) async {
+    final invitation = await coupleProvider.createContinueAsBeforeInvite();
     if (!mounted) {
       return;
     }
-    if (!coupleProvider.hasPartner) {
-      debugPrint('[Deck] pair connection waiting for partner');
-      swipeProvider.clearPreparedDeck();
-      setState(() => _showPairConnectionStep = true);
+    if (invitation == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(coupleProvider.error ?? 'Could not invite your partner.')),
+      );
       return;
     }
-    debugPrint('[Deck] route pair continuation to previous choice');
-    swipeProvider.clearPreparedDeck();
-    _appFlow.logPreviousChoiceContinue(AppFlowMode.paired);
-    await _runPreSwipeFlow(fromHeaderAction: true);
+    coupleProvider.startInvitationPolling(reason: 'session_resume_continue_pair');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Your invitation was sent.')),
+    );
+    setState(() {});
   }
 
   Future<void> _startNewFromActiveSession() async {
@@ -565,6 +591,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     if (!mounted) { _isOpeningPreSwipe = false; return; }
     if (result != null && result.dishes.isNotEmpty) {
       _resetSwipeStackController();
+      _stopPairLifecyclePolling();
       _stopPairMatchPolling();
       context.read<MatchProvider>().setSoloSession(swipeProvider.activeSoloSessionId);
       swipeProvider.applyPreparedDeck(result.dishes, preparedDeckMeta: result.preparedDeckMeta);
@@ -645,6 +672,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       seenDishIds: result.seenDishIds,
       preparedDeckMeta: result.preparedDeckMeta,
     );
+    _startPairLifecyclePolling();
     _startPairMatchPolling();
     _resetSwipeStackController();
 
@@ -732,6 +760,34 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
         },
       ),
     );
+  }
+
+
+  void _startPairLifecyclePolling() {
+    _pairLifecyclePollingTimer ??= Timer.periodic(const Duration(seconds: 3), (_) {
+      unawaited(_pollPairLifecycle());
+    });
+    unawaited(_pollPairLifecycle());
+  }
+
+  void _stopPairLifecyclePolling() {
+    _pairLifecyclePollingTimer?.cancel();
+    _pairLifecyclePollingTimer = null;
+  }
+
+  Future<void> _pollPairLifecycle() async {
+    if (!mounted || context.read<SwipeProvider>().isSoloMode) {
+      return;
+    }
+    final CoupleProvider coupleProvider = context.read<CoupleProvider>();
+    await coupleProvider.loadCouple(force: true);
+    if (!mounted) {
+      return;
+    }
+    if (coupleProvider.needsPairResync) {
+      debugPrint('[PairLifecycle] poll -> needs_resync detected');
+      await _handlePairNeedsResync();
+    }
   }
 
   void _startPairMatchPolling() {
@@ -1165,10 +1221,6 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
 
                     if (provider.isDeckEmpty) {
                       final bool soloContext = provider.isSoloMode;
-                      final CoupleMemberProfile? partner = resolvePartnerProfile(
-                        couple: context.read<CoupleProvider>().currentCouple,
-                        currentUserId: context.read<AuthProvider>().currentUser?.id,
-                      );
                       return InlineDeckEndRestartCard(
                         isWaitingForPartner: !soloContext && _isPairRestartWaiting,
                         isLoading: !soloContext && _isPairRestartLoading,
