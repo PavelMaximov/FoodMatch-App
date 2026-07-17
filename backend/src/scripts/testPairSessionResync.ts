@@ -46,6 +46,13 @@ assert(swipesScreen.includes('authBoundaryVersion != versionAtSchedule'), 'Post-
 assert(coupleProvider.includes('previousChoiceAfterInviteWasUserAccepted'), 'Manual invitation accept should remain distinguishable from stale auto-restore.');
 assert(swipesScreen.includes('[AppFlow] startup resolved -> SessionResumeChoiceScreen'), 'Startup newOld should render SessionResumeChoiceScreen.');
 assert(swipesScreen.includes('[AppFlow] startup resolved -> ModeSelection'), 'Startup modeSelection should render Mode Selection.');
+assert(swipesScreen.includes('_loadCanonicalPairDeckAndShowSwipe'), 'Pair deck ready should load the canonical backend deck.');
+assert(swipesScreen.includes('_clearStalePairDeckSetupState'), 'Pair deck ready should clear stale setup/session-resume state.');
+assert(swipesScreen.includes('both_confirmed_waiting_poll'), 'Waiting user should transition to swipe after both users confirm filters.');
+assert(swipesScreen.includes('provider.deck.isNotEmpty &&'), 'Deck end should only render for an actually loaded deck.');
+assert(swipesScreen.includes('[AppFlow] pair deck ready -> Swipe'), 'Pair deck ready should route/correct to Swipe.');
+assert(swipesScreen.includes('[DeckEnd] render check'), 'Deck-end render guard should log its decision.');
+assert(coupleProvider.includes('[PairFlow] both filters confirmed'), 'Both-confirmed filter state should be logged.');
 assert(preSwipeScreen.includes('PAIR_SESSION_NEEDS_RESYNC'), 'Frontend should handle pair deck resync error.');
 assert(preSwipeScreen.includes('deckPrepare blocked -> PAIR_SESSION_NEEDS_RESYNC'), 'Frontend should log blocked pair deck prepare.');
 assert(cacheService.includes('previous_filter_choice'), 'Auth-boundary cache cleanup should remove previous filter choice route keys.');

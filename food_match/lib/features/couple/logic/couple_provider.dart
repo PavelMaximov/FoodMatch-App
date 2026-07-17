@@ -432,8 +432,18 @@ class CoupleProvider extends ChangeNotifier {
       error = null;
       _filterState = nextState;
       AppLogger.info('[CoupleFilterState] loaded reason=$reason status=${nextState.status} bothConfirmed=${nextState.bothConfirmed}');
+      if (nextState.myChoices.confirmed) {
+        AppLogger.info('[PairFlow] filters confirmed user=self session=${currentCouple?.id ?? 'none'} generation=${currentCouple?.lifecycleGeneration ?? 0}');
+      }
       if (!previousPartnerConfirmed && (nextState.partnerChoices?.confirmed == true)) {
         AppLogger.info('[CoupleFilterState] partner confirmed=true');
+        AppLogger.info('[PairFlow] filters confirmed user=partner session=${currentCouple?.id ?? 'none'} generation=${currentCouple?.lifecycleGeneration ?? 0}');
+      }
+      if (nextState.myChoices.confirmed && !nextState.bothConfirmed) {
+        AppLogger.info('[PairFlow] waiting for partner filters session=${currentCouple?.id ?? 'none'} generation=${currentCouple?.lifecycleGeneration ?? 0}');
+      }
+      if (nextState.bothConfirmed) {
+        AppLogger.info('[PairFlow] both filters confirmed session=${currentCouple?.id ?? 'none'} generation=${currentCouple?.lifecycleGeneration ?? 0}');
       }
       _safeNotify();
       _restartPollingIfIntervalChanged();
