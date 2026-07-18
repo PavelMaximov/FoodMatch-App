@@ -100,6 +100,8 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
   bool _isPairDeckReadyLoading = false;
   DateTime? _lastPairDeckReadyLoadAttemptAt;
   final Set<String> _shownPairFilterChangeInviteIds = <String>{};
+  String? _lastPairFilterMarkerSessionId;
+  int? _lastPairFilterMarkerGeneration;
 
   @override
   void initState() {
@@ -140,6 +142,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     _stopPairMatchPolling();
     _stopPairMatchBurstPolling();
     _stopPairRestartPolling();
+    _resetPairFilterChangeDialogMarkers(reason: 'auth_boundary');
     _dismissMatchNotification();
     _resetSwipeStackController();
     setState(() {
@@ -287,6 +290,25 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     });
   }
 
+  void _resetPairFilterChangeDialogMarkers({required String reason}) {
+    if (_shownPairFilterChangeInviteIds.isNotEmpty) {
+      debugPrint('[PairFilterChange] clearing handled dialog markers reason=$reason');
+    }
+    _shownPairFilterChangeInviteIds.clear();
+    _lastPairFilterMarkerSessionId = null;
+    _lastPairFilterMarkerGeneration = null;
+  }
+
+  void _syncPairFilterChangeDialogMarkers(CoupleProvider coupleProvider) {
+    final String? sessionId = coupleProvider.currentCouple?.id;
+    final int generation = coupleProvider.currentCouple?.lifecycleGeneration ?? 0;
+    if (sessionId != _lastPairFilterMarkerSessionId || generation != _lastPairFilterMarkerGeneration) {
+      _resetPairFilterChangeDialogMarkers(reason: 'session_or_generation_changed');
+      _lastPairFilterMarkerSessionId = sessionId;
+      _lastPairFilterMarkerGeneration = generation;
+    }
+  }
+
   void _clearStalePairDeckSetupState({required String reason}) {
     debugPrint('[PairDeck] clearing stale local deck-end/setup state reason=$reason');
     setState(() {
@@ -299,6 +321,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       _suppressPreviousChoiceAutoOpen = false;
       _pairDeckReadyAutoLoadEnabled = true;
     });
+    _resetPairFilterChangeDialogMarkers(reason: reason);
     context.read<PreSwipeProvider>().clearDraft();
   }
 
@@ -324,6 +347,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       if (loaded && swipeProvider.deck.isNotEmpty) {
         final PreparedDeckMeta? meta = swipeProvider.preparedDeckMeta;
         final Object generation = meta?.filtersHash ?? coupleProvider.currentCouple?.lifecycleGeneration ?? 0;
+        _resetPairFilterChangeDialogMarkers(reason: 'canonical_pair_deck_loaded');
         debugPrint('[PairDeck] ready session=${coupleProvider.currentCouple?.id ?? 'none'} generation=$generation size=${swipeProvider.deck.length}');
         debugPrint('[PairDeck] canonical deck loaded session=${coupleProvider.currentCouple?.id ?? 'none'} generation=$generation size=${swipeProvider.deck.length}');
         debugPrint('[AppFlow] pair deck ready -> Swipe');
@@ -332,6 +356,9 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
         _startPairMatchPolling();
         Navigator.of(context).popUntil((Route<dynamic> route) => route.isFirst);
         setState(() {});
+      } else {
+        debugPrint('[PairDeck] canonical load returned empty reason=$reason');
+        swipeProvider.setDeckError('Could not load the shared deck. Please try again.');
       }
     } finally {
       _isPairDeckReadyLoading = false;
@@ -833,8 +860,12 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
 
     if (result == null) {
       final CoupleProvider coupleProvider = _coupleProvider ?? context.read<CoupleProvider>();
-      if (!swipeProvider.isSoloMode && coupleProvider.bothConfirmed) {
-        await _loadCanonicalPairDeckAndShowSwipe(reason: 'pre_swipe_closed_after_pair_ready');
+      if (!swipeProvider.isSoloMode) {
+        if (coupleProvider.bothConfirmed) {
+          await _loadCanonicalPairDeckAndShowSwipe(reason: 'pre_swipe_closed_after_pair_ready');
+        } else {
+          debugPrint('[PairDeck] pre-swipe closed before both confirmed; staying in waiting state');
+        }
       } else if (!swipeProvider.hasPreparedDeck && (!coupleProvider.hasCouple || coupleProvider.bothConfirmed)) {
         await swipeProvider.loadDeck();
       }
@@ -848,8 +879,12 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
 
     if (result.dishes.isEmpty) {
       final CoupleProvider coupleProvider = _coupleProvider ?? context.read<CoupleProvider>();
-      if (!swipeProvider.isSoloMode && coupleProvider.bothConfirmed) {
-        await _loadCanonicalPairDeckAndShowSwipe(reason: 'empty_pre_swipe_result_after_pair_ready');
+      if (!swipeProvider.isSoloMode) {
+        if (coupleProvider.bothConfirmed) {
+          await _loadCanonicalPairDeckAndShowSwipe(reason: 'empty_pre_swipe_result_after_pair_ready');
+        } else {
+          debugPrint('[PairDeck] empty pre-swipe result before both confirmed; no local Pair deck applied');
+        }
       } else {
         swipeProvider.applyPreparedDeck(<Dish>[]);
       }
@@ -1295,6 +1330,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                 child: Consumer<SwipeProvider>(
                   builder: (BuildContext context, SwipeProvider provider, _) {
                     final CoupleProvider inviteCoupleProvider = context.watch<CoupleProvider>();
+                    _syncPairFilterChangeDialogMarkers(inviteCoupleProvider);
                     if (inviteCoupleProvider.needsPairFilterChange &&
                         !provider.isSoloMode &&
                         _sessionResumeChoiceType == null &&
@@ -1473,7 +1509,9 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                     if (provider.error != null) {
                       return ErrorState(
                         message: provider.error!,
-                        onRetry: provider.loadDeck,
+                        onRetry: provider.isSoloMode
+                            ? provider.loadDeck
+                            : () => _loadCanonicalPairDeckAndShowSwipe(reason: 'pair_deck_error_retry'),
                       );
                     }
 
@@ -1483,7 +1521,9 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                         provider.isDeckEmpty &&
                         !_isPairDeckReadyLoading &&
                         !_isOpeningPreSwipe &&
-                        _sessionResumeChoiceType == null;
+                        _sessionResumeChoiceType == null &&
+                        !(hasCouple && hasPartner && !bothConfirmed && !provider.isSoloMode) &&
+                        provider.error == null;
                     debugPrint('[DeckEnd] render check mode=${provider.currentSwipeMode} deckSize=${provider.deck.length} index=${provider.currentIndex} loaded=${provider.deck.isNotEmpty} exhausted=${provider.isDeckEmpty} allowed=$allowDeckEnd reason=${allowDeckEnd ? 'deck_exhausted' : 'not_current_exhausted_deck'}');
                     if (allowDeckEnd) {
                       final bool soloContext = provider.isSoloMode;

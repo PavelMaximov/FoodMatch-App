@@ -286,6 +286,50 @@ class PreSwipeProvider extends ChangeNotifier {
     );
   }
 
+  Future<PreparedPoolResult> prepareCanonicalPairDeck() async {
+    if (isPreparingBackendDeck) {
+      debugPrint('[RequestDedup] canonical pair deck prepare skipped: already in flight');
+      throw ApiException('Shared deck prepare already in progress', statusCode: 409);
+    }
+    isPreparingBackendDeck = true;
+    backendDeckError = null;
+    notifyListeners();
+    debugPrint('[PairDeck] canonical prepare started');
+
+    try {
+      final PreparedDeck preparedDeck = await _coupleRepository.prepareDeck();
+      final PreparedDeck backendDeck = await _loadCanonicalBackendDeck(preparedDeck);
+      preparedDeckMeta = backendDeck.meta;
+      debugPrint('[PairDeck] canonical prepare success final=${backendDeck.meta.finalCount}');
+      final List<String> messages = <String>[];
+      final String? fallbackReason = backendDeck.meta.fallbackReason;
+      if (fallbackReason != null && fallbackReason.isNotEmpty) {
+        messages.add(fallbackReason);
+      }
+      return PreparedPoolResult(
+        dishes: backendDeck.dishes,
+        seenDishIds: const <String>{},
+        usedFallback: false,
+        relaxed: fallbackReason != null,
+        messages: messages,
+        preparedDeckMeta: backendDeck.meta,
+      );
+    } on ApiException catch (e) {
+      backendDeckError = e.code == 'PAIR_WAITING_FOR_PARTNER_FILTERS'
+          ? 'Waiting for partner choices'
+          : ErrorMessages.fromApiException(e);
+      debugPrint('[PairDeck] canonical prepare failed code=${e.code ?? e.statusCode} message=${e.message}');
+      rethrow;
+    } catch (e) {
+      backendDeckError = 'Could not load the shared deck. Please try again.';
+      debugPrint('[PairDeck] canonical prepare failed $e');
+      rethrow;
+    } finally {
+      isPreparingBackendDeck = false;
+      notifyListeners();
+    }
+  }
+
   Future<PreparedPoolResult> prepareBackendDeckWithFallback(PreparedPoolResult fallback) async {
     if (isPreparingBackendDeck) {
       debugPrint('[RequestDedup] prepared deck prepare skipped: already in flight');
@@ -294,7 +338,7 @@ class PreSwipeProvider extends ChangeNotifier {
     isPreparingBackendDeck = true;
     backendDeckError = null;
     notifyListeners();
-    debugPrint('[PreparedDeck] prepare started');
+    debugPrint('[PreparedDeck] prepare started with solo/local fallback enabled');
 
     try {
       final PreparedDeck preparedDeck = await _coupleRepository.prepareDeck();
@@ -317,48 +361,13 @@ class PreSwipeProvider extends ChangeNotifier {
       );
     } on ApiException catch (e) {
       final bool filtersNotReady = e.statusCode == 409 && e.message.toLowerCase().contains('filter');
-      final bool deckPreparing = e.statusCode == 409 && e.message.toLowerCase().contains('preparing');
-      if (deckPreparing) {
-        try {
-          await Future<void>.delayed(const Duration(milliseconds: 500));
-          final PreparedDeck backendDeck = await _coupleRepository.getPreparedDeck();
-          preparedDeckMeta = backendDeck.meta;
-          return PreparedPoolResult(
-            dishes: backendDeck.dishes,
-            seenDishIds: const <String>{},
-            usedFallback: false,
-            relaxed: fallback.relaxed,
-            messages: fallback.messages,
-            config: fallback.config,
-            preparedDeckMeta: backendDeck.meta,
-          );
-        } catch (_) {
-          // Fall through to normal safe fallback handling below.
-        }
-      }
       backendDeckError = filtersNotReady ? 'Waiting for partner choices' : ErrorMessages.fromApiException(e);
       debugPrint('[PreparedDeck] prepare failed $e');
       if (filtersNotReady) {
         debugPrint('[Deck] prepare skipped: filters not ready');
         rethrow;
       }
-      final bool requiresSafeBackendDeck = fallback.config?.blocked.isNotEmpty ?? false;
-      if (requiresSafeBackendDeck) {
-        debugPrint('[PreparedDeck] Backend prepare failed with exclusions selected; local fallback suppressed');
-        return PreparedPoolResult(
-          dishes: const <Dish>[],
-          seenDishIds: const <String>{},
-          usedFallback: false,
-          relaxed: true,
-          messages: <String>[
-            ...fallback.messages,
-            'Could not prepare a safe deck. Please try again.',
-          ],
-          config: fallback.config,
-          preparedDeckMeta: fallback.preparedDeckMeta,
-        );
-      }
-      debugPrint('[PreparedDeck] Backend prepare failed, using local fallback');
+      debugPrint('[PreparedDeck] Backend prepare failed, using solo/local fallback');
       return PreparedPoolResult(
         dishes: fallback.dishes,
         seenDishIds: fallback.seenDishIds,
@@ -366,7 +375,7 @@ class PreSwipeProvider extends ChangeNotifier {
         relaxed: true,
         messages: <String>[
           ...fallback.messages,
-          'Could not prepare shared deck. Using local fallback for now.',
+          'Could not prepare deck. Using local fallback for now.',
         ],
         config: fallback.config,
         preparedDeckMeta: fallback.preparedDeckMeta,

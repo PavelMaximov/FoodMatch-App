@@ -56,6 +56,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   bool _hasStartedPrepareAfterBothConfirmed = false;
   bool _isApplyingFilters = false;
   bool _isGoingBack = false;
+  String? _sharedDeckError;
   String? _pendingUserId;
   LastFilterPreset? _lastFilterPreset;
   late final CoupleProvider _coupleProvider;
@@ -256,6 +257,10 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         onChangeFilters: _startFreshFilters,
         onClose: () => Navigator.of(context).maybePop(),
       );
+    }
+
+    if (_sharedDeckError != null) {
+      return _buildSharedDeckErrorScreen();
     }
 
     if (_waitingForPartner) {
@@ -688,15 +693,73 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         _isApplyingFilters = false;
         _waitingForPartner = true;
         _pendingUserId = userId;
+        _sharedDeckError = null;
         _hasStartedPrepareAfterBothConfirmed = false;
       });
       _startWaitingPolling();
       return;
     }
 
+    _pendingUserId = userId;
     await _prepareSharedDeck(userId);
   }
 
+
+
+  Widget _buildSharedDeckErrorScreen() {
+    return Scaffold(
+      backgroundColor: context.fmColors.background,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(Icons.sync_problem, size: 64, color: context.fmColors.primary),
+                const SizedBox(height: 18),
+                Text(
+                  'Shared deck unavailable',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.fredoka(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 30,
+                    color: context.fmColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  _sharedDeckError ?? 'Could not load the shared deck. Please try again.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.nunito(
+                    fontSize: 16,
+                    color: context.fmColors.textSecondary,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 22),
+                FilledButton(
+                  onPressed: _isPreparingSharedDeck || _pendingUserId == null
+                      ? null
+                      : () {
+                          final String userId = _pendingUserId!;
+                          setState(() => _sharedDeckError = null);
+                          _prepareSharedDeck(userId);
+                        },
+                  child: const Text('Retry'),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  child: const Text('Back'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _buildWaitingForPartnerScreen() {
     final CoupleProvider coupleProvider = context.read<CoupleProvider>();
@@ -819,21 +882,13 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     setState(() {
       _loading = true;
       _isPreparingSharedDeck = true;
+      _sharedDeckError = null;
     });
 
     final PreSwipeProvider preSwipeProvider = context.read<PreSwipeProvider>();
     final CoupleProvider coupleProvider = context.read<CoupleProvider>();
     PreparedPoolResult result;
     try {
-      final PreparedPoolResult localResult = await preSwipeProvider.prepare(
-        userId: userId,
-        coupleProvider: coupleProvider,
-        cuisines: _cuisines.toList(),
-        moods: _moods.toList(),
-        blocked: _blocked.toList(),
-        diet: _diet.toList(),
-        saveChoicesFirst: false,
-      );
       if (!coupleProvider.bothConfirmed) {
         debugPrint('[Deck] prepare skipped: filters not ready');
         throw const _FiltersNotReadyException();
@@ -841,7 +896,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       coupleProvider.pauseFilterStatePollingForDeckPrepare();
       var deckPrepareSucceeded = false;
       try {
-        result = await preSwipeProvider.prepareBackendDeckWithFallback(localResult);
+        result = await preSwipeProvider.prepareCanonicalPairDeck();
         deckPrepareSucceeded = true;
       } finally {
         coupleProvider.resumeFilterStatePollingAfterDeckPrepare(
@@ -858,6 +913,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
           _isPreparingSharedDeck = false;
           _waitingForPartner = true;
           _hasStartedPrepareAfterBothConfirmed = false;
+          _sharedDeckError = null;
         });
         _startWaitingPolling();
         return;
@@ -870,7 +926,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         }
         return;
       }
-      debugPrint('[PreSwipe] shared deck prepare deferred $e');
+      debugPrint('[PairDeck] canonical prepare blocked without fallback $e');
       if (!mounted) {
         return;
       }
@@ -878,10 +934,10 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         _loading = false;
         _isApplyingFilters = false;
         _isPreparingSharedDeck = false;
-        _waitingForPartner = true;
+        _waitingForPartner = false;
         _hasStartedPrepareAfterBothConfirmed = false;
+        _sharedDeckError = 'Could not load the shared deck. Please try again.';
       });
-      _startWaitingPolling();
       return;
     }
 

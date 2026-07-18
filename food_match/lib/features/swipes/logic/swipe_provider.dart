@@ -73,6 +73,13 @@ class SwipeProvider extends ChangeNotifier {
 
   bool isSeenDish(String dishId) => _seenDishIds.contains(dishId);
 
+  void setDeckError(String message) {
+    error = message;
+    isLoading = false;
+    notifyListeners();
+  }
+
+
   void setActiveUser(String? userId) {
     final String? normalized = userId?.trim().isEmpty == true ? null : userId?.trim();
     if (normalized == _activeUserId) {
@@ -397,6 +404,11 @@ class SwipeProvider extends ChangeNotifier {
   }
 
   Future<void> loadDeck({String? cuisine}) async {
+    if (!isSoloMode) {
+      AppLogger.info('[PairDeck] blocked generic loadDeck in Pair mode');
+      setDeckError('Could not load the shared deck. Please try again.');
+      return;
+    }
     if (isLoading) {
       AppLogger.info('[RequestDedup] swipe deck load skipped: already in flight');
       return;
