@@ -59,6 +59,7 @@ assert(swipesScreen.includes('Change filters?'), 'Pair Filters button should sho
 assert(swipesScreen.includes('Partner is changing filters'), 'Partner should receive a filter-change notification dialog.');
 assert(swipesScreen.includes('[PairFilterChange] warning opened'), 'Pair filter-change warning should be logged.');
 assert(swipesScreen.includes('[PairFilterChange] started requestedBy=self'), 'Pair filter-change start should be logged.');
+assert(coupleProvider.includes('needsPairFilterChange'), 'Partner filter-change state should be detected without invitations.');
 assert(swipesScreen.includes('provider.deck.isNotEmpty &&'), 'Deck end card should require a loaded deck.');
 assert(swipesScreen.includes('exhausted=${provider.isDeckEmpty}'), 'Deck-end render log should include exhausted state.');
 assert(preSwipeScreen.includes('PAIR_SESSION_NEEDS_RESYNC'), 'Frontend should handle pair deck resync error.');

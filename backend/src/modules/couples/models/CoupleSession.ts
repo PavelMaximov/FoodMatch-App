@@ -18,8 +18,8 @@ export interface CoupleFilterState {
 }
 
 export interface PairLifecycleState {
-  status: 'active' | 'needs_resync' | 'closed';
-  reason: 'partner_logged_out' | 'partner_left' | 'restart_requested' | null;
+  status: 'active' | 'filter_change_pending' | 'needs_resync' | 'closed';
+  reason: 'filter_change' | 'partner_logged_out' | 'partner_left' | 'restart_requested' | null;
   changedBy: Types.ObjectId | null;
   generation: number;
   updatedAt: Date | null;
@@ -83,8 +83,8 @@ const filterStateSchema = new Schema<CoupleFilterState>(
 
 const pairLifecycleStateSchema = new Schema<PairLifecycleState>(
   {
-    status: { type: String, enum: ['active', 'needs_resync', 'closed'], default: 'active' },
-    reason: { type: String, enum: ['partner_logged_out', 'partner_left', 'restart_requested', null], default: null },
+    status: { type: String, enum: ['active', 'filter_change_pending', 'needs_resync', 'closed'], default: 'active' },
+    reason: { type: String, enum: ['filter_change', 'partner_logged_out', 'partner_left', 'restart_requested', null], default: null },
     changedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
     generation: { type: Number, default: 0 },
     updatedAt: { type: Date, default: null }

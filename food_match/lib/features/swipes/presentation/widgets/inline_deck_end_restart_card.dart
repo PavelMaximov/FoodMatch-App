@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:lottie/lottie.dart';
 
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/theme/theme_extensions.dart';
@@ -88,7 +89,13 @@ class InlineDeckEndRestartCard extends StatelessWidget {
               ],
               const SizedBox(height: 28),
               if (isWaitingForPartner || isLoading) ...<Widget>[
-                CircularProgressIndicator(color: colors.primary),
+                Lottie.asset(
+                  'assets/animations/waiting.json',
+                  width: 150,
+                  height: 150,
+                  repeat: true,
+                  animate: true,
+                ),
               ] else ...<Widget>[
                 SizedBox(
                   width: double.infinity,

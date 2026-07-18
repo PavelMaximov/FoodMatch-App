@@ -15,6 +15,7 @@ router.get('/me', authMiddleware, noStore, asyncHandler(coupleController.me.bind
 router.post('/leave', authMiddleware, coupleRateLimiter, asyncHandler(coupleController.leave.bind(coupleController)));
 router.post('/reset', authMiddleware, coupleRateLimiter, asyncHandler(coupleController.reset.bind(coupleController)));
 router.post('/current/partner-disconnect', authMiddleware, noStore, coupleRateLimiter, asyncHandler(coupleController.partnerDisconnect.bind(coupleController)));
+router.post('/current/filter-change/start', authMiddleware, noStore, coupleRateLimiter, asyncHandler(coupleController.startFilterChange.bind(coupleController)));
 router.post('/continue-as-before', authMiddleware, noStore, coupleRateLimiter, asyncHandler(coupleController.continueAsBefore.bind(coupleController)));
 router.get('/invitations/pending', authMiddleware, noStore, asyncHandler(coupleController.pendingInvitations.bind(coupleController)));
 router.post('/invitations/:id/accept', authMiddleware, noStore, coupleRateLimiter, asyncHandler(coupleController.acceptInvitation.bind(coupleController)));

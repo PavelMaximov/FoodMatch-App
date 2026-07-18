@@ -76,6 +76,8 @@ class CoupleRepository {
       Map<String, dynamic>.from(await _apiService.post(ApiConstants.coupleDeckRestartRequest, <String, dynamic>{}) as Map);
   Future<Map<String, dynamic>> getDeckRestartStatus() async =>
       Map<String, dynamic>.from(await _apiService.get(ApiConstants.coupleDeckRestartStatus) as Map);
+  Future<Map<String, dynamic>> startFilterChange() async =>
+      Map<String, dynamic>.from(await _apiService.post(ApiConstants.coupleFilterChangeStart, <String, dynamic>{}) as Map);
 
   Map<String, dynamic> _extractSessionMap(dynamic data) {
     if (data is Map<String, dynamic>) {

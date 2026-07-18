@@ -141,6 +141,21 @@ export class CoupleService {
     return { status: 'needs_resync', sessionId: session.id, generation: session.pairLifecycleState.generation };
   }
 
+  async markFilterChangeStarted(userId: string) {
+    const session = await CoupleSessionModel.findOne({ members: new Types.ObjectId(userId), status: 'active' }).sort({ updatedAt: -1, createdAt: -1 });
+    if (!session) return { status: 'none' };
+    const now = new Date();
+    session.pairLifecycleState = {
+      status: 'filter_change_pending',
+      reason: 'filter_change',
+      changedBy: new Types.ObjectId(userId),
+      generation: session.pairLifecycleState?.generation ?? 0,
+      updatedAt: now
+    };
+    await session.save();
+    return { status: 'filter_change_pending', sessionId: session.id, generation: session.pairLifecycleState.generation };
+  }
+
   async leaveSession(userId: string) {
     console.log(`[Couple] leave requested user=${userId}`);
     const session = await CoupleSessionModel.findOne({ members: new Types.ObjectId(userId), status: 'active' });

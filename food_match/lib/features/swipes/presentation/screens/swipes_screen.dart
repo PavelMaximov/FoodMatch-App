@@ -14,7 +14,6 @@ import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/utils/cloudinary_image_url.dart';
 import '../../../../core/utils/image_utils.dart';
 import '../../../../data/models/couple.dart';
-import '../../../../data/models/couple_invitation.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../data/models/match_item.dart';
 import '../../../../data/models/prepared_deck.dart';
@@ -569,16 +568,21 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
         );
     _startPairLifecyclePolling();
     _startPairMatchPolling();
-    debugPrint('[PairFilterChange] started requestedBy=self generation=${coupleProvider.currentCouple?.lifecycleGeneration ?? 0}');
-    debugPrint('[PairFilterChange] waiting for partner filters generation=${coupleProvider.currentCouple?.lifecycleGeneration ?? 0}');
-    await _sendPairContinuationInvite(coupleProvider);
-  }
-
-  Future<void> _showPartnerChangingFiltersDialog(CoupleInvitation invitation) async {
-    if (!_shownPairFilterChangeInviteIds.add(invitation.id)) {
+    final bool started = await coupleProvider.startPairFilterChange();
+    if (!mounted || !started) {
       return;
     }
-    debugPrint('[PairFilterChange] partner started generation=${context.read<CoupleProvider>().currentCouple?.lifecycleGeneration ?? 0}');
+    debugPrint('[PairFilterChange] started requestedBy=self generation=${coupleProvider.currentCouple?.lifecycleGeneration ?? 0}');
+    debugPrint('[PairFilterChange] waiting for partner filters generation=${coupleProvider.currentCouple?.lifecycleGeneration ?? 0}');
+    await _runPreSwipeFlow(origin: _PreSwipeFlowOrigin.filtersButton);
+  }
+
+  Future<void> _showPartnerChangingFiltersDialog() async {
+    final int generation = context.read<CoupleProvider>().currentCouple?.lifecycleGeneration ?? 0;
+    if (!_shownPairFilterChangeInviteIds.add(generation.toString())) {
+      return;
+    }
+    debugPrint('[PairFilterChange] partner started generation=$generation');
     final bool updateFilters = await showDialog<bool>(
           context: context,
           builder: (BuildContext dialogContext) => AlertDialog(
@@ -603,12 +607,13 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       return;
     }
     if (!updateFilters) {
-      debugPrint('[PairFilterChange] waiting for partner filters generation=${context.read<CoupleProvider>().currentCouple?.lifecycleGeneration ?? 0}');
+      debugPrint('[PairFilterChange] waiting for partner filters generation=$generation');
       return;
     }
     _suppressPreviousChoiceAutoOpen = false;
     _pairDeckReadyAutoLoadEnabled = true;
-    await context.read<CoupleProvider>().acceptInvitation(invitation);
+    context.read<CoupleProvider>().consumeOpenPairFilterChange();
+    await _runPreSwipeFlow(origin: _PreSwipeFlowOrigin.filtersButton);
   }
 
   Future<void> _startNewFromActiveSession() async {
@@ -1292,11 +1297,10 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                 child: Consumer<SwipeProvider>(
                   builder: (BuildContext context, SwipeProvider provider, _) {
                     final CoupleProvider inviteCoupleProvider = context.watch<CoupleProvider>();
-                    final CoupleInvitation? incomingFilterChangeInvite = inviteCoupleProvider.nextIncomingInvitation;
-                    if (incomingFilterChangeInvite != null && !provider.isSoloMode) {
+                    if (inviteCoupleProvider.needsPairFilterChange && !provider.isSoloMode) {
                       WidgetsBinding.instance.addPostFrameCallback((_) {
                         if (mounted) {
-                          unawaited(_showPartnerChangingFiltersDialog(incomingFilterChangeInvite));
+                          unawaited(_showPartnerChangingFiltersDialog());
                         }
                       });
                     }
