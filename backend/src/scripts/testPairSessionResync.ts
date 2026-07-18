@@ -55,6 +55,12 @@ assert(swipesScreen.includes('provider.deck.isNotEmpty &&'), 'Deck end should on
 assert(swipesScreen.includes('[AppFlow] pair deck ready -> Swipe'), 'Pair deck ready should route/correct to Swipe.');
 assert(swipesScreen.includes('[DeckEnd] render check'), 'Deck-end render guard should log its decision.');
 assert(coupleProvider.includes('[PairFlow] both filters confirmed'), 'Both-confirmed filter state should be logged.');
+assert(swipesScreen.includes('Change filters?'), 'Pair Filters button should show a warning dialog first.');
+assert(swipesScreen.includes('Partner is changing filters'), 'Partner should receive a filter-change notification dialog.');
+assert(swipesScreen.includes('[PairFilterChange] warning opened'), 'Pair filter-change warning should be logged.');
+assert(swipesScreen.includes('[PairFilterChange] started requestedBy=self'), 'Pair filter-change start should be logged.');
+assert(swipesScreen.includes('provider.deck.isNotEmpty &&'), 'Deck end card should require a loaded deck.');
+assert(swipesScreen.includes('exhausted=${provider.isDeckEmpty}'), 'Deck-end render log should include exhausted state.');
 assert(preSwipeScreen.includes('PAIR_SESSION_NEEDS_RESYNC'), 'Frontend should handle pair deck resync error.');
 assert(preSwipeScreen.includes('deckPrepare blocked -> PAIR_SESSION_NEEDS_RESYNC'), 'Frontend should log blocked pair deck prepare.');
 assert(cacheService.includes('previous_filter_choice'), 'Auth-boundary cache cleanup should remove previous filter choice route keys.');

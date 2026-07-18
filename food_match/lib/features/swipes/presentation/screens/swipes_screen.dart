@@ -14,6 +14,7 @@ import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/utils/cloudinary_image_url.dart';
 import '../../../../core/utils/image_utils.dart';
 import '../../../../data/models/couple.dart';
+import '../../../../data/models/couple_invitation.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../data/models/match_item.dart';
 import '../../../../data/models/prepared_deck.dart';
@@ -99,6 +100,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
   bool _pairDeckReadyAutoLoadEnabled = false;
   bool _isPairDeckReadyLoading = false;
   DateTime? _lastPairDeckReadyLoadAttemptAt;
+  final Set<String> _shownPairFilterChangeInviteIds = <String>{};
 
   @override
   void initState() {
@@ -530,6 +532,83 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       const SnackBar(content: Text('Your invitation was sent.')),
     );
     setState(() {});
+  }
+
+  Future<void> _confirmPairFilterChange() async {
+    debugPrint('[PairFilterChange] warning opened');
+    final bool confirmed = await showDialog<bool>(
+          context: context,
+          builder: (BuildContext dialogContext) => AlertDialog(
+            title: const Text('Change filters?'),
+            content: const Text(
+              'Changing filters will pause this deck for both of you. Your partner will also need to update their filters before you can continue swiping together.',
+            ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Change filters'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!mounted || !confirmed) {
+      return;
+    }
+    _suppressPreviousChoiceAutoOpen = false;
+    _pairDeckReadyAutoLoadEnabled = true;
+    final CoupleProvider coupleProvider = context.read<CoupleProvider>();
+    context.read<SwipeProvider>().setPairedMode();
+    context.read<MatchProvider>().setActiveCouple(
+          coupleProvider.currentCouple?.id,
+          sessionStateVersion: coupleProvider.sessionStateVersion,
+        );
+    _startPairLifecyclePolling();
+    _startPairMatchPolling();
+    debugPrint('[PairFilterChange] started requestedBy=self generation=${coupleProvider.currentCouple?.lifecycleGeneration ?? 0}');
+    debugPrint('[PairFilterChange] waiting for partner filters generation=${coupleProvider.currentCouple?.lifecycleGeneration ?? 0}');
+    await _sendPairContinuationInvite(coupleProvider);
+  }
+
+  Future<void> _showPartnerChangingFiltersDialog(CoupleInvitation invitation) async {
+    if (!_shownPairFilterChangeInviteIds.add(invitation.id)) {
+      return;
+    }
+    debugPrint('[PairFilterChange] partner started generation=${context.read<CoupleProvider>().currentCouple?.lifecycleGeneration ?? 0}');
+    final bool updateFilters = await showDialog<bool>(
+          context: context,
+          builder: (BuildContext dialogContext) => AlertDialog(
+            title: const Text('Partner is changing filters'),
+            content: const Text(
+              'Your partner started changing filters. You’ll both need to update filters before continuing together.',
+            ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Wait'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Update filters'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!mounted) {
+      return;
+    }
+    if (!updateFilters) {
+      debugPrint('[PairFilterChange] waiting for partner filters generation=${context.read<CoupleProvider>().currentCouple?.lifecycleGeneration ?? 0}');
+      return;
+    }
+    _suppressPreviousChoiceAutoOpen = false;
+    _pairDeckReadyAutoLoadEnabled = true;
+    await context.read<CoupleProvider>().acceptInvitation(invitation);
   }
 
   Future<void> _startNewFromActiveSession() async {
@@ -1165,10 +1244,12 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                     onTap: () {
                       _appFlow.logFiltersButton();
                       _suppressPreviousChoiceAutoOpen = false;
-                      if (!context.read<SwipeProvider>().isSoloMode) {
+                      if (context.read<SwipeProvider>().isSoloMode) {
+                        _runSoloPreSwipeFlow(intent: PreSwipeFilterIntent.updateActiveSoloSession);
+                      } else {
                         _pairDeckReadyAutoLoadEnabled = true;
+                        unawaited(_confirmPairFilterChange());
                       }
-                      context.read<SwipeProvider>().isSoloMode ? _runSoloPreSwipeFlow(intent: PreSwipeFilterIntent.updateActiveSoloSession) : _runPreSwipeFlow(origin: _PreSwipeFlowOrigin.filtersButton);
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -1211,6 +1292,14 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                 child: Consumer<SwipeProvider>(
                   builder: (BuildContext context, SwipeProvider provider, _) {
                     final CoupleProvider inviteCoupleProvider = context.watch<CoupleProvider>();
+                    final CoupleInvitation? incomingFilterChangeInvite = inviteCoupleProvider.nextIncomingInvitation;
+                    if (incomingFilterChangeInvite != null && !provider.isSoloMode) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted) {
+                          unawaited(_showPartnerChangingFiltersDialog(incomingFilterChangeInvite));
+                        }
+                      });
+                    }
                     if (inviteCoupleProvider.needsPairResync && !_isOpeningPreSwipe) {
                       final int versionAtSchedule = context.read<AuthProvider>().authBoundaryVersion;
                       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1352,10 +1441,12 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                         onButtonPressed: () {
                           _appFlow.logFiltersButton();
                           _suppressPreviousChoiceAutoOpen = false;
-                          if (!provider.isSoloMode) {
+                          if (provider.isSoloMode) {
+                            _runSoloPreSwipeFlow(intent: PreSwipeFilterIntent.updateActiveSoloSession);
+                          } else {
                             _pairDeckReadyAutoLoadEnabled = true;
+                            unawaited(_confirmPairFilterChange());
                           }
-                          provider.isSoloMode ? _runSoloPreSwipeFlow(intent: PreSwipeFilterIntent.updateActiveSoloSession) : _runPreSwipeFlow(origin: _PreSwipeFlowOrigin.filtersButton);
                         },
                       );
                     }
@@ -1386,9 +1477,8 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                         provider.isDeckEmpty &&
                         !_isPairDeckReadyLoading &&
                         !_isOpeningPreSwipe &&
-                        _sessionResumeChoiceType == null &&
-                        !(hasCouple && hasPartner && bothConfirmed && !provider.isSoloMode);
-                    debugPrint('[DeckEnd] render check mode=${provider.currentSwipeMode} deckSize=${provider.deck.length} index=${provider.currentIndex} generation=${provider.preparedDeckMeta?.filtersHash ?? context.read<CoupleProvider>().currentCouple?.lifecycleGeneration ?? 0} allowed=$allowDeckEnd reason=${allowDeckEnd ? 'deck_exhausted' : 'not_current_exhausted_deck'}');
+                        _sessionResumeChoiceType == null;
+                    debugPrint('[DeckEnd] render check mode=${provider.currentSwipeMode} deckSize=${provider.deck.length} index=${provider.currentIndex} loaded=${provider.deck.isNotEmpty} exhausted=${provider.isDeckEmpty} allowed=$allowDeckEnd reason=${allowDeckEnd ? 'deck_exhausted' : 'not_current_exhausted_deck'}');
                     if (allowDeckEnd) {
                       final bool soloContext = provider.isSoloMode;
                       return InlineDeckEndRestartCard(

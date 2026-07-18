@@ -26,7 +26,7 @@ class InlineDeckEndRestartCard extends StatelessWidget {
     final String title = isWaitingForPartner ? 'Waiting for partner' : 'Deck complete';
     final String subtitle = isWaitingForPartner
         ? 'Your partner also needs to finish this deck and restart.'
-        : 'Would you like to restart the session and change filters?';
+        : 'Would you like to change filters and start a new round?';
 
     return Center(
       child: ConstrainedBox(
@@ -101,7 +101,7 @@ class InlineDeckEndRestartCard extends StatelessWidget {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
                       textStyle: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.w800),
                     ),
-                    child: const Text('Restart session'),
+                    child: const Text('Change filters'),
                   ),
                 ),
                 if (onViewMatches != null) ...<Widget>[
