@@ -81,15 +81,7 @@ class CoupleProvider extends ChangeNotifier {
   bool get needsPairResync => shouldOpenSessionResumeForResync;
   bool get needsPairFilterChange => shouldOpenPairFilterChange;
 
-  bool get hasActivePairRoundInProgress =>
-      currentCouple?.pairLifecycleStatus == 'partner_action_required' ||
-      currentCouple?.pairLifecycleStatus == 'filter_change_pending';
-
   CoupleInvitation? get nextIncomingInvitation {
-    if (hasActivePairRoundInProgress) {
-      AppLogger.info('[PairInvitation] suppressed stale/same-round invite reason=active_pair_round');
-      return null;
-    }
     for (final CoupleInvitation invitation in pendingInvitations) {
       if (invitation.isIncoming && invitation.isPending && !hiddenInvitationIds.contains(invitation.id)) {
         return invitation;
@@ -170,7 +162,13 @@ class CoupleProvider extends ChangeNotifier {
       AppLogger.info(force ? '[Cache] couple/me force refresh' : '[Cache] couple/me miss');
       final Couple? loadedCouple = await _repository.getMyCouple();
       if (!_isCurrentSession(requestVersion, requestUserId)) return;
+      final String? previousCoupleId = currentCouple?.id;
       currentCouple = loadedCouple;
+      if (previousCoupleId != null && previousCoupleId != currentCouple?.id) {
+        hiddenInvitationIds.clear();
+        outgoingContinuationInvite = null;
+        AppLogger.info('[PairInvitation] cleared local invitation state reason=session_changed');
+      }
       _currentCoupleLoadedAt = DateTime.now();
       _detectPairLifecycleResync();
       if (hasCouple) {
@@ -598,32 +596,26 @@ class CoupleProvider extends ChangeNotifier {
   Future<void> refreshInvitations() async {
     if (!_isAuthenticated || (_activeUserId?.isEmpty ?? true)) return;
     try {
-      final List<CoupleInvitation> invitations = await _repository.getPendingInvitations();
-      final bool suppressInvites = hasActivePairRoundInProgress;
-      pendingInvitations = suppressInvites
-          ? invitations.where((CoupleInvitation invite) {
-              final bool keepAccepted = invite.status == 'accepted';
-              if (!keepAccepted) {
-                AppLogger.info('[PairInvitation] suppressed stale/same-round invite reason=active_pair_round');
-              }
-              return keepAccepted;
-            }).toList()
-          : invitations;
-      final List<CoupleInvitation> outgoing = pendingInvitations.where((CoupleInvitation invite) => invite.isOutgoing).toList();
-      final CoupleInvitation? outgoingInvite = outgoing.isEmpty ? null : outgoing.first;
-      outgoingContinuationInvite = outgoingInvite?.isOutgoing == true ? outgoingInvite : null;
+      pendingInvitations = await _repository.getPendingInvitations();
+      CoupleInvitation? outgoingInvite;
       CoupleInvitation? acceptedInvite;
-      for (final CoupleInvitation invite in pendingInvitations) {
-        if (invite.status == 'accepted') {
-          acceptedInvite = invite;
-          break;
+      for (final CoupleInvitation invitation in pendingInvitations) {
+        if (outgoingInvite == null && invitation.isOutgoing && invitation.isPending) {
+          outgoingInvite = invitation;
+        }
+        if (acceptedInvite == null && invitation.status == 'accepted') {
+          acceptedInvite = invitation;
         }
       }
+      outgoingContinuationInvite = outgoingInvite;
       if (acceptedInvite != null && _consumedAcceptedInviteIds.add(acceptedInvite.id)) {
+        // A sheet dismissal is local only. An accepted continuation always wins.
+        hiddenInvitationIds.remove(acceptedInvite.id);
+        outgoingContinuationInvite = null;
         shouldOpenPreviousChoiceAfterInvite = true;
         previousChoiceAfterInviteWasUserAccepted = acceptedInvite.isIncoming;
-        hiddenInvitationIds.remove(acceptedInvite.id);
         await loadCouple(force: true);
+        AppLogger.info('[PairInvitation] accepted continuation converging to previous choices');
       }
       _safeNotify();
     } catch (e) {
@@ -632,10 +624,15 @@ class CoupleProvider extends ChangeNotifier {
   }
 
   Future<CoupleInvitation?> createContinueAsBeforeInvite() async {
+    if (outgoingContinuationInvite?.isPending == true) {
+      return outgoingContinuationInvite;
+    }
     try {
       final CoupleInvitation invite = await _repository.continueAsBefore();
       outgoingContinuationInvite = invite.isOutgoing && invite.isPending ? invite : null;
       if (invite.status == 'accepted' && _consumedAcceptedInviteIds.add(invite.id)) {
+        hiddenInvitationIds.remove(invite.id);
+        outgoingContinuationInvite = null;
         shouldOpenPreviousChoiceAfterInvite = true;
         previousChoiceAfterInviteWasUserAccepted = invite.isIncoming;
         await loadCouple(force: true);
@@ -872,6 +869,8 @@ class CoupleProvider extends ChangeNotifier {
   }) {
     stopFilterStatePolling(reason: 'session_clear');
     currentCouple = null;
+    hiddenInvitationIds.clear();
+    outgoingContinuationInvite = null;
     shouldOpenPairFilterChange = false;
     _handledFilterChangeGenerations.clear();
     _currentCoupleLoadedAt = null;

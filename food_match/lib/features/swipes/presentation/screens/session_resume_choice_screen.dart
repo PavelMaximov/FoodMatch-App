@@ -18,7 +18,7 @@ class SessionResumeChoiceScreen extends StatefulWidget {
 
   final bool isSoloMode;
   final Future<LastFilterPreset?> Function() onLoadPreviousSetup;
-  final ValueChanged<LastFilterPreset?> onUsePreviousFilter;
+  final Future<void> Function(LastFilterPreset?) onUsePreviousFilter;
   final VoidCallback onStartNew;
   final CoupleMemberProfile? partner;
 
@@ -29,6 +29,7 @@ class SessionResumeChoiceScreen extends StatefulWidget {
 class _SessionResumeChoiceScreenState extends State<SessionResumeChoiceScreen> {
   late Future<LastFilterPreset?> _presetFuture;
   LastFilterPreset? _preset;
+  bool _isContinuing = false;
 
   @override
   void initState() {
@@ -52,8 +53,14 @@ class _SessionResumeChoiceScreenState extends State<SessionResumeChoiceScreen> {
   }
 
   Future<void> _handleContinue() async {
-    final LastFilterPreset? preset = _preset ?? await _presetFuture;
-    widget.onUsePreviousFilter(preset);
+    if (_isContinuing) return;
+    setState(() => _isContinuing = true);
+    try {
+      final LastFilterPreset? preset = _preset ?? await _presetFuture;
+      await widget.onUsePreviousFilter(preset);
+    } finally {
+      if (mounted) setState(() => _isContinuing = false);
+    }
   }
 
   @override
@@ -97,7 +104,7 @@ class _SessionResumeChoiceScreenState extends State<SessionResumeChoiceScreen> {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton(
-              onPressed: _handleContinue,
+              onPressed: _isContinuing ? null : _handleContinue,
               style: OutlinedButton.styleFrom(
                 backgroundColor: colors.background,
                 foregroundColor: colors.primary,
@@ -106,7 +113,7 @@ class _SessionResumeChoiceScreenState extends State<SessionResumeChoiceScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
                 textStyle: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.w800),
               ),
-              child: const Text('Continue as before'),
+              child: Text(_isContinuing ? 'Continuing…' : 'Continue as before'),
             ),
           ),
           const SizedBox(height: 13),

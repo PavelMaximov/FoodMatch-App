@@ -5,6 +5,9 @@ const service = readFileSync('src/modules/couples/services/coupleInvitationServi
 const routes = readFileSync('src/modules/couples/routes/coupleRoutes.ts', 'utf8');
 const controller = readFileSync('src/modules/couples/controllers/coupleController.ts', 'utf8');
 const lastFilterService = readFileSync('src/modules/filters/services/lastFilterPresetService.ts', 'utf8');
+const coupleProvider = readFileSync('../food_match/lib/features/couple/logic/couple_provider.dart', 'utf8');
+const swipesScreen = readFileSync('../food_match/lib/features/swipes/presentation/screens/swipes_screen.dart', 'utf8');
+const resumeScreen = readFileSync('../food_match/lib/features/swipes/presentation/screens/session_resume_choice_screen.dart', 'utf8');
 
 function assert(condition: unknown, message: string) {
   if (!condition) throw new Error(message);
@@ -32,5 +35,11 @@ assert(service.includes('MatchModel.countDocuments'), 'mutualMatchCount must cou
 assert(service.includes('mutualMatchCount') && !service.includes('mutualMatchCount: lastPreset?.matchedLastTime'), 'mutualMatchCount must not use matchedLastTime/prepared count.');
 assert(lastFilterService.includes('userId: new Types.ObjectId(userId), pairKey: buildPairKey'), 'Paired presets must remain user-scoped by pairKey.');
 assert(!service.includes('userId: null'), 'Invitation flow must not use legacy userId:null paired presets.');
+assert(coupleProvider.includes('outgoingContinuationInvite?.isPending == true'), 'Client should reuse an in-flight local continuation request.');
+assert(coupleProvider.includes('hiddenInvitationIds.remove(acceptedInvite.id)'), 'Accepted continuation should clear a locally dismissed invite marker.');
+assert(coupleProvider.includes('accepted continuation converging to previous choices'), 'Accepted continuation should reopen the required previous-choice flow.');
+assert(swipesScreen.includes("child: const Text('Refresh')"), 'Continuation waiting state should provide Refresh recovery.');
+assert(swipesScreen.includes("child: const Text('Start new session')"), 'Continuation waiting state should provide Start new session recovery.');
+assert(resumeScreen.includes('_isContinuing'), 'Continue as before should disable repeated local taps while in flight.');
 
 console.log('[PairContinueInvitations] static assertions passed');

@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/animations/app_motion.dart';
@@ -366,8 +367,6 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
         if (loaded && swipeProvider.deck.isNotEmpty) {
           final PreparedDeckMeta? meta = swipeProvider.preparedDeckMeta;
           final Object generation = meta?.filtersHash ?? coupleProvider.currentCouple?.lifecycleGeneration ?? 0;
-          _resetPairFilterChangeDialogMarkers(reason: 'canonical_pair_deck_loaded');
-          context.read<CoupleProvider>().clearHandledFilterChangeMarkers(reason: 'canonical_pair_deck_loaded');
           debugPrint('[PairDeck] ready session=${coupleProvider.currentCouple?.id ?? 'none'} generation=$generation size=${swipeProvider.deck.length}');
           debugPrint('[PairDeck] canonical deck loaded session=${coupleProvider.currentCouple?.id ?? 'none'} generation=$generation size=${swipeProvider.deck.length}');
           debugPrint('[AppFlow] pair deck ready -> Swipe');
@@ -633,10 +632,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     debugPrint('[PairFilterChange] partner committed event=$generation generation=$generation');
     final bool updateFilters = await showDialog<bool>(
           context: context,
-          barrierDismissible: false,
-          builder: (BuildContext dialogContext) => WillPopScope(
-            onWillPop: () async => false,
-            child: AlertDialog(
+          builder: (BuildContext dialogContext) => AlertDialog(
               title: const Text('Partner changed filters'),
               content: const Text(
                 'Your partner updated their filters. Please update yours before you continue swiping together.',
@@ -648,16 +644,9 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                 ),
               ],
             ),
-          ),
         ) ??
         false;
-    if (!mounted) {
-      return;
-    }
-    if (!updateFilters) {
-      context.read<SwipeProvider>().clearPreparedDeck();
-      setState(() => _pairFilterUpdateRequired = true);
-      debugPrint('[PairFilterChange] dialog removed by platform; blocking stale deck event=$generation generation=$generation');
+    if (!mounted || !updateFilters) {
       return;
     }
     setState(() => _pairFilterUpdateRequired = false);
@@ -1522,10 +1511,41 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
 
                     final outgoingInvite = context.watch<CoupleProvider>().outgoingContinuationInvite;
                     if (outgoingInvite != null && outgoingInvite.isPending && !provider.isSoloMode) {
-                      return const EmptyState(
-                        icon: Icons.hourglass_empty,
-                        title: 'Waiting for partner',
-                        subtitle: 'Your invitation was sent. We’ll continue when your partner joins.',
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(32),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              const Icon(Icons.hourglass_empty, size: 80),
+                              const SizedBox(height: 16),
+                              const Text('Waiting for partner', textAlign: TextAlign.center),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'Your partner needs to choose their filters before the shared deck can be prepared.',
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 24),
+                              ElevatedButton(
+                                onPressed: () async {
+                                  final CoupleProvider coupleProvider = context.read<CoupleProvider>();
+                                  await coupleProvider.loadCouple(force: true);
+                                  await coupleProvider.refreshInvitations();
+                                  if (!mounted) return;
+                                  if (!coupleProvider.hasCouple) {
+                                    context.read<SwipeProvider>().resetToModeSelection();
+                                  }
+                                  setState(() {});
+                                },
+                                child: const Text('Refresh'),
+                              ),
+                              TextButton(
+                                onPressed: () => _clearActiveSessionAndShowModeSelection(_SessionResumeChoiceType.paired),
+                                child: const Text('Start new session'),
+                              ),
+                            ],
+                          ),
+                        ),
                       );
                     }
 
@@ -1546,10 +1566,29 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                     }
 
                     if (_isPairDeckReadyLoading && !provider.isSoloMode) {
-                      return const EmptyState(
-                        icon: Icons.hourglass_empty,
-                        title: 'Preparing your shared deck',
-                        subtitle: 'We’re matching your filters. This may take a moment.',
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(32),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              Lottie.asset(
+                                'assets/animations/waiting.json',
+                                width: 150,
+                                height: 150,
+                                repeat: true,
+                                animate: true,
+                              ),
+                              const SizedBox(height: 16),
+                              const Text('Preparing your shared deck', textAlign: TextAlign.center),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'We’re matching your filters. This may take a moment.',
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
                       );
                     }
 

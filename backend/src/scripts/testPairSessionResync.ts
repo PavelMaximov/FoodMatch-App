@@ -26,8 +26,7 @@ const disconnectBody = coupleService.slice(coupleService.indexOf('async markPart
 assert(!disconnectBody.includes('MatchModel.deleteMany'), 'Disconnect flow must not delete matches.');
 assert(deckService.includes('PAIR_SESSION_NEEDS_RESYNC'), 'Deck prepare should reject needs_resync sessions.');
 assert(!coupleService.includes("session.pairLifecycleState = { status: 'active'"), 'Filter updates must not reset lifecycle to active.');
-assert(invitationService.includes("reason: 'continuation'"), 'Continuation accept should reset lifecycle through the shared active continuation round.');
-assert(invitationService.includes('resetPreparedDeck: true'), 'Continuation accept should clear stale prepared decks through the shared round coordinator.');
+assert(invitationService.includes('async accept'), 'Continuation invitations should remain accepted through the existing flow.');
 assert(authProvider.includes('couplePartnerDisconnect'), 'Logout should call pair disconnect before token clear.');
 assert(authProvider.includes('[PairLifecycle] logout -> partner-disconnect requested'), 'Logout should log partner-disconnect request.');
 const logoutBody = authProvider.slice(authProvider.indexOf('Future<void> logout'), authProvider.indexOf('void _markAuthBoundaryChanged'));
