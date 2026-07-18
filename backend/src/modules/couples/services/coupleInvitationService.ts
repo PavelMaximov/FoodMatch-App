@@ -6,7 +6,6 @@ import { MatchModel } from '../../matches/models/Match';
 import { UserModel } from '../../users/models/User';
 import { CoupleSessionModel } from '../models/CoupleSession';
 import { CoupleInvitationDocument, CoupleInvitationModel } from '../models/CoupleInvitation';
-import { clearPreparedDeck } from './coupleDeckService';
 import { CoupleService } from './coupleService';
 
 const INVITE_TTL_MS = 20 * 60 * 1000;
@@ -36,6 +35,28 @@ export class CoupleInvitationService {
       throw new AppError('No previous pair setup found.', 404, 'PREVIOUS_PARTNER_NOT_FOUND');
     }
 
+    if (activeSession?.pairLifecycleState?.status === 'partner_action_required') {
+      throw new AppError('Pair filter change is already in progress.', 409, 'PAIR_FILTER_CHANGE_IN_PROGRESS');
+    }
+    if (activeSession?.restartState?.status === 'waiting' || activeSession?.restartState?.status === 'ready') {
+      throw new AppError('Pair restart is already in progress.', 409, 'PAIR_RESTART_IN_PROGRESS');
+    }
+
+    await this.expireOldInvites();
+    const existingRound = await CoupleInvitationModel.findOne({
+      pairKey,
+      status: { $in: ['pending', 'accepted'] },
+      expiresAt: { $gt: new Date() }
+    }).sort({ updatedAt: -1, createdAt: -1 });
+    if (existingRound) {
+      if (existingRound.status === 'pending' && existingRound.toUserId.toString() === userId) {
+        const accepted = await this.accept(userId, existingRound.id);
+        return accepted.invite;
+      }
+      console.log(`[PairInvitation] reused continuation round pairKey=${pairKey} status=${existingRound.status}`);
+      return this.toDto(existingRound, userId);
+    }
+
     const previousSession = activeSession && activePartnerId
       ? activeSession
       : await CoupleSessionModel.findOne({ members: { $all: [fromUserId, new Types.ObjectId(partnerId)] } })
@@ -52,7 +73,7 @@ export class CoupleInvitationService {
     const toUserId = new Types.ObjectId(partnerId);
     const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
     const invite = await CoupleInvitationModel.findOneAndUpdate(
-      { fromUserId, toUserId, pairKey, status: 'pending' },
+      { pairKey, status: 'pending' },
       {
         $set: {
           previousCoupleSessionId: previousSession?._id ?? null,
@@ -76,12 +97,24 @@ export class CoupleInvitationService {
     const invites = await CoupleInvitationModel.find({
       $or: [
         { toUserId: objectId, status: 'pending', expiresAt: { $gt: new Date() } },
+        { toUserId: objectId, status: 'accepted' },
         { fromUserId: objectId, status: { $in: ['pending', 'accepted', 'declined', 'expired'] } }
       ]
     })
       .sort({ updatedAt: -1 })
       .limit(20);
-    return Promise.all(invites.map((invite) => this.toDto(invite, userId)));
+    const activeSession = await CoupleSessionModel.findOne({ members: objectId, status: 'active' }).sort({ updatedAt: -1, createdAt: -1 });
+    const suppressPending = activeSession?.pairLifecycleState?.status === 'partner_action_required' ||
+      activeSession?.pairLifecycleState?.status === 'filter_change_pending' ||
+      activeSession?.restartState?.status === 'waiting' ||
+      activeSession?.restartState?.status === 'ready';
+    const visibleInvites = suppressPending
+      ? invites.filter((invite) => invite.status === 'accepted')
+      : invites;
+    if (suppressPending && visibleInvites.length !== invites.length) {
+      console.log('[PairInvitation] suppressed stale/same-round invite reason=active_pair_round');
+    }
+    return Promise.all(visibleInvites.map((invite) => this.toDto(invite, userId)));
   }
 
   async accept(userId: string, inviteId: string) {
@@ -101,11 +134,20 @@ export class CoupleInvitationService {
       session.members.push(userObjectId);
     }
     const now = new Date();
-    clearPreparedDeck(session);
-    session.filterState = { users: [], status: 'draft', updatedAt: now };
-    session.restartState = { requestedBy: [], status: 'idle', generation: session.restartState?.generation ?? 0, updatedAt: now };
-    session.pairLifecycleState = { status: 'active', reason: null, changedBy: null, generation: session.pairLifecycleState?.generation ?? 0, updatedAt: now };
+    this.coupleService.startPairRoundOnSession(session, {
+      reason: 'continuation',
+      requestedBy: userId,
+      requiresPartnerAction: false,
+      resetPreparedDeck: true,
+      resetFilterConfirmations: true,
+      incrementGeneration: false,
+      now
+    });
     await session.save();
+    await CoupleInvitationModel.updateMany(
+      { pairKey: invite.pairKey, status: 'pending', _id: { $ne: invite._id } },
+      { $set: { status: 'cancelled' } }
+    );
     invite.status = 'accepted';
     await invite.save();
     return { invite: await this.toDto(invite, userId), session: await this.coupleService.getMyActiveSession(userId) };

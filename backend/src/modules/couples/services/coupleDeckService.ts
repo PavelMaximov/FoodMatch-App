@@ -205,6 +205,9 @@ export class CoupleDeckService {
 
 
   private async updateRestartRequest(session: CoupleSessionDocument, userId: string, shouldRecordRequest: boolean) {
+    if (shouldRecordRequest && session.pairLifecycleState?.status === 'partner_action_required') {
+      throw new AppError('Pair filter change is already in progress.', 409, 'PAIR_FILTER_CHANGE_IN_PROGRESS');
+    }
     const memberIds = session.members.map((memberId) => memberId.toString());
     const now = new Date();
     if (!session.restartState) {

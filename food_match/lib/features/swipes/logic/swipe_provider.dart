@@ -79,6 +79,11 @@ class SwipeProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void clearDeckError({bool notify = true}) {
+    error = null;
+    if (notify) notifyListeners();
+  }
+
 
   void setActiveUser(String? userId) {
     final String? normalized = userId?.trim().isEmpty == true ? null : userId?.trim();

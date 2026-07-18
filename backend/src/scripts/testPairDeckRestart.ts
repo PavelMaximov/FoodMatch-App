@@ -20,6 +20,7 @@ assert(controller.includes('getDeckRestartStatus'), 'Controller should expose re
 assert(service.includes('requestDeckRestart'), 'Deck service should record restart requests.');
 assert(service.includes('getDeckRestartStatus'), 'Deck service should return restart status.');
 assert(service.includes('allRequested'), 'Restart response should report allRequested.');
+assert(service.includes('PAIR_FILTER_CHANGE_IN_PROGRESS'), 'Restart request should be blocked while partner filter change is in progress.');
 assert(service.includes('clearPreparedDeck(session)'), 'Prepared deck should be cleared when restart is ready.');
 assert(service.includes("session.filterState = { users: [], status: 'draft'"), 'Filter confirmations should reset when both users restart.');
 assert(!service.includes('MatchModel.deleteMany'), 'Pair deck restart must not delete previous matches.');

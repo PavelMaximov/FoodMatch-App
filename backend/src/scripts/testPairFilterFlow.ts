@@ -57,6 +57,8 @@ assert(preSwipeProvider.includes('prepareCanonicalPairDeck'), 'Pair flow should 
 assert(preSwipeScreen.includes('Could not load the shared deck. Please try again.'), 'Pair prepare errors should show a safe retry/error state.');
 assert(!preSwipeScreen.includes('Could not prepare shared deck. Using local fallback for now.'), 'Pair screen must not expose local fallback copy.');
 assert(swipesScreen.includes('pair_deck_error_retry'), 'Pair deck error retry should use canonical Pair deck loading.');
+assert(swipesScreen.includes('canonical load retry attempt'), 'Pair deck loading should retry transient empty/not-ready states before showing final error.');
+assert(swipesScreen.includes('Preparing your shared deck'), 'Pair deck loading should show loading copy before final error.');
 assert(swipeProvider.includes('blocked generic loadDeck in Pair mode'), 'Generic deck loading should be guarded in Pair mode.');
 
 const coupleRoutes = readFileSync('src/modules/couples/routes/coupleRoutes.ts', 'utf8');

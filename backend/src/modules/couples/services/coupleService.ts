@@ -147,19 +147,54 @@ export class CoupleService {
     return { status: 'local_editing', sessionId: session.id, generation: session.pairLifecycleState?.generation ?? 0 };
   }
 
-  async commitFilterChange(userId: string) {
-    const session = await this.requireActiveSession(userId);
-    const now = new Date();
-    const generation = (session.pairLifecycleState?.generation ?? 0) + 1;
+  startPairRoundOnSession(
+    session: CoupleSessionDocument,
+    options: {
+      reason: 'continuation' | 'filter_change' | 'deck_restart' | 'resync_recovery';
+      requestedBy?: string;
+      requiresPartnerAction: boolean;
+      resetPreparedDeck: boolean;
+      resetFilterConfirmations: boolean;
+      incrementGeneration: boolean;
+      now?: Date;
+    }
+  ) {
+    const now = options.now ?? new Date();
+    const generation = options.incrementGeneration
+      ? (session.pairLifecycleState?.generation ?? 0) + 1
+      : (session.pairLifecycleState?.generation ?? 0);
+
+    if (options.resetPreparedDeck) {
+      clearPreparedDeck(session);
+    }
+    if (options.resetFilterConfirmations) {
+      session.filterState = { users: [], status: 'draft', updatedAt: now };
+    }
+
     session.pairLifecycleState = {
-      status: 'partner_action_required',
-      reason: 'filter_change',
-      changedBy: new Types.ObjectId(userId),
+      status: options.requiresPartnerAction ? 'partner_action_required' : 'active',
+      reason: options.reason,
+      changedBy: options.requestedBy ? new Types.ObjectId(options.requestedBy) : null,
       generation,
       updatedAt: now
     };
-    clearPreparedDeck(session);
     session.restartState = { requestedBy: [], status: 'idle', generation: session.restartState?.generation ?? 0, updatedAt: now };
+    return generation;
+  }
+
+  async commitFilterChange(userId: string) {
+    const session = await this.requireActiveSession(userId);
+    if (session.restartState?.status === 'waiting' || session.restartState?.status === 'ready') {
+      throw new AppError('Pair restart is already in progress.', 409, 'PAIR_RESTART_IN_PROGRESS');
+    }
+    const generation = this.startPairRoundOnSession(session, {
+      reason: 'filter_change',
+      requestedBy: userId,
+      requiresPartnerAction: true,
+      resetPreparedDeck: true,
+      resetFilterConfirmations: false,
+      incrementGeneration: true
+    });
     await session.save();
     console.log(`[PairFilterChange] committed event=${generation} generation=${generation} by=${userId}`);
     return { status: 'partner_action_required', eventId: String(generation), sessionId: session.id, generation };

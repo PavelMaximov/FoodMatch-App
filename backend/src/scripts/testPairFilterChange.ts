@@ -20,13 +20,14 @@ assert(model.includes('partner_action_required'), 'Pair lifecycle should include
 assert(model.includes("reason: 'filter_change'"), 'Pair lifecycle should include filter_change reason.');
 assert(routes.includes('/current/filter-change/commit'), 'Filter-change commit route should be registered.');
 assert(service.includes('commitFilterChange'), 'CoupleService should commit filter-change after apply.');
-const startBody = service.slice(service.indexOf('async markFilterChangeStarted'), service.indexOf('async commitFilterChange'));
+const startBody = service.slice(service.indexOf('async markFilterChangeStarted'), service.indexOf('startPairRoundOnSession'));
 assert(!startBody.includes('clearPreparedDeck(session)'), 'Starting local filter edit must not clear preparedDeck.');
 assert(startBody.includes("status: 'local_editing'"), 'Starting filter edit should remain local/non-partner-visible.');
 const commitBody = service.slice(service.indexOf('async commitFilterChange'), service.indexOf('async leaveSession'));
 assert(commitBody.includes("status: 'partner_action_required'"), 'Commit should create partner-visible filter-change event.');
-assert(commitBody.includes('generation = (session.pairLifecycleState?.generation ?? 0) + 1'), 'Each commit should increment generation/event id.');
-assert(commitBody.includes('clearPreparedDeck(session)'), 'Commit should invalidate preparedDeck after apply.');
+assert(service.includes('incrementGeneration: true'), 'Each commit should increment generation/event id through the shared round coordinator.');
+assert(service.includes('resetPreparedDeck: true'), 'Commit should invalidate preparedDeck after apply through the shared round coordinator.');
+assert(service.includes('PAIR_RESTART_IN_PROGRESS'), 'Filter-change commit should be blocked while restart is in progress.');
 assert(!commitBody.includes('CoupleInvitation'), 'Committing filter change must not create invitations.');
 assert(deckService.includes('PAIR_WAITING_FOR_PARTNER_FILTERS'), 'Deck prepare should return PAIR_WAITING_FOR_PARTNER_FILTERS while partner has not confirmed.');
 assert(invitationService.includes('createContinueAsBeforeInvite'), 'Continue-as-before should still create invitations.');
