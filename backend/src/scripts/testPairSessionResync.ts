@@ -56,9 +56,9 @@ assert(swipesScreen.includes('[AppFlow] pair deck ready -> Swipe'), 'Pair deck r
 assert(swipesScreen.includes('[DeckEnd] render check'), 'Deck-end render guard should log its decision.');
 assert(coupleProvider.includes('[PairFlow] both filters confirmed'), 'Both-confirmed filter state should be logged.');
 assert(swipesScreen.includes('Change filters?'), 'Pair Filters button should show a warning dialog first.');
-assert(swipesScreen.includes('Partner is changing filters'), 'Partner should receive a filter-change notification dialog.');
+assert(swipesScreen.includes('Partner changed filters'), 'Partner should receive a filter-change notification dialog.');
 assert(swipesScreen.includes('[PairFilterChange] warning opened'), 'Pair filter-change warning should be logged.');
-assert(swipesScreen.includes('[PairFilterChange] started requestedBy=self'), 'Pair filter-change start should be logged.');
+assert(coupleProvider.includes('[PairFilterChange] local edit started'), 'Pair filter-change local edit start should be logged.');
 assert(coupleProvider.includes('needsPairFilterChange'), 'Partner filter-change state should be detected without invitations.');
 assert(swipesScreen.includes('provider.deck.isNotEmpty &&'), 'Deck end card should require a loaded deck.');
 assert(swipesScreen.includes('exhausted=${provider.isDeckEmpty}'), 'Deck-end render log should include exhausted state.');

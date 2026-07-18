@@ -621,10 +621,17 @@ class CoupleProvider extends ChangeNotifier {
   }
 
   Future<bool> startPairFilterChange() async {
+    AppLogger.info('[PairFilterChange] local edit started');
+    return true;
+  }
+
+  Future<bool> commitPairFilterChange() async {
     try {
-      await _repository.startFilterChange();
+      final Map<String, dynamic> response = await _repository.commitFilterChange();
       await loadCouple(force: true);
-      AppLogger.info('[PairFilterChange] started requestedBy=self generation=${currentCouple?.lifecycleGeneration ?? 0}');
+      final Object? eventId = response['eventId'] ?? response['generation'];
+      final Object generation = response['generation'] ?? currentCouple?.lifecycleGeneration ?? 0;
+      AppLogger.info('[PairFilterChange] committed event=$eventId generation=$generation by=self');
       return true;
     } catch (e) {
       error = _mapError(e);
@@ -706,14 +713,21 @@ class CoupleProvider extends ChangeNotifier {
       return;
     }
     if (couple.pairLifecycleStatus == 'filter_change_pending') {
+      AppLogger.info('[PairFilterChange] notification skipped reason=local_editing event=${couple.lifecycleGeneration} generation=${couple.lifecycleGeneration}');
+      return;
+    }
+    if (couple.pairLifecycleStatus == 'partner_action_required') {
       final String? changedBy = couple.lifecycleChangedBy;
       if (changedBy != null &&
           changedBy != _activeUserId &&
           _handledFilterChangeGenerations.add(couple.lifecycleGeneration)) {
         shouldOpenPairFilterChange = true;
-        AppLogger.info('[PairFilterChange] partner started generation=${couple.lifecycleGeneration}');
+        AppLogger.info('[PairFilterChange] partner committed event=${couple.lifecycleGeneration} generation=${couple.lifecycleGeneration}');
       }
       return;
+    }
+    if (couple.pairLifecycleStatus == 'active') {
+      shouldOpenPairFilterChange = false;
     }
     if (couple.pairLifecycleStatus != 'needs_resync') {
       return;
@@ -821,6 +835,8 @@ class CoupleProvider extends ChangeNotifier {
   }) {
     stopFilterStatePolling(reason: 'session_clear');
     currentCouple = null;
+    shouldOpenPairFilterChange = false;
+    _handledFilterChangeGenerations.clear();
     _currentCoupleLoadedAt = null;
     _clearFilterState();
     _filterStateRefreshFuture = null;

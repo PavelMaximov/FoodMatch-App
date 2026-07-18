@@ -16,6 +16,7 @@ export class CoupleController {
   async reset(req: AuthRequest, res: Response) { res.json(await coupleService.resetSession(req.userId!)); }
   async partnerDisconnect(req: AuthRequest, res: Response) { res.json(await coupleService.markPartnerDisconnected(req.userId!)); }
   async startFilterChange(req: AuthRequest, res: Response) { res.json(await coupleService.markFilterChangeStarted(req.userId!)); }
+  async commitFilterChange(req: AuthRequest, res: Response) { res.json(await coupleService.commitFilterChange(req.userId!)); }
   async getFilterState(req: AuthRequest, res: Response) { res.json(await coupleService.getFilterState(req.userId!)); }
   async updateMyFilterState(req: AuthRequest, res: Response) { res.json(await coupleService.updateMyFilterState(req.userId!, req.body)); }
   async confirmFilterState(req: AuthRequest, res: Response) { res.json(await coupleService.confirmMyFilterState(req.userId!)); }

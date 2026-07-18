@@ -572,9 +572,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     if (!mounted || !started) {
       return;
     }
-    debugPrint('[PairFilterChange] started requestedBy=self generation=${coupleProvider.currentCouple?.lifecycleGeneration ?? 0}');
-    debugPrint('[PairFilterChange] waiting for partner filters generation=${coupleProvider.currentCouple?.lifecycleGeneration ?? 0}');
-    await _runPreSwipeFlow(origin: _PreSwipeFlowOrigin.filtersButton);
+    await _runPreSwipeFlow(origin: _PreSwipeFlowOrigin.filtersButton, commitPairFilterChange: true);
   }
 
   Future<void> _showPartnerChangingFiltersDialog() async {
@@ -582,19 +580,16 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     if (!_shownPairFilterChangeInviteIds.add(generation.toString())) {
       return;
     }
-    debugPrint('[PairFilterChange] partner started generation=$generation');
+    debugPrint('[PairFilterChange] partner committed event=$generation generation=$generation');
     final bool updateFilters = await showDialog<bool>(
           context: context,
+          barrierDismissible: false,
           builder: (BuildContext dialogContext) => AlertDialog(
-            title: const Text('Partner is changing filters'),
+            title: const Text('Partner changed filters'),
             content: const Text(
-              'Your partner started changing filters. You’ll both need to update filters before continuing together.',
+              'Your partner updated their filters. Please update yours before you continue swiping together.',
             ),
             actions: <Widget>[
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext, false),
-                child: const Text('Wait'),
-              ),
               ElevatedButton(
                 onPressed: () => Navigator.pop(dialogContext, true),
                 child: const Text('Update filters'),
@@ -607,11 +602,14 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       return;
     }
     if (!updateFilters) {
-      debugPrint('[PairFilterChange] waiting for partner filters generation=$generation');
+      context.read<SwipeProvider>().clearPreparedDeck();
+      _shownPairFilterChangeInviteIds.remove(generation.toString());
+      debugPrint('[PairFilterChange] notification skipped reason=dialog_dismissed event=$generation generation=$generation');
       return;
     }
     _suppressPreviousChoiceAutoOpen = false;
     _pairDeckReadyAutoLoadEnabled = true;
+    context.read<SwipeProvider>().clearPreparedDeck();
     context.read<CoupleProvider>().consumeOpenPairFilterChange();
     await _runPreSwipeFlow(origin: _PreSwipeFlowOrigin.filtersButton);
   }
@@ -794,7 +792,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     }
   }
 
-  Future<void> _runPreSwipeFlow({required _PreSwipeFlowOrigin origin}) async {
+  Future<void> _runPreSwipeFlow({required _PreSwipeFlowOrigin origin, bool commitPairFilterChange = false}) async {
     debugPrint('[AppFlow] _runPreSwipeFlow requested: origin=${origin.logName}');
     debugPrint('[PairFlow] previousChoice opened origin=${origin.logName} session=${context.read<CoupleProvider>().currentCouple?.id ?? 'none'} generation=${context.read<CoupleProvider>().currentCouple?.lifecycleGeneration ?? 0}');
     if (_isOpeningPreSwipe) {
@@ -821,7 +819,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     final PreparedPoolResult? result = await Navigator.of(context).push<PreparedPoolResult>(
       MaterialPageRoute<PreparedPoolResult>(
         fullscreenDialog: true,
-        builder: (_) => const PreSwipeFilterScreen(mode: 'paired'),
+        builder: (_) => PreSwipeFilterScreen(mode: 'paired', commitPairFilterChange: commitPairFilterChange),
       ),
     );
 
@@ -1297,7 +1295,11 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                 child: Consumer<SwipeProvider>(
                   builder: (BuildContext context, SwipeProvider provider, _) {
                     final CoupleProvider inviteCoupleProvider = context.watch<CoupleProvider>();
-                    if (inviteCoupleProvider.needsPairFilterChange && !provider.isSoloMode) {
+                    if (inviteCoupleProvider.needsPairFilterChange &&
+                        !provider.isSoloMode &&
+                        _sessionResumeChoiceType == null &&
+                        !_suppressPreviousChoiceAutoOpen &&
+                        !_isOpeningPreSwipe) {
                       WidgetsBinding.instance.addPostFrameCallback((_) {
                         if (mounted) {
                           unawaited(_showPartnerChangingFiltersDialog());

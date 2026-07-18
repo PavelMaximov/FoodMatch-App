@@ -32,10 +32,12 @@ class PreSwipeFilterScreen extends StatefulWidget {
     super.key,
     this.mode = 'paired',
     this.intent = PreSwipeFilterIntent.createNewSession,
+    this.commitPairFilterChange = false,
   });
 
   final String mode;
   final PreSwipeFilterIntent intent;
+  final bool commitPairFilterChange;
 
   @override
   State<PreSwipeFilterScreen> createState() => _PreSwipeFilterScreenState();
@@ -655,6 +657,20 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       diet: _diet.toList(),
     );
     await _saveBackendLastFilterPreset(matchedLastTime);
+    if (widget.commitPairFilterChange) {
+      final bool committed = await coupleProvider.commitPairFilterChange();
+      if (!committed) {
+        if (!mounted) return;
+        setState(() {
+          _loading = false;
+          _isApplyingFilters = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(coupleProvider.error ?? 'Could not apply filter changes.')),
+        );
+        return;
+      }
+    }
 
     if (!mounted) {
       return;
@@ -833,6 +849,19 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         );
       }
     } catch (e) {
+      if (e is ApiException && e.code == 'PAIR_WAITING_FOR_PARTNER_FILTERS') {
+        debugPrint('[PairFilterChange] waiting for partner filters generation=${coupleProvider.currentCouple?.lifecycleGeneration ?? 0}');
+        if (!mounted) return;
+        setState(() {
+          _loading = false;
+          _isApplyingFilters = false;
+          _isPreparingSharedDeck = false;
+          _waitingForPartner = true;
+          _hasStartedPrepareAfterBothConfirmed = false;
+        });
+        _startWaitingPolling();
+        return;
+      }
       if (e is ApiException && e.code == 'PAIR_SESSION_NEEDS_RESYNC') {
         debugPrint('[PairLifecycle] deckPrepare blocked -> PAIR_SESSION_NEEDS_RESYNC');
         coupleProvider.markPairNeedsResyncFromDeckError();

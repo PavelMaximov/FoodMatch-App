@@ -271,7 +271,13 @@ export class CoupleDeckService {
 
     if (!allMembersConfirmed) {
       console.log(`[PreparedDeck] Waiting for partner filters session=${session.id}`);
-      throw new AppError('Waiting for partner to finish filters', 409, 'FILTERS_NOT_READY', { bothConfirmed: false });
+      const code = session.pairLifecycleState?.status === 'partner_action_required'
+        ? 'PAIR_WAITING_FOR_PARTNER_FILTERS'
+        : 'FILTERS_NOT_READY';
+      throw new AppError('Waiting for partner to finish filters', 409, code, {
+        bothConfirmed: false,
+        generation: session.pairLifecycleState?.generation ?? 0
+      });
     }
   }
 
