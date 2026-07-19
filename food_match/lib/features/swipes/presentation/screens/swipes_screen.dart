@@ -1645,6 +1645,9 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                       controller: _swiperController,
                       key: ValueKey<String>(stackIdentity),
                       itemCount: provider.deck.length - provider.currentIndex,
+                      canSwipe: !provider.isLoading &&
+                          !provider.isSendingSwipe &&
+                          !_isCardActionInProgress,
                       cardBuilder: (BuildContext context, int index) {
                         final dish = provider.deck[provider.currentIndex + index];
                         return SwipeCardWidget(
@@ -1663,11 +1666,8 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                           showSeenBadge: provider.isSeenDish(dish.id),
                         );
                       },
-                      onSwipe: (int index, SwipeDirection direction) async {
-                        await _handleSwipe(direction);
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          if (mounted) _preloadVisibleDishImages(provider);
-                        });
+                      onSwipe: (int index, SwipeDirection direction) {
+                        unawaited(_handleSwipe(direction));
                       },
                     );
                   },

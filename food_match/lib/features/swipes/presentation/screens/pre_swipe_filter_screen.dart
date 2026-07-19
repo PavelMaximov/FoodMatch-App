@@ -314,21 +314,18 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
                       child: child,
                     );
                   },
-                  layoutBuilder: (
-                    Widget currentChild,
-                    List<Widget> previousChildren,
-                  ) {
+                  layoutBuilder: (List<Widget> entries) {
                     return Stack(
                       alignment: Alignment.topCenter,
-                      children: <Widget>[
-                        ...previousChildren,
-                        currentChild,
-                      ],
+                      children: entries,
                     );
                   },
-                  child: KeyedSubtree(
-                    key: ValueKey<int>(_step),
-                    child: _buildStepContent(),
+                  child: ColoredBox(
+                    color: context.fmColors.background,
+                    child: KeyedSubtree(
+                      key: ValueKey<int>(_step),
+                      child: _buildStepContent(),
+                    ),
                   ),
                 ),
               ),
