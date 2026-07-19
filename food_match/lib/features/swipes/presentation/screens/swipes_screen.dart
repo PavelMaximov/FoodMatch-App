@@ -1119,7 +1119,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
   }
 
 
-  void _handleSwipe(SwipeDirection direction) {
+  Future<void> _handleSwipe(SwipeDirection direction) async {
     final SwipeProvider swipeProvider = context.read<SwipeProvider>();
     final swipedDish = swipeProvider.currentDish;
     final bool wasSoloMode = swipeProvider.isSoloMode;
@@ -1134,7 +1134,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       return;
     }
 
-    swipeAction.then((dynamic result) {
+    await swipeAction.then((dynamic result) {
       if (!mounted) {
         return;
       }
@@ -1659,8 +1659,8 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                           showSeenBadge: provider.isSeenDish(dish.id),
                         );
                       },
-                      onSwipe: (int index, SwipeDirection direction) {
-                        _handleSwipe(direction);
+                      onSwipe: (int index, SwipeDirection direction) async {
+                        await _handleSwipe(direction);
                         WidgetsBinding.instance.addPostFrameCallback((_) {
                           if (mounted) _preloadVisibleDishImages(provider);
                         });
