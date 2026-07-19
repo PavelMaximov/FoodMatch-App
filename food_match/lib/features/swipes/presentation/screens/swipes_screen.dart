@@ -673,6 +673,9 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     final String mode = isSoloMode ? 'solo' : 'paired';
     try {
       final dynamic data = await context.read<SwipeRepository>().getLastFilterPreset(mode);
+      if (!mounted) {
+        return null;
+      }
       final dynamic presetJson = data is Map<String, dynamic> ? data['preset'] : null;
       if (presetJson is Map) {
         final LastFilterPreset preset = LastFilterPreset.fromJson(Map<String, dynamic>.from(presetJson));
@@ -1529,11 +1532,12 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                               ElevatedButton(
                                 onPressed: () async {
                                   final CoupleProvider coupleProvider = context.read<CoupleProvider>();
+                                  final SwipeProvider swipeProvider = context.read<SwipeProvider>();
                                   await coupleProvider.loadCouple(force: true);
                                   await coupleProvider.refreshInvitations();
                                   if (!mounted) return;
                                   if (!coupleProvider.hasCouple) {
-                                    context.read<SwipeProvider>().resetToModeSelection();
+                                    swipeProvider.resetToModeSelection();
                                   }
                                   setState(() {});
                                 },

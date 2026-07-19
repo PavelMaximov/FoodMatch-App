@@ -314,12 +314,15 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
                       child: child,
                     );
                   },
-                  layoutBuilder: (Widget? currentChild, List<Widget> previousChildren) {
+                  layoutBuilder: (
+                    Widget currentChild,
+                    List<Widget> previousChildren,
+                  ) {
                     return Stack(
-                      fit: StackFit.expand,
+                      alignment: Alignment.topCenter,
                       children: <Widget>[
                         ...previousChildren,
-                        if (currentChild != null) currentChild,
+                        currentChild,
                       ],
                     );
                   },

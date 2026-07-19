@@ -289,7 +289,7 @@ class PreSwipeProvider extends ChangeNotifier {
   Future<PreparedPoolResult> prepareCanonicalPairDeck() async {
     if (isPreparingBackendDeck) {
       debugPrint('[RequestDedup] canonical pair deck prepare skipped: already in flight');
-      throw ApiException('Shared deck prepare already in progress', statusCode: 409);
+      throw const ApiException('Shared deck prepare already in progress', statusCode: 409);
     }
     isPreparingBackendDeck = true;
     backendDeckError = null;
