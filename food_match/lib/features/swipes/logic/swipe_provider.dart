@@ -44,6 +44,7 @@ class SwipeProvider extends ChangeNotifier {
   PreparedDeckMeta? _preparedDeckMeta;
   Future<bool>? _existingPreparedDeckLoadFuture;
   bool _isApplyingSoloFilterRequest = false;
+  int _authBoundaryVersion = -1;
 
   List<Dish> deck = <Dish>[];
   int currentIndex = 0;
@@ -72,6 +73,18 @@ class SwipeProvider extends ChangeNotifier {
 
   bool isSeenDish(String dishId) => _seenDishIds.contains(dishId);
 
+  void setDeckError(String message) {
+    error = message;
+    isLoading = false;
+    notifyListeners();
+  }
+
+  void clearDeckError({bool notify = true}) {
+    error = null;
+    if (notify) notifyListeners();
+  }
+
+
   void setActiveUser(String? userId) {
     final String? normalized = userId?.trim().isEmpty == true ? null : userId?.trim();
     if (normalized == _activeUserId) {
@@ -79,6 +92,18 @@ class SwipeProvider extends ChangeNotifier {
     }
     _activeUserId = normalized;
     clearForLogout(notify: false);
+  }
+
+  void resetForAuthBoundary({bool notify = true}) {
+    clearForLogout(notify: notify);
+  }
+
+  void handleAuthBoundary(int version) {
+    if (_authBoundaryVersion == version) {
+      return;
+    }
+    _authBoundaryVersion = version;
+    resetForAuthBoundary(notify: false);
   }
 
   void clearForLogout({bool notify = true}) {
@@ -384,6 +409,11 @@ class SwipeProvider extends ChangeNotifier {
   }
 
   Future<void> loadDeck({String? cuisine}) async {
+    if (!isSoloMode) {
+      AppLogger.info('[PairDeck] blocked generic loadDeck in Pair mode');
+      setDeckError('Could not load the shared deck. Please try again.');
+      return;
+    }
     if (isLoading) {
       AppLogger.info('[RequestDedup] swipe deck load skipped: already in flight');
       return;

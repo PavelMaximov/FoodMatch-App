@@ -233,7 +233,7 @@ class SwipeCardWidget extends StatelessWidget {
           border: Border.all(color: infoStyle.border),
         ),
         child: Icon(
-          Icons.arrow_back_ios_new_rounded,
+          Icons.undo_rounded,
           color: infoStyle.icon,
           size: 16,
         ),

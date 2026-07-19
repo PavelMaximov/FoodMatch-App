@@ -27,6 +27,13 @@ class AppTextField extends StatelessWidget {
     this.autofillHints,
   });
 
+String? _validate(String? value) {
+    if (required && (value == null || value.trim().isEmpty)) {
+      return 'Это поле обязательно для заполнения';
+    }
+    return validator?.call(value);
+  }
+
   @override
   Widget build(BuildContext context) {
     final FoodMatchThemeColors colors = context.fmColors;
@@ -35,11 +42,11 @@ class AppTextField extends StatelessWidget {
       controller: controller,
       obscureText: obscureText,
       keyboardType: keyboardType,
-      validator: validator,
+      validator: _validate,
       maxLines: maxLines,
       autofillHints: autofillHints,
       decoration: InputDecoration(
-        hintText: required ? '* $hint' : hint,
+        hintText: hint,
         hintStyle: TextStyle(color: colors.textMuted),
         filled: true,
         fillColor: colors.inputBackground,

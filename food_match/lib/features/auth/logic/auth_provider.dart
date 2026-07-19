@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import '../../../core/constants/api_constants.dart';
 import '../../../core/errors/error_messages.dart';
 import '../../../core/utils/logger.dart';
 import '../../../data/local/cache_policy.dart';
@@ -30,6 +31,7 @@ class AuthProvider extends ChangeNotifier {
   Future<void>? _loadUserFuture;
   bool isLoading = false;
   String? error;
+  int authBoundaryVersion = 0;
 
   bool requireEmailVerification = false;
 
@@ -61,6 +63,7 @@ class AuthProvider extends ChangeNotifier {
       token = response.effectiveAccessToken;
       requireEmailVerification = response.requireEmailVerification;
       currentUser = response.user ?? await _repository.getMe();
+      _markAuthBoundaryChanged(reason: 'register');
       _currentUserLoadedAt = DateTime.now();
       await _cacheUserDataIfAvailable();
     } catch (e) {
@@ -89,6 +92,7 @@ class AuthProvider extends ChangeNotifier {
       token = response.effectiveAccessToken;
       requireEmailVerification = response.requireEmailVerification;
       currentUser = response.user ?? await _repository.getMe();
+      _markAuthBoundaryChanged(reason: 'login');
       _currentUserLoadedAt = DateTime.now();
       await _cacheUserDataIfAvailable();
     } catch (e) {
@@ -150,9 +154,13 @@ class AuthProvider extends ChangeNotifier {
       }
 
       token = await _apiService.getAccessToken();
+      final String? previousUserId = currentUser?.id;
       final me = await _repository.getMeWithVerificationRequirement();
       currentUser = me.user;
       requireEmailVerification = me.requireEmailVerification;
+      if (previousUserId != currentUser?.id) {
+        _markAuthBoundaryChanged(reason: 'loadUser');
+      }
       _currentUserLoadedAt = DateTime.now();
       await _cacheUserDataIfAvailable();
     } on ApiException catch (e) {
@@ -217,6 +225,7 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      await _notifyPairDisconnectBeforeLogout();
       final String? refreshToken = await _apiService.getRefreshToken();
       await _repository.logout(refreshToken: refreshToken);
       await _clearAuthState();
@@ -230,6 +239,21 @@ class AuthProvider extends ChangeNotifier {
   }
 
 
+  Future<void> _notifyPairDisconnectBeforeLogout() async {
+    try {
+      AppLogger.info('[PairLifecycle] logout -> partner-disconnect requested');
+      await _apiService.post(ApiConstants.couplePartnerDisconnect, <String, dynamic>{});
+      AppLogger.info('[PairLifecycle] logout -> partner-disconnect success');
+    } catch (e) {
+      AppLogger.info('[PairLifecycle] logout -> partner-disconnect failed');
+    }
+  }
+
+  void _markAuthBoundaryChanged({required String reason}) {
+    authBoundaryVersion++;
+    AppLogger.info('[Auth] boundary changed reason=$reason version=$authBoundaryVersion');
+  }
+
   Future<void> _clearAuthState() async {
     await _apiService.clearTokens();
     token = null;
@@ -239,7 +263,8 @@ class AuthProvider extends ChangeNotifier {
     _apiService.setToken(null);
     _apiService.setRefreshToken(null);
     requireEmailVerification = false;
-    await _cacheService.clearAll();
+    _markAuthBoundaryChanged(reason: 'clearAuthState');
+    await _cacheService.clearAuthBoundaryTransient();
   }
 
   Future<void> updateCurrentUserAvatar({

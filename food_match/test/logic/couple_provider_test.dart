@@ -70,7 +70,11 @@ class _FakeCoupleRepository extends CoupleRepository {
   Future<Couple> create() async => currentCouple!;
 
   @override
-  Future<Couple> join(String inviteCode) async => currentCouple!;
+  Future<Couple> join(
+    String inviteCode, {
+    bool replaceEmptyCurrentSession = false,
+  }) async =>
+      currentCouple!;
 
   @override
   Future<Couple?> getMyCouple() async => currentCouple;

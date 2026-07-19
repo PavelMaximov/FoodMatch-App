@@ -49,6 +49,18 @@ assert(req.headers['if-none-match'] === undefined && req.headers['if-modified-si
 assert(headers['Cache-Control']?.includes('no-store'), 'noStore should set Cache-Control no-store.');
 assert(headers.Pragma === 'no-cache' && headers.Expires === '0' && headers['Surrogate-Control'] === 'no-store', 'noStore should set no-cache compatibility headers.');
 
+const preSwipeProvider = readFileSync('../food_match/lib/features/swipes/logic/pre_swipe_provider.dart', 'utf8');
+const preSwipeScreen = readFileSync('../food_match/lib/features/swipes/presentation/screens/pre_swipe_filter_screen.dart', 'utf8');
+const swipesScreen = readFileSync('../food_match/lib/features/swipes/presentation/screens/swipes_screen.dart', 'utf8');
+const swipeProvider = readFileSync('../food_match/lib/features/swipes/logic/swipe_provider.dart', 'utf8');
+assert(preSwipeProvider.includes('prepareCanonicalPairDeck'), 'Pair flow should use canonical-only backend deck preparation.');
+assert(preSwipeScreen.includes('Could not load the shared deck. Please try again.'), 'Pair prepare errors should show a safe retry/error state.');
+assert(!preSwipeScreen.includes('Could not prepare shared deck. Using local fallback for now.'), 'Pair screen must not expose local fallback copy.');
+assert(swipesScreen.includes('pair_deck_error_retry'), 'Pair deck error retry should use canonical Pair deck loading.');
+assert(swipesScreen.includes('canonical load retry attempt'), 'Pair deck loading should retry transient empty/not-ready states before showing final error.');
+assert(swipesScreen.includes('Preparing your shared deck'), 'Pair deck loading should show loading copy before final error.');
+assert(swipeProvider.includes('blocked generic loadDeck in Pair mode'), 'Generic deck loading should be guarded in Pair mode.');
+
 const coupleRoutes = readFileSync('src/modules/couples/routes/coupleRoutes.ts', 'utf8');
 for (const route of ["router.get('/me'", "router.get('/filter-state'", "router.put('/filter-state/me'", "router.post('/filter-state/confirm'", "router.post('/deck/prepare'", "router.get('/deck'"]) {
   const line = coupleRoutes.split('\n').find((candidate) => candidate.includes(route));

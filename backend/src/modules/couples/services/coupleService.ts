@@ -71,7 +71,8 @@ export class CoupleService {
       members: [new Types.ObjectId(userId)],
       createdBy: new Types.ObjectId(userId),
       status: 'active',
-      filterState: { users: [], status: 'draft', updatedAt: null }
+      filterState: { users: [], status: 'draft', updatedAt: null },
+      pairLifecycleState: { status: 'active', reason: null, changedBy: null, generation: 0, updatedAt: null }
     });
     return this.getMyActiveSession(userId);
   }
@@ -119,6 +120,48 @@ export class CoupleService {
     clearPreparedDeck(targetSession);
     await targetSession.save();
     return this.getMyActiveSession(userId);
+  }
+
+
+  async markPartnerDisconnected(userId: string) {
+    const session = await CoupleSessionModel.findOne({ members: new Types.ObjectId(userId), status: 'active' }).sort({ updatedAt: -1, createdAt: -1 });
+    if (!session) return { status: 'none' };
+    const now = new Date();
+    session.pairLifecycleState = {
+      status: 'needs_resync',
+      reason: 'partner_logged_out',
+      changedBy: new Types.ObjectId(userId),
+      generation: (session.pairLifecycleState?.generation ?? 0) + 1,
+      updatedAt: now
+    };
+    this.clearFilterState(session);
+    clearPreparedDeck(session);
+    session.restartState = { requestedBy: [], status: 'idle', generation: session.restartState?.generation ?? 0, updatedAt: now };
+    await session.save();
+    return { status: 'needs_resync', sessionId: session.id, generation: session.pairLifecycleState.generation };
+  }
+
+  async markFilterChangeStarted(userId: string) {
+    const session = await CoupleSessionModel.findOne({ members: new Types.ObjectId(userId), status: 'active' }).sort({ updatedAt: -1, createdAt: -1 });
+    if (!session) return { status: 'none' };
+    return { status: 'local_editing', sessionId: session.id, generation: session.pairLifecycleState?.generation ?? 0 };
+  }
+
+  async commitFilterChange(userId: string) {
+    const session = await this.requireActiveSession(userId);
+    const now = new Date();
+    const generation = (session.pairLifecycleState?.generation ?? 0) + 1;
+    clearPreparedDeck(session);
+    session.pairLifecycleState = {
+      status: 'partner_action_required',
+      reason: 'filter_change',
+      changedBy: new Types.ObjectId(userId),
+      generation,
+      updatedAt: now
+    };
+    await session.save();
+    console.log(`[PairFilterChange] committed event=${generation} generation=${generation} by=${userId}`);
+    return { status: 'partner_action_required', eventId: String(generation), sessionId: session.id, generation };
   }
 
   async leaveSession(userId: string) {
@@ -200,12 +243,19 @@ export class CoupleService {
       `[FilterState] save body user=${userId} keys=${payloadKeys} normalizedLengths=` +
         `c${entry.cuisines.length}/m${entry.moods.length}/d${entry.diet.length}/e${entry.exclusions.length}`
     );
+    const hadReadyDeck = session.preparedDeck?.status === 'ready';
+    if (hadReadyDeck) {
+      for (const userChoice of session.filterState!.users) {
+        userChoice.confirmed = false;
+      }
+    }
     entry.confirmed = false;
     entry.updatedAt = now;
 
     session.filterState!.status = 'draft';
     session.filterState!.updatedAt = now;
     clearPreparedDeck(session);
+    session.restartState = { requestedBy: [], status: 'idle', generation: session.restartState?.generation ?? 0, updatedAt: now };
 
     await session.save();
     console.log(`[CoupleFilterState] update user=${userId} choices=c${entry.cuisines.length}/m${entry.moods.length}/d${entry.diet.length}/e${entry.exclusions.length}`);
@@ -224,6 +274,15 @@ export class CoupleService {
     const bothConfirmed = hasPartner && entry.confirmed && partnerConfirmed;
     session.filterState!.status = bothConfirmed ? 'ready' : 'draft';
     session.filterState!.updatedAt = now;
+    if (bothConfirmed && session.pairLifecycleState?.status === 'partner_action_required') {
+      session.pairLifecycleState = {
+        status: 'active',
+        reason: null,
+        changedBy: null,
+        generation: session.pairLifecycleState.generation,
+        updatedAt: now
+      };
+    }
     await session.save();
 
     console.log(`[CoupleFilterState] confirm user=${userId} bothConfirmed=${bothConfirmed}`);

@@ -6,8 +6,8 @@ import '../../../../data/models/couple.dart';
 import '../../../../data/models/user_profile.dart';
 import '../../../../shared/widgets/media/safe_avatar_image.dart';
 
-class DeckEndChoiceScreen extends StatefulWidget {
-  const DeckEndChoiceScreen({
+class SessionResumeChoiceScreen extends StatefulWidget {
+  const SessionResumeChoiceScreen({
     super.key,
     required this.isSoloMode,
     required this.onLoadPreviousSetup,
@@ -18,17 +18,18 @@ class DeckEndChoiceScreen extends StatefulWidget {
 
   final bool isSoloMode;
   final Future<LastFilterPreset?> Function() onLoadPreviousSetup;
-  final ValueChanged<LastFilterPreset?> onUsePreviousFilter;
+  final Future<void> Function(LastFilterPreset?) onUsePreviousFilter;
   final VoidCallback onStartNew;
   final CoupleMemberProfile? partner;
 
   @override
-  State<DeckEndChoiceScreen> createState() => _DeckEndChoiceScreenState();
+  State<SessionResumeChoiceScreen> createState() => _SessionResumeChoiceScreenState();
 }
 
-class _DeckEndChoiceScreenState extends State<DeckEndChoiceScreen> {
+class _SessionResumeChoiceScreenState extends State<SessionResumeChoiceScreen> {
   late Future<LastFilterPreset?> _presetFuture;
   LastFilterPreset? _preset;
+  bool _isContinuing = false;
 
   @override
   void initState() {
@@ -37,7 +38,7 @@ class _DeckEndChoiceScreenState extends State<DeckEndChoiceScreen> {
   }
 
   @override
-  void didUpdateWidget(covariant DeckEndChoiceScreen oldWidget) {
+  void didUpdateWidget(covariant SessionResumeChoiceScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.isSoloMode != widget.isSoloMode || oldWidget.partner?.id != widget.partner?.id) {
       _loadPreset();
@@ -52,8 +53,14 @@ class _DeckEndChoiceScreenState extends State<DeckEndChoiceScreen> {
   }
 
   Future<void> _handleContinue() async {
-    final LastFilterPreset? preset = _preset ?? await _presetFuture;
-    widget.onUsePreviousFilter(preset);
+    if (_isContinuing) return;
+    setState(() => _isContinuing = true);
+    try {
+      final LastFilterPreset? preset = _preset ?? await _presetFuture;
+      await widget.onUsePreviousFilter(preset);
+    } finally {
+      if (mounted) setState(() => _isContinuing = false);
+    }
   }
 
   @override
@@ -97,7 +104,7 @@ class _DeckEndChoiceScreenState extends State<DeckEndChoiceScreen> {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton(
-              onPressed: _handleContinue,
+              onPressed: _isContinuing ? null : _handleContinue,
               style: OutlinedButton.styleFrom(
                 backgroundColor: colors.background,
                 foregroundColor: colors.primary,
@@ -106,7 +113,7 @@ class _DeckEndChoiceScreenState extends State<DeckEndChoiceScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
                 textStyle: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.w800),
               ),
-              child: const Text('Continue as before'),
+              child: Text(_isContinuing ? 'Continuing…' : 'Continue as before'),
             ),
           ),
           const SizedBox(height: 13),

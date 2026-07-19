@@ -57,6 +57,9 @@ class ApiConstants {
   static const String coupleReset = '/api/couples/reset';
   static const String coupleLeave = '/api/couples/leave';
   static const String coupleContinueAsBefore = '/api/couples/continue-as-before';
+  static const String couplePartnerDisconnect = '/api/couples/current/partner-disconnect';
+  static const String coupleFilterChangeStart = '/api/couples/current/filter-change/start';
+  static const String coupleFilterChangeCommit = '/api/couples/current/filter-change/commit';
   static const String coupleInvitationsPending = '/api/couples/invitations/pending';
   static String coupleInvitationAccept(String id) => '/api/couples/invitations/$id/accept';
   static String coupleInvitationDecline(String id) => '/api/couples/invitations/$id/decline';
@@ -67,6 +70,8 @@ class ApiConstants {
   static const String coupleDeckPrepare = '/api/couples/deck/prepare';
   static const String coupleDeck = '/api/couples/deck';
   static const String coupleDeckReset = '/api/couples/deck/reset';
+  static const String coupleDeckRestartRequest = '/api/couples/deck/restart-request';
+  static const String coupleDeckRestartStatus = '/api/couples/deck/restart-status';
   static const String dishes = '/api/dishes';
   static const String dishesCatalog = '/api/dishes?limit=all';
   static const String dishesCustom = '/api/dishes/custom';
