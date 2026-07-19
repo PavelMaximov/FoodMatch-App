@@ -81,7 +81,7 @@ class _SessionResumeChoiceScreenState extends State<SessionResumeChoiceScreen> {
           ),
           const SizedBox(height: 5),
           Text(
-            'You’re done for now',
+            'Session complete',
             style: GoogleFonts.fredoka(
               fontSize: 35,
               fontWeight: FontWeight.w700,
