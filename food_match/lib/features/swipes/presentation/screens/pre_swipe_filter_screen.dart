@@ -314,12 +314,6 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
                       child: child,
                     );
                   },
-                  layoutBuilder: (List<Widget> entries) {
-                    return Stack(
-                      alignment: Alignment.topCenter,
-                      children: entries,
-                    );
-                  },
                   child: ColoredBox(
                     color: context.fmColors.background,
                     child: KeyedSubtree(
@@ -377,87 +371,82 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
 
   Widget _buildStepContent() {
     if (_step == 1) {
-      return SizedBox.expand(
-        child: SingleChildScrollView(
-          child: Align(
-            alignment: Alignment.topLeft,
-            child: _buildChipGrid(
-              options: _cuisineOptions,
-              selected: _cuisines,
-              onTap: _toggleCuisine,
-              chipStates: context
-                  .read<PreSwipeProvider>()
-                  .buildCuisineChipStates(_cuisineOptions, _allDishes),
-              anyWhenEmpty: true,
-            ),
-          ),
+      return _buildTopAlignedScrollable(
+        _buildChipGrid(
+          options: _cuisineOptions,
+          selected: _cuisines,
+          onTap: _toggleCuisine,
+          chipStates: context
+              .read<PreSwipeProvider>()
+              .buildCuisineChipStates(_cuisineOptions, _allDishes),
+          anyWhenEmpty: true,
         ),
       );
     }
 
     if (_step == 2) {
-      return SizedBox.expand(
-        child: SingleChildScrollView(
-          child: Align(
-            alignment: Alignment.topLeft,
-            child: _buildChipGrid(
-              options: _moodOptions,
-              selected: _moods,
-              onTap: (String value) {
-                setState(() {
-                  if (_moods.contains(value)) {
-                    _moods.remove(value);
-                  } else if (_moods.length < 3) {
-                    _moods.add(value);
-                  }
-                });
-              },
-              chipStates: context.read<PreSwipeProvider>().buildMoodChipStates(
-                    options: _moodOptions,
-                    allDishes: _allDishes,
-                    selectedCuisines: _cuisines.toList(),
-                  ),
+      return _buildTopAlignedScrollable(
+        _buildChipGrid(
+          options: _moodOptions,
+          selected: _moods,
+          onTap: (String value) {
+            setState(() {
+              if (_moods.contains(value)) {
+                _moods.remove(value);
+              } else if (_moods.length < 3) {
+                _moods.add(value);
+              }
+            });
+          },
+          chipStates: context.read<PreSwipeProvider>().buildMoodChipStates(
+                options: _moodOptions,
+                allDishes: _allDishes,
+                selectedCuisines: _cuisines.toList(),
               ),
-            ),
-          ),
         ),
       );
     }
 
+    return _buildTopAlignedScrollable(
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          _buildChipGrid(
+            options: _dietOptions,
+            selected: _diet,
+            onTap: _toggleDiet,
+            anyWhenEmpty: true,
+          ),
+          const SizedBox(height: 16),
+          _buildChipGrid(
+            options: _exceptionOptions,
+            selected: _blocked,
+            onTap: (String value) {
+              setState(() {
+                if (_blocked.contains(value)) {
+                  _blocked.remove(value);
+                } else {
+                  _blocked.add(value);
+                }
+              });
+            },
+            chipStates: context.read<PreSwipeProvider>().buildExceptionChipStates(
+                  options: _exceptionOptions,
+                  allDishes: _allDishes,
+                  selectedCuisines: _cuisines.toList(),
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopAlignedScrollable(Widget child) {
     return SizedBox.expand(
       child: SingleChildScrollView(
         child: Align(
           alignment: Alignment.topLeft,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              _buildChipGrid(
-                options: _dietOptions,
-                selected: _diet,
-                onTap: _toggleDiet,
-                anyWhenEmpty: true,
-              ),
-              const SizedBox(height: 16),
-              _buildChipGrid(
-                options: _exceptionOptions,
-                selected: _blocked,
-                onTap: (String value) {
-                  setState(() {
-                    if (_blocked.contains(value)) {
-                      _blocked.remove(value);
-                    } else {
-                      _blocked.add(value);
-                    }
-                  });
-                },
-                chipStates: context.read<PreSwipeProvider>().buildExceptionChipStates(
-                      options: _exceptionOptions,
-                      allDishes: _allDishes,
-                      selectedCuisines: _cuisines.toList(),
-                    ),
-              ),
-            ],
-          ),
+          child: child,
         ),
       ),
     );
