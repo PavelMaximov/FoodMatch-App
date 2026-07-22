@@ -320,9 +320,19 @@ class _SwipeableStackState extends State<SwipeableStack>
   @override
   Widget build(BuildContext context) {
     if (_visualIndex >= widget.itemCount) return const SizedBox.shrink();
-    return Stack(
-      clipBehavior: Clip.none,
-      children: <Widget>[
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        if (kDebugMode) {
+          debugPrint(
+            '[SwipeStack] build deckSize=${widget.itemCount} visualIndex=$_visualIndex '
+            'maxW=${constraints.maxWidth.toStringAsFixed(1)} '
+            'maxH=${constraints.maxHeight.toStringAsFixed(1)}',
+          );
+        }
+        return Stack(
+          fit: StackFit.expand,
+          clipBehavior: Clip.none,
+          children: <Widget>[
         if (_visualIndex + 2 < widget.itemCount) _preview(_visualIndex + 2, .94, .72),
         if (_visualIndex + 1 < widget.itemCount) _preview(_visualIndex + 1, .97, .9),
         Positioned.fill(
@@ -373,8 +383,10 @@ class _SwipeableStackState extends State<SwipeableStack>
               ),
             ),
           ),
-        _buildButtonActionOverlay(),
-      ],
+            _buildButtonActionOverlay(),
+          ],
+        );
+      },
     );
   }
 }
