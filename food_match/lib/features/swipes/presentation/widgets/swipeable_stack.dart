@@ -31,8 +31,16 @@ class SwipeableStackController {
 
   void _attach(_SwipeableStackState state) => _state = state;
   void _detach() => _state = null;
-  void swipeLeft() => _state?._startSwipe(SwipeDirection.left, showButtonOverlay: true);
-  void swipeRight() => _state?._startSwipe(SwipeDirection.right, showButtonOverlay: true);
+  void swipeLeft() => _state?._startSwipe(
+        SwipeDirection.left,
+        showButtonOverlay: true,
+        notifyAfterAnimation: true,
+      );
+  void swipeRight() => _state?._startSwipe(
+        SwipeDirection.right,
+        showButtonOverlay: true,
+        notifyAfterAnimation: true,
+      );
   void reset() => _state?._resetInteractionState();
 }
 
@@ -238,12 +246,19 @@ class _SwipeableStackState extends State<SwipeableStack>
     _animateSnapBack();
   }
 
-  void _startSwipe(SwipeDirection direction, {bool showButtonOverlay = false}) {
+  void _startSwipe(
+    SwipeDirection direction, {
+    bool showButtonOverlay = false,
+    bool notifyAfterAnimation = false,
+  }) {
     if (_isAnimating || !widget.canSwipe || _visualIndex >= widget.itemCount) {
       return;
     }
     final int outgoingIndex = _visualIndex;
     if (showButtonOverlay) {
+      if (kDebugMode) {
+        debugPrint('[SwipeButtonAnim] start direction=${direction.name} index=$outgoingIndex');
+      }
       _showButtonActionOverlay(
         direction == SwipeDirection.right
             ? _ButtonActionOverlay.like
@@ -270,7 +285,9 @@ class _SwipeableStackState extends State<SwipeableStack>
     }
     _dragOffset = Offset.zero;
     setState(() {});
-    widget.onSwipe?.call(outgoingIndex, direction);
+    if (!notifyAfterAnimation) {
+      widget.onSwipe?.call(outgoingIndex, direction);
+    }
     _animationController
         .animateTo(1, duration: _swipeDuration, curve: Curves.easeOutCubic)
         .whenComplete(() {
@@ -284,6 +301,12 @@ class _SwipeableStackState extends State<SwipeableStack>
         _opacityAnimation = null;
       });
       _animationController.reset();
+      if (notifyAfterAnimation) {
+        if (kDebugMode) {
+          debugPrint('[SwipeButtonAnim] complete direction=${direction.name} index=$outgoingIndex');
+        }
+        widget.onSwipe?.call(outgoingIndex, direction);
+      }
     });
   }
 
