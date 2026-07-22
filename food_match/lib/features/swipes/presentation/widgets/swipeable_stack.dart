@@ -33,7 +33,6 @@ class SwipeableStackController {
   void _detach() => _state = null;
   void swipeLeft() => _state?._startSwipe(SwipeDirection.left, showButtonOverlay: true);
   void swipeRight() => _state?._startSwipe(SwipeDirection.right, showButtonOverlay: true);
-  void prepareUndoAnimation() => _state?._prepareUndoAnimation();
   void reset() => _state?._resetInteractionState();
 }
 
@@ -53,12 +52,10 @@ class _SwipeableStackState extends State<SwipeableStack>
   Widget? _outgoingCard;
   late final AnimationController _animationController;
   late final AnimationController _buttonPulseController;
-  late final AnimationController _undoController;
   Animation<Offset>? _offsetAnimation;
   Animation<double>? _opacityAnimation;
   _ButtonActionOverlay? _buttonActionOverlay;
   int _buttonPulseGeneration = 0;
-  bool _isUndoPending = false;
 
   @override
   void initState() {
@@ -67,10 +64,6 @@ class _SwipeableStackState extends State<SwipeableStack>
     _buttonPulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 330),
-    );
-    _undoController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 260),
     );
     widget.controller?._attach(this);
   }
@@ -86,10 +79,6 @@ class _SwipeableStackState extends State<SwipeableStack>
     if (oldWidget.itemCount != widget.itemCount && _visualIndex != 0) {
       _visualIndex = 0;
     }
-    if (_isUndoPending && widget.itemCount > oldWidget.itemCount) {
-      _isUndoPending = false;
-      _undoController.forward(from: 0);
-    }
   }
 
   @override
@@ -97,7 +86,6 @@ class _SwipeableStackState extends State<SwipeableStack>
     widget.controller?._detach();
     _animationController.dispose();
     _buttonPulseController.dispose();
-    _undoController.dispose();
     super.dispose();
   }
 
@@ -183,8 +171,6 @@ class _SwipeableStackState extends State<SwipeableStack>
       }
     });
   }
-
-  void _prepareUndoAnimation() => _isUndoPending = true;
 
   void _resetInteractionState() {
     _animationController.stop();
@@ -340,19 +326,7 @@ class _SwipeableStackState extends State<SwipeableStack>
         if (_visualIndex + 2 < widget.itemCount) _preview(_visualIndex + 2, .94, .72),
         if (_visualIndex + 1 < widget.itemCount) _preview(_visualIndex + 1, .97, .9),
         Positioned.fill(
-          child: AnimatedBuilder(
-            animation: _undoController,
-            builder: (BuildContext context, Widget? child) {
-              final double value = Curves.easeOutCubic.transform(_undoController.value);
-              return Transform.translate(
-                offset: Offset(0, 32 * (1 - value)),
-                child: Transform.scale(
-                  scale: .96 + (.04 * value),
-                  child: Opacity(opacity: .85 + (.15 * value), child: child),
-                ),
-              );
-            },
-            child: IgnorePointer(
+          child: IgnorePointer(
             ignoring: _isAnimating || !widget.canSwipe,
             child: GestureDetector(
               onHorizontalDragStart: _onPanStart,
@@ -374,7 +348,6 @@ class _SwipeableStackState extends State<SwipeableStack>
                   ],
                 ),
               ),
-            ),
             ),
           ),
         ),
