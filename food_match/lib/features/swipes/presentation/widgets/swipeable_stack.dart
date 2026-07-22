@@ -85,6 +85,41 @@ class _SwipeableStackState extends State<SwipeableStack>
   double get _dragOpacity =>
       (1 - _dragOffset.dx.abs() / (_screenWidth * .9)).clamp(.65, 1.0);
 
+  Widget _buildDragActionOverlay() {
+    final double dragDistance = _dragOffset.dx.abs();
+    final double progress = (dragDistance / _distanceThreshold).clamp(0.0, 1.0);
+    final double normalized = _isDragging && dragDistance >= 12
+        ? ((progress - .08) / .67).clamp(0.0, 1.0)
+        : 0.0;
+
+    return Positioned(
+      top: 24,
+      left: 0,
+      right: 0,
+      child: IgnorePointer(
+        child: Center(
+          child: AnimatedOpacity(
+            duration: const Duration(milliseconds: 120),
+            curve: Curves.easeOutCubic,
+            opacity: normalized,
+            child: AnimatedScale(
+              duration: const Duration(milliseconds: 120),
+              curve: Curves.easeOutCubic,
+              scale: .75 + (.4 * normalized),
+              child: SvgPicture.asset(
+                _dragOffset.dx < 0
+                    ? 'assets/icons/declined_swipe.svg'
+                    : 'assets/icons/confirmed_swipe.svg',
+                width: 90,
+                height: 90,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   void _resetInteractionState() {
     _animationController.stop();
     _animationController.reset();
@@ -114,6 +149,7 @@ class _SwipeableStackState extends State<SwipeableStack>
   void _onPanEnd(DragEndDetails details) {
     if (!_isDragging) return;
     _isDragging = false;
+    setState(() {});
     final double velocity = details.primaryVelocity ?? 0;
     final bool crossedDistance = _dragOffset.dx.abs() >= _distanceThreshold;
     final bool crossedVelocity = velocity.abs() >= _velocityThreshold &&
@@ -230,9 +266,14 @@ class _SwipeableStackState extends State<SwipeableStack>
                 transform: Matrix4.identity()
                   ..translateByDouble(_dragOffset.dx, 0, 0, 1)
                   ..rotateZ(_rotation),
-                child: Opacity(
-                  opacity: _dragOpacity,
-                  child: widget.cardBuilder(context, _visualIndex),
+                child: Stack(
+                  children: <Widget>[
+                    Opacity(
+                      opacity: _dragOpacity,
+                      child: widget.cardBuilder(context, _visualIndex),
+                    ),
+                    _buildDragActionOverlay(),
+                  ],
                 ),
               ),
             ),
