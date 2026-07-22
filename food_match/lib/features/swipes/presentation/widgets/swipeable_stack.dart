@@ -98,13 +98,9 @@ class _SwipeableStackState extends State<SwipeableStack>
       right: 0,
       child: IgnorePointer(
         child: Center(
-          child: AnimatedOpacity(
-            duration: const Duration(milliseconds: 120),
-            curve: Curves.easeOutCubic,
+          child: Opacity(
             opacity: normalized,
-            child: AnimatedScale(
-              duration: const Duration(milliseconds: 120),
-              curve: Curves.easeOutCubic,
+            child: Transform.scale(
               scale: .75 + (.4 * normalized),
               child: SvgPicture.asset(
                 _dragOffset.dx < 0
@@ -172,6 +168,13 @@ class _SwipeableStackState extends State<SwipeableStack>
     } else {
       _startSwipe(direction);
     }
+  }
+
+  void _onPanCancel() {
+    if (!_isDragging) return;
+    _isDragging = false;
+    setState(() {});
+    _animateSnapBack();
   }
 
   void _startSwipe(SwipeDirection direction) {
@@ -261,6 +264,7 @@ class _SwipeableStackState extends State<SwipeableStack>
               onHorizontalDragStart: _onPanStart,
               onHorizontalDragUpdate: _onPanUpdate,
               onHorizontalDragEnd: _onPanEnd,
+              onHorizontalDragCancel: _onPanCancel,
               child: Transform(
                 alignment: Alignment.center,
                 transform: Matrix4.identity()
@@ -294,26 +298,7 @@ class _SwipeableStackState extends State<SwipeableStack>
                       ..rotateZ((offset.dx / _screenWidth).clamp(-1.0, 1.0) * (pi / 20)),
                     child: Opacity(
                       opacity: opacity,
-                      child: Stack(
-                        children: <Widget>[
-                          _outgoingCard!,
-                          if (offset.dx.abs() > 20)
-                            Positioned(
-                              top: 72,
-                              left: 0,
-                              right: 0,
-                              child: Center(
-                                child: SvgPicture.asset(
-                                  offset.dx < 0
-                                      ? 'assets/icons/declined_swipe.svg'
-                                      : 'assets/icons/confirmed_swipe.svg',
-                                  width: 90,
-                                  height: 90,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
+                      child: _outgoingCard!,
                     ),
                   );
                 },

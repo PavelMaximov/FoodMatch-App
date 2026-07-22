@@ -275,9 +275,12 @@ class _PagedBranchNavigatorContainerState
 
   @override
   Widget build(BuildContext context) {
+    final bool isSwipesTab = widget.navigationShell.currentIndex == 2;
     return PageView(
       controller: _pageController,
-      physics: const PageScrollPhysics(),
+      physics: isSwipesTab
+          ? const NeverScrollableScrollPhysics()
+          : const PageScrollPhysics(),
       onPageChanged: _handlePageChanged,
       allowImplicitScrolling: true,
       children: _tabPages,
