@@ -31,13 +31,16 @@ class SwipeableStackController {
 
   void _attach(_SwipeableStackState state) => _state = state;
   void _detach() => _state = null;
-  void swipeLeft() => _state?._startSwipe(SwipeDirection.left);
-  void swipeRight() => _state?._startSwipe(SwipeDirection.right);
+  void swipeLeft() => _state?._startSwipe(SwipeDirection.left, showButtonOverlay: true);
+  void swipeRight() => _state?._startSwipe(SwipeDirection.right, showButtonOverlay: true);
+  void prepareUndoAnimation() => _state?._prepareUndoAnimation();
   void reset() => _state?._resetInteractionState();
 }
 
+enum _ButtonActionOverlay { like, dislike }
+
 class _SwipeableStackState extends State<SwipeableStack>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   static const Duration _swipeDuration = Duration(milliseconds: 250);
   static const Duration _snapBackDuration = Duration(milliseconds: 180);
   static const double _distanceThreshold = 120;
@@ -49,13 +52,26 @@ class _SwipeableStackState extends State<SwipeableStack>
   int _visualIndex = 0;
   Widget? _outgoingCard;
   late final AnimationController _animationController;
+  late final AnimationController _buttonPulseController;
+  late final AnimationController _undoController;
   Animation<Offset>? _offsetAnimation;
   Animation<double>? _opacityAnimation;
+  _ButtonActionOverlay? _buttonActionOverlay;
+  int _buttonPulseGeneration = 0;
+  bool _isUndoPending = false;
 
   @override
   void initState() {
     super.initState();
     _animationController = AnimationController(vsync: this);
+    _buttonPulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 330),
+    );
+    _undoController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 260),
+    );
     widget.controller?._attach(this);
   }
 
@@ -70,12 +86,18 @@ class _SwipeableStackState extends State<SwipeableStack>
     if (oldWidget.itemCount != widget.itemCount && _visualIndex != 0) {
       _visualIndex = 0;
     }
+    if (_isUndoPending && widget.itemCount > oldWidget.itemCount) {
+      _isUndoPending = false;
+      _undoController.forward(from: 0);
+    }
   }
 
   @override
   void dispose() {
     widget.controller?._detach();
     _animationController.dispose();
+    _buttonPulseController.dispose();
+    _undoController.dispose();
     super.dispose();
   }
 
@@ -116,6 +138,54 @@ class _SwipeableStackState extends State<SwipeableStack>
     );
   }
 
+  Widget _buildButtonActionOverlay() {
+    final _ButtonActionOverlay? action = _buttonActionOverlay;
+    if (action == null) return const SizedBox.shrink();
+
+    return Positioned(
+      top: 24,
+      left: 0,
+      right: 0,
+      child: IgnorePointer(
+        child: Center(
+          child: AnimatedBuilder(
+            animation: _buttonPulseController,
+            builder: (BuildContext context, Widget? child) {
+              final double value = Curves.easeOutCubic.transform(_buttonPulseController.value);
+              final double opacity = value < .6 ? value / .6 : (1 - value) / .4;
+              final double scale = value < .6
+                  ? .75 + (.4 * (value / .6))
+                  : 1.15 - (.2 * ((value - .6) / .4));
+              return Opacity(
+                opacity: opacity.clamp(0.0, 1.0),
+                child: Transform.scale(scale: scale, child: child),
+              );
+            },
+            child: SvgPicture.asset(
+              action == _ButtonActionOverlay.like
+                  ? 'assets/icons/confirmed_swipe.svg'
+                  : 'assets/icons/declined_swipe.svg',
+              width: 90,
+              height: 90,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showButtonActionOverlay(_ButtonActionOverlay action) {
+    final int generation = ++_buttonPulseGeneration;
+    setState(() => _buttonActionOverlay = action);
+    _buttonPulseController.forward(from: 0).whenComplete(() {
+      if (mounted && !_isDragging && generation == _buttonPulseGeneration) {
+        setState(() => _buttonActionOverlay = null);
+      }
+    });
+  }
+
+  void _prepareUndoAnimation() => _isUndoPending = true;
+
   void _resetInteractionState() {
     _animationController.stop();
     _animationController.reset();
@@ -128,11 +198,16 @@ class _SwipeableStackState extends State<SwipeableStack>
       _outgoingCard = null;
       _offsetAnimation = null;
       _opacityAnimation = null;
+      _buttonActionOverlay = null;
+      _buttonPulseGeneration++;
     });
   }
 
   void _onPanStart(DragStartDetails _) {
     if (_isAnimating || !widget.canSwipe) return;
+    _buttonPulseController.stop();
+    _buttonActionOverlay = null;
+    _buttonPulseGeneration++;
     if (kDebugMode) debugPrint('[SwipeAnim] panStart index=$_visualIndex');
     setState(() => _isDragging = true);
   }
@@ -177,11 +252,18 @@ class _SwipeableStackState extends State<SwipeableStack>
     _animateSnapBack();
   }
 
-  void _startSwipe(SwipeDirection direction) {
+  void _startSwipe(SwipeDirection direction, {bool showButtonOverlay = false}) {
     if (_isAnimating || !widget.canSwipe || _visualIndex >= widget.itemCount) {
       return;
     }
     final int outgoingIndex = _visualIndex;
+    if (showButtonOverlay) {
+      _showButtonActionOverlay(
+        direction == SwipeDirection.right
+            ? _ButtonActionOverlay.like
+            : _ButtonActionOverlay.dislike,
+      );
+    }
     final double targetX = direction == SwipeDirection.left
         ? -_screenWidth * 1.25
         : _screenWidth * 1.25;
@@ -258,7 +340,19 @@ class _SwipeableStackState extends State<SwipeableStack>
         if (_visualIndex + 2 < widget.itemCount) _preview(_visualIndex + 2, .94, .72),
         if (_visualIndex + 1 < widget.itemCount) _preview(_visualIndex + 1, .97, .9),
         Positioned.fill(
-          child: IgnorePointer(
+          child: AnimatedBuilder(
+            animation: _undoController,
+            builder: (BuildContext context, Widget? child) {
+              final double value = Curves.easeOutCubic.transform(_undoController.value);
+              return Transform.translate(
+                offset: Offset(0, 32 * (1 - value)),
+                child: Transform.scale(
+                  scale: .96 + (.04 * value),
+                  child: Opacity(opacity: .85 + (.15 * value), child: child),
+                ),
+              );
+            },
+            child: IgnorePointer(
             ignoring: _isAnimating || !widget.canSwipe,
             child: GestureDetector(
               onHorizontalDragStart: _onPanStart,
@@ -280,6 +374,7 @@ class _SwipeableStackState extends State<SwipeableStack>
                   ],
                 ),
               ),
+            ),
             ),
           ),
         ),
@@ -305,6 +400,7 @@ class _SwipeableStackState extends State<SwipeableStack>
               ),
             ),
           ),
+        _buildButtonActionOverlay(),
       ],
     );
   }

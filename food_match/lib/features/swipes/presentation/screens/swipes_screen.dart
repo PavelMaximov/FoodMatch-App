@@ -1223,6 +1223,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     }
     _isCardActionInProgress = true;
     try {
+      _swiperController.prepareUndoAnimation();
       provider.undo();
     } finally {
       _isCardActionInProgress = false;
