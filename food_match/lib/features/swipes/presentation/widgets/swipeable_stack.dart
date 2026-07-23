@@ -46,8 +46,8 @@ class SwipeableStackState extends State<SwipeableStack>
   Animation<double>? _opacityAnimation;
   _ButtonActionOverlay? _buttonActionOverlay;
   int _buttonPulseGeneration = 0;
-  Widget? _buttonOutgoingCard;
-  SwipeDirection? _buttonOutgoingDirection;
+  SwipeDirection? _buttonSwipeDirection;
+  double _cardAreaWidth = 0;
 
   @override
   void initState() {
@@ -68,6 +68,16 @@ class SwipeableStackState extends State<SwipeableStack>
           debugPrint('[ButtonSwipe] controller status=$status value=${_buttonSwipeController.value.toStringAsFixed(2)}');
         }
       });
+    _buttonSwipeController.addListener(() {
+      if (kDebugMode && _isButtonSwipeAnimating) {
+        final double progress = Curves.easeOutCubic.transform(_buttonSwipeController.value);
+        final double sign = _buttonSwipeDirection == SwipeDirection.right ? 1.0 : -1.0;
+        debugPrint(
+          '[ButtonSwipe] tick value=${_buttonSwipeController.value.toStringAsFixed(2)} '
+          'dx=${(sign * _cardAreaWidth * 1.25 * progress).toStringAsFixed(1)}',
+        );
+      }
+    });
   }
 
   @override
@@ -179,8 +189,7 @@ class SwipeableStackState extends State<SwipeableStack>
       _isDragging = false;
       _isAnimating = false;
       _isButtonSwipeAnimating = false;
-      _buttonOutgoingCard = null;
-      _buttonOutgoingDirection = null;
+      _buttonSwipeDirection = null;
       _visualIndex = 0;
       _outgoingCard = null;
       _offsetAnimation = null;
@@ -248,7 +257,6 @@ class SwipeableStackState extends State<SwipeableStack>
   Future<void> _runProgrammaticSwipe(SwipeDirection direction) async {
     if (_isDragging || _isAnimating || _isButtonSwipeAnimating || !widget.canSwipe) return;
     final int outgoingIndex = _visualIndex;
-    final Widget outgoingCard = widget.cardBuilder(context, outgoingIndex);
     if (kDebugMode) {
       debugPrint('[ButtonSwipe] dedicated start direction=${direction.name} index=$outgoingIndex');
     }
@@ -257,8 +265,8 @@ class SwipeableStackState extends State<SwipeableStack>
       ..reset();
     setState(() {
       _isButtonSwipeAnimating = true;
-      _buttonOutgoingCard = outgoingCard;
-      _buttonOutgoingDirection = direction;
+      _buttonSwipeDirection = direction;
+      _dragOffset = Offset.zero;
     });
     _showButtonActionOverlay(
       direction == SwipeDirection.right
@@ -278,8 +286,7 @@ class SwipeableStackState extends State<SwipeableStack>
         _visualIndex++;
       }
       _isButtonSwipeAnimating = false;
-      _buttonOutgoingCard = null;
-      _buttonOutgoingDirection = null;
+      _buttonSwipeDirection = null;
     });
     if (kDebugMode) debugPrint('[ButtonSwipe] callback fired direction=${direction.name}');
     widget.onSwipe?.call(outgoingIndex, direction);
@@ -364,15 +371,14 @@ class SwipeableStackState extends State<SwipeableStack>
   @override
   Widget build(BuildContext context) {
     if (_visualIndex >= widget.itemCount) return const SizedBox.shrink();
-    final int baseStartIndex = _buttonOutgoingCard != null
-        ? _visualIndex + 1
-        : _visualIndex;
+    final int baseStartIndex = _visualIndex;
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
+        _cardAreaWidth = constraints.maxWidth;
         if (kDebugMode) {
           debugPrint(
             '[SwipeStack] build deckSize=${widget.itemCount} visualIndex=$_visualIndex '
-            'buttonOutgoing=${_buttonOutgoingCard != null} '
+            'buttonOutgoing=$_isButtonSwipeAnimating '
             'buttonAnimValue=${_buttonSwipeController.value.toStringAsFixed(2)} '
             'baseStartIndex=$baseStartIndex '
             'maxW=${constraints.maxWidth.toStringAsFixed(1)} '
@@ -393,17 +399,37 @@ class SwipeableStackState extends State<SwipeableStack>
               onHorizontalDragUpdate: _onPanUpdate,
               onHorizontalDragEnd: _onPanEnd,
               onHorizontalDragCancel: _onPanCancel,
-              child: Transform(
-                alignment: Alignment.center,
-                transform: Matrix4.identity()
-                  ..translateByDouble(_dragOffset.dx, 0, 0, 1)
-                  ..rotateZ(_rotation),
+              child: AnimatedBuilder(
+                animation: _buttonSwipeController,
+                builder: (BuildContext context, Widget? child) {
+                  final double progress = Curves.easeOutCubic.transform(
+                    _buttonSwipeController.value,
+                  );
+                  final double direction =
+                      _buttonSwipeDirection == SwipeDirection.right ? 1.0 : -1.0;
+                  final Offset offset = _isButtonSwipeAnimating
+                      ? Offset(
+                          direction * constraints.maxWidth * 1.25 * progress,
+                          -24 * progress,
+                        )
+                      : _dragOffset;
+                  final double rotation = _isButtonSwipeAnimating
+                      ? direction * (pi / 22.5) * progress
+                      : _rotation;
+                  final double opacity = _isButtonSwipeAnimating
+                      ? (1 - (.15 * progress)).clamp(0.0, 1.0)
+                      : _dragOpacity;
+                  return Transform(
+                    alignment: Alignment.center,
+                    transform: Matrix4.identity()
+                      ..translateByDouble(offset.dx, offset.dy, 0, 1)
+                      ..rotateZ(rotation),
+                    child: Opacity(opacity: opacity, child: child),
+                  );
+                },
                 child: Stack(
                   children: <Widget>[
-                    Opacity(
-                      opacity: _dragOpacity,
-                      child: widget.cardBuilder(context, baseStartIndex),
-                    ),
+                    widget.cardBuilder(context, baseStartIndex),
                     _buildDragActionOverlay(),
                   ],
                 ),
@@ -427,35 +453,6 @@ class SwipeableStackState extends State<SwipeableStack>
                     child: Opacity(
                       opacity: opacity,
                       child: _outgoingCard!,
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-        if (_buttonOutgoingCard != null && _buttonOutgoingDirection != null)
-          Positioned.fill(
-            child: IgnorePointer(
-              child: AnimatedBuilder(
-                animation: _buttonSwipeController,
-                child: _buttonOutgoingCard!,
-                builder: (BuildContext context, Widget? child) {
-                  final double progress = Curves.easeOutCubic.transform(
-                    _buttonSwipeController.value,
-                  );
-                  final double direction =
-                      _buttonOutgoingDirection == SwipeDirection.right ? 1.0 : -1.0;
-                  return Transform.translate(
-                    offset: Offset(
-                      direction * constraints.maxWidth * 1.25 * progress,
-                      -24 * progress,
-                    ),
-                    child: Transform.rotate(
-                      angle: direction * (pi / 22.5) * progress,
-                      child: Opacity(
-                        opacity: (1 - (.15 * progress)).clamp(0.0, 1.0),
-                        child: child,
-                      ),
                     ),
                   );
                 },
