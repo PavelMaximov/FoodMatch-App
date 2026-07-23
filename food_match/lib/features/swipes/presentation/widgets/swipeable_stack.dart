@@ -68,7 +68,10 @@ class _SwipeableStackState extends State<SwipeableStack>
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(vsync: this);
+    _animationController = AnimationController(
+      vsync: this,
+      duration: _swipeDuration,
+    );
     _buttonPulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 330),
@@ -275,7 +278,7 @@ class _SwipeableStackState extends State<SwipeableStack>
     }
     _offsetAnimation = Tween<Offset>(
       begin: _dragOffset,
-      end: Offset(targetX, 0),
+      end: Offset(targetX, notifyAfterAnimation ? -24 : 0),
     ).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic));
     _opacityAnimation = Tween<double>(begin: _dragOpacity, end: 0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
@@ -289,7 +292,7 @@ class _SwipeableStackState extends State<SwipeableStack>
       widget.onSwipe?.call(outgoingIndex, direction);
     }
     _animationController
-        .animateTo(1, duration: _swipeDuration, curve: Curves.easeOutCubic)
+        .forward(from: 0)
         .whenComplete(() {
       if (!mounted) return;
       if (kDebugMode) debugPrint('[SwipeAnim] swipeOut complete');
