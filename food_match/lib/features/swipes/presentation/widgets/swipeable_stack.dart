@@ -36,6 +36,7 @@ class SwipeableStackState extends State<SwipeableStack>
   Offset _dragOffset = Offset.zero;
   bool _isDragging = false;
   bool _isAnimating = false;
+  bool _isButtonSwipeAnimating = false;
   int _visualIndex = 0;
   Widget? _outgoingCard;
   late final AnimationController _animationController;
@@ -64,6 +65,9 @@ class SwipeableStackState extends State<SwipeableStack>
     // Once the provider advances its deck, B becomes index zero in this stack.
     if (oldWidget.itemCount != widget.itemCount && _visualIndex != 0) {
       _visualIndex = 0;
+    }
+    if (oldWidget.itemCount != widget.itemCount && _isButtonSwipeAnimating) {
+      _isButtonSwipeAnimating = false;
     }
   }
 
@@ -165,6 +169,7 @@ class SwipeableStackState extends State<SwipeableStack>
       _dragOffset = Offset.zero;
       _isDragging = false;
       _isAnimating = false;
+      _isButtonSwipeAnimating = false;
       _visualIndex = 0;
       _outgoingCard = null;
       _offsetAnimation = null;
@@ -238,6 +243,7 @@ class SwipeableStackState extends State<SwipeableStack>
       direction,
       showButtonOverlay: true,
       notifyAfterAnimation: true,
+      advanceVisualIndex: false,
     );
   }
 
@@ -245,6 +251,7 @@ class SwipeableStackState extends State<SwipeableStack>
     SwipeDirection direction, {
     bool showButtonOverlay = false,
     bool notifyAfterAnimation = false,
+    bool advanceVisualIndex = true,
   }) {
     if (_isAnimating || !widget.canSwipe || _visualIndex >= widget.itemCount) {
       return Future<void>.value();
@@ -265,7 +272,8 @@ class SwipeableStackState extends State<SwipeableStack>
         : _screenWidth * 1.25;
     _outgoingCard = widget.cardBuilder(context, outgoingIndex);
     _isAnimating = true;
-    if (outgoingIndex + 1 < widget.itemCount) {
+    _isButtonSwipeAnimating = !advanceVisualIndex;
+    if (advanceVisualIndex && outgoingIndex + 1 < widget.itemCount) {
       _visualIndex++;
     }
     _offsetAnimation = Tween<Offset>(
@@ -288,20 +296,24 @@ class SwipeableStackState extends State<SwipeableStack>
         .whenComplete(() {
       if (!mounted) return;
       if (kDebugMode) debugPrint('[SwipeAnim] swipeOut complete');
+      if (notifyAfterAnimation) {
+        if (kDebugMode) {
+          debugPrint('[SwipeButtonAnim] visual animation complete direction=${direction.name} index=$outgoingIndex');
+          debugPrint('[SwipeButtonAnim] callback fired direction=${direction.name} index=$outgoingIndex');
+        }
+        widget.onSwipe?.call(outgoingIndex, direction);
+      }
       setState(() {
         _dragOffset = Offset.zero;
         _isAnimating = false;
         _outgoingCard = null;
         _offsetAnimation = null;
         _opacityAnimation = null;
+        if (!notifyAfterAnimation) {
+          _isButtonSwipeAnimating = false;
+        }
       });
       _animationController.reset();
-      if (notifyAfterAnimation) {
-        if (kDebugMode) {
-          debugPrint('[SwipeButtonAnim] complete direction=${direction.name} index=$outgoingIndex');
-        }
-        widget.onSwipe?.call(outgoingIndex, direction);
-      }
     });
   }
 
@@ -338,11 +350,15 @@ class SwipeableStackState extends State<SwipeableStack>
   @override
   Widget build(BuildContext context) {
     if (_visualIndex >= widget.itemCount) return const SizedBox.shrink();
+    final int baseStartIndex = _isButtonSwipeAnimating
+        ? _visualIndex + 1
+        : _visualIndex;
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         if (kDebugMode) {
           debugPrint(
             '[SwipeStack] build deckSize=${widget.itemCount} visualIndex=$_visualIndex '
+            'buttonOutgoing=$_isButtonSwipeAnimating baseStartIndex=$baseStartIndex '
             'maxW=${constraints.maxWidth.toStringAsFixed(1)} '
             'maxH=${constraints.maxHeight.toStringAsFixed(1)}',
           );
@@ -351,9 +367,9 @@ class SwipeableStackState extends State<SwipeableStack>
           fit: StackFit.expand,
           clipBehavior: Clip.none,
           children: <Widget>[
-        if (_visualIndex + 2 < widget.itemCount) _preview(_visualIndex + 2, .94, .72),
-        if (_visualIndex + 1 < widget.itemCount) _preview(_visualIndex + 1, .97, .9),
-        Positioned.fill(
+        if (baseStartIndex + 2 < widget.itemCount) _preview(baseStartIndex + 2, .94, .72),
+        if (baseStartIndex + 1 < widget.itemCount) _preview(baseStartIndex + 1, .97, .9),
+        if (baseStartIndex < widget.itemCount) Positioned.fill(
           child: IgnorePointer(
             ignoring: _isAnimating || !widget.canSwipe,
             child: GestureDetector(
@@ -370,7 +386,7 @@ class SwipeableStackState extends State<SwipeableStack>
                   children: <Widget>[
                     Opacity(
                       opacity: _dragOpacity,
-                      child: widget.cardBuilder(context, _visualIndex),
+                      child: widget.cardBuilder(context, baseStartIndex),
                     ),
                     _buildDragActionOverlay(),
                   ],
