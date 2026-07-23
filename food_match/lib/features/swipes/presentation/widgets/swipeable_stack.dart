@@ -11,42 +11,22 @@ class SwipeableStack extends StatefulWidget {
     required this.cardBuilder,
     required this.canSwipe,
     this.onSwipe,
-    this.controller,
   });
 
   final int itemCount;
   final Widget Function(BuildContext context, int index) cardBuilder;
   final bool canSwipe;
   final void Function(int index, SwipeDirection direction)? onSwipe;
-  final SwipeableStackController? controller;
 
   @override
-  State<SwipeableStack> createState() => _SwipeableStackState();
+  SwipeableStackState createState() => SwipeableStackState();
 }
 
 enum SwipeDirection { left, right }
 
-class SwipeableStackController {
-  _SwipeableStackState? _state;
-
-  void _attach(_SwipeableStackState state) => _state = state;
-  void _detach() => _state = null;
-  void swipeLeft() => _state?._startSwipe(
-        SwipeDirection.left,
-        showButtonOverlay: true,
-        notifyAfterAnimation: true,
-      );
-  void swipeRight() => _state?._startSwipe(
-        SwipeDirection.right,
-        showButtonOverlay: true,
-        notifyAfterAnimation: true,
-      );
-  void reset() => _state?._resetInteractionState();
-}
-
 enum _ButtonActionOverlay { like, dislike }
 
-class _SwipeableStackState extends State<SwipeableStack>
+class SwipeableStackState extends State<SwipeableStack>
     with TickerProviderStateMixin {
   static const Duration _swipeDuration = Duration(milliseconds: 250);
   static const Duration _snapBackDuration = Duration(milliseconds: 180);
@@ -76,16 +56,11 @@ class _SwipeableStackState extends State<SwipeableStack>
       vsync: this,
       duration: const Duration(milliseconds: 330),
     );
-    widget.controller?._attach(this);
   }
 
   @override
   void didUpdateWidget(covariant SwipeableStack oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.controller != widget.controller) {
-      oldWidget.controller?._detach();
-      widget.controller?._attach(this);
-    }
     // Once the provider advances its deck, B becomes index zero in this stack.
     if (oldWidget.itemCount != widget.itemCount && _visualIndex != 0) {
       _visualIndex = 0;
@@ -94,7 +69,6 @@ class _SwipeableStackState extends State<SwipeableStack>
 
   @override
   void dispose() {
-    widget.controller?._detach();
     _animationController.dispose();
     _buttonPulseController.dispose();
     super.dispose();
@@ -183,7 +157,7 @@ class _SwipeableStackState extends State<SwipeableStack>
     });
   }
 
-  void _resetInteractionState() {
+  void resetInteractionState() {
     _animationController.stop();
     _animationController.reset();
     if (!mounted) return;
@@ -249,13 +223,31 @@ class _SwipeableStackState extends State<SwipeableStack>
     _animateSnapBack();
   }
 
-  void _startSwipe(
+  Future<void> swipeRightFromButton() =>
+      _runProgrammaticSwipe(SwipeDirection.right);
+
+  Future<void> swipeLeftFromButton() =>
+      _runProgrammaticSwipe(SwipeDirection.left);
+
+  Future<void> _runProgrammaticSwipe(SwipeDirection direction) async {
+    if (_isDragging || _isAnimating || !widget.canSwipe) return;
+    if (kDebugMode) {
+      debugPrint('[ButtonSwipe] requested direction=${direction.name} index=$_visualIndex');
+    }
+    await _startSwipe(
+      direction,
+      showButtonOverlay: true,
+      notifyAfterAnimation: true,
+    );
+  }
+
+  Future<void> _startSwipe(
     SwipeDirection direction, {
     bool showButtonOverlay = false,
     bool notifyAfterAnimation = false,
   }) {
     if (_isAnimating || !widget.canSwipe || _visualIndex >= widget.itemCount) {
-      return;
+      return Future<void>.value();
     }
     final int outgoingIndex = _visualIndex;
     if (showButtonOverlay) {
@@ -291,7 +283,7 @@ class _SwipeableStackState extends State<SwipeableStack>
     if (!notifyAfterAnimation) {
       widget.onSwipe?.call(outgoingIndex, direction);
     }
-    _animationController
+    return _animationController
         .forward(from: 0)
         .whenComplete(() {
       if (!mounted) return;

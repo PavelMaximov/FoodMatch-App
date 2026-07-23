@@ -73,8 +73,7 @@ class SwipesScreen extends StatefulWidget {
 }
 
 class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver {
-  SwipeableStackController _swiperController = SwipeableStackController();
-  String? _swipeStackIdentity;
+  final GlobalKey<SwipeableStackState> _swipeStackKey = GlobalKey<SwipeableStackState>();
   bool _isOpeningPreSwipe = false;
   bool _isCardActionInProgress = false;
   bool _showPairConnectionStep = false;
@@ -1116,9 +1115,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
   }
 
   void _resetSwipeStackController() {
-    _swiperController.reset();
-    _swiperController = SwipeableStackController();
-    _swipeStackIdentity = null;
+    _swipeStackKey.currentState?.resetInteractionState();
   }
 
 
@@ -1199,7 +1196,11 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     }
     _isCardActionInProgress = true;
     try {
-      _swiperController.swipeRight();
+      final SwipeableStackState? swipeStackState = _swipeStackKey.currentState;
+      debugPrint('[ButtonSwipe] like tapped currentState=${swipeStackState != null}');
+      if (swipeStackState != null) {
+        await swipeStackState.swipeRightFromButton();
+      }
     } finally {
       _isCardActionInProgress = false;
     }
@@ -1211,7 +1212,11 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     }
     _isCardActionInProgress = true;
     try {
-      _swiperController.swipeLeft();
+      final SwipeableStackState? swipeStackState = _swipeStackKey.currentState;
+      debugPrint('[ButtonSwipe] dislike tapped currentState=${swipeStackState != null}');
+      if (swipeStackState != null) {
+        await swipeStackState.swipeLeftFromButton();
+      }
     } finally {
       _isCardActionInProgress = false;
     }
@@ -1633,17 +1638,8 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                       return const ShimmerCard();
                     }
 
-                    final String stackIdentity =
-                        '${provider.currentSwipeMode}-${provider.activeSoloSessionId ?? 'none'}-${provider.deckVersion}';
-                    if (_swipeStackIdentity != stackIdentity) {
-                      _swiperController.reset();
-                      _swiperController = SwipeableStackController();
-                      _swipeStackIdentity = stackIdentity;
-                    }
-
                     return SwipeableStack(
-                      controller: _swiperController,
-                      key: ValueKey<String>(stackIdentity),
+                      key: _swipeStackKey,
                       itemCount: provider.deck.length - provider.currentIndex,
                       canSwipe: !provider.isLoading &&
                           !provider.isSendingSwipe &&
