@@ -698,9 +698,11 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
   Future<void> _restartFromInlineDeckEnd({required bool isSoloMode}) async {
     if (isSoloMode) {
       final SwipeProvider swipeProvider = context.read<SwipeProvider>();
+      debugPrint('[DeckEndFilter] start mode=solo exhausted=${swipeProvider.isDeckEmpty} hasActiveSession=${swipeProvider.hasActiveSoloSession}');
+      debugPrint('[DeckEndFilter] using createNewSoloSession=true');
       swipeProvider.clearPreparedDeck();
       context.read<PreSwipeProvider>().clearDraft();
-      await _runSoloPreSwipeFlow(intent: PreSwipeFilterIntent.updateActiveSoloSession);
+      await _runSoloPreSwipeFlow();
       return;
     }
 
@@ -1228,7 +1230,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     }
     _isCardActionInProgress = true;
     try {
-      provider.undo();
+      await provider.undo();
     } finally {
       _isCardActionInProgress = false;
     }

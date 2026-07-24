@@ -58,13 +58,13 @@ class SwipeProvider extends ChangeNotifier {
       deck.isNotEmpty && currentIndex < deck.length ? deck[currentIndex] : null;
   bool get isDeckEmpty => currentIndex >= deck.length;
   Dish? get lastSwipedDish => _lastSwipedDish;
-  bool get canUndo => _lastSwipedDish != null && _lastSwipedIndex != null;
+  bool get canUndo => _lastSwipedDish != null && _lastSwipedIndex != null && !_isSendingSwipe;
   bool get hasPreparedDeck => _hasPreparedDeck;
   int get deckVersion => _deckVersion;
   PreparedDeckMeta? get preparedDeckMeta => _preparedDeckMeta;
   bool get isSendingSwipe => _isSendingSwipe;
   bool get isSoloMode => currentSwipeMode == 'solo';
-  bool get hasActiveSoloSession => activeSoloSessionId != null;
+  bool get hasActiveSoloSession => activeSoloSessionId != null && !_soloSessionCompleted;
   bool get isSoloSessionCompleted => isSoloMode && _soloSessionCompleted;
   int get soloLikedCount => _soloLikedCount;
   int get remainingDishCount => isSoloMode
@@ -217,7 +217,7 @@ class SwipeProvider extends ChangeNotifier {
     if (_isApplyingSoloFilterRequest) {
       return false;
     }
-    if (activeSoloSessionId != null) {
+    if (activeSoloSessionId != null && !_soloSessionCompleted) {
       return rebuildActiveSoloSessionFilters(cuisines: cuisines, moods: moods, blocked: blocked, diet: diet);
     }
     _isApplyingSoloFilterRequest = true;
@@ -294,7 +294,7 @@ class SwipeProvider extends ChangeNotifier {
   }
 
   Future<bool> updateActiveSoloFilter({required List<String> cuisines, required List<String> moods, required List<String> blocked, required List<String> diet}) async {
-    if (activeSoloSessionId == null) {
+    if (activeSoloSessionId == null || _soloSessionCompleted) {
       return createSoloSession(cuisines: cuisines, moods: moods, blocked: blocked, diet: diet);
     }
     return rebuildActiveSoloSessionFilters(cuisines: cuisines, moods: moods, blocked: blocked, diet: diet);
@@ -520,11 +520,35 @@ class SwipeProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void undo() {
+  Future<void> undo() async {
     if (!canUndo) {
       return;
     }
-
+    debugPrint('[Undo] requested mode=$currentSwipeMode hasSession=${activeSoloSessionId != null} currentIndex=$currentIndex');
+    if (isSoloMode && activeSoloSessionId != null) {
+      _isSendingSwipe = true;
+      notifyListeners();
+      try {
+        final dynamic data = await _swipeRepository.undoSoloSwipe(activeSoloSessionId!);
+        final dynamic session = data is Map<String, dynamic> ? data['session'] : null;
+        if (session is! Map<String, dynamic>) {
+          throw const FormatException('Unexpected solo undo response.');
+        }
+        _applySoloSession(session);
+        final String currentDishId = currentDish?.id ?? 'none';
+        debugPrint('[Undo] backend undo success currentIndex=$currentIndex currentDish=$currentDishId');
+      } on ApiException catch (e) {
+        debugPrint('[Undo] backend undo failed code=${e.code ?? e.statusCode}');
+        error = _mapSwipeError(e);
+      } catch (e) {
+        debugPrint('[Undo] backend undo failed code=unknown');
+        error = _mapSwipeError(e);
+      } finally {
+        _isSendingSwipe = false;
+        notifyListeners();
+      }
+      return;
+    }
     currentIndex = _lastSwipedIndex!;
     if (_lastSwipedDish != null) {
       _sentSwipeDishIds.remove(_lastSwipedDish!.id);
@@ -613,7 +637,6 @@ class SwipeProvider extends ChangeNotifier {
     }
     _hasPreparedDeck = false;
     if (currentSwipeMode == 'solo') {
-      activeSoloSessionId = null;
       _soloSessionCompleted = true;
       _soloRemainingCount = 0;
     }

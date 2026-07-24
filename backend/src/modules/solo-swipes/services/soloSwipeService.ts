@@ -55,6 +55,25 @@ export class SoloSwipeService {
   if(session.deckIndex >= session.deckDishIds.length){ session.status='completed'; session.completedAt=new Date(); await new LastFilterPresetService().saveLast(userId,{mode:'solo',...session.filter,matchedLastTime:session.matchedCount}); }
   await session.save(); return { id: session.id, dishId: toPublicDishId(dish), direction, matchCreated: direction==='like', alreadySwiped: already, completed: session.status==='completed', mode:'solo' };
  }
+ async undo(userId:string, sessionId:string){
+  if(!Types.ObjectId.isValid(sessionId)) throw new AppError('Session not found',404);
+  const session = await SoloSwipeSessionModel.findOne({_id:sessionId,userId:new Types.ObjectId(userId),status:{$in:['active','completed']}});
+  if(!session) throw new AppError('No solo session found',404,'NO_ACTIVE_SESSION');
+  const lastSwipe = session.swipes[session.swipes.length - 1];
+  const expectedDishId = session.deckDishIds[session.deckIndex - 1];
+  if(!lastSwipe || !expectedDishId || lastSwipe.dishId.toString() !== expectedDishId.toString()) {
+   return { undone:false, lastUndoneDishId:null, session:await this.toDeck(session) };
+  }
+  session.swipes.pop();
+  if(lastSwipe.direction === 'like') session.resultDishIds = session.resultDishIds.filter(id=>id.toString() !== lastSwipe.dishId.toString());
+  session.deckIndex -= 1;
+  session.matchedCount = session.resultDishIds.length;
+  session.status = 'active';
+  session.completedAt = null;
+  session.lastActivityAt = new Date();
+  await session.save();
+  return { undone:true, lastUndoneDishId:toPublicDishId(lastSwipe.dishId), session:await this.toDeck(session) };
+ }
  async assertNoActiveSession(userId:string){ const [solo, paired] = await Promise.all([SoloSwipeSessionModel.exists({userId:new Types.ObjectId(userId),status:'active'}), CoupleSessionModel.exists({members:new Types.ObjectId(userId),status:'active'})]); if(solo || paired) throw new AppError('You already have an active swipe session.',409,'ACTIVE_SESSION_EXISTS'); }
  private normalizeFilter(filter:SoloFilterInput): NormalizedSoloFilter { return { cuisines:normalizeFilterList(filter.cuisines), moods:normalizeFilterList(filter.moods), diet:normalizeFilterList(filter.diet), exclusions:normalizeFilterList(filter.exclusions) }; }
  private async requireSession(userId:string, sessionId:string){ if(!Types.ObjectId.isValid(sessionId)) throw new AppError('Session not found',404); const session=await SoloSwipeSessionModel.findOne({_id:sessionId,userId:new Types.ObjectId(userId),status:'active'}); if(!session) throw new AppError('No active solo session',404,'NO_ACTIVE_SESSION'); return session; }
