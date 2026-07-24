@@ -73,8 +73,7 @@ class SwipesScreen extends StatefulWidget {
 }
 
 class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver {
-  SwipeableStackController _swiperController = SwipeableStackController();
-  String? _swipeStackIdentity;
+  final GlobalKey<SwipeableStackState> _swipeStackKey = GlobalKey<SwipeableStackState>();
   bool _isOpeningPreSwipe = false;
   bool _isCardActionInProgress = false;
   bool _showPairConnectionStep = false;
@@ -673,6 +672,9 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     final String mode = isSoloMode ? 'solo' : 'paired';
     try {
       final dynamic data = await context.read<SwipeRepository>().getLastFilterPreset(mode);
+      if (!mounted) {
+        return null;
+      }
       final dynamic presetJson = data is Map<String, dynamic> ? data['preset'] : null;
       if (presetJson is Map) {
         final LastFilterPreset preset = LastFilterPreset.fromJson(Map<String, dynamic>.from(presetJson));
@@ -1113,13 +1115,11 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
   }
 
   void _resetSwipeStackController() {
-    _swiperController.reset();
-    _swiperController = SwipeableStackController();
-    _swipeStackIdentity = null;
+    _swipeStackKey.currentState?.resetInteractionState();
   }
 
 
-  void _handleSwipe(SwipeDirection direction) {
+  Future<void> _handleSwipe(SwipeDirection direction) async {
     final SwipeProvider swipeProvider = context.read<SwipeProvider>();
     final swipedDish = swipeProvider.currentDish;
     final bool wasSoloMode = swipeProvider.isSoloMode;
@@ -1134,7 +1134,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       return;
     }
 
-    swipeAction.then((dynamic result) {
+    await swipeAction.then((dynamic result) {
       if (!mounted) {
         return;
       }
@@ -1196,7 +1196,11 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     }
     _isCardActionInProgress = true;
     try {
-      _swiperController.swipeRight();
+      final SwipeableStackState? swipeStackState = _swipeStackKey.currentState;
+      debugPrint('[ButtonSwipe] like tapped currentState=${swipeStackState != null}');
+      if (swipeStackState != null) {
+        await swipeStackState.swipeRightFromButton();
+      }
     } finally {
       _isCardActionInProgress = false;
     }
@@ -1208,7 +1212,11 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     }
     _isCardActionInProgress = true;
     try {
-      _swiperController.swipeLeft();
+      final SwipeableStackState? swipeStackState = _swipeStackKey.currentState;
+      debugPrint('[ButtonSwipe] dislike tapped currentState=${swipeStackState != null}');
+      if (swipeStackState != null) {
+        await swipeStackState.swipeLeftFromButton();
+      }
     } finally {
       _isCardActionInProgress = false;
     }
@@ -1529,11 +1537,12 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                               ElevatedButton(
                                 onPressed: () async {
                                   final CoupleProvider coupleProvider = context.read<CoupleProvider>();
+                                  final SwipeProvider swipeProvider = context.read<SwipeProvider>();
                                   await coupleProvider.loadCouple(force: true);
                                   await coupleProvider.refreshInvitations();
                                   if (!mounted) return;
                                   if (!coupleProvider.hasCouple) {
-                                    context.read<SwipeProvider>().resetToModeSelection();
+                                    swipeProvider.resetToModeSelection();
                                   }
                                   setState(() {});
                                 },
@@ -1629,18 +1638,12 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                       return const ShimmerCard();
                     }
 
-                    final String stackIdentity =
-                        '${provider.currentSwipeMode}-${provider.activeSoloSessionId ?? 'none'}-${provider.deckVersion}';
-                    if (_swipeStackIdentity != stackIdentity) {
-                      _swiperController.reset();
-                      _swiperController = SwipeableStackController();
-                      _swipeStackIdentity = stackIdentity;
-                    }
-
                     return SwipeableStack(
-                      controller: _swiperController,
-                      key: ValueKey<String>(stackIdentity),
+                      key: _swipeStackKey,
                       itemCount: provider.deck.length - provider.currentIndex,
+                      canSwipe: !provider.isLoading &&
+                          !provider.isSendingSwipe &&
+                          !_isCardActionInProgress,
                       cardBuilder: (BuildContext context, int index) {
                         final dish = provider.deck[provider.currentIndex + index];
                         return SwipeCardWidget(
@@ -1660,10 +1663,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                         );
                       },
                       onSwipe: (int index, SwipeDirection direction) {
-                        _handleSwipe(direction);
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          if (mounted) _preloadVisibleDishImages(provider);
-                        });
+                        unawaited(_handleSwipe(direction));
                       },
                     );
                   },

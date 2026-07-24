@@ -314,9 +314,12 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
                       child: child,
                     );
                   },
-                  child: KeyedSubtree(
-                    key: ValueKey<int>(_step),
-                    child: _buildStepContent(),
+                  child: ColoredBox(
+                    color: context.fmColors.background,
+                    child: KeyedSubtree(
+                      key: ValueKey<int>(_step),
+                      child: _buildStepContent(),
+                    ),
                   ),
                 ),
               ),
@@ -368,25 +371,22 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
 
   Widget _buildStepContent() {
     if (_step == 1) {
-      return SingleChildScrollView(
-        child: Align(
-          alignment: Alignment.topLeft,
-          child: _buildChipGrid(
+      return _buildTopAlignedScrollable(
+        _buildChipGrid(
           options: _cuisineOptions,
           selected: _cuisines,
           onTap: _toggleCuisine,
-          chipStates: context.read<PreSwipeProvider>().buildCuisineChipStates(_cuisineOptions, _allDishes),
+          chipStates: context
+              .read<PreSwipeProvider>()
+              .buildCuisineChipStates(_cuisineOptions, _allDishes),
           anyWhenEmpty: true,
-          ),
         ),
       );
     }
 
     if (_step == 2) {
-      return SingleChildScrollView(
-        child: Align(
-          alignment: Alignment.topLeft,
-          child: _buildChipGrid(
+      return _buildTopAlignedScrollable(
+        _buildChipGrid(
           options: _moodOptions,
           selected: _moods,
           onTap: (String value) {
@@ -403,15 +403,12 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
                 allDishes: _allDishes,
                 selectedCuisines: _cuisines.toList(),
               ),
-          ),
         ),
       );
     }
 
-    return SingleChildScrollView(
-      child: Align(
-        alignment: Alignment.topLeft,
-        child: Column(
+    return _buildTopAlignedScrollable(
+      Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           _buildChipGrid(
@@ -440,6 +437,16 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
                 ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTopAlignedScrollable(Widget child) {
+    return SizedBox.expand(
+      child: SingleChildScrollView(
+        child: Align(
+          alignment: Alignment.topLeft,
+          child: child,
         ),
       ),
     );
