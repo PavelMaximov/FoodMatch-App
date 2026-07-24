@@ -55,6 +55,39 @@ class SwipeableStackState extends State<SwipeableStack>
   double _cardAreaWidth = 0;
   Offset _snapBackStartOffset = Offset.zero;
 
+  double _safeDouble(
+    double value, {
+    double fallback = 0,
+    double? min,
+    double? max,
+  }) {
+    if (!value.isFinite) return fallback;
+    if (min != null && value < min) return min;
+    if (max != null && value > max) return max;
+    return value;
+  }
+
+  Offset _safeOffset(Offset offset) => Offset(
+        _safeDouble(offset.dx),
+        _safeDouble(offset.dy),
+      );
+
+  void _recoverFromInvalidSwipeState(String reason) {
+    if (kDebugMode) debugPrint('[SwipeStack] recovered invalid state reason=$reason');
+    _snapBackController.stop();
+    _buttonSwipeController.stop();
+    if (!mounted) return;
+    setState(() {
+      _dragOffset = Offset.zero;
+      _snapBackStartOffset = Offset.zero;
+      _isDragging = false;
+      _isAnimating = false;
+      _isButtonSwipeAnimating = false;
+      _didTriggerThresholdHaptic = false;
+      _buttonSwipeDirection = null;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -73,12 +106,22 @@ class SwipeableStackState extends State<SwipeableStack>
     _snapBackController = AnimationController.unbounded(vsync: this)
       ..addListener(() {
         if (!mounted) return;
+        final double progress = _snapBackController.value;
+        if (!progress.isFinite) {
+          _recoverFromInvalidSwipeState('snap_back_progress');
+          return;
+        }
+        final Offset? nextOffset = Offset.lerp(
+          _safeOffset(_snapBackStartOffset),
+          Offset.zero,
+          progress,
+        );
+        if (nextOffset == null || !nextOffset.dx.isFinite || !nextOffset.dy.isFinite) {
+          _recoverFromInvalidSwipeState('snap_back_offset');
+          return;
+        }
         setState(() {
-          _dragOffset = Offset.lerp(
-            _snapBackStartOffset,
-            Offset.zero,
-            _snapBackController.value,
-          )!;
+          _dragOffset = nextOffset;
         });
       });
   }
@@ -102,13 +145,19 @@ class SwipeableStackState extends State<SwipeableStack>
   }
 
   double get _screenWidth => MediaQuery.of(context).size.width;
-  double get _rotation =>
-      (_dragOffset.dx / _screenWidth).clamp(-1.0, 1.0) * (pi / 20);
-  double get _dragOpacity =>
-      (1 - _dragOffset.dx.abs() / (_screenWidth * .9)).clamp(.65, 1.0);
+  double get _safeScreenWidth => _safeDouble(_screenWidth, fallback: 1, min: 1);
+  double get _rotation => _safeDouble(
+        (_safeOffset(_dragOffset).dx / _safeScreenWidth).clamp(-1.0, 1.0) * (pi / 20),
+      );
+  double get _dragOpacity => _safeDouble(
+        1 - _safeOffset(_dragOffset).dx.abs() / (_safeScreenWidth * .9),
+        fallback: 1,
+        min: .65,
+        max: 1,
+      );
 
   Widget _buildDragActionOverlay() {
-    final double dragDistance = _dragOffset.dx.abs();
+    final double dragDistance = _safeOffset(_dragOffset).dx.abs();
     final double progress = (dragDistance / _distanceThreshold).clamp(0.0, 1.0);
     final double normalized = _isDragging && dragDistance >= 12
         ? ((progress - .08) / .67).clamp(0.0, 1.0)
@@ -220,7 +269,7 @@ class SwipeableStackState extends State<SwipeableStack>
 
   void _onPanUpdate(DragUpdateDetails details) {
     if (!_isDragging || _isAnimating || _isButtonSwipeAnimating || !widget.canSwipe) return;
-    final Offset nextOffset = Offset(_dragOffset.dx + details.delta.dx, 0);
+    final Offset nextOffset = _safeOffset(Offset(_dragOffset.dx + details.delta.dx, 0));
     if (!_didTriggerThresholdHaptic && nextOffset.dx.abs() >= _distanceThreshold) {
       _didTriggerThresholdHaptic = true;
       unawaited(HapticFeedback.mediumImpact());
@@ -234,7 +283,7 @@ class SwipeableStackState extends State<SwipeableStack>
     _isDragging = false;
     _didTriggerThresholdHaptic = false;
     setState(() {});
-    final double velocity = details.primaryVelocity ?? 0;
+    final double velocity = _safeDouble(details.primaryVelocity ?? 0);
     final bool crossedDistance = _dragOffset.dx.abs() >= _distanceThreshold;
     final bool crossedVelocity = velocity.abs() >= _velocityThreshold &&
         (_dragOffset.dx.abs() >= 12 || velocity.abs() >= _velocityThreshold);
@@ -254,7 +303,7 @@ class SwipeableStackState extends State<SwipeableStack>
     if (direction == null) {
       _animateSnapBack();
     } else {
-      final double targetDistance = _cardAreaWidth * 1.25;
+      final double targetDistance = _safeDouble(_cardAreaWidth, fallback: 1, min: 1) * 1.25;
       final double remainingDistance = max(0.0, targetDistance - _dragOffset.dx.abs());
       final double effectiveVelocity = max(velocity.abs(), 900.0);
       final int durationMs = ((remainingDistance / effectiveVelocity) * 1000)
@@ -310,6 +359,10 @@ class SwipeableStackState extends State<SwipeableStack>
       curve: Curves.easeInOutCubic,
     );
     if (!mounted) return;
+    if (!_buttonSwipeController.value.isFinite) {
+      _recoverFromInvalidSwipeState('button_swipe_value');
+      return;
+    }
     if (kDebugMode) {
       debugPrint('[ButtonSwipe] dedicated visual complete value=${_buttonSwipeController.value.toStringAsFixed(2)}');
     }
@@ -409,7 +462,7 @@ class SwipeableStackState extends State<SwipeableStack>
     final int baseStartIndex = _visualIndex;
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        _cardAreaWidth = constraints.maxWidth;
+        _cardAreaWidth = _safeDouble(constraints.maxWidth, fallback: 1, min: 1);
         if (kDebugMode) {
           debugPrint(
             '[SwipeStack] build deckSize=${widget.itemCount} visualIndex=$_visualIndex '
@@ -430,6 +483,7 @@ class SwipeableStackState extends State<SwipeableStack>
           child: IgnorePointer(
             ignoring: _isAnimating || _isButtonSwipeAnimating || !widget.canSwipe,
             child: GestureDetector(
+              behavior: HitTestBehavior.deferToChild,
               onHorizontalDragStart: _onPanStart,
               onHorizontalDragUpdate: _onPanUpdate,
               onHorizontalDragEnd: _onPanEnd,
@@ -437,23 +491,32 @@ class SwipeableStackState extends State<SwipeableStack>
               child: AnimatedBuilder(
                 animation: _buttonSwipeController,
                 builder: (BuildContext context, Widget? child) {
-                  final double progress = Curves.easeInOutCubic.transform(
-                    _buttonSwipeController.value,
+                  final double progress = _safeDouble(
+                    Curves.easeInOutCubic.transform(
+                      _safeDouble(_buttonSwipeController.value),
+                    ),
+                    min: 0,
+                    max: 1,
                   );
                   final double direction =
                       _buttonSwipeDirection == SwipeDirection.right ? 1.0 : -1.0;
-                  final Offset offset = _isButtonSwipeAnimating
+                  final Offset offset = _safeOffset(_isButtonSwipeAnimating
                       ? Offset(
-                          direction * constraints.maxWidth * 1.25 * progress,
+                          direction * _cardAreaWidth * 1.25 * progress,
                           -24 * progress,
                         )
-                      : _dragOffset;
-                  final double rotation = _isButtonSwipeAnimating
-                      ? direction * (pi / 22.5) * progress
-                      : _rotation;
-                  final double opacity = _isButtonSwipeAnimating
-                      ? (1 - (.15 * progress)).clamp(0.0, 1.0)
-                      : _dragOpacity;
+                      : _dragOffset);
+                  final double rotation = _safeDouble(
+                    _isButtonSwipeAnimating
+                        ? direction * (pi / 22.5) * progress
+                        : _rotation,
+                  );
+                  final double opacity = _safeDouble(
+                    _isButtonSwipeAnimating ? 1 - (.15 * progress) : _dragOpacity,
+                    fallback: 1,
+                    min: 0,
+                    max: 1,
+                  );
                   return Transform(
                     alignment: Alignment.center,
                     transform: Matrix4.identity()
@@ -478,13 +541,18 @@ class SwipeableStackState extends State<SwipeableStack>
               child: AnimatedBuilder(
                 animation: _animationController,
                 builder: (BuildContext context, Widget? _) {
-                  final Offset offset = _offsetAnimation?.value ?? _dragOffset;
-                  final double opacity = _opacityAnimation?.value ?? _dragOpacity;
+                  final Offset offset = _safeOffset(_offsetAnimation?.value ?? _dragOffset);
+                  final double opacity = _safeDouble(
+                    _opacityAnimation?.value ?? _dragOpacity,
+                    fallback: 1,
+                    min: 0,
+                    max: 1,
+                  );
                   return Transform(
                     alignment: Alignment.center,
                     transform: Matrix4.identity()
                       ..translateByDouble(offset.dx, 0, 0, 1)
-                      ..rotateZ((offset.dx / _screenWidth).clamp(-1.0, 1.0) * (pi / 20)),
+                      ..rotateZ(_safeDouble((offset.dx / _safeScreenWidth).clamp(-1.0, 1.0) * (pi / 20))),
                     child: Opacity(
                       opacity: opacity,
                       child: _outgoingCard!,
