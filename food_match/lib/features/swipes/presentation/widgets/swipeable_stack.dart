@@ -31,8 +31,8 @@ enum _ButtonActionOverlay { like, dislike }
 
 class SwipeableStackState extends State<SwipeableStack>
     with TickerProviderStateMixin {
-  static const Duration _swipeDuration = Duration(milliseconds: 250);
-  static const Duration _buttonSwipeDuration = Duration(milliseconds: 400);
+  static const Duration _swipeDuration = Duration(milliseconds: 550);
+  static const Duration _buttonSwipeDuration = Duration(milliseconds: 500);
   static const double _distanceThreshold = 120;
   static const double _velocityThreshold = 800;
 
@@ -152,7 +152,7 @@ class SwipeableStackState extends State<SwipeableStack>
   double get _dragOpacity => _safeDouble(
         1 - _safeOffset(_dragOffset).dx.abs() / (_safeScreenWidth * .9),
         fallback: 1,
-        min: .65,
+        min: .90,
         max: 1,
       );
 
@@ -279,43 +279,80 @@ class SwipeableStackState extends State<SwipeableStack>
   }
 
   void _onPanEnd(DragEndDetails details) {
-    if (!_isDragging) return;
-    _isDragging = false;
-    _didTriggerThresholdHaptic = false;
-    setState(() {});
-    final double velocity = _safeDouble(details.primaryVelocity ?? 0);
-    final bool crossedDistance = _dragOffset.dx.abs() >= _distanceThreshold;
-    final bool crossedVelocity = velocity.abs() >= _velocityThreshold &&
-        (_dragOffset.dx.abs() >= 12 || velocity.abs() >= _velocityThreshold);
-    final bool accepted = crossedDistance || crossedVelocity;
-    final SwipeDirection? direction = !accepted
-        ? null
-        : (_dragOffset.dx < 0 || velocity < 0)
-            ? SwipeDirection.left
-            : SwipeDirection.right;
-    if (kDebugMode) {
-      debugPrint(
-        '[SwipeAnim] panEnd dx=${_dragOffset.dx.toStringAsFixed(1)} '
-        'vx=${velocity.toStringAsFixed(1)} accepted=$accepted '
-        'direction=${direction?.name ?? 'none'}',
-      );
-    }
-    if (direction == null) {
-      _animateSnapBack();
-    } else {
-      final double targetDistance = _safeDouble(_cardAreaWidth, fallback: 1, min: 1) * 1.25;
-      final double remainingDistance = max(0.0, targetDistance - _dragOffset.dx.abs());
-      final double effectiveVelocity = max(velocity.abs(), 900.0);
-      final int durationMs = ((remainingDistance / effectiveVelocity) * 1000)
-          .round()
-          .clamp(160, 440)
-          .toInt();
-      _startSwipe(
-        direction,
-        duration: Duration(milliseconds: durationMs),
-      );
-    }
+  if (!_isDragging) return;
+
+  _isDragging = false;
+  _didTriggerThresholdHaptic = false;
+  setState(() {});
+
+  final double dragX = _safeOffset(_dragOffset).dx;
+  final double velocity =
+      _safeDouble(details.primaryVelocity ?? 0);
+
+  final bool hasMeaningfulDrag = dragX.abs() >= 12;
+  final bool crossedDistance =
+      dragX.abs() >= _distanceThreshold;
+  final bool crossedVelocity =
+      velocity.abs() >= _velocityThreshold;
+
+  final bool accepted =
+      crossedDistance || crossedVelocity;
+
+  final SwipeDirection? direction;
+
+  if (!accepted) {
+    direction = null;
+  } else if (hasMeaningfulDrag) {
+    // Основное направление берём по положению карточки.
+    direction = dragX < 0
+        ? SwipeDirection.left
+        : SwipeDirection.right;
+  } else {
+    // Для короткого быстрого броска берём направление скорости.
+    direction = velocity < 0
+        ? SwipeDirection.left
+        : SwipeDirection.right;
   }
+
+  if (kDebugMode) {
+    debugPrint(
+      '[SwipeAnim] panEnd '
+      'dx=${dragX.toStringAsFixed(1)} '
+      'vx=${velocity.toStringAsFixed(1)} '
+      'accepted=$accepted '
+      'direction=${direction?.name ?? 'none'}',
+    );
+  }
+
+  if (direction == null) {
+    _animateSnapBack();
+    return;
+  }
+
+  final double targetDistance = _safeDouble(
+        _cardAreaWidth,
+        fallback: 1,
+        min: 1,
+      ) *
+      1.25;
+
+  final double remainingDistance =
+      max(0.0, targetDistance - dragX.abs());
+
+  final double effectiveVelocity =
+      max(velocity.abs(), 900.0);
+
+  final int durationMs =
+      ((remainingDistance / effectiveVelocity) * 1000)
+          .round()
+          .clamp(360, 840)
+          .toInt();
+
+  _startSwipe(
+    direction,
+    duration: Duration(milliseconds: durationMs),
+  );
+}
 
   void _onPanCancel() {
     if (!_isDragging) return;
@@ -477,7 +514,7 @@ class SwipeableStackState extends State<SwipeableStack>
           fit: StackFit.expand,
           clipBehavior: Clip.none,
           children: <Widget>[
-        if (baseStartIndex + 2 < widget.itemCount) _preview(baseStartIndex + 2, .94, .72),
+        // if (baseStartIndex + 2 < widget.itemCount) _preview(baseStartIndex + 2, .94, .72),
         if (baseStartIndex + 1 < widget.itemCount) _preview(baseStartIndex + 1, .97, .9),
         if (baseStartIndex < widget.itemCount) Positioned.fill(
           child: IgnorePointer(
