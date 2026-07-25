@@ -52,12 +52,14 @@ class SwipeProvider extends ChangeNotifier {
   String? error;
   Dish? _lastSwipedDish;
   int? _lastSwipedIndex;
+  String? _lastSwipedDirection;
   Set<String> _seenDishIds = <String>{};
 
   Dish? get currentDish =>
       deck.isNotEmpty && currentIndex < deck.length ? deck[currentIndex] : null;
   bool get isDeckEmpty => currentIndex >= deck.length;
   Dish? get lastSwipedDish => _lastSwipedDish;
+  String? get lastSwipedDirection => _lastSwipedDirection;
   bool get canUndo => _lastSwipedDish != null && _lastSwipedIndex != null && !_isSendingSwipe;
   bool get hasPreparedDeck => _hasPreparedDeck;
   int get deckVersion => _deckVersion;
@@ -113,6 +115,7 @@ class SwipeProvider extends ChangeNotifier {
     error = null;
     _lastSwipedDish = null;
     _lastSwipedIndex = null;
+    _lastSwipedDirection = null;
     _seenDishIds = <String>{};
     if (isSoloMode) {
       _soloRemainingCount = 0;
@@ -146,6 +149,7 @@ class SwipeProvider extends ChangeNotifier {
     currentIndex = 0;
     _lastSwipedDish = null;
     _lastSwipedIndex = null;
+    _lastSwipedDirection = null;
     _sentSwipeDishIds.clear();
     _isSendingSwipe = false;
     error = deck.isEmpty ? AppStrings.noDishesAvailable : null;
@@ -182,6 +186,7 @@ class SwipeProvider extends ChangeNotifier {
     error = null;
     _lastSwipedDish = null;
     _lastSwipedIndex = null;
+    _lastSwipedDirection = null;
     _seenDishIds = <String>{};
     _sentSwipeDishIds.clear();
     _isSendingSwipe = false;
@@ -397,6 +402,7 @@ class SwipeProvider extends ChangeNotifier {
     _existingPreparedDeckLoadFuture = null;
     _lastSwipedDish = null;
     _lastSwipedIndex = null;
+    _lastSwipedDirection = null;
     error = null;
     _deckVersion++;
     notifyListeners();
@@ -448,6 +454,7 @@ class SwipeProvider extends ChangeNotifier {
     currentIndex = 0;
     _lastSwipedDish = null;
     _lastSwipedIndex = null;
+    _lastSwipedDirection = null;
     _sentSwipeDishIds.clear();
     _isSendingSwipe = false;
     isLoading = false;
@@ -465,6 +472,7 @@ class SwipeProvider extends ChangeNotifier {
     notifyListeners();
     _lastSwipedDish = dish;
     _lastSwipedIndex = currentIndex;
+    _lastSwipedDirection = null;
 
     dynamic result;
     try {
@@ -507,6 +515,7 @@ class SwipeProvider extends ChangeNotifier {
 
   Future<void> _applyLocalPostSwipe(Dish dish, String direction, dynamic result) async {
     final bool wasSoloSwipe = isSoloMode && activeSoloSessionId != null;
+    _lastSwipedDirection = direction;
     _sentSwipeDishIds.add(dish.id);
     currentIndex++;
     if (wasSoloSwipe) {
@@ -555,6 +564,7 @@ class SwipeProvider extends ChangeNotifier {
     }
     _lastSwipedDish = null;
     _lastSwipedIndex = null;
+    _lastSwipedDirection = null;
     AppLogger.info('SwipeProvider: undo swipe, back to index $currentIndex');
     notifyListeners();
   }

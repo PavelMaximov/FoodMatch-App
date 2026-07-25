@@ -287,6 +287,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
                       return FadeThroughTransition(
                         animation: animation,
                         secondaryAnimation: secondaryAnimation,
+                        fillColor: colors.background,
                         child: child,
                       );
                     },

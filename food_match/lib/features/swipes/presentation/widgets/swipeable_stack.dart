@@ -33,7 +33,7 @@ class SwipeableStackState extends State<SwipeableStack>
     with TickerProviderStateMixin {
   static const Duration _swipeDuration = Duration(milliseconds: 550);
   static const Duration _buttonSwipeDuration = Duration(milliseconds: 500);
-  static const Duration _undoReturnDuration = Duration(milliseconds: 280);
+  static const Duration _undoReturnDuration = Duration(milliseconds: 400);
   static const double _distanceThreshold = 120;
   static const double _velocityThreshold = 800;
 
@@ -43,6 +43,7 @@ class SwipeableStackState extends State<SwipeableStack>
   bool _isAnimating = false;
   bool _isButtonSwipeAnimating = false;
   bool _isUndoReturnAnimating = false;
+  SwipeDirection? _undoReturnDirection;
   int _visualIndex = 0;
   Widget? _outgoingCard;
   late final AnimationController _animationController;
@@ -257,6 +258,7 @@ class SwipeableStackState extends State<SwipeableStack>
       _isAnimating = false;
       _isButtonSwipeAnimating = false;
       _isUndoReturnAnimating = false;
+      _undoReturnDirection = null;
       _buttonSwipeDirection = null;
       _visualIndex = 0;
       _outgoingCard = null;
@@ -267,17 +269,24 @@ class SwipeableStackState extends State<SwipeableStack>
     });
   }
 
-  Future<void> playUndoReturnAnimation() async {
+  Future<void> playUndoReturnAnimation({required SwipeDirection direction}) async {
     if (!mounted || widget.itemCount <= 0) return;
-    if (kDebugMode) debugPrint('[UndoAnim] start direction=neutral');
-    setState(() => _isUndoReturnAnimating = true);
+    if (kDebugMode) debugPrint('[UndoAnim] start direction=${direction.name}');
+    setState(() {
+      _isUndoReturnAnimating = true;
+      _undoReturnDirection = direction;
+    });
     try {
       await _undoReturnController.forward(from: 0);
     } finally {
       if (mounted) {
-        setState(() => _isUndoReturnAnimating = false);
+        if (kDebugMode) debugPrint('[UndoAnim] complete direction=${direction.name}');
+        setState(() {
+          _isUndoReturnAnimating = false;
+          _undoReturnDirection = null;
+        });
         _undoReturnController.reset();
-        if (kDebugMode) debugPrint('[UndoAnim] complete');
+        if (kDebugMode) debugPrint('[UndoAnim] cleanup complete');
       }
     }
   }
@@ -603,37 +612,44 @@ class SwipeableStackState extends State<SwipeableStack>
                     min: 0,
                     max: 1,
                   );
-                  final double undoEased = _isUndoReturnAnimating
-                      ? _safeDouble(
-                          Curves.easeOutBack.transform(undoProgress),
-                          min: 0,
-                          max: 1.04,
+                  final double undoT = _safeDouble(
+                    Curves.easeInOutCubic.transform(undoProgress),
+                    min: 0,
+                    max: 1,
+                  );
+                  final double undoSign = _undoReturnDirection == SwipeDirection.right ? 1 : -1;
+                  final Offset undoOffset = _isUndoReturnAnimating
+                      ? Offset(
+                          undoSign * _cardAreaWidth * 1.25 * (1 - undoT),
+                          -24 * (1 - undoT),
                         )
-                      : 1;
+                      : Offset.zero;
+                  final double undoRotation = _isUndoReturnAnimating
+                      ? undoSign * (8 * pi / 180) * (1 - undoT)
+                      : 0;
+                  final Offset effectiveOffset = _isButtonSwipeAnimating
+                      ? offset
+                      : _isUndoReturnAnimating
+                          ? undoOffset
+                          : _dragOffset;
+                  final double effectiveRotation = _isButtonSwipeAnimating
+                      ? rotation
+                      : _isUndoReturnAnimating
+                          ? undoRotation
+                          : _rotation;
                   return Transform(
                     alignment: Alignment.center,
                     transform: Matrix4.identity()
                       ..translateByDouble(
-                        offset.dx,
-                        offset.dy + (28 * (1 - undoEased)),
+                        effectiveOffset.dx,
+                        effectiveOffset.dy,
                         0,
                         1,
                       )
-                      ..rotateZ(rotation),
-                    child: Transform.scale(
-                      scale: _safeDouble(.96 + (.04 * undoEased), fallback: 1),
-                      child: Opacity(
-                        opacity: _safeDouble(
-                          opacity *
-                              (_isUndoReturnAnimating
-                                  ? .85 + (.15 * undoProgress)
-                                  : 1),
-                          fallback: 1,
-                          min: 0,
-                          max: 1,
-                        ),
-                        child: child,
-                      ),
+                      ..rotateZ(effectiveRotation),
+                    child: Opacity(
+                      opacity: opacity,
+                      child: child,
                     ),
                   );
                 },
