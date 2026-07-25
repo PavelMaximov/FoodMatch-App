@@ -1229,8 +1229,17 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       return;
     }
     _isCardActionInProgress = true;
+    final String? undoDishId = provider.lastSwipedDish?.id;
     try {
       await provider.undo();
+      if (undoDishId != null && provider.currentDish?.id == undoDishId) {
+        final SwipeableStackState? swipeStackState =
+            _swipeStackKey.currentState;
+        debugPrint(
+          '[UndoAnim] requested hasCurrentState=${swipeStackState != null}',
+        );
+        await swipeStackState?.playUndoReturnAnimation();
+      }
     } finally {
       _isCardActionInProgress = false;
     }

@@ -273,10 +273,10 @@ class _RecipesScreenState extends State<RecipesScreen> {
               ),
             ),
             Expanded(
-              child: RefreshIndicator(
-                onRefresh: () => _loadData(force: true),
-                child: ColoredBox(
-                  color: colors.background,
+              child: ColoredBox(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                child: RefreshIndicator(
+                  onRefresh: () => _loadData(force: true),
                   child: PageTransitionSwitcher(
                     duration: AppMotion.durationFor(context, AppMotion.normal),
                     transitionBuilder: (
@@ -1341,7 +1341,12 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
                 ),
             ],
             Expanded(
-              child: _showRecentSearches ? const SizedBox.shrink() : _buildBody(savedDishIds),
+              child: ColoredBox(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                child: _showRecentSearches
+                    ? const SizedBox.shrink()
+                    : _buildBody(savedDishIds),
+              ),
             ),
           ],
         ),
