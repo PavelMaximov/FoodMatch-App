@@ -23,6 +23,7 @@ import '../../../../data/repositories/swipe_repository.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
+import '../../../../shell/logic/nav_badge_animation_controller.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../couple/logic/couple_provider.dart';
 import '../../../matches/logic/match_provider.dart';
@@ -1153,6 +1154,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
               soloSessionId: wasSoloMode ? soloSessionId : null,
             );
         if (wasSoloMode) {
+          context.read<NavBadgeAnimationController>().showSoloMatchesPlusOne();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: TweenAnimationBuilder<double>(
