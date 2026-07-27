@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'food_match_svg_loader.dart';
+import 'food_match_loader.dart';
 
 class PendingOverlayController extends ChangeNotifier {
   static const Duration showDelay = Duration(milliseconds: 180);
@@ -108,7 +108,7 @@ class AppPendingOverlay extends StatelessWidget {
           ),
         if (controller.isVisible)
           Center(
-            child: FoodMatchSvgLoader(
+            child: FoodMatchLoader(
               size: 76,
               label: controller.message,
               dimmed: true,

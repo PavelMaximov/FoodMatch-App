@@ -14,7 +14,7 @@ import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/utils/cloudinary_image_url.dart';
 import '../../../../core/utils/image_utils.dart';
 import '../../../../core/widgets/app_pending_overlay.dart';
-import '../../../../core/widgets/food_match_svg_loader.dart';
+import '../../../../core/widgets/food_match_loader.dart';
 import '../../../../data/models/couple.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../data/models/match_item.dart';
@@ -1639,7 +1639,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: <Widget>[
-                              const FoodMatchSvgLoader(size: 150),
+                              const FoodMatchLoader(size: 150),
                               const SizedBox(height: 16),
                               const Text('Preparing your shared deck', textAlign: TextAlign.center),
                               const SizedBox(height: 8),

@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/theme/theme_extensions.dart';
-import '../../../../core/widgets/food_match_svg_loader.dart';
+import '../../../../core/widgets/food_match_loader.dart';
 
 class InlineDeckEndRestartCard extends StatelessWidget {
   const InlineDeckEndRestartCard({
@@ -89,7 +89,7 @@ class InlineDeckEndRestartCard extends StatelessWidget {
               ],
               const SizedBox(height: 28),
               if (isWaitingForPartner || isLoading) ...<Widget>[
-                const FoodMatchSvgLoader(size: 150),
+                const FoodMatchLoader(size: 150),
               ] else ...<Widget>[
                 SizedBox(
                   width: double.infinity,

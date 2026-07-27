@@ -12,7 +12,7 @@ import '../../../../core/animations/app_motion.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/widgets/app_pending_overlay.dart';
-import '../../../../core/widgets/food_match_svg_loader.dart';
+import '../../../../core/widgets/food_match_loader.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../data/models/user_profile.dart';
 import '../../../../data/repositories/swipe_repository.dart';
@@ -857,7 +857,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              const FoodMatchSvgLoader(size: 144),
+              const FoodMatchLoader(size: 144),
               const SizedBox(height: 6),
               TextButton(
                 onPressed: _isPreparingSharedDeck ? null : () => Navigator.of(context).pop(),
