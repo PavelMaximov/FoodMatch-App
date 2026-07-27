@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_dimensions.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/theme_extensions.dart';
+import '../../core/widgets/food_match_ripple.dart';
 
 class AppButton extends StatelessWidget {
   final String text;
@@ -26,51 +27,83 @@ class AppButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final FoodMatchThemeColors colors = context.fmColors;
     if (isOutlined) {
-      final Color outlinedColor = darkBackground ? colors.textInverse : colors.primary;
-      return SizedBox(
-        width: double.infinity,
-        height: AppDimensions.buttonHeight,
-        child: OutlinedButton(
-          onPressed: isLoading ? null : onPressed,
-          style: OutlinedButton.styleFrom(
-            side: BorderSide(color: darkBackground ? colors.textInverse : colors.border),
-            foregroundColor: outlinedColor,
-            backgroundColor: Colors.transparent,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppDimensions.radiusButton),
+      final Color outlinedColor = darkBackground
+          ? colors.textInverse
+          : colors.primary;
+      return FoodMatchRipple(
+        onTap: isLoading ? null : onPressed,
+        enabled: !isLoading && onPressed != null,
+        borderRadius: BorderRadius.circular(AppDimensions.radiusButton),
+        rippleColor: colors.neutralRipple,
+        child: IgnorePointer(
+          child: SizedBox(
+            width: double.infinity,
+            height: AppDimensions.buttonHeight,
+            child: OutlinedButton(
+              onPressed: isLoading || onPressed == null ? null : () {},
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(
+                  color: darkBackground ? colors.textInverse : colors.border,
+                ),
+                foregroundColor: outlinedColor,
+                backgroundColor: Colors.transparent,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(
+                    AppDimensions.radiusButton,
+                  ),
+                ),
+              ),
+              child: _buildChild(
+                colors,
+                isOutlined: true,
+                outlinedColor: outlinedColor,
+              ),
             ),
           ),
-          child: _buildChild(colors, isOutlined: true, outlinedColor: outlinedColor),
         ),
       );
     }
 
-    return SizedBox(
-      width: double.infinity,
-      height: AppDimensions.buttonHeight,
-      child: ElevatedButton(
-        onPressed: isLoading ? null : onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: colors.buttonPrimaryBackground,
-          foregroundColor: colors.buttonPrimaryText,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppDimensions.radiusButton),
+    return FoodMatchRipple(
+      onTap: isLoading ? null : onPressed,
+      enabled: !isLoading && onPressed != null,
+      borderRadius: BorderRadius.circular(AppDimensions.radiusButton),
+      rippleColor: colors.primaryRipple,
+      child: IgnorePointer(
+        child: SizedBox(
+          width: double.infinity,
+          height: AppDimensions.buttonHeight,
+          child: ElevatedButton(
+            onPressed: isLoading || onPressed == null ? null : () {},
+            style: ElevatedButton.styleFrom(
+              backgroundColor: colors.buttonPrimaryBackground,
+              foregroundColor: colors.buttonPrimaryText,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppDimensions.radiusButton),
+              ),
+            ),
+            child: _buildChild(colors),
           ),
         ),
-        child: _buildChild(colors),
       ),
     );
   }
 
-  Widget _buildChild(FoodMatchThemeColors colors, {bool isOutlined = false, Color? outlinedColor}) {
+  Widget _buildChild(
+    FoodMatchThemeColors colors, {
+    bool isOutlined = false,
+    Color? outlinedColor,
+  }) {
     if (isLoading) {
       return SizedBox(
         height: 20,
         width: 20,
         child: CircularProgressIndicator(
           strokeWidth: 2,
-          color: isOutlined ? (outlinedColor ?? colors.primary) : colors.buttonPrimaryText,
+          color: isOutlined
+              ? (outlinedColor ?? colors.primary)
+              : colors.buttonPrimaryText,
         ),
       );
     }
@@ -84,8 +117,12 @@ class AppButton extends StatelessWidget {
           Text(
             text,
             style: isOutlined
-                ? AppTextStyles.button.copyWith(color: outlinedColor ?? colors.primary)
-                : AppTextStyles.button.copyWith(color: colors.buttonPrimaryText),
+                ? AppTextStyles.button.copyWith(
+                    color: outlinedColor ?? colors.primary,
+                  )
+                : AppTextStyles.button.copyWith(
+                    color: colors.buttonPrimaryText,
+                  ),
           ),
         ],
       );
@@ -94,7 +131,9 @@ class AppButton extends StatelessWidget {
     return Text(
       text,
       style: isOutlined
-          ? AppTextStyles.button.copyWith(color: outlinedColor ?? colors.primary)
+          ? AppTextStyles.button.copyWith(
+              color: outlinedColor ?? colors.primary,
+            )
           : AppTextStyles.button.copyWith(color: colors.buttonPrimaryText),
     );
   }

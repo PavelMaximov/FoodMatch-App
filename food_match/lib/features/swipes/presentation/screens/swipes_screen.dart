@@ -15,6 +15,7 @@ import '../../../../core/utils/cloudinary_image_url.dart';
 import '../../../../core/utils/image_utils.dart';
 import '../../../../core/widgets/app_pending_overlay.dart';
 import '../../../../core/widgets/food_match_loader.dart';
+import '../../../../core/widgets/food_match_ripple.dart';
 import '../../../../data/models/couple.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../data/models/match_item.dart';
@@ -1330,8 +1331,10 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: <Widget>[
-                  GestureDetector(
+                  FoodMatchRipple(
                     onTap: () => _showSessionSettingsSheet(context),
+                    borderRadius: BorderRadius.circular(AppDimensions.radiusXL),
+                    rippleColor: colors.neutralRipple,
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                       decoration: BoxDecoration(
@@ -1360,7 +1363,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                       ),
                     ),
                   ),
-                  GestureDetector(
+                  FoodMatchRipple(
                     onTap: () {
                       _appFlow.logFiltersButton();
                       _suppressPreviousChoiceAutoOpen = false;
@@ -1371,6 +1374,8 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                         unawaited(_confirmPairFilterChange());
                       }
                     },
+                    borderRadius: BorderRadius.circular(AppDimensions.radiusXL),
+                    rippleColor: colors.primaryRipple,
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                       decoration: BoxDecoration(

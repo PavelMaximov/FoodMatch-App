@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/utils/image_utils.dart';
+import '../../../../core/widgets/food_match_ripple.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../shared/widgets/media/safe_dish_image.dart';
 
@@ -201,6 +202,7 @@ class SwipeCardWidget extends StatelessWidget {
                   bgColor: const Color(0xFFFFFFFF),
                   assetPath: 'assets/icons/swipe/dislike_swipe.svg',
                   iconColor: colors.error,
+                  rippleColor: colors.dislikeRipple,
                   onTap: onDislike,
                 ),
                 const SizedBox(width: 32),
@@ -208,6 +210,7 @@ class SwipeCardWidget extends StatelessWidget {
                   size: 64,
                   bgColor: colors.buttonPrimaryBackground,
                   assetPath: 'assets/icons/swipe/like_swipe.svg',
+                  rippleColor: colors.likeRipple,
                   onTap: onLike,
                 ),
               ],
@@ -221,9 +224,10 @@ class SwipeCardWidget extends StatelessWidget {
 
   Widget _buildPreviousButton(BuildContext context) {
     final _SwipeCardInfoStyle infoStyle = _infoStyle(context);
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    return FoodMatchRipple(
       onTap: onBack,
+      borderRadius: BorderRadius.circular(16),
+      rippleColor: context.fmColors.undoRipple,
       child: Container(
         width: 32,
         height: 32,
@@ -300,10 +304,14 @@ class SwipeCardWidget extends StatelessWidget {
     required String assetPath,
     Color iconColor = Colors.white,
     Color? borderColor,
+    Color? rippleColor,
     VoidCallback? onTap,
   }) {
-    return GestureDetector(
+    return FoodMatchRipple(
       onTap: onTap,
+      enabled: onTap != null,
+      borderRadius: BorderRadius.circular(size / 2),
+      rippleColor: rippleColor,
       child: Container(
         width: size,
         height: size,
