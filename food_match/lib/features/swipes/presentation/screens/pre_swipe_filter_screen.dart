@@ -1,15 +1,18 @@
-import 'package:flutter/foundation.dart';
+import 'dart:async';
+
 import 'package:animations/animations.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/animations/app_motion.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/theme/theme_extensions.dart';
+import '../../../../core/widgets/app_pending_overlay.dart';
+import '../../../../core/widgets/food_match_loader.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../data/models/user_profile.dart';
 import '../../../../data/repositories/swipe_repository.dart';
@@ -606,6 +609,28 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   }
 
   Future<void> _confirmCurrentFilters() async {
+    try {
+      await context.read<PendingOverlayController>().run<void>(
+        message: widget.mode == 'solo'
+            ? 'Preparing your deck...'
+            : 'Applying filters...',
+        operation: _confirmCurrentFiltersOperation,
+      );
+    } on TimeoutException {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _isApplyingFilters = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Something went wrong. Please try again.'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _confirmCurrentFiltersOperation() async {
     if (_isApplyingFilters) {
       return;
     }
@@ -832,13 +857,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              Lottie.asset(
-                'assets/animations/waiting.json',
-                width: 144,
-                height: 144,
-                fit: BoxFit.contain,
-                repeat: true,
-              ),
+              const FoodMatchLoader(size: 144),
               const SizedBox(height: 6),
               TextButton(
                 onPressed: _isPreparingSharedDeck ? null : () => Navigator.of(context).pop(),

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import 'app.dart';
 import 'core/theme/theme_controller.dart';
+import 'core/widgets/app_pending_overlay.dart';
 import 'data/local/cache_service.dart';
 import 'data/local/user_profile_hive_service.dart';
 import 'data/repositories/auth_repository.dart';
@@ -51,6 +52,9 @@ Future<void> main() async {
         ChangeNotifierProvider<ThemeController>.value(value: themeController),
         ChangeNotifierProvider<NavBadgeAnimationController>(
           create: (_) => NavBadgeAnimationController(),
+        ),
+        ChangeNotifierProvider<PendingOverlayController>(
+          create: (_) => PendingOverlayController(),
         ),
         Provider<FilterScoringService>.value(value: const FilterScoringService()),
         ChangeNotifierProvider<AuthProvider>(

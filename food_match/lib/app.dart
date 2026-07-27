@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
+import 'core/widgets/app_pending_overlay.dart';
 import 'features/auth/logic/auth_provider.dart';
 import 'features/couple/logic/couple_provider.dart';
 
@@ -63,6 +64,9 @@ class _FoodMatchAppState extends State<FoodMatchApp> with WidgetsBindingObserver
       darkTheme: AppTheme.dark,
       themeMode: context.watch<ThemeController>().themeMode,
       routerConfig: _router,
+      builder: (BuildContext context, Widget? child) => AppPendingOverlay(
+        child: child ?? const SizedBox.shrink(),
+      ),
     );
   }
 }

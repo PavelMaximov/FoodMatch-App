@@ -76,6 +76,9 @@ class MatchProvider extends ChangeNotifier {
   }
 
   Future<void> _loadMatchesFromApi({required bool force}) async {
+    AppLogger.info(
+      '[PageLoad] start page=Matches reason=${force ? 'refresh' : 'route'}',
+    );
     AppLogger.info(force ? '[Cache] matches force refresh' : '[Cache] matches miss');
     isLoading = true;
     error = null;
@@ -92,12 +95,18 @@ class MatchProvider extends ChangeNotifier {
       _matchesLoadedAt = DateTime.now();
       await _cacheService.cacheMatches(matches.map((MatchItem item) => item.dish).toList(), coupleId: _cacheKey);
       AppLogger.info('MatchProvider: loaded ${matches.length} matches');
+      AppLogger.info(
+        matches.isEmpty
+            ? '[PageLoad] empty page=Matches'
+            : '[PageLoad] success page=Matches items=${matches.length}',
+      );
     } catch (e) {
       matches = (await _cacheService.getCachedMatches(coupleId: _cacheKey))
           .map((Dish dish) => MatchItem.fromCachedDish(dish, _mode))
           .toList();
       if (matches.isEmpty) {
         error = _mapError(e);
+        AppLogger.info('[PageLoad] error page=Matches error=$error');
       } else {
         _matchesLoadedAt ??= DateTime.now();
         AppLogger.info('MatchProvider: loaded ${matches.length} from cache');
