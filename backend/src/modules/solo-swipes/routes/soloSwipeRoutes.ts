@@ -10,5 +10,6 @@ router.post('/session', authMiddleware, swipeRateLimiter, asyncHandler(soloSwipe
 router.post('/active/abandon', authMiddleware, swipeRateLimiter, asyncHandler(soloSwipeController.abandon.bind(soloSwipeController)));
 router.patch('/active/filter', authMiddleware, swipeRateLimiter, asyncHandler(soloSwipeController.updateFilter.bind(soloSwipeController)));
 router.get('/:sessionId/deck', authMiddleware, asyncHandler(soloSwipeController.deck.bind(soloSwipeController)));
+router.post('/:sessionId/undo', authMiddleware, swipeRateLimiter, asyncHandler(soloSwipeController.undo.bind(soloSwipeController)));
 router.post('/:sessionId/swipe', authMiddleware, swipeRateLimiter, asyncHandler(soloSwipeController.swipe.bind(soloSwipeController)));
 export default router;

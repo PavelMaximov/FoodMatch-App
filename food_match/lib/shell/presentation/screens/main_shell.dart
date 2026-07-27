@@ -14,6 +14,7 @@ import '../../../features/couple/presentation/widgets/continuation_invitation_sh
 import '../../../features/matches/logic/match_provider.dart';
 import '../../../features/swipes/logic/swipe_provider.dart';
 import '../../../shared/widgets/network_status_bar.dart';
+import '../../logic/nav_badge_animation_controller.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({required this.navigationShell, super.key});
@@ -24,7 +25,8 @@ class MainShell extends StatefulWidget {
   State<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
+class _MainShellState extends State<MainShell>
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   static const List<BottomNavItemData> _navItems = <BottomNavItemData>[
     BottomNavItemData(
       label: 'Recipes',
@@ -62,6 +64,9 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
       <String, Future<bool>>{};
   bool _isBootstrappingMatchesBadge = false;
   String? _shownInvitationId;
+  late final AnimationController _soloPlusOneController;
+  NavBadgeAnimationController? _navBadgeAnimationController;
+  int _lastSoloPlusOneEvent = 0;
 
   Future<bool> _hasIconAsset(String assetPath) {
     return _iconAssetAvailability.putIfAbsent(assetPath, () async {
@@ -80,6 +85,19 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    _soloPlusOneController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _soloPlusOneController.addStatusListener((AnimationStatus status) {
+      if (status == AnimationStatus.completed && kDebugMode) {
+        debugPrint('[NavBadgeAnim] complete');
+      }
+    });
+    _navBadgeAnimationController = context.read<NavBadgeAnimationController>()
+      ..addListener(_handleNavBadgeAnimationEvent);
+    _lastSoloPlusOneEvent =
+        _navBadgeAnimationController!.soloMatchesPlusOneEvent;
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -91,8 +109,27 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _navBadgeAnimationController
+        ?.removeListener(_handleNavBadgeAnimationEvent);
+    _soloPlusOneController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  void _handleNavBadgeAnimationEvent() {
+    final int event =
+        _navBadgeAnimationController?.soloMatchesPlusOneEvent ?? 0;
+    if (event == _lastSoloPlusOneEvent || !mounted) {
+      return;
+    }
+    _lastSoloPlusOneEvent = event;
+    if (kDebugMode) {
+      debugPrint('[NavBadgeAnim] trigger soloPlusOne target=matches');
+    }
+    _soloPlusOneController
+      ..stop()
+      ..reset()
+      ..forward();
   }
 
   @override
@@ -275,6 +312,44 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
                               ],
                             ),
                           ),
+                          if (index == 1)
+                            Positioned(
+                              top: 1,
+                              right: -1,
+                              child: IgnorePointer(
+                                child: AnimatedBuilder(
+                                  animation: _soloPlusOneController,
+                                  builder: (BuildContext context, Widget? child) {
+                                    final double value =
+                                        _soloPlusOneController.value;
+                                    final double opacity = value <= 0.2
+                                        ? value / 0.2
+                                        : (1 - value) / 0.8;
+                                    final double dy = value <= 0.2
+                                        ? 16 * (1 - (value / 0.2))
+                                        : -28 * ((value - 0.2) / 0.8);
+                                    final double scale = value <= 0.2
+                                        ? 0.75 + (0.3 * (value / 0.2))
+                                        : 1.05 - (0.1 * ((value - 0.2) / 0.8));
+                                    return Opacity(
+                                      opacity: opacity.clamp(0.0, 1.0),
+                                      child: Transform.translate(
+                                        offset: Offset(0, dy),
+                                        child: Transform.scale(
+                                          scale: scale,
+                                          child: child,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  child: SvgPicture.asset(
+                                    'assets/icons/plus_one_badge.svg',
+                                    width: 20,
+                                    height: 10,
+                                  ),
+                                ),
+                              ),
+                            ),
                           if (index == 1 && matchCount > 0)
                             Positioned(
                               top: -4,

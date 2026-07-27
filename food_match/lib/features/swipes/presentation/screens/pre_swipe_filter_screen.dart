@@ -631,7 +631,9 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     });
     if (widget.mode == 'solo') {
       final SwipeProvider swipeProvider = context.read<SwipeProvider>();
-      final bool shouldUpdateActiveSession = widget.intent == PreSwipeFilterIntent.updateActiveSoloSession || swipeProvider.activeSoloSessionId != null;
+      final bool shouldUpdateActiveSession =
+          widget.intent == PreSwipeFilterIntent.updateActiveSoloSession ||
+              swipeProvider.hasActiveSoloSession;
       final bool ready = shouldUpdateActiveSession
           ? await swipeProvider.rebuildActiveSoloSessionFilters(
               cuisines: _cuisines.toList(),
@@ -990,7 +992,9 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         _isApplyingFilters = true;
       });
       final SwipeProvider swipeProvider = context.read<SwipeProvider>();
-      final bool shouldUpdateActiveSession = widget.intent == PreSwipeFilterIntent.updateActiveSoloSession || swipeProvider.activeSoloSessionId != null;
+      final bool shouldUpdateActiveSession =
+          widget.intent == PreSwipeFilterIntent.updateActiveSoloSession ||
+              swipeProvider.hasActiveSoloSession;
       final bool ready = shouldUpdateActiveSession
           ? await swipeProvider.rebuildActiveSoloSessionFilters(
               cuisines: const <String>[],

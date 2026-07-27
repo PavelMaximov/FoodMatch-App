@@ -9,5 +9,6 @@ export class SoloSwipeController {
   async abandon(req: AuthRequest, res: Response) { res.json(await service.abandonActive(req.userId!)); }
   async deck(req: AuthRequest, res: Response) { res.json(await service.getDeck(req.userId!, String(req.params.sessionId))); }
   async swipe(req: AuthRequest, res: Response) { const swipe = await service.swipe(req.userId!, String(req.params.sessionId), String(req.body?.dishId ?? ''), req.body?.direction); res.status(201).json({ swipe }); }
+  async undo(req: AuthRequest, res: Response) { res.json(await service.undo(req.userId!, String(req.params.sessionId))); }
 }
 export const soloSwipeController = new SoloSwipeController();

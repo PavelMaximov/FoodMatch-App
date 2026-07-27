@@ -240,64 +240,6 @@ class _RecipesScreenState extends State<RecipesScreen> {
     });
   }
 
-  Future<void> _openFilters() async {
-    final bool hasFilterOptions = _availableCuisines.isNotEmpty ||
-        _availableMoods.isNotEmpty ||
-        _availableDiet.isNotEmpty ||
-        _availableTypes.isNotEmpty;
-    if (!hasFilterOptions) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Filters are coming soon')),
-      );
-      return;
-    }
-
-    final _FilterSelection? next = await showModalBottomSheet<_FilterSelection>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: context.fmColors.modalBackground,
-      barrierColor: context.fmColors.modalBarrier,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (BuildContext context) => Container(
-        decoration: BoxDecoration(
-          color: context.fmColors.modalBackground,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: _FilterSheet(
-          cuisines: _availableCuisines,
-          moods: _availableMoods,
-          diet: _availableDiet,
-          types: _availableTypes,
-          selectedCuisines: _selectedCuisines,
-          selectedMoods: _selectedMoods,
-          selectedDiet: _selectedDiet,
-          selectedTypes: _selectedTypes,
-        ),
-      ),
-    );
-
-    if (next == null || !mounted) {
-      return;
-    }
-
-    setState(() {
-      _selectedCuisines
-        ..clear()
-        ..addAll(next.cuisines);
-      _selectedMoods
-        ..clear()
-        ..addAll(next.moods);
-      _selectedDiet
-        ..clear()
-        ..addAll(next.diet);
-      _selectedTypes
-        ..clear()
-        ..addAll(next.types);
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final FoodMatchThemeColors colors = context.fmColors;
@@ -326,29 +268,33 @@ class _RecipesScreenState extends State<RecipesScreen> {
                     ],
                   ),
                   const SizedBox(height: 14),
-                  _RecipeSearchBar(onSearchTap: _openSearch, onFilterTap: _openFilters),
+                  _RecipeSearchBar(onSearchTap: _openSearch),
                 ],
               ),
             ),
             Expanded(
-              child: RefreshIndicator(
-                onRefresh: () => _loadData(force: true),
-                child: PageTransitionSwitcher(
-                  duration: AppMotion.durationFor(context, AppMotion.normal),
-                  transitionBuilder: (
-                    Widget child,
-                    Animation<double> animation,
-                    Animation<double> secondaryAnimation,
-                  ) {
-                    return FadeThroughTransition(
-                      animation: animation,
-                      secondaryAnimation: secondaryAnimation,
-                      child: child,
-                    );
-                  },
-                  child: KeyedSubtree(
-                    key: ValueKey<String>(_bodyMotionKey),
-                    child: _buildBody(),
+              child: ColoredBox(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                child: RefreshIndicator(
+                  onRefresh: () => _loadData(force: true),
+                  child: PageTransitionSwitcher(
+                    duration: AppMotion.durationFor(context, AppMotion.normal),
+                    transitionBuilder: (
+                      Widget child,
+                      Animation<double> animation,
+                      Animation<double> secondaryAnimation,
+                    ) {
+                      return FadeThroughTransition(
+                        animation: animation,
+                        secondaryAnimation: secondaryAnimation,
+                        fillColor: colors.background,
+                        child: child,
+                      );
+                    },
+                    child: KeyedSubtree(
+                      key: ValueKey<String>(_bodyMotionKey),
+                      child: _buildBody(),
+                    ),
                   ),
                 ),
               ),
@@ -1396,7 +1342,12 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
                 ),
             ],
             Expanded(
-              child: _showRecentSearches ? const SizedBox.shrink() : _buildBody(savedDishIds),
+              child: ColoredBox(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                child: _showRecentSearches
+                    ? const SizedBox.shrink()
+                    : _buildBody(savedDishIds),
+              ),
             ),
           ],
         ),
@@ -1540,10 +1491,9 @@ class _FavoritesPillButton extends StatelessWidget {
 }
 
 class _RecipeSearchBar extends StatelessWidget {
-  const _RecipeSearchBar({required this.onSearchTap, required this.onFilterTap});
+  const _RecipeSearchBar({required this.onSearchTap});
 
   final VoidCallback onSearchTap;
-  final VoidCallback onFilterTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1577,11 +1527,6 @@ class _RecipeSearchBar extends StatelessWidget {
                       color: colors.textMuted,
                     ),
                   ),
-                ),
-                IconButton(
-                  tooltip: 'Filter recipes',
-                  onPressed: onFilterTap,
-                  icon: Icon(Icons.tune, color: colors.primary, size: 20),
                 ),
               ],
             ),

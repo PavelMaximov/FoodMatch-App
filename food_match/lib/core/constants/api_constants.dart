@@ -83,6 +83,7 @@ class ApiConstants {
   static const String soloSwipesActiveFilter = '/api/solo-swipes/active/filter';
   static String soloSwipeDeck(String sessionId) => '/api/solo-swipes/$sessionId/deck';
   static String soloSwipe(String sessionId) => '/api/solo-swipes/$sessionId/swipe';
+  static String soloSwipeUndo(String sessionId) => '/api/solo-swipes/$sessionId/undo';
   static const String filtersLast = '/api/filters/last';
   static const String swipeStats = '/api/swipes/me/stats';
   static const String swipeMatches = '/api/swipes/matches';

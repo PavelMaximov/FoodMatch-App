@@ -23,12 +23,10 @@ import '../../shell/presentation/screens/main_shell.dart';
 class AppRouter {
   AppRouter({
     required AuthProvider authProvider,
-    required ValueChanged<bool> onSensitiveRouteChanged,
   }) : router = GoRouter(
           initialLocation: '/login',
           refreshListenable: authProvider,
           redirect: (BuildContext context, GoRouterState state) {
-            onSensitiveRouteChanged(_isSensitiveLocation(state.matchedLocation));
             final bool isLoggedIn = authProvider.isAuthenticated;
             final bool isAuthRoute = state.matchedLocation == '/login' ||
                 state.matchedLocation == '/register' ||
@@ -152,15 +150,6 @@ class AppRouter {
 
   final GoRouter router;
 
-  static bool _isSensitiveLocation(String location) {
-    return <String>{
-      '/login',
-      '/register',
-      '/verify-email',
-      '/connect-couple',
-      '/profile',
-    }.contains(location);
-  }
 }
 
 

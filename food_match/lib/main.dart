@@ -21,6 +21,7 @@ import 'features/matches/logic/match_provider.dart';
 import 'features/swipes/logic/filter_scoring_service.dart';
 import 'features/swipes/logic/pre_swipe_provider.dart';
 import 'features/swipes/logic/swipe_provider.dart';
+import 'shell/logic/nav_badge_animation_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -48,6 +49,9 @@ Future<void> main() async {
         Provider<UploadRepository>.value(value: uploadRepo),
         Provider<UserProfileHiveService>.value(value: userProfileService),
         ChangeNotifierProvider<ThemeController>.value(value: themeController),
+        ChangeNotifierProvider<NavBadgeAnimationController>(
+          create: (_) => NavBadgeAnimationController(),
+        ),
         Provider<FilterScoringService>.value(value: const FilterScoringService()),
         ChangeNotifierProvider<AuthProvider>(
           create: (_) => AuthProvider(

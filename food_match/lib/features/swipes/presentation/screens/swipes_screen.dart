@@ -23,6 +23,7 @@ import '../../../../data/repositories/swipe_repository.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
+import '../../../../shell/logic/nav_badge_animation_controller.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../couple/logic/couple_provider.dart';
 import '../../../matches/logic/match_provider.dart';
@@ -698,9 +699,11 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
   Future<void> _restartFromInlineDeckEnd({required bool isSoloMode}) async {
     if (isSoloMode) {
       final SwipeProvider swipeProvider = context.read<SwipeProvider>();
+      debugPrint('[DeckEndFilter] start mode=solo exhausted=${swipeProvider.isDeckEmpty} hasActiveSession=${swipeProvider.hasActiveSoloSession}');
+      debugPrint('[DeckEndFilter] using createNewSoloSession=true');
       swipeProvider.clearPreparedDeck();
       context.read<PreSwipeProvider>().clearDraft();
-      await _runSoloPreSwipeFlow(intent: PreSwipeFilterIntent.updateActiveSoloSession);
+      await _runSoloPreSwipeFlow();
       return;
     }
 
@@ -1151,34 +1154,35 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
               soloSessionId: wasSoloMode ? soloSessionId : null,
             );
         if (wasSoloMode) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: TweenAnimationBuilder<double>(
-                tween: Tween<double>(begin: 0.92, end: 1),
-                duration: AppMotion.fast,
-                curve: AppMotion.curve,
-                builder: (BuildContext context, double scale, Widget? child) {
-                  return Opacity(
-                    opacity: scale.clamp(0.0, 1.0),
-                    child: Transform.scale(
-                      scale: scale,
-                      alignment: Alignment.centerLeft,
-                      child: child,
-                    ),
-                  );
-                },
-                child: const Row(
-                  children: <Widget>[
-                    Icon(Icons.favorite, color: Colors.white, size: 18),
-                    SizedBox(width: 8),
-                    Text('Saved to Matches'),
-                  ],
-                ),
-              ),
-              duration: const Duration(milliseconds: 1400),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+          context.read<NavBadgeAnimationController>().showSoloMatchesPlusOne();
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   SnackBar(
+          //     content: TweenAnimationBuilder<double>(
+          //       tween: Tween<double>(begin: 0.92, end: 1),
+          //       duration: AppMotion.fast,
+          //       curve: AppMotion.curve,
+          //       builder: (BuildContext context, double scale, Widget? child) {
+          //         return Opacity(
+          //           opacity: scale.clamp(0.0, 1.0),
+          //           child: Transform.scale(
+          //             scale: scale,
+          //             alignment: Alignment.centerLeft,
+          //             child: child,
+          //           ),
+          //         );
+          //       },
+          //       child: const Row(
+          //         children: <Widget>[
+          //           Icon(Icons.favorite, color: Colors.white, size: 18),
+          //           SizedBox(width: 8),
+          //           Text('Saved to Matches'),
+          //         ],
+          //       ),
+          //     ),
+          //     duration: const Duration(milliseconds: 1400),
+          //     behavior: SnackBarBehavior.floating,
+          //   ),
+          // );
           return;
         }
         context.push('/match-overlay', extra: swipedDish);
@@ -1227,8 +1231,26 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       return;
     }
     _isCardActionInProgress = true;
+    final String? undoDishId = provider.lastSwipedDish?.id;
+    final SwipeDirection? undoDirection = switch (provider.lastSwipedDirection) {
+      'like' => SwipeDirection.right,
+      'dislike' => SwipeDirection.left,
+      _ => null,
+    };
     try {
-      provider.undo();
+      await provider.undo();
+      if (undoDishId != null &&
+          undoDirection != null &&
+          provider.currentDish?.id == undoDishId) {
+        final SwipeableStackState? swipeStackState =
+            _swipeStackKey.currentState;
+        debugPrint(
+          '[UndoAnim] requested hasCurrentState=${swipeStackState != null} direction=${undoDirection.name}',
+        );
+        await swipeStackState?.playUndoReturnAnimation(
+          direction: undoDirection,
+        );
+      }
     } finally {
       _isCardActionInProgress = false;
     }

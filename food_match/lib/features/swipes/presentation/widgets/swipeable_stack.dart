@@ -33,6 +33,7 @@ class SwipeableStackState extends State<SwipeableStack>
     with TickerProviderStateMixin {
   static const Duration _swipeDuration = Duration(milliseconds: 550);
   static const Duration _buttonSwipeDuration = Duration(milliseconds: 500);
+  static const Duration _undoReturnDuration = Duration(milliseconds: 400);
   static const double _distanceThreshold = 120;
   static const double _velocityThreshold = 800;
 
@@ -41,12 +42,15 @@ class SwipeableStackState extends State<SwipeableStack>
   bool _didTriggerThresholdHaptic = false;
   bool _isAnimating = false;
   bool _isButtonSwipeAnimating = false;
+  bool _isUndoReturnAnimating = false;
+  SwipeDirection? _undoReturnDirection;
   int _visualIndex = 0;
   Widget? _outgoingCard;
   late final AnimationController _animationController;
   late final AnimationController _buttonPulseController;
   late final AnimationController _buttonSwipeController;
   late final AnimationController _snapBackController;
+  late final AnimationController _undoReturnController;
   Animation<Offset>? _offsetAnimation;
   Animation<double>? _opacityAnimation;
   _ButtonActionOverlay? _buttonActionOverlay;
@@ -103,6 +107,10 @@ class SwipeableStackState extends State<SwipeableStack>
       vsync: this,
       duration: _buttonSwipeDuration,
     );
+    _undoReturnController = AnimationController(
+      vsync: this,
+      duration: _undoReturnDuration,
+    );
     _snapBackController = AnimationController.unbounded(vsync: this)
       ..addListener(() {
         if (!mounted) return;
@@ -141,6 +149,7 @@ class SwipeableStackState extends State<SwipeableStack>
     _buttonPulseController.dispose();
     _buttonSwipeController.dispose();
     _snapBackController.dispose();
+    _undoReturnController.dispose();
     super.dispose();
   }
 
@@ -238,6 +247,9 @@ class SwipeableStackState extends State<SwipeableStack>
     _animationController.reset();
     _snapBackController.stop();
     _snapBackController.reset();
+    _undoReturnController
+      ..stop()
+      ..reset();
     if (!mounted) return;
     setState(() {
       _dragOffset = Offset.zero;
@@ -245,6 +257,8 @@ class SwipeableStackState extends State<SwipeableStack>
       _didTriggerThresholdHaptic = false;
       _isAnimating = false;
       _isButtonSwipeAnimating = false;
+      _isUndoReturnAnimating = false;
+      _undoReturnDirection = null;
       _buttonSwipeDirection = null;
       _visualIndex = 0;
       _outgoingCard = null;
@@ -255,8 +269,35 @@ class SwipeableStackState extends State<SwipeableStack>
     });
   }
 
+  Future<void> playUndoReturnAnimation({required SwipeDirection direction}) async {
+    if (!mounted || widget.itemCount <= 0) return;
+    if (kDebugMode) debugPrint('[UndoAnim] start direction=${direction.name}');
+    setState(() {
+      _isUndoReturnAnimating = true;
+      _undoReturnDirection = direction;
+    });
+    try {
+      await _undoReturnController.forward(from: 0);
+    } finally {
+      if (mounted) {
+        if (kDebugMode) debugPrint('[UndoAnim] complete direction=${direction.name}');
+        setState(() {
+          _isUndoReturnAnimating = false;
+          _undoReturnDirection = null;
+        });
+        _undoReturnController.reset();
+        if (kDebugMode) debugPrint('[UndoAnim] cleanup complete');
+      }
+    }
+  }
+
   void _onPanStart(DragStartDetails _) {
-    if (_isAnimating || _isButtonSwipeAnimating || !widget.canSwipe) return;
+    if (_isAnimating ||
+        _isButtonSwipeAnimating ||
+        _isUndoReturnAnimating ||
+        !widget.canSwipe) {
+      return;
+    }
     _buttonPulseController.stop();
     _buttonActionOverlay = null;
     _buttonPulseGeneration++;
@@ -369,7 +410,13 @@ class SwipeableStackState extends State<SwipeableStack>
       _runProgrammaticSwipe(SwipeDirection.left);
 
   Future<void> _runProgrammaticSwipe(SwipeDirection direction) async {
-    if (_isDragging || _isAnimating || _isButtonSwipeAnimating || !widget.canSwipe) return;
+    if (_isDragging ||
+        _isAnimating ||
+        _isButtonSwipeAnimating ||
+        _isUndoReturnAnimating ||
+        !widget.canSwipe) {
+      return;
+    }
     final int outgoingIndex = _visualIndex;
     if (kDebugMode) {
       debugPrint('[ButtonSwipe] dedicated start direction=${direction.name} index=$outgoingIndex');
@@ -518,7 +565,10 @@ class SwipeableStackState extends State<SwipeableStack>
         if (baseStartIndex + 1 < widget.itemCount) _preview(baseStartIndex + 1, .97, .9),
         if (baseStartIndex < widget.itemCount) Positioned.fill(
           child: IgnorePointer(
-            ignoring: _isAnimating || _isButtonSwipeAnimating || !widget.canSwipe,
+            ignoring: _isAnimating ||
+                _isButtonSwipeAnimating ||
+                _isUndoReturnAnimating ||
+                !widget.canSwipe,
             child: GestureDetector(
               behavior: HitTestBehavior.deferToChild,
               onHorizontalDragStart: _onPanStart,
@@ -526,7 +576,10 @@ class SwipeableStackState extends State<SwipeableStack>
               onHorizontalDragEnd: _onPanEnd,
               onHorizontalDragCancel: _onPanCancel,
               child: AnimatedBuilder(
-                animation: _buttonSwipeController,
+                animation: Listenable.merge(<Listenable>[
+                  _buttonSwipeController,
+                  _undoReturnController,
+                ]),
                 builder: (BuildContext context, Widget? child) {
                   final double progress = _safeDouble(
                     Curves.easeInOutCubic.transform(
@@ -554,12 +607,50 @@ class SwipeableStackState extends State<SwipeableStack>
                     min: 0,
                     max: 1,
                   );
+                  final double undoProgress = _safeDouble(
+                    _undoReturnController.value,
+                    min: 0,
+                    max: 1,
+                  );
+                  final double undoT = _safeDouble(
+                    Curves.easeInOutCubic.transform(undoProgress),
+                    min: 0,
+                    max: 1,
+                  );
+                  final double undoSign = _undoReturnDirection == SwipeDirection.right ? 1 : -1;
+                  final Offset undoOffset = _isUndoReturnAnimating
+                      ? Offset(
+                          undoSign * _cardAreaWidth * 1.25 * (1 - undoT),
+                          -24 * (1 - undoT),
+                        )
+                      : Offset.zero;
+                  final double undoRotation = _isUndoReturnAnimating
+                      ? undoSign * (8 * pi / 180) * (1 - undoT)
+                      : 0;
+                  final Offset effectiveOffset = _isButtonSwipeAnimating
+                      ? offset
+                      : _isUndoReturnAnimating
+                          ? undoOffset
+                          : _dragOffset;
+                  final double effectiveRotation = _isButtonSwipeAnimating
+                      ? rotation
+                      : _isUndoReturnAnimating
+                          ? undoRotation
+                          : _rotation;
                   return Transform(
                     alignment: Alignment.center,
                     transform: Matrix4.identity()
-                      ..translateByDouble(offset.dx, offset.dy, 0, 1)
-                      ..rotateZ(rotation),
-                    child: Opacity(opacity: opacity, child: child),
+                      ..translateByDouble(
+                        effectiveOffset.dx,
+                        effectiveOffset.dy,
+                        0,
+                        1,
+                      )
+                      ..rotateZ(effectiveRotation),
+                    child: Opacity(
+                      opacity: opacity,
+                      child: child,
+                    ),
                   );
                 },
                 child: Stack(
