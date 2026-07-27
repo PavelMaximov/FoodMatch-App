@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/theme_extensions.dart';
+import '../../../../core/widgets/food_match_ripple.dart';
 
 enum SwipeModeChoice { solo, paired }
 
@@ -152,9 +153,10 @@ class _ModeCard extends StatelessWidget {
       isActive: selected,
     );
 
-    return InkWell(
+    return FoodMatchRipple(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
+      rippleColor: colors.neutralRipple,
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(

@@ -8,6 +8,7 @@ import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/utils/snackbar_utils.dart';
 import '../../../../core/utils/validators.dart';
+import '../../../../core/widgets/food_match_ripple.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_logo_header.dart';
 import '../../../../shared/widgets/app_text_field.dart';
@@ -95,8 +96,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     required Widget child,
     required VoidCallback onTap,
   }) {
-    return GestureDetector(
+    return FoodMatchRipple(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      rippleColor: context.fmColors.neutralRipple,
       child: Container(
         width: 40,
         height: 40,
@@ -114,8 +117,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     required String actionText,
     required VoidCallback onTap,
   }) {
-    return GestureDetector(
+    return FoodMatchRipple(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(AppDimensions.radiusButton),
+      rippleColor: context.fmColors.primaryRipple,
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 14),

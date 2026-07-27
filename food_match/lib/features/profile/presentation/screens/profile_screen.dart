@@ -16,6 +16,7 @@ import '../../../../core/theme/theme_controller.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/utils/image_utils.dart';
 import '../../../../core/utils/snackbar_utils.dart';
+import '../../../../core/widgets/food_match_ripple.dart';
 import '../../../../data/models/couple.dart';
 import '../../../../data/models/user.dart';
 import '../../../../data/repositories/upload_repository.dart';
@@ -390,12 +391,13 @@ class _HeaderIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: context.fmColors.card,
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
+    return FoodMatchRipple(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      rippleColor: context.fmColors.neutralRipple,
+      child: Material(
+        color: context.fmColors.card,
+        shape: const CircleBorder(),
         child: SizedBox(
           width: 40,
           height: 40,
@@ -501,9 +503,10 @@ class _UserInfoCard extends StatelessWidget {
           ),
           Align(
             alignment: Alignment.topRight,
-            child: InkWell(
+            child: FoodMatchRipple(
               onTap: onEdit,
               borderRadius: BorderRadius.circular(16),
+              rippleColor: context.fmColors.neutralRipple,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                 child: Row(
@@ -541,11 +544,12 @@ class _PremiumCta extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(ProfileScreen._cardRadius),
+    return FoodMatchRipple(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(ProfileScreen._cardRadius),
+      rippleColor: context.fmColors.primaryRipple,
+      child: Material(
+        color: Colors.transparent,
         child: Ink(
           height: 56,
           decoration: BoxDecoration(
@@ -1072,13 +1076,11 @@ class _ProfileInk extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(ProfileScreen._cardRadius),
-        child: child,
-      ),
+    return FoodMatchRipple(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(ProfileScreen._cardRadius),
+      rippleColor: context.fmColors.neutralRipple,
+      child: child,
     );
   }
 }
