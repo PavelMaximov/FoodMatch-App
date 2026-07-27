@@ -48,7 +48,6 @@ flutter:
     - assets/images/
     - assets/illustrations/
     - assets/animations/loading_3_dots.json
-    - assets/animations/waiting.json
     - assets/animations/confetti_transparent.json
     - assets/ui/match_snackbar_light.svg
     - assets/ui/match_snackbar_dark.svg

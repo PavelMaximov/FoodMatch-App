@@ -172,6 +172,9 @@ class _RecipesScreenState extends State<RecipesScreen> {
   }
 
   Future<void> _loadData({bool force = false}) async {
+    debugPrint(
+      '[PageLoad] start page=Recipes reason=${force ? 'refresh' : 'route'}',
+    );
     setState(() {
       _isLoading = true;
       _error = null;
@@ -186,6 +189,11 @@ class _RecipesScreenState extends State<RecipesScreen> {
         return;
       }
       setState(() => _allDishes = dishes);
+      debugPrint(
+        dishes.isEmpty
+            ? '[PageLoad] empty page=Recipes'
+            : '[PageLoad] success page=Recipes items=${dishes.length}',
+      );
       debugPrint('[Recipes] loaded dishes=${dishes.length}');
       final List<List<String>> firstFiveTags = dishes
           .take(5)
@@ -193,6 +201,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
           .toList();
       debugPrint('[Recipes] first5.tags=$firstFiveTags');
     } catch (e) {
+      debugPrint('[PageLoad] error page=Recipes error=$e');
       if (!mounted) {
         return;
       }

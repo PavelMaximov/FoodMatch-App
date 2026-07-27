@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/animations/app_motion.dart';
@@ -14,6 +13,8 @@ import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/utils/cloudinary_image_url.dart';
 import '../../../../core/utils/image_utils.dart';
+import '../../../../core/widgets/app_pending_overlay.dart';
+import '../../../../core/widgets/food_match_svg_loader.dart';
 import '../../../../data/models/couple.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../data/models/match_item.dart';
@@ -472,22 +473,38 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     final String? userId = context.read<AuthProvider>().currentUser?.id;
     swipeProvider.setActiveUser(userId);
 
+    debugPrint('[PageLoad] start page=Swipe reason=route');
     try {
-      await coupleProvider.loadCouple(force: true);
+      await coupleProvider
+          .loadCouple(force: true)
+          .timeout(const Duration(seconds: 15));
       if (!mounted) {
         return;
       }
 
       if (coupleProvider.error != null && !coupleProvider.hasCouple) {
-        setState(() => _initialSessionError = coupleProvider.error);
-        return;
+        debugPrint(
+          '[PageLoad] retry reason=missingSessionDuringRouteTransition page=Swipe',
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+        if (!mounted) return;
+        await coupleProvider
+            .loadCouple(force: true)
+            .timeout(const Duration(seconds: 15));
+        if (coupleProvider.error != null && !coupleProvider.hasCouple) {
+          setState(() => _initialSessionError = coupleProvider.error);
+          debugPrint('[PageLoad] error page=Swipe error=${coupleProvider.error}');
+          return;
+        }
       }
 
-      final StartupRouteDecision decision = await _appFlow.resolveStartupRoute(
-        swipeRepository: context.read<SwipeRepository>(),
-        swipeProvider: swipeProvider,
-        coupleProvider: coupleProvider,
-      );
+      final StartupRouteDecision decision = await _appFlow
+          .resolveStartupRoute(
+            swipeRepository: context.read<SwipeRepository>(),
+            swipeProvider: swipeProvider,
+            coupleProvider: coupleProvider,
+          )
+          .timeout(const Duration(seconds: 15));
       if (!mounted) return;
 
       swipeProvider.clearPreparedDeck();
@@ -514,7 +531,11 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
         debugPrint('[AppFlow] startup resolved -> ModeSelection');
         swipeProvider.resetToModeSelection();
       }
+      debugPrint(
+        '[PageLoad] success page=Swipe items=${swipeProvider.deck.length}',
+      );
     } catch (e) {
+      debugPrint('[PageLoad] error page=Swipe error=$e');
       if (mounted) {
         setState(() => _initialSessionError = 'We couldn’t load your swipe session. Please try again.');
       }
@@ -718,7 +739,22 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       _isPairRestartLoading = true;
       _pairRestartError = null;
     });
-    final Map<String, dynamic>? status = await context.read<CoupleProvider>().requestDeckRestart();
+    Map<String, dynamic>? status;
+    try {
+      status = await context
+          .read<PendingOverlayController>()
+          .run<Map<String, dynamic>?>(
+            message: 'Restarting your deck...',
+            operation: context.read<CoupleProvider>().requestDeckRestart,
+          );
+    } on TimeoutException {
+      if (!mounted) return;
+      setState(() {
+        _isPairRestartLoading = false;
+        _pairRestartError = 'Something went wrong. Please try again.';
+      });
+      return;
+    }
     if (!mounted) {
       return;
     }
@@ -1603,13 +1639,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: <Widget>[
-                              Lottie.asset(
-                                'assets/animations/waiting.json',
-                                width: 150,
-                                height: 150,
-                                repeat: true,
-                                animate: true,
-                              ),
+                              const FoodMatchSvgLoader(size: 150),
                               const SizedBox(height: 16),
                               const Text('Preparing your shared deck', textAlign: TextAlign.center),
                               const SizedBox(height: 8),

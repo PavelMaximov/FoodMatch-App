@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:lottie/lottie.dart';
 
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/theme/theme_extensions.dart';
+import '../../../../core/widgets/food_match_svg_loader.dart';
 
 class InlineDeckEndRestartCard extends StatelessWidget {
   const InlineDeckEndRestartCard({
@@ -89,13 +89,7 @@ class InlineDeckEndRestartCard extends StatelessWidget {
               ],
               const SizedBox(height: 28),
               if (isWaitingForPartner || isLoading) ...<Widget>[
-                Lottie.asset(
-                  'assets/animations/waiting.json',
-                  width: 150,
-                  height: 150,
-                  repeat: true,
-                  animate: true,
-                ),
+                const FoodMatchSvgLoader(size: 150),
               ] else ...<Widget>[
                 SizedBox(
                   width: double.infinity,

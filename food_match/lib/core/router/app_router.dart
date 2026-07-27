@@ -149,10 +149,7 @@ class AppRouter {
         );
 
   final GoRouter router;
-
 }
-
-
 
 class _PagedBranchNavigatorContainer extends StatefulWidget {
   const _PagedBranchNavigatorContainer({
@@ -173,6 +170,7 @@ class _PagedBranchNavigatorContainerState
   late final PageController _pageController;
   late final Set<int> _visitedBranches;
   late List<Widget> _tabPages;
+
   @override
   void initState() {
     super.initState();
@@ -191,6 +189,9 @@ class _PagedBranchNavigatorContainerState
       _tabPages = _buildTabPages(widget.children);
     }
     final int currentIndex = widget.navigationShell.currentIndex;
+    if (_visitedBranches.add(currentIndex)) {
+      _tabPages = _buildTabPages(widget.children);
+    }
     if (!_pageController.hasClients ||
         (_pageController.page?.round() ?? _pageController.initialPage) ==
             currentIndex) {
@@ -204,7 +205,6 @@ class _PagedBranchNavigatorContainerState
     _pageController.dispose();
     super.dispose();
   }
-
 
   List<Widget> _buildTabPages(List<Widget> children) {
     return List<Widget>.generate(children.length, (int index) {
@@ -252,13 +252,10 @@ class _PagedBranchNavigatorContainerState
   }
 
   void _handlePageChanged(int index) {
-    if (index == widget.navigationShell.currentIndex) {
-      return;
+    if (_visitedBranches.add(index)) {
+      setState(() => _tabPages = _buildTabPages(widget.children));
     }
-    setState(() {
-      _visitedBranches.add(index);
-      _tabPages = _buildTabPages(widget.children);
-    });
+    if (index == widget.navigationShell.currentIndex) return;
     widget.navigationShell.goBranch(index);
   }
 

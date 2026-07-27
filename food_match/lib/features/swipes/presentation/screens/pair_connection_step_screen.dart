@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -5,6 +7,7 @@ import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/theme/theme_extensions.dart';
+import '../../../../core/widgets/app_pending_overlay.dart';
 import '../../../../data/models/couple.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../couple/logic/couple_provider.dart';
@@ -48,7 +51,17 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
   String get _code => _sanitizeCode(_codeController.text);
 
   Future<void> _createSession(CoupleProvider provider) async {
-    await provider.createCouple();
+    try {
+      await context.read<PendingOverlayController>().run<void>(
+        message: 'Creating session...',
+        operation: () async {
+          await provider.createCouple();
+        },
+      );
+    } on TimeoutException {
+      if (mounted) _showTimeoutError();
+      return;
+    }
     provider.startFilterStatePolling(reason: 'pair_connection_step_create');
     if (!mounted) return;
     context.read<SwipeProvider>().clearPreparedDeck();
@@ -62,7 +75,15 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
     if (code.length != 6 || _isJoining) return;
     setState(() => _isJoining = true);
     try {
-      await provider.joinCouple(code, replaceEmptyCurrentSession: true);
+      await context.read<PendingOverlayController>().run<void>(
+        message: 'Joining session...',
+        operation: () async {
+          await provider.joinCouple(
+            code,
+            replaceEmptyCurrentSession: true,
+          );
+        },
+      );
       if (!mounted || provider.error != null) return;
       provider.startFilterStatePolling(reason: 'pair_connection_step_join');
       context.read<SwipeProvider>().clearPreparedDeck();
@@ -72,11 +93,19 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
         _handledConnectedSession = true;
         await widget.onPairConnected();
       }
+    } on TimeoutException {
+      if (mounted) _showTimeoutError();
     } finally {
       if (mounted) {
         setState(() => _isJoining = false);
       }
     }
+  }
+
+  void _showTimeoutError() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Something went wrong. Please try again.')),
+    );
   }
 
   Future<void> _pasteCode() async {
