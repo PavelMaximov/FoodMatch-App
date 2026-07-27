@@ -1155,34 +1155,34 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
             );
         if (wasSoloMode) {
           context.read<NavBadgeAnimationController>().showSoloMatchesPlusOne();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: TweenAnimationBuilder<double>(
-                tween: Tween<double>(begin: 0.92, end: 1),
-                duration: AppMotion.fast,
-                curve: AppMotion.curve,
-                builder: (BuildContext context, double scale, Widget? child) {
-                  return Opacity(
-                    opacity: scale.clamp(0.0, 1.0),
-                    child: Transform.scale(
-                      scale: scale,
-                      alignment: Alignment.centerLeft,
-                      child: child,
-                    ),
-                  );
-                },
-                child: const Row(
-                  children: <Widget>[
-                    Icon(Icons.favorite, color: Colors.white, size: 18),
-                    SizedBox(width: 8),
-                    Text('Saved to Matches'),
-                  ],
-                ),
-              ),
-              duration: const Duration(milliseconds: 1400),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   SnackBar(
+          //     content: TweenAnimationBuilder<double>(
+          //       tween: Tween<double>(begin: 0.92, end: 1),
+          //       duration: AppMotion.fast,
+          //       curve: AppMotion.curve,
+          //       builder: (BuildContext context, double scale, Widget? child) {
+          //         return Opacity(
+          //           opacity: scale.clamp(0.0, 1.0),
+          //           child: Transform.scale(
+          //             scale: scale,
+          //             alignment: Alignment.centerLeft,
+          //             child: child,
+          //           ),
+          //         );
+          //       },
+          //       child: const Row(
+          //         children: <Widget>[
+          //           Icon(Icons.favorite, color: Colors.white, size: 18),
+          //           SizedBox(width: 8),
+          //           Text('Saved to Matches'),
+          //         ],
+          //       ),
+          //     ),
+          //     duration: const Duration(milliseconds: 1400),
+          //     behavior: SnackBarBehavior.floating,
+          //   ),
+          // );
           return;
         }
         context.push('/match-overlay', extra: swipedDish);

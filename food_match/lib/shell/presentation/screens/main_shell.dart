@@ -314,8 +314,8 @@ class _MainShellState extends State<MainShell>
                           ),
                           if (index == 1)
                             Positioned(
-                              top: 4,
-                              right: -9,
+                              top: 1,
+                              right: -1,
                               child: IgnorePointer(
                                 child: AnimatedBuilder(
                                   animation: _soloPlusOneController,
@@ -326,8 +326,8 @@ class _MainShellState extends State<MainShell>
                                         ? value / 0.2
                                         : (1 - value) / 0.8;
                                     final double dy = value <= 0.2
-                                        ? 10 * (1 - (value / 0.2))
-                                        : -18 * ((value - 0.2) / 0.8);
+                                        ? 16 * (1 - (value / 0.2))
+                                        : -28 * ((value - 0.2) / 0.8);
                                     final double scale = value <= 0.2
                                         ? 0.75 + (0.3 * (value / 0.2))
                                         : 1.05 - (0.1 * ((value - 0.2) / 0.8));
@@ -344,8 +344,8 @@ class _MainShellState extends State<MainShell>
                                   },
                                   child: SvgPicture.asset(
                                     'assets/icons/plus_one_badge.svg',
-                                    width: 28,
-                                    height: 18,
+                                    width: 20,
+                                    height: 10,
                                   ),
                                 ),
                               ),
