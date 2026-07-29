@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme/theme_extensions.dart';
 import '../../core/utils/image_utils.dart';
+import '../../core/widgets/food_match_ripple.dart';
 import '../../data/models/dish.dart';
 import 'media/safe_dish_image.dart';
 
@@ -37,12 +38,15 @@ class DishGridCard extends StatelessWidget {
 
     return SizedBox(
       width: width,
-      child: Material(
-        color: colors.dishCardBackground,
+      child: FoodMatchRipple(
+        onTap: onTap,
+        enabled: onTap != null,
         borderRadius: BorderRadius.circular(_DishGridCardTokens.cardRadius),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
+        rippleColor: colors.neutralRipple,
+        child: Material(
+          color: colors.dishCardBackground,
+          borderRadius: BorderRadius.circular(_DishGridCardTokens.cardRadius),
+          clipBehavior: Clip.antiAlias,
           child: Ink(
             decoration: BoxDecoration(
               color: colors.dishCardBackground,
