@@ -1263,35 +1263,45 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     }
   }
 
-  Future<void> _handleBack(SwipeProvider provider) async {
-    if (_isCardActionInProgress || !provider.canUndo) {
-      return;
-    }
-    _isCardActionInProgress = true;
-    final String? undoDishId = provider.lastSwipedDish?.id;
-    final SwipeDirection? undoDirection = switch (provider.lastSwipedDirection) {
-      'like' => SwipeDirection.right,
-      'dislike' => SwipeDirection.left,
-      _ => null,
-    };
-    try {
-      await provider.undo();
-      if (undoDishId != null &&
-          undoDirection != null &&
-          provider.currentDish?.id == undoDishId) {
-        final SwipeableStackState? swipeStackState =
-            _swipeStackKey.currentState;
-        debugPrint(
-          '[UndoAnim] requested hasCurrentState=${swipeStackState != null} direction=${undoDirection.name}',
-        );
-        await swipeStackState?.playUndoReturnAnimation(
-          direction: undoDirection,
-        );
-      }
-    } finally {
-      _isCardActionInProgress = false;
-    }
+ Future<void> _handleBack(SwipeProvider provider) async {
+  if (_isCardActionInProgress || !provider.canUndo) {
+    return;
   }
+  _isCardActionInProgress = true;
+
+  final String? undoDishId = provider.lastSwipedDish?.id;
+  final SwipeDirection? undoDirection = switch (provider.lastSwipedDirection) {
+    'like' => SwipeDirection.right,
+    'dislike' => SwipeDirection.left,
+    _ => null,
+  };
+
+  final SwipeableStackState? swipeStackState = _swipeStackKey.currentState;
+
+  // Запускаем анимацию сразу — не дожидаясь ответа сервера. Направление уже
+  // известно локально, ждать backend незачем, если только он не разойдётся
+  // с ожиданием (см. проверку ниже).
+  final Future<void>? animationFuture = (undoDishId != null && undoDirection != null)
+      ? swipeStackState?.playUndoReturnAnimation(direction: undoDirection)
+      : null;
+
+  try {
+    await provider.undo();
+
+    final bool matched = undoDishId != null &&
+        undoDirection != null &&
+        provider.currentDish?.id == undoDishId;
+
+    if (!matched) {
+      debugPrint('[UndoAnim] mismatch after backend undo — resetting stack visuals');
+      swipeStackState?.resetInteractionState();
+    }
+
+    if (animationFuture != null) await animationFuture;
+  } finally {
+    _isCardActionInProgress = false;
+  }
+}
 
 
   @override
@@ -1387,7 +1397,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                         mainAxisSize: MainAxisSize.min,
                         children: <Widget>[
                           Icon(
-                            Icons.tune,
+                            Icons.filter_alt_outlined,
                             size: 16,
                             color: colors.primary,
                           ),

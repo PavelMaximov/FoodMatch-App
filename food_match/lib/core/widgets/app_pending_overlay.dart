@@ -109,7 +109,7 @@ class AppPendingOverlay extends StatelessWidget {
         if (controller.isVisible)
           Center(
             child: FoodMatchLoader(
-              size: 76,
+              size: 96,
               label: controller.message,
               dimmed: true,
             ),
