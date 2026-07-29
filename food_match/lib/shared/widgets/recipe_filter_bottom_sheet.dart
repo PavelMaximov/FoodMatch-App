@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme/theme_extensions.dart';
+import '../../core/widgets/food_match_ripple.dart';
 
 class RecipeListFilters {
   const RecipeListFilters({
@@ -303,12 +304,13 @@ class _ChipWrap extends StatelessWidget {
       runSpacing: 9,
       children: options.map((String option) {
         final bool isSelected = selected.contains(option);
-        return Material(
-          color: colors.chipBackground,
+        return FoodMatchRipple(
+          onTap: () => onTap(option),
           borderRadius: BorderRadius.circular(999),
-          child: InkWell(
+          rippleColor: colors.neutralRipple,
+          child: Material(
+            color: colors.chipBackground,
             borderRadius: BorderRadius.circular(999),
-            onTap: () => onTap(option),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 9),
               decoration: BoxDecoration(

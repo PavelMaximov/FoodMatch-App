@@ -71,13 +71,12 @@ class SwipeableStackState extends State<SwipeableStack>
     return value;
   }
 
-  Offset _safeOffset(Offset offset) => Offset(
-        _safeDouble(offset.dx),
-        _safeDouble(offset.dy),
-      );
+  Offset _safeOffset(Offset offset) =>
+      Offset(_safeDouble(offset.dx), _safeDouble(offset.dy));
 
   void _recoverFromInvalidSwipeState(String reason) {
-    if (kDebugMode) debugPrint('[SwipeStack] recovered invalid state reason=$reason');
+    if (kDebugMode)
+      debugPrint('[SwipeStack] recovered invalid state reason=$reason');
     _snapBackController.stop();
     _buttonSwipeController.stop();
     if (!mounted) return;
@@ -124,7 +123,9 @@ class SwipeableStackState extends State<SwipeableStack>
           Offset.zero,
           progress,
         );
-        if (nextOffset == null || !nextOffset.dx.isFinite || !nextOffset.dy.isFinite) {
+        if (nextOffset == null ||
+            !nextOffset.dx.isFinite ||
+            !nextOffset.dy.isFinite) {
           _recoverFromInvalidSwipeState('snap_back_offset');
           return;
         }
@@ -156,14 +157,15 @@ class SwipeableStackState extends State<SwipeableStack>
   double get _screenWidth => MediaQuery.of(context).size.width;
   double get _safeScreenWidth => _safeDouble(_screenWidth, fallback: 1, min: 1);
   double get _rotation => _safeDouble(
-        (_safeOffset(_dragOffset).dx / _safeScreenWidth).clamp(-1.0, 1.0) * (pi / 20),
-      );
+    (_safeOffset(_dragOffset).dx / _safeScreenWidth).clamp(-1.0, 1.0) *
+        (pi / 20),
+  );
   double get _dragOpacity => _safeDouble(
-        1 - _safeOffset(_dragOffset).dx.abs() / (_safeScreenWidth * .9),
-        fallback: 1,
-        min: .90,
-        max: 1,
-      );
+    1 - _safeOffset(_dragOffset).dx.abs() / (_safeScreenWidth * .9),
+    fallback: 1,
+    min: .90,
+    max: 1,
+  );
 
   Widget _buildDragActionOverlay() {
     final double dragDistance = _safeOffset(_dragOffset).dx.abs();
@@ -209,7 +211,9 @@ class SwipeableStackState extends State<SwipeableStack>
           child: AnimatedBuilder(
             animation: _buttonPulseController,
             builder: (BuildContext context, Widget? child) {
-              final double value = Curves.easeInOutCubic.transform(_buttonPulseController.value);
+              final double value = Curves.easeInOutCubic.transform(
+                _buttonPulseController.value,
+              );
               final double opacity = value < .6 ? value / .6 : (1 - value) / .4;
               final double scale = value < .6
                   ? .75 + (.4 * (value / .6))
@@ -269,7 +273,9 @@ class SwipeableStackState extends State<SwipeableStack>
     });
   }
 
-  Future<void> playUndoReturnAnimation({required SwipeDirection direction}) async {
+  Future<void> playUndoReturnAnimation({
+    required SwipeDirection direction,
+  }) async {
     if (!mounted || widget.itemCount <= 0) return;
     if (kDebugMode) debugPrint('[UndoAnim] start direction=${direction.name}');
     setState(() {
@@ -280,7 +286,8 @@ class SwipeableStackState extends State<SwipeableStack>
       await _undoReturnController.forward(from: 0);
     } finally {
       if (mounted) {
-        if (kDebugMode) debugPrint('[UndoAnim] complete direction=${direction.name}');
+        if (kDebugMode)
+          debugPrint('[UndoAnim] complete direction=${direction.name}');
         setState(() {
           _isUndoReturnAnimating = false;
           _undoReturnDirection = null;
@@ -309,9 +316,16 @@ class SwipeableStackState extends State<SwipeableStack>
   }
 
   void _onPanUpdate(DragUpdateDetails details) {
-    if (!_isDragging || _isAnimating || _isButtonSwipeAnimating || !widget.canSwipe) return;
-    final Offset nextOffset = _safeOffset(Offset(_dragOffset.dx + details.delta.dx, 0));
-    if (!_didTriggerThresholdHaptic && nextOffset.dx.abs() >= _distanceThreshold) {
+    if (!_isDragging ||
+        _isAnimating ||
+        _isButtonSwipeAnimating ||
+        !widget.canSwipe)
+      return;
+    final Offset nextOffset = _safeOffset(
+      Offset(_dragOffset.dx + details.delta.dx, 0),
+    );
+    if (!_didTriggerThresholdHaptic &&
+        nextOffset.dx.abs() >= _distanceThreshold) {
       _didTriggerThresholdHaptic = true;
       unawaited(HapticFeedback.mediumImpact());
       if (kDebugMode) debugPrint('[SwipeAnim] threshold crossed');
@@ -320,80 +334,62 @@ class SwipeableStackState extends State<SwipeableStack>
   }
 
   void _onPanEnd(DragEndDetails details) {
-  if (!_isDragging) return;
+    if (!_isDragging) return;
 
-  _isDragging = false;
-  _didTriggerThresholdHaptic = false;
-  setState(() {});
+    _isDragging = false;
+    _didTriggerThresholdHaptic = false;
+    setState(() {});
 
-  final double dragX = _safeOffset(_dragOffset).dx;
-  final double velocity =
-      _safeDouble(details.primaryVelocity ?? 0);
+    final double dragX = _safeOffset(_dragOffset).dx;
+    final double velocity = _safeDouble(details.primaryVelocity ?? 0);
 
-  final bool hasMeaningfulDrag = dragX.abs() >= 12;
-  final bool crossedDistance =
-      dragX.abs() >= _distanceThreshold;
-  final bool crossedVelocity =
-      velocity.abs() >= _velocityThreshold;
+    final bool hasMeaningfulDrag = dragX.abs() >= 12;
+    final bool crossedDistance = dragX.abs() >= _distanceThreshold;
+    final bool crossedVelocity = velocity.abs() >= _velocityThreshold;
 
-  final bool accepted =
-      crossedDistance || crossedVelocity;
+    final bool accepted = crossedDistance || crossedVelocity;
 
-  final SwipeDirection? direction;
+    final SwipeDirection? direction;
 
-  if (!accepted) {
-    direction = null;
-  } else if (hasMeaningfulDrag) {
-    // Основное направление берём по положению карточки.
-    direction = dragX < 0
-        ? SwipeDirection.left
-        : SwipeDirection.right;
-  } else {
-    // Для короткого быстрого броска берём направление скорости.
-    direction = velocity < 0
-        ? SwipeDirection.left
-        : SwipeDirection.right;
+    if (!accepted) {
+      direction = null;
+    } else if (hasMeaningfulDrag) {
+      // Основное направление берём по положению карточки.
+      direction = dragX < 0 ? SwipeDirection.left : SwipeDirection.right;
+    } else {
+      // Для короткого быстрого броска берём направление скорости.
+      direction = velocity < 0 ? SwipeDirection.left : SwipeDirection.right;
+    }
+
+    if (kDebugMode) {
+      debugPrint(
+        '[SwipeAnim] panEnd '
+        'dx=${dragX.toStringAsFixed(1)} '
+        'vx=${velocity.toStringAsFixed(1)} '
+        'accepted=$accepted '
+        'direction=${direction?.name ?? 'none'}',
+      );
+    }
+
+    if (direction == null) {
+      _animateSnapBack();
+      return;
+    }
+
+    final double targetDistance =
+        _safeDouble(_cardAreaWidth, fallback: 1, min: 1) * 1.25;
+
+    final double remainingDistance = max(0.0, targetDistance - dragX.abs());
+
+    final double effectiveVelocity = velocity.abs().clamp(900.0, 2200.0);
+
+    final int durationMs = ((remainingDistance / effectiveVelocity) * 1000)
+        .round()
+        .clamp(360, 840)
+        .toInt();
+
+    _startSwipe(direction, duration: Duration(milliseconds: durationMs));
   }
-
-  if (kDebugMode) {
-    debugPrint(
-      '[SwipeAnim] panEnd '
-      'dx=${dragX.toStringAsFixed(1)} '
-      'vx=${velocity.toStringAsFixed(1)} '
-      'accepted=$accepted '
-      'direction=${direction?.name ?? 'none'}',
-    );
-  }
-
-  if (direction == null) {
-    _animateSnapBack();
-    return;
-  }
-
-  final double targetDistance = _safeDouble(
-        _cardAreaWidth,
-        fallback: 1,
-        min: 1,
-      ) *
-      1.25;
-
-  final double remainingDistance =
-      max(0.0, targetDistance - dragX.abs());
-
-  final double effectiveVelocity =
-      max(velocity.abs(), 900.0);
-
-  final int durationMs =
-      ((remainingDistance / effectiveVelocity) * 1000)
-          .round()
-          .clamp(360, 840)
-          .toInt();
-
-  _startSwipe(
-    direction,
-    duration: Duration(milliseconds: durationMs),
-  );
-}
 
   void _onPanCancel() {
     if (!_isDragging) return;
@@ -419,7 +415,9 @@ class SwipeableStackState extends State<SwipeableStack>
     }
     final int outgoingIndex = _visualIndex;
     if (kDebugMode) {
-      debugPrint('[ButtonSwipe] dedicated start direction=${direction.name} index=$outgoingIndex');
+      debugPrint(
+        '[ButtonSwipe] dedicated start direction=${direction.name} index=$outgoingIndex',
+      );
     }
     _buttonSwipeController
       ..stop()
@@ -435,7 +433,9 @@ class SwipeableStackState extends State<SwipeableStack>
           : _ButtonActionOverlay.dislike,
     );
     if (kDebugMode) {
-      debugPrint('[ButtonSwipe] controller reset value=${_buttonSwipeController.value.toStringAsFixed(2)}');
+      debugPrint(
+        '[ButtonSwipe] controller reset value=${_buttonSwipeController.value.toStringAsFixed(2)}',
+      );
     }
     await _buttonSwipeController.animateTo(
       1,
@@ -448,7 +448,9 @@ class SwipeableStackState extends State<SwipeableStack>
       return;
     }
     if (kDebugMode) {
-      debugPrint('[ButtonSwipe] dedicated visual complete value=${_buttonSwipeController.value.toStringAsFixed(2)}');
+      debugPrint(
+        '[ButtonSwipe] dedicated visual complete value=${_buttonSwipeController.value.toStringAsFixed(2)}',
+      );
     }
     setState(() {
       if (_visualIndex + 1 < widget.itemCount) {
@@ -457,17 +459,19 @@ class SwipeableStackState extends State<SwipeableStack>
       _isButtonSwipeAnimating = false;
       _buttonSwipeDirection = null;
     });
-    if (kDebugMode) debugPrint('[ButtonSwipe] callback fired direction=${direction.name}');
+    if (kDebugMode)
+      debugPrint('[ButtonSwipe] callback fired direction=${direction.name}');
     widget.onSwipe?.call(outgoingIndex, direction);
     _buttonSwipeController.reset();
-    if (kDebugMode) debugPrint('[ButtonSwipe] cleanup complete buttonOutgoing=false');
+    if (kDebugMode)
+      debugPrint('[ButtonSwipe] cleanup complete buttonOutgoing=false');
   }
 
-  Future<void> _startSwipe(
-    SwipeDirection direction, {
-    Duration? duration,
-  }) {
-    if (_isAnimating || _isButtonSwipeAnimating || !widget.canSwipe || _visualIndex >= widget.itemCount) {
+  Future<void> _startSwipe(SwipeDirection direction, {Duration? duration}) {
+    if (_isAnimating ||
+        _isButtonSwipeAnimating ||
+        !widget.canSwipe ||
+        _visualIndex >= widget.itemCount) {
       return Future<void>.value();
     }
     final int outgoingIndex = _visualIndex;
@@ -479,15 +483,20 @@ class SwipeableStackState extends State<SwipeableStack>
     if (outgoingIndex + 1 < widget.itemCount) {
       _visualIndex++;
     }
-    _offsetAnimation = Tween<Offset>(
-      begin: _dragOffset,
-      end: Offset(targetX, 0),
-    ).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic));
+    _offsetAnimation =
+        Tween<Offset>(begin: _dragOffset, end: Offset(targetX, 0)).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
     _opacityAnimation = Tween<double>(begin: _dragOpacity, end: 0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
     );
     if (kDebugMode) {
-      debugPrint('[SwipeAnim] swipeOut start index=$outgoingIndex direction=${direction.name}');
+      debugPrint(
+        '[SwipeAnim] swipeOut start index=$outgoingIndex direction=${direction.name}',
+      );
     }
     _dragOffset = Offset.zero;
     setState(() {});
@@ -496,20 +505,20 @@ class SwipeableStackState extends State<SwipeableStack>
         .animateTo(
           1,
           duration: duration ?? _swipeDuration,
-          curve: Curves.easeOutCubic,
+          curve: Curves.easeInOutCubic,
         )
         .whenComplete(() {
-      if (!mounted) return;
-      if (kDebugMode) debugPrint('[SwipeAnim] swipeOut complete');
-      setState(() {
-        _dragOffset = Offset.zero;
-        _isAnimating = false;
-        _outgoingCard = null;
-        _offsetAnimation = null;
-        _opacityAnimation = null;
-      });
-      _animationController.reset();
-    });
+          if (!mounted) return;
+          if (kDebugMode) debugPrint('[SwipeAnim] swipeOut complete');
+          setState(() {
+            _dragOffset = Offset.zero;
+            _isAnimating = false;
+            _outgoingCard = null;
+            _offsetAnimation = null;
+            _opacityAnimation = null;
+          });
+          _animationController.reset();
+        });
   }
 
   Future<void> _animateSnapBack() async {
@@ -534,11 +543,14 @@ class SwipeableStackState extends State<SwipeableStack>
   }
 
   Widget _preview(int index, double scale, double opacity) => Positioned.fill(
-        child: Transform.scale(
-          scale: scale,
-          child: Opacity(opacity: opacity, child: widget.cardBuilder(context, index)),
-        ),
-      );
+    child: Transform.scale(
+      scale: scale,
+      child: Opacity(
+        opacity: opacity,
+        child: widget.cardBuilder(context, index),
+      ),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -561,136 +573,167 @@ class SwipeableStackState extends State<SwipeableStack>
           fit: StackFit.expand,
           clipBehavior: Clip.none,
           children: <Widget>[
-        // if (baseStartIndex + 2 < widget.itemCount) _preview(baseStartIndex + 2, .94, .72),
-        if (baseStartIndex + 1 < widget.itemCount) _preview(baseStartIndex + 1, .97, .9),
-        if (baseStartIndex < widget.itemCount) Positioned.fill(
-          child: IgnorePointer(
-            ignoring: _isAnimating ||
-                _isButtonSwipeAnimating ||
-                _isUndoReturnAnimating ||
-                !widget.canSwipe,
-            child: GestureDetector(
-              behavior: HitTestBehavior.deferToChild,
-              onHorizontalDragStart: _onPanStart,
-              onHorizontalDragUpdate: _onPanUpdate,
-              onHorizontalDragEnd: _onPanEnd,
-              onHorizontalDragCancel: _onPanCancel,
-              child: AnimatedBuilder(
-                animation: Listenable.merge(<Listenable>[
-                  _buttonSwipeController,
-                  _undoReturnController,
-                ]),
-                builder: (BuildContext context, Widget? child) {
-                  final double progress = _safeDouble(
-                    Curves.easeInOutCubic.transform(
-                      _safeDouble(_buttonSwipeController.value),
+            // if (baseStartIndex + 2 < widget.itemCount) _preview(baseStartIndex + 2, .94, .72),
+            if (baseStartIndex + 1 < widget.itemCount)
+              _preview(baseStartIndex + 1, .97, .9),
+            if (baseStartIndex < widget.itemCount)
+              Positioned.fill(
+                child: IgnorePointer(
+                  ignoring:
+                      _isAnimating ||
+                      _isButtonSwipeAnimating ||
+                      _isUndoReturnAnimating ||
+                      !widget.canSwipe,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.deferToChild,
+                    onHorizontalDragStart: _onPanStart,
+                    onHorizontalDragUpdate: _onPanUpdate,
+                    onHorizontalDragEnd: _onPanEnd,
+                    onHorizontalDragCancel: _onPanCancel,
+                    child: AnimatedBuilder(
+                      animation: Listenable.merge(<Listenable>[
+                        _buttonSwipeController,
+                        _undoReturnController,
+                        _animationController,
+                      ]),
+                      builder: (BuildContext context, Widget? child) {
+                        final double progress = _safeDouble(
+                          Curves.easeInOutCubic.transform(
+                            _safeDouble(_buttonSwipeController.value),
+                          ),
+                          min: 0,
+                          max: 1,
+                        );
+                        final double direction =
+                            _buttonSwipeDirection == SwipeDirection.right
+                            ? 1.0
+                            : -1.0;
+                        final Offset offset = _safeOffset(
+                          _isButtonSwipeAnimating
+                              ? Offset(
+                                  direction * _cardAreaWidth * 1.25 * progress,
+                                  -24 * progress,
+                                )
+                              : _dragOffset,
+                        );
+                        final double rotation = _safeDouble(
+                          _isButtonSwipeAnimating
+                              ? direction * (pi / 22.5) * progress
+                              : _rotation,
+                        );
+                        final double opacity = _safeDouble(
+                          _isButtonSwipeAnimating
+                              ? 1 - (.15 * progress)
+                              : _dragOpacity,
+                          fallback: 1,
+                          min: 0,
+                          max: 1,
+                        );
+                        final double undoProgress = _safeDouble(
+                          _undoReturnController.value,
+                          min: 0,
+                          max: 1,
+                        );
+                        final double undoT = _safeDouble(
+                          Curves.easeInOutCubic.transform(undoProgress),
+                          min: 0,
+                          max: 1,
+                        );
+                        final double undoSign =
+                            _undoReturnDirection == SwipeDirection.right
+                            ? 1
+                            : -1;
+                        final Offset undoOffset = _isUndoReturnAnimating
+                            ? Offset(
+                                undoSign * _cardAreaWidth * 1.25 * (1 - undoT),
+                                -24 * (1 - undoT),
+                              )
+                            : Offset.zero;
+                        final double undoRotation = _isUndoReturnAnimating
+                            ? undoSign * (8 * pi / 180) * (1 - undoT)
+                            : 0;
+                        final Offset effectiveOffset = _isButtonSwipeAnimating
+                            ? offset
+                            : _isUndoReturnAnimating
+                            ? undoOffset
+                            : _dragOffset;
+                        final double effectiveRotation = _isButtonSwipeAnimating
+                            ? rotation
+                            : _isUndoReturnAnimating
+                            ? undoRotation
+                            : _rotation;
+                        final double growth = _isAnimating
+                            ? Curves.easeOutCubic.transform(
+                                _safeDouble(
+                                  _animationController.value,
+                                  min: 0,
+                                  max: 1,
+                                ),
+                              )
+                            : 1.0;
+                        final double cardScale = _isAnimating
+                            ? (.97 + .03 * growth)
+                            : 1.0;
+                        final double cardOpacityBoost = _isAnimating
+                            ? (.9 + .1 * growth)
+                            : 1.0;
+
+                        return Transform(
+                          alignment: Alignment.center,
+                          transform: Matrix4.identity()
+                            ..translateByDouble(
+                              effectiveOffset.dx,
+                              effectiveOffset.dy,
+                              0,
+                              1,
+                            )
+                            ..scaleByDouble(cardScale, cardScale, 1, 1)
+                            ..rotateZ(effectiveRotation),
+                          child: Opacity(opacity: opacity * cardOpacityBoost, child: child),
+                        );
+                      },
+                      child: Stack(
+                        children: <Widget>[
+                          widget.cardBuilder(context, baseStartIndex),
+                          _buildDragActionOverlay(),
+                        ],
+                      ),
                     ),
-                    min: 0,
-                    max: 1,
-                  );
-                  final double direction =
-                      _buttonSwipeDirection == SwipeDirection.right ? 1.0 : -1.0;
-                  final Offset offset = _safeOffset(_isButtonSwipeAnimating
-                      ? Offset(
-                          direction * _cardAreaWidth * 1.25 * progress,
-                          -24 * progress,
-                        )
-                      : _dragOffset);
-                  final double rotation = _safeDouble(
-                    _isButtonSwipeAnimating
-                        ? direction * (pi / 22.5) * progress
-                        : _rotation,
-                  );
-                  final double opacity = _safeDouble(
-                    _isButtonSwipeAnimating ? 1 - (.15 * progress) : _dragOpacity,
-                    fallback: 1,
-                    min: 0,
-                    max: 1,
-                  );
-                  final double undoProgress = _safeDouble(
-                    _undoReturnController.value,
-                    min: 0,
-                    max: 1,
-                  );
-                  final double undoT = _safeDouble(
-                    Curves.easeInOutCubic.transform(undoProgress),
-                    min: 0,
-                    max: 1,
-                  );
-                  final double undoSign = _undoReturnDirection == SwipeDirection.right ? 1 : -1;
-                  final Offset undoOffset = _isUndoReturnAnimating
-                      ? Offset(
-                          undoSign * _cardAreaWidth * 1.25 * (1 - undoT),
-                          -24 * (1 - undoT),
-                        )
-                      : Offset.zero;
-                  final double undoRotation = _isUndoReturnAnimating
-                      ? undoSign * (8 * pi / 180) * (1 - undoT)
-                      : 0;
-                  final Offset effectiveOffset = _isButtonSwipeAnimating
-                      ? offset
-                      : _isUndoReturnAnimating
-                          ? undoOffset
-                          : _dragOffset;
-                  final double effectiveRotation = _isButtonSwipeAnimating
-                      ? rotation
-                      : _isUndoReturnAnimating
-                          ? undoRotation
-                          : _rotation;
-                  return Transform(
-                    alignment: Alignment.center,
-                    transform: Matrix4.identity()
-                      ..translateByDouble(
-                        effectiveOffset.dx,
-                        effectiveOffset.dy,
-                        0,
-                        1,
-                      )
-                      ..rotateZ(effectiveRotation),
-                    child: Opacity(
-                      opacity: opacity,
-                      child: child,
-                    ),
-                  );
-                },
-                child: Stack(
-                  children: <Widget>[
-                    widget.cardBuilder(context, baseStartIndex),
-                    _buildDragActionOverlay(),
-                  ],
+                  ),
                 ),
               ),
-            ),
-          ),
-        ),
-        if (_outgoingCard != null)
-          Positioned.fill(
-            child: IgnorePointer(
-              child: AnimatedBuilder(
-                animation: _animationController,
-                builder: (BuildContext context, Widget? _) {
-                  final Offset offset = _safeOffset(_offsetAnimation?.value ?? _dragOffset);
-                  final double opacity = _safeDouble(
-                    _opacityAnimation?.value ?? _dragOpacity,
-                    fallback: 1,
-                    min: 0,
-                    max: 1,
-                  );
-                  return Transform(
-                    alignment: Alignment.center,
-                    transform: Matrix4.identity()
-                      ..translateByDouble(offset.dx, 0, 0, 1)
-                      ..rotateZ(_safeDouble((offset.dx / _safeScreenWidth).clamp(-1.0, 1.0) * (pi / 20))),
-                    child: Opacity(
-                      opacity: opacity,
-                      child: _outgoingCard!,
-                    ),
-                  );
-                },
+            if (_outgoingCard != null)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: AnimatedBuilder(
+                    animation: _animationController,
+                    builder: (BuildContext context, Widget? _) {
+                      final Offset offset = _safeOffset(
+                        _offsetAnimation?.value ?? _dragOffset,
+                      );
+                      final double opacity = _safeDouble(
+                        _opacityAnimation?.value ?? _dragOpacity,
+                        fallback: 1,
+                        min: 0,
+                        max: 1,
+                      );
+                      return Transform(
+                        alignment: Alignment.center,
+                        transform: Matrix4.identity()
+                          ..translateByDouble(offset.dx, 0, 0, 1)
+                          ..rotateZ(
+                            _safeDouble(
+                              (offset.dx / _safeScreenWidth).clamp(-1.0, 1.0) *
+                                  (pi / 20),
+                            ),
+                          ),
+                        child: Opacity(opacity: opacity, child: _outgoingCard!),
+                      );
+                    },
+                  ),
+                ),
               ),
-            ),
-          ),
-        _buildButtonActionOverlay(),
+            _buildButtonActionOverlay(),
           ],
         );
       },

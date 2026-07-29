@@ -6,7 +6,7 @@ import '../theme/theme_extensions.dart';
 class FoodMatchLoader extends StatelessWidget {
   const FoodMatchLoader({
     super.key,
-    this.size = 72,
+    this.size = 92,
     this.label,
     this.dimmed = false,
   });

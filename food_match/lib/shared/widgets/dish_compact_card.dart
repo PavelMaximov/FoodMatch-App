@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme/theme_extensions.dart';
 import '../../core/utils/image_utils.dart';
+import '../../core/widgets/food_match_ripple.dart';
 import '../../data/models/dish.dart';
 
 class DishCompactCard extends StatelessWidget {
@@ -26,12 +27,13 @@ class DishCompactCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final FoodMatchThemeColors colors = context.fmColors;
-    return Material(
-      color: colors.dishCardBackground,
+    return FoodMatchRipple(
+      onTap: onTap,
       borderRadius: BorderRadius.circular(24),
-      child: InkWell(
+      rippleColor: colors.neutralRipple,
+      child: Material(
+        color: colors.dishCardBackground,
         borderRadius: BorderRadius.circular(24),
-        onTap: onTap,
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(

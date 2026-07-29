@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme/theme_extensions.dart';
+import '../../core/widgets/food_match_ripple.dart';
 import '../../core/theme/app_text_styles.dart';
 
 class AppCenteredHeader extends StatelessWidget {
@@ -114,12 +115,13 @@ class RecipeSearchFilterBar extends StatelessWidget {
         ),
         if (!isActive) ...<Widget>[
           const SizedBox(width: 12),
-          Material(
-            color: colors.inputBackground,
+          FoodMatchRipple(
+            onTap: onFilterTap,
             borderRadius: BorderRadius.circular(12),
-            child: InkWell(
+            rippleColor: colors.primaryRipple,
+            child: Material(
+              color: colors.inputBackground,
               borderRadius: BorderRadius.circular(12),
-              onTap: onFilterTap,
               child: Container(
                 width: 42,
                 height: 42,
@@ -176,8 +178,10 @@ class RecentSearchBlock extends StatelessWidget {
             children: <Widget>[
               Text('Recent', style: GoogleFonts.nunito(fontSize: 14, color: colors.textSecondary)),
               const Spacer(),
-              GestureDetector(
+              FoodMatchRipple(
                 onTap: onClear,
+                borderRadius: BorderRadius.circular(8),
+                rippleColor: colors.neutralRipple,
                 child: Text(
                   'Clear',
                   style: GoogleFonts.nunito(
@@ -193,8 +197,9 @@ class RecentSearchBlock extends StatelessWidget {
           for (final String query in searches)
             Padding(
               padding: const EdgeInsets.only(bottom: 13),
-              child: InkWell(
+              child: FoodMatchRipple(
                 onTap: () => onSelected(query),
+                rippleColor: colors.neutralRipple,
                 child: Row(
                   children: <Widget>[
                     Icon(Icons.history, size: 16, color: colors.primary),
@@ -222,9 +227,10 @@ class _HeaderBackButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(20),
+    return FoodMatchRipple(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      rippleColor: context.fmColors.neutralRipple,
       child: SizedBox(
         width: AppCenteredHeader.iconSize,
         height: AppCenteredHeader.iconSize,

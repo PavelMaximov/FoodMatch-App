@@ -12,6 +12,7 @@ import '../../../../core/errors/error_messages.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/utils/image_utils.dart';
+import '../../../../core/widgets/food_match_ripple.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../data/repositories/dish_repository.dart';
 import '../../../../shared/widgets/empty_state.dart';
@@ -754,8 +755,10 @@ class MealTabsBar extends StatelessWidget {
           itemBuilder: (_, int index) {
             final MealTabType tab = MealTabType.values[index];
             final bool isActive = selected == tab;
-            return GestureDetector(
+            return FoodMatchRipple(
               onTap: () => onSelected(tab),
+              borderRadius: BorderRadius.circular(kRecipeChipRadius),
+              rippleColor: colors.neutralRipple,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14),
                 decoration: BoxDecoration(
@@ -848,8 +851,10 @@ class PopularCategoriesGrid extends StatelessWidget {
           context,
           category.title,
         );
-        return GestureDetector(
+        return FoodMatchRipple(
           onTap: () => onTap(category),
+          borderRadius: BorderRadius.circular(13),
+          rippleColor: colors.neutralRipple,
           child: Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(13),
@@ -1429,12 +1434,13 @@ class _FavoritesPillButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final FoodMatchThemeColors colors = context.fmColors;
-    return Material(
-      color: colors.favoriteBtn,
+    return FoodMatchRipple(
+      onTap: onTap,
       borderRadius: BorderRadius.circular(999),
-      child: InkWell(
+      rippleColor: colors.primaryRipple,
+      child: Material(
+        color: colors.favoriteBtn,
         borderRadius: BorderRadius.circular(999),
-        onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           child: Row(
@@ -1507,18 +1513,19 @@ class _RecipeSearchBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final FoodMatchThemeColors colors = context.fmColors;
-    return Material(
-      color: colors.inputBackground,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(kRecipeChipRadius),
-        side: BorderSide(
-          color: colors.inputBorder,
-          width: kRecipeChipBorderWidth,
+    return FoodMatchRipple(
+      onTap: onSearchTap,
+      borderRadius: BorderRadius.circular(kRecipeChipRadius),
+      rippleColor: colors.neutralRipple,
+      child: Material(
+        color: colors.inputBackground,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(kRecipeChipRadius),
+          side: BorderSide(
+            color: colors.inputBorder,
+            width: kRecipeChipBorderWidth,
+          ),
         ),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(kRecipeChipRadius),
-        onTap: onSearchTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: SizedBox(
@@ -1562,12 +1569,13 @@ class _SavedDishTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final FoodMatchThemeColors colors = context.fmColors;
-    return Material(
-      color: colors.dishCardBackground,
+    return FoodMatchRipple(
+      onTap: onOpen,
       borderRadius: BorderRadius.circular(16),
-      child: InkWell(
+      rippleColor: colors.neutralRipple,
+      child: Material(
+        color: colors.dishCardBackground,
         borderRadius: BorderRadius.circular(16),
-        onTap: onOpen,
         child: Padding(
           padding: const EdgeInsets.all(10),
           child: Row(

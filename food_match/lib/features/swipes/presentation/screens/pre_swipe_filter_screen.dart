@@ -13,6 +13,7 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/widgets/app_pending_overlay.dart';
 import '../../../../core/widgets/food_match_loader.dart';
+import '../../../../core/widgets/food_match_ripple.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../data/models/user_profile.dart';
 import '../../../../data/repositories/swipe_repository.dart';
@@ -1199,9 +1200,11 @@ class _FilterOptionChip extends StatelessWidget {
             ? context.fmColors.textPrimary
             : context.fmColors.textMuted;
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(_PreSwipeFilterScreenState._chipRadius),
+    return FoodMatchRipple(
       onTap: enabled ? onTap : null,
+      enabled: enabled,
+      borderRadius: BorderRadius.circular(_PreSwipeFilterScreenState._chipRadius),
+      rippleColor: context.fmColors.neutralRipple,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 140),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),

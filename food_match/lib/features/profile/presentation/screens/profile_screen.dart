@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
@@ -16,6 +15,7 @@ import '../../../../core/theme/theme_controller.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/utils/image_utils.dart';
 import '../../../../core/utils/snackbar_utils.dart';
+import '../../../../core/widgets/food_match_ripple.dart';
 import '../../../../data/models/couple.dart';
 import '../../../../data/models/user.dart';
 import '../../../../data/repositories/upload_repository.dart';
@@ -26,7 +26,6 @@ import '../../../matches/logic/match_provider.dart';
 import '../../../swipes/logic/pre_swipe_provider.dart';
 import '../../../swipes/logic/swipe_provider.dart';
 import '../../../../shared/widgets/media/safe_avatar_image.dart';
-import '../../../couple/presentation/widgets/connect_session_sheet.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -35,20 +34,6 @@ class ProfileScreen extends StatefulWidget {
   static const Color _premiumEnd = Color(0xFF4A436C);
   static const Color _premiumContent = Color(0xFFF7D218);
   static const double _cardRadius = 12;
-
-  static Future<void> _openSessionSheet(BuildContext context) {
-    HapticFeedback.selectionClick();
-    return showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withValues(alpha: 0.55),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (_) => const ConnectSessionSheet(),
-    );
-  }
 
   static Future<bool> _showConfirmDialog(
     BuildContext context,
@@ -390,12 +375,13 @@ class _HeaderIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: context.fmColors.card,
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
+    return FoodMatchRipple(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      rippleColor: context.fmColors.neutralRipple,
+      child: Material(
+        color: context.fmColors.card,
+        shape: const CircleBorder(),
         child: SizedBox(
           width: 40,
           height: 40,
@@ -501,9 +487,10 @@ class _UserInfoCard extends StatelessWidget {
           ),
           Align(
             alignment: Alignment.topRight,
-            child: InkWell(
+            child: FoodMatchRipple(
               onTap: onEdit,
               borderRadius: BorderRadius.circular(16),
+              rippleColor: context.fmColors.neutralRipple,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                 child: Row(
@@ -541,11 +528,12 @@ class _PremiumCta extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(ProfileScreen._cardRadius),
+    return FoodMatchRipple(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(ProfileScreen._cardRadius),
+      rippleColor: context.fmColors.primaryRipple,
+      child: Material(
+        color: Colors.transparent,
         child: Ink(
           height: 56,
           decoration: BoxDecoration(
@@ -821,7 +809,7 @@ class _SessionCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(
-                      isInSession ? 'You are in a session' : 'Create a session pair',
+                      isInSession ? 'You are in a session' : 'No active paired session',
                       style: GoogleFonts.nunito(
                         fontSize: 17,
                         fontWeight: FontWeight.w700,
@@ -832,7 +820,7 @@ class _SessionCard extends StatelessWidget {
                     Text(
                       isInSession
                           ? 'Your partner is ${_partnerName(context, couple)}'
-                          : 'Create or join an existing session',
+                          : 'Start or join a session from the Swipe page.',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.nunito(
@@ -846,7 +834,7 @@ class _SessionCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 18),
+          if (isInSession) const SizedBox(height: 18),
           if (isInSession)
             Row(
               children: <Widget>[
@@ -896,28 +884,6 @@ class _SessionCard extends StatelessWidget {
                   ),
                 ),
               ],
-            )
-          else
-            SizedBox(
-              width: double.infinity,
-              height: 36,
-              child: ElevatedButton(
-                onPressed: () => ProfileScreen._openSessionSheet(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: context.fmColors.buttonPrimaryBackground,
-                  foregroundColor: context.fmColors.buttonPrimaryText,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
-                ),
-                child: Text(
-                  'Select now',
-                  style: GoogleFonts.nunito(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    color: context.fmColors.buttonPrimaryText,
-                  ),
-                ),
-              ),
             ),
         ],
       ),
@@ -1072,13 +1038,11 @@ class _ProfileInk extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(ProfileScreen._cardRadius),
-        child: child,
-      ),
+    return FoodMatchRipple(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(ProfileScreen._cardRadius),
+      rippleColor: context.fmColors.neutralRipple,
+      child: child,
     );
   }
 }

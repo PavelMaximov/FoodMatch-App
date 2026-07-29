@@ -49,6 +49,7 @@ class FoodMatchThemeColors extends ThemeExtension<FoodMatchThemeColors> {
     required this.shimmerBase,
     required this.shimmerHighlight,
     required this.imageFallbackBackground,
+    required this.primaryRipple, required this.likeRipple, required this.dislikeRipple, required this.undoRipple, required this.neutralRipple, required this.navRipple,
   });
 
   final Color background;
@@ -98,6 +99,7 @@ class FoodMatchThemeColors extends ThemeExtension<FoodMatchThemeColors> {
   final Color shimmerBase;
   final Color shimmerHighlight;
   final Color imageFallbackBackground;
+  final Color primaryRipple, likeRipple, dislikeRipple, undoRipple, neutralRipple, navRipple;
 
   @override
   FoodMatchThemeColors copyWith({
@@ -148,6 +150,7 @@ class FoodMatchThemeColors extends ThemeExtension<FoodMatchThemeColors> {
     Color? shimmerBase,
     Color? shimmerHighlight,
     Color? imageFallbackBackground,
+    Color? primaryRipple, Color? likeRipple, Color? dislikeRipple, Color? undoRipple, Color? neutralRipple, Color? navRipple,
   }) {
     return FoodMatchThemeColors(
       background: background ?? this.background,
@@ -197,6 +200,7 @@ class FoodMatchThemeColors extends ThemeExtension<FoodMatchThemeColors> {
       shimmerBase: shimmerBase ?? this.shimmerBase,
       shimmerHighlight: shimmerHighlight ?? this.shimmerHighlight,
       imageFallbackBackground: imageFallbackBackground ?? this.imageFallbackBackground,
+      primaryRipple: primaryRipple ?? this.primaryRipple, likeRipple: likeRipple ?? this.likeRipple, dislikeRipple: dislikeRipple ?? this.dislikeRipple, undoRipple: undoRipple ?? this.undoRipple, neutralRipple: neutralRipple ?? this.neutralRipple, navRipple: navRipple ?? this.navRipple,
     );
   }
 
@@ -206,6 +210,7 @@ class FoodMatchThemeColors extends ThemeExtension<FoodMatchThemeColors> {
     Color l(Color a, Color b) => Color.lerp(a, b, t)!;
     return FoodMatchThemeColors(
       background: l(background, other.background), surface: l(surface, other.surface), card: l(card, other.card), cardElevated: l(cardElevated, other.cardElevated), textPrimary: l(textPrimary, other.textPrimary), textSecondary: l(textSecondary, other.textSecondary), textMuted: l(textMuted, other.textMuted), textInverse: l(textInverse, other.textInverse), primary: l(primary, other.primary), primaryPressed: l(primaryPressed, other.primaryPressed), primarySoft: l(primarySoft, other.primarySoft), accent: l(accent, other.accent), border: l(border, other.border), borderStrong: l(borderStrong, other.borderStrong), divider: l(divider, other.divider), inputBackground: l(inputBackground, other.inputBackground), inputBorder: l(inputBorder, other.inputBorder), inputFocusedBorder: l(inputFocusedBorder, other.inputFocusedBorder), chipBackground: l(chipBackground, other.chipBackground), chipBorder: l(chipBorder, other.chipBorder), chipSelectedBorder: l(chipSelectedBorder, other.chipSelectedBorder), buttonPrimaryBackground: l(buttonPrimaryBackground, other.buttonPrimaryBackground), buttonPrimaryText: l(buttonPrimaryText, other.buttonPrimaryText), buttonSecondaryBackground: l(buttonSecondaryBackground, other.buttonSecondaryBackground), buttonSecondaryText: l(buttonSecondaryText, other.buttonSecondaryText), bottomNavBackground: l(bottomNavBackground, other.bottomNavBackground), bottomNavActive: l(bottomNavActive, other.bottomNavActive), bottomNavInactive: l(bottomNavInactive, other.bottomNavInactive), bottomNavActiveIndicator: l(bottomNavActiveIndicator, other.bottomNavActiveIndicator), badgeBackground: l(badgeBackground, other.badgeBackground), badgeText: l(badgeText, other.badgeText), dishCardBackground: l(dishCardBackground, other.dishCardBackground), dishCardBorder: l(dishCardBorder, other.dishCardBorder), metadataPillBackground: l(metadataPillBackground, other.metadataPillBackground), metadataIcon: l(metadataIcon, other.metadataIcon), favoriteActive: l(favoriteActive, other.favoriteActive), favoriteBtn: l(favoriteBtn, other.favoriteBtn), favoriteInactive: l(favoriteInactive, other.favoriteInactive), modalBackground: l(modalBackground, other.modalBackground), modalBarrier: l(modalBarrier, other.modalBarrier), overlay: l(overlay, other.overlay), success: l(success, other.success), warning: l(warning, other.warning), error: l(error, other.error), shimmerBase: l(shimmerBase, other.shimmerBase), shimmerHighlight: l(shimmerHighlight, other.shimmerHighlight), imageFallbackBackground: l(imageFallbackBackground, other.imageFallbackBackground),
+      primaryRipple: l(primaryRipple, other.primaryRipple), likeRipple: l(likeRipple, other.likeRipple), dislikeRipple: l(dislikeRipple, other.dislikeRipple), undoRipple: l(undoRipple, other.undoRipple), neutralRipple: l(neutralRipple, other.neutralRipple), navRipple: l(navRipple, other.navRipple),
     );
   }
 }

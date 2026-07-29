@@ -18,6 +18,7 @@ class AppThemeColors {
     modalBackground: Color(0xFFFFFFFF), modalBarrier: Color(0x8C000000), overlay: Color(0x8C000000),
     success: Color(0xFF43A047), warning: Color(0xFFEE8C04), error: Color(0xFFE53935),
     shimmerBase: Color(0xFFE0E0E0), shimmerHighlight: Color(0xFFF5F5F5), imageFallbackBackground: Color(0xFFF5EDE8),
+    primaryRipple: Color(0x38FF7043), likeRipple: Color(0x335CCB8A), dislikeRipple: Color(0x2EFF6B6B), undoRipple: Color(0x38F2B66D), neutralRipple: Color(0x248A6F63), navRipple: Color(0x29FF7043),
   );
 
   static const FoodMatchThemeColors dark = FoodMatchThemeColors(
@@ -33,5 +34,6 @@ class AppThemeColors {
     modalBackground: Color(0xFF211917), modalBarrier: Color(0xA6000000), overlay: Color(0x8C000000),
     success: Color(0xFF66D28A), warning: Color(0xFFFFB84D), error: Color(0xFFFF6B64),
     shimmerBase: Color(0xFF2A211E), shimmerHighlight: Color(0xFF3A2E29), imageFallbackBackground: Color(0xFF2A201D),
+    primaryRipple: Color(0x42FF8A65), likeRipple: Color(0x3D72D79B), dislikeRipple: Color(0x38FF7A7A), undoRipple: Color(0x3DFFC878), neutralRipple: Color(0x24F2C6A0), navRipple: Color(0x33FF8A65),
   );
 }
