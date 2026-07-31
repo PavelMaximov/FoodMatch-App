@@ -29,6 +29,20 @@ class AddDishScreen extends StatefulWidget {
   State<AddDishScreen> createState() => _AddDishScreenState();
 }
 
+class _PendingDeletedDish {
+  _PendingDeletedDish({
+    required this.dish,
+    required this.index,
+    required this.repository,
+  });
+
+  final Dish dish;
+  int index;
+  final DishRepository repository;
+  Timer? timer;
+  bool isCommitted = false;
+}
+
 class _AddDishScreenState extends State<AddDishScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _titleController = TextEditingController();
@@ -38,6 +52,8 @@ class _AddDishScreenState extends State<AddDishScreen> {
   bool _isSubmitting = false;
   bool _isLoadingMyDishes = false;
   List<Dish> _myDishes = <Dish>[];
+  final Map<String, _PendingDeletedDish> _pendingDeletedDishes =
+      <String, _PendingDeletedDish>{};
 
   String? _selectedCuisine;
   String? _selectedMood;
@@ -102,6 +118,14 @@ class _AddDishScreenState extends State<AddDishScreen> {
 
   @override
   void dispose() {
+    final List<_PendingDeletedDish> pendingDeletes = _pendingDeletedDishes
+        .values
+        .toList(growable: false);
+    _pendingDeletedDishes.clear();
+    for (final _PendingDeletedDish pendingDelete in pendingDeletes) {
+      pendingDelete.timer?.cancel();
+      unawaited(_commitDeleteAfterDispose(pendingDelete));
+    }
     _titleController.dispose();
     _cookTimeController.dispose();
     _stepInputController.dispose();
@@ -113,7 +137,9 @@ class _AddDishScreenState extends State<AddDishScreen> {
     try {
       final DishRepository dishRepository = context.read<DishRepository>();
       final List<Dish> dishes = await dishRepository.getMyCustomDishes();
-      _myDishes = dishes;
+      _myDishes = dishes
+          .where((Dish dish) => !_pendingDeletedDishes.containsKey(dish.id))
+          .toList();
     } catch (_) {
       _myDishes = <Dish>[];
     } finally {
@@ -320,36 +346,121 @@ class _AddDishScreenState extends State<AddDishScreen> {
     }
   }
 
-  Future<void> _deleteDish(Dish dish) async {
-    try {
-      await context.read<DishRepository>().deleteMyDish(dish.id);
-      _invalidateSwipeDeckCacheIfAvailable();
+  void _deleteDish(Dish dish) {
+    if (_pendingDeletedDishes.containsKey(dish.id)) return;
 
-      await _loadMyDishes();
-      if (mounted) {
-        FoodMatchNotifications.show(
-          context,
-          type: FoodMatchNotificationType.destructive,
-          title: 'Dish deleted',
-        );
-      }
-    } on ApiException catch (e) {
-      if (mounted) {
-        FoodMatchNotifications.show(
-          context,
-          type: FoodMatchNotificationType.error,
-          title: ErrorMessages.fromApiException(e),
-        );
-      }
-    } catch (_) {
-      if (mounted) {
-        FoodMatchNotifications.show(
-          context,
-          type: FoodMatchNotificationType.error,
-          title: 'Failed to delete dish',
-        );
-      }
+    final int index = _myDishes.indexWhere(
+      (Dish currentDish) => currentDish.id == dish.id,
+    );
+    if (index < 0) return;
+
+    int originalIndex = index;
+    for (final _PendingDeletedDish pendingDelete
+        in _pendingDeletedDishes.values) {
+      if (pendingDelete.index <= originalIndex) originalIndex++;
     }
+
+    final _PendingDeletedDish pendingDelete = _PendingDeletedDish(
+      dish: dish,
+      index: originalIndex,
+      repository: context.read<DishRepository>(),
+    );
+    _pendingDeletedDishes[dish.id] = pendingDelete;
+    pendingDelete.timer = Timer(
+      const Duration(seconds: 6),
+      () => _commitPendingDelete(dish.id),
+    );
+
+    setState(() => _myDishes.removeAt(index));
+
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    FoodMatchNotifications.show(
+      context,
+      type: FoodMatchNotificationType.destructive,
+      title: 'Dish deleted',
+      message: '${dish.name} was removed',
+      actionLabel: 'Undo',
+      onAction: () => _undoDeleteDish(dish.id),
+    );
+  }
+
+  void _undoDeleteDish(String dishId) {
+    final _PendingDeletedDish? pendingDelete = _pendingDeletedDishes.remove(
+      dishId,
+    );
+    if (pendingDelete == null || pendingDelete.isCommitted) return;
+
+    pendingDelete.timer?.cancel();
+    if (!mounted || _myDishes.any((Dish dish) => dish.id == dishId)) return;
+
+    setState(() {
+      final int safeIndex = _visibleIndexFor(pendingDelete);
+      _myDishes.insert(safeIndex, pendingDelete.dish);
+    });
+  }
+
+  Future<void> _commitPendingDelete(String dishId) async {
+    final _PendingDeletedDish? pendingDelete = _pendingDeletedDishes[dishId];
+    if (pendingDelete == null || pendingDelete.isCommitted) return;
+
+    pendingDelete.isCommitted = true;
+    pendingDelete.timer?.cancel();
+    try {
+      await pendingDelete.repository.deleteMyDish(dishId);
+      _pendingDeletedDishes.remove(dishId);
+      for (final _PendingDeletedDish other in _pendingDeletedDishes.values) {
+        if (other.index > pendingDelete.index) other.index--;
+      }
+      if (mounted) _invalidateSwipeDeckCacheIfAvailable();
+    } on ApiException catch (e) {
+      _rollbackFailedDelete(
+        pendingDelete,
+        ErrorMessages.fromApiException(e, fallback: 'Please try again.'),
+      );
+    } catch (_) {
+      _rollbackFailedDelete(pendingDelete, 'Please try again.');
+    }
+  }
+
+  void _rollbackFailedDelete(
+    _PendingDeletedDish pendingDelete,
+    String message,
+  ) {
+    _pendingDeletedDishes.remove(pendingDelete.dish.id);
+    if (!mounted) return;
+
+    if (!_myDishes.any((Dish dish) => dish.id == pendingDelete.dish.id)) {
+      setState(() {
+        final int safeIndex = _visibleIndexFor(pendingDelete);
+        _myDishes.insert(safeIndex, pendingDelete.dish);
+      });
+    }
+    FoodMatchNotifications.show(
+      context,
+      type: FoodMatchNotificationType.error,
+      title: 'Could not delete dish',
+      message: message,
+    );
+  }
+
+  Future<void> _commitDeleteAfterDispose(
+    _PendingDeletedDish pendingDelete,
+  ) async {
+    if (pendingDelete.isCommitted) return;
+    pendingDelete.isCommitted = true;
+    try {
+      await pendingDelete.repository.deleteMyDish(pendingDelete.dish.id);
+    } catch (_) {
+      // A failed delete remains on the backend and will reappear on the next load.
+    }
+  }
+
+  int _visibleIndexFor(_PendingDeletedDish pendingDelete) {
+    final int hiddenBefore = _pendingDeletedDishes.values
+        .where((_PendingDeletedDish other) => other.index < pendingDelete.index)
+        .length;
+    final int visibleIndex = pendingDelete.index - hiddenBefore;
+    return visibleIndex < _myDishes.length ? visibleIndex : _myDishes.length;
   }
 
   @override
