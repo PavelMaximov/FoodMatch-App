@@ -6,7 +6,8 @@ import 'package:provider/provider.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/theme/app_dimensions.dart';
-import '../../../../core/utils/snackbar_utils.dart';
+import '../../../../core/theme/notification_theme.dart';
+import '../../../../core/utils/food_match_notifications.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/food_match_ripple.dart';
 import '../../../../shared/widgets/app_button.dart';
@@ -47,7 +48,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     if (!mounted) return;
     if (auth.error != null) {
-      SnackBarUtils.showError(context, auth.error!);
+      FoodMatchNotifications.show(
+        context,
+        type: FoodMatchNotificationType.error,
+        title: auth.error!,
+      );
     }
   }
 
@@ -62,9 +67,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
         ),
         const SizedBox(width: 8),
-        Expanded(
-          child: Divider(color: context.fmColors.divider, thickness: 1),
-        ),
+        Expanded(child: Divider(color: context.fmColors.divider, thickness: 1)),
       ],
     );
   }
@@ -81,12 +84,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
               color: context.fmColors.textPrimary,
             ),
           ),
-          onTap: () => SnackBarUtils.showError(context, AppStrings.googleSignInComingSoon),
+          onTap: () => FoodMatchNotifications.show(
+            context,
+            type: FoodMatchNotificationType.info,
+            title: AppStrings.googleSignInComingSoon,
+          ),
         ),
         const SizedBox(width: 16),
         _buildSocialIcon(
-          child: Icon(Icons.apple, size: 24, color: context.fmColors.textPrimary),
-          onTap: () => SnackBarUtils.showError(context, AppStrings.appleSignInComingSoon),
+          child: Icon(
+            Icons.apple,
+            size: 24,
+            color: context.fmColors.textPrimary,
+          ),
+          onTap: () => FoodMatchNotifications.show(
+            context,
+            type: FoodMatchNotificationType.info,
+            title: AppStrings.appleSignInComingSoon,
+          ),
         ),
       ],
     );
@@ -169,7 +184,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 const AppLogoHeader(showSubtitle: true),
                 Text(
                   AppStrings.signUp,
-                  style: GoogleFonts.fredoka(fontSize: 36, fontWeight: FontWeight.w700, color: context.fmColors.textPrimary),
+                  style: GoogleFonts.fredoka(
+                    fontSize: 36,
+                    fontWeight: FontWeight.w700,
+                    color: context.fmColors.textPrimary,
+                  ),
                 ),
                 const SizedBox(height: 24),
                 AppTextField(
@@ -196,17 +215,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   autofillHints: const <String>[AutofillHints.newPassword],
                   validator: Validators.password,
                   suffixIcon: IconButton(
-                    icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: context.fmColors.textMuted),
-                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                      color: context.fmColors.textMuted,
+                    ),
+                    onPressed: () =>
+                        setState(() => _obscurePassword = !_obscurePassword),
                   ),
                 ),
                 const SizedBox(height: 24),
                 Consumer<AuthProvider>(
-                  builder: (BuildContext context, AuthProvider auth, _) => AppButton(
-                    text: AppStrings.createAccount,
-                    isLoading: auth.isLoading,
-                    onPressed: () => _register(auth),
-                  ),
+                  builder: (BuildContext context, AuthProvider auth, _) =>
+                      AppButton(
+                        text: AppStrings.createAccount,
+                        isLoading: auth.isLoading,
+                        onPressed: () => _register(auth),
+                      ),
                 ),
                 const SizedBox(height: 24),
                 _buildSocialDivider(AppStrings.orSignUpWith),

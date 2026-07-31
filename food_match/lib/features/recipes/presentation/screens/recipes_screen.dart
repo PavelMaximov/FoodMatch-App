@@ -7,6 +7,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../core/theme/notification_theme.dart';
+import '../../../../core/utils/food_match_notifications.dart';
 import '../../../../core/animations/app_motion.dart';
 import '../../../../core/errors/error_messages.dart';
 import '../../../../core/theme/app_text_styles.dart';
@@ -119,8 +121,14 @@ bool _matchesToken(String rawValue, String target) {
 }
 
 bool matchesMealTab(Dish dish, MealTabType tab) {
-  final Set<String> tags = dish.tags.map((e) => e.trim()).where((s) => s.isNotEmpty).toSet();
-  final Set<String> mood = dish.mood.map((e) => e.trim()).where((s) => s.isNotEmpty).toSet();
+  final Set<String> tags = dish.tags
+      .map((e) => e.trim())
+      .where((s) => s.isNotEmpty)
+      .toSet();
+  final Set<String> mood = dish.mood
+      .map((e) => e.trim())
+      .where((s) => s.isNotEmpty)
+      .toSet();
   final String type = dish.type.trim();
   final String target = tab.name.toLowerCase();
 
@@ -182,7 +190,8 @@ class _RecipesScreenState extends State<RecipesScreen> {
     });
 
     final DishRepository repository = context.read<DishRepository>();
-    final FavoritesProvider favoritesProvider = context.read<FavoritesProvider>();
+    final FavoritesProvider favoritesProvider = context
+        .read<FavoritesProvider>();
     try {
       final List<Dish> dishes = await repository.getCatalogDishes(force: force);
       await favoritesProvider.loadFavorites(force: force);
@@ -221,9 +230,11 @@ class _RecipesScreenState extends State<RecipesScreen> {
     }
     final String? error = context.read<FavoritesProvider>().error;
     if (error != null) {
-      ScaffoldMessenger.of(
+      FoodMatchNotifications.show(
         context,
-      ).showSnackBar(SnackBar(content: Text(error)));
+        type: FoodMatchNotificationType.error,
+        title: error,
+      );
     }
   }
 
@@ -268,11 +279,15 @@ class _RecipesScreenState extends State<RecipesScreen> {
                       Expanded(
                         child: Text(
                           'Recipes',
-                          style: AppTextStyles.pageTitle.copyWith(color: colors.textPrimary),
+                          style: AppTextStyles.pageTitle.copyWith(
+                            color: colors.textPrimary,
+                          ),
                         ),
                       ),
                       _FavoritesPillButton(
-                        count: context.select<FavoritesProvider, int>((FavoritesProvider p) => p.savedDishes.length),
+                        count: context.select<FavoritesProvider, int>(
+                          (FavoritesProvider p) => p.savedDishes.length,
+                        ),
                         onTap: _openFavorites,
                       ),
                     ],
@@ -289,18 +304,19 @@ class _RecipesScreenState extends State<RecipesScreen> {
                   onRefresh: () => _loadData(force: true),
                   child: PageTransitionSwitcher(
                     duration: AppMotion.durationFor(context, AppMotion.normal),
-                    transitionBuilder: (
-                      Widget child,
-                      Animation<double> animation,
-                      Animation<double> secondaryAnimation,
-                    ) {
-                      return FadeThroughTransition(
-                        animation: animation,
-                        secondaryAnimation: secondaryAnimation,
-                        fillColor: colors.background,
-                        child: child,
-                      );
-                    },
+                    transitionBuilder:
+                        (
+                          Widget child,
+                          Animation<double> animation,
+                          Animation<double> secondaryAnimation,
+                        ) {
+                          return FadeThroughTransition(
+                            animation: animation,
+                            secondaryAnimation: secondaryAnimation,
+                            fillColor: colors.background,
+                            child: child,
+                          );
+                        },
                     child: KeyedSubtree(
                       key: ValueKey<String>(_bodyMotionKey),
                       child: _buildBody(),
@@ -310,12 +326,10 @@ class _RecipesScreenState extends State<RecipesScreen> {
               ),
             ),
           ],
-          ),
         ),
-      );
-    
+      ),
+    );
   }
-
 
   String get _bodyMotionKey {
     if (_isLoading && _allDishes.isEmpty) {
@@ -365,7 +379,10 @@ class _RecipesScreenState extends State<RecipesScreen> {
     final List<Dish> preview = _previewRecipes(activePool);
     final bool hasPreview = preview.isNotEmpty;
 
-    final Set<String> savedDishIds = context.select<FavoritesProvider, Set<String>>((FavoritesProvider p) => p.savedDishIds);
+    final Set<String> savedDishIds = context
+        .select<FavoritesProvider, Set<String>>(
+          (FavoritesProvider p) => p.savedDishIds,
+        );
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
@@ -410,7 +427,11 @@ class _RecipesScreenState extends State<RecipesScreen> {
                 ),
                 Text(
                   ' >',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: context.fmColors.primary),
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: context.fmColors.primary,
+                  ),
                 ),
               ],
             ),
@@ -429,7 +450,8 @@ class _RecipesScreenState extends State<RecipesScreen> {
                   dish: dish,
                   isFavorite: savedDishIds.contains(dish.id),
                   onFavoriteTap: () => _toggleSaved(dish),
-                  onTap: () => context.push('/recipe-detail/${dish.id}', extra: dish),
+                  onTap: () =>
+                      context.push('/recipe-detail/${dish.id}', extra: dish),
                 );
               },
             ),
@@ -563,14 +585,16 @@ class _RecipesScreenState extends State<RecipesScreen> {
           .where((String value) => value.isNotEmpty)
           .toSet();
 
-      if (_selectedCuisines.isNotEmpty && !_selectedCuisines.contains(cuisine)) {
+      if (_selectedCuisines.isNotEmpty &&
+          !_selectedCuisines.contains(cuisine)) {
         return false;
       }
       if (_selectedMoods.isNotEmpty &&
           mood.intersection(_selectedMoods).isEmpty) {
         return false;
       }
-      if (_selectedDiet.isNotEmpty && diet.intersection(_selectedDiet).isEmpty) {
+      if (_selectedDiet.isNotEmpty &&
+          diet.intersection(_selectedDiet).isEmpty) {
         return false;
       }
       if (_selectedTypes.isNotEmpty && !_selectedTypes.contains(type)) {
@@ -617,7 +641,10 @@ class _RecipesScreenState extends State<RecipesScreen> {
     RecipeCategoryConfig(
       id: 'under_30',
       title: 'Under 30 Minutes',
-      query: const RecipeResultsQuery(timeTier: 'under_30_minutes', sort: 'cookTime'),
+      query: const RecipeResultsQuery(
+        timeTier: 'under_30_minutes',
+        sort: 'cookTime',
+      ),
       filter: (Dish d) => d.cookTime > 0 && d.cookTime <= 30,
     ),
     RecipeCategoryConfig(
@@ -715,8 +742,10 @@ class _RecipesScreenState extends State<RecipesScreen> {
   }
 }
 
-
-Route<T> _bottomUpRoute<T>({required BuildContext context, required Widget child}) {
+Route<T> _bottomUpRoute<T>({
+  required BuildContext context,
+  required Widget child,
+}) {
   return PageRouteBuilder<T>(
     transitionDuration: AppMotion.durationFor(context, AppMotion.normal),
     reverseTransitionDuration: AppMotion.durationFor(context, AppMotion.normal),
@@ -771,11 +800,7 @@ class MealTabsBar extends StatelessWidget {
                 ),
                 child: Row(
                   children: <Widget>[
-                    Icon(
-                      _iconForTab(tab),
-                      size: 18,
-                      color: colors.textPrimary,
-                    ),
+                    Icon(_iconForTab(tab), size: 18, color: colors.textPrimary),
                     const SizedBox(width: 6),
                     Text(
                       _labelForTab(tab),
@@ -872,9 +897,8 @@ class PopularCategoriesGrid extends StatelessWidget {
                         assetPath,
                         fit: BoxFit.cover,
                         alignment: Alignment.center,
-                        errorBuilder: (_, __, ___) => _PopularCategoryFallback(
-                          title: category.title,
-                        ),
+                        errorBuilder: (_, __, ___) =>
+                            _PopularCategoryFallback(title: category.title),
                       ),
                       Positioned(
                         left: 16,
@@ -996,7 +1020,9 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
   static const int _pageSize = 20;
 
   late final MealTabType? _selectedTab = widget.initialTab;
-  late final Set<String> _selectedCuisines = Set<String>.from(widget.initialCuisines);
+  late final Set<String> _selectedCuisines = Set<String>.from(
+    widget.initialCuisines,
+  );
   late final Set<String> _selectedMoods = Set<String>.from(widget.initialMoods);
   late final Set<String> _selectedDiet = Set<String>.from(widget.initialDiet);
   late final Set<String> _selectedTypes = Set<String>.from(widget.initialTypes);
@@ -1061,7 +1087,10 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
     });
 
     try {
-      final PaginatedDishesResult page = await _fetchPage(offset: 0, force: force);
+      final PaginatedDishesResult page = await _fetchPage(
+        offset: 0,
+        force: force,
+      );
       if (!mounted || generation != _requestGeneration) {
         return;
       }
@@ -1084,25 +1113,36 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
     }
   }
 
-  Future<PaginatedDishesResult> _fetchPage({required int offset, bool force = false}) {
+  Future<PaginatedDishesResult> _fetchPage({
+    required int offset,
+    bool force = false,
+  }) {
     return context.read<DishRepository>().getDishesPage(
-          limit: _pageSize,
-          offset: offset,
-          search: _query.trim().isEmpty ? null : _query.trim(),
-          cuisine: _mergedCsv(widget.initialQuery.cuisine, <String>{..._selectedCuisines, ..._listFilters.cuisines}),
-          type: _mergedCsv(widget.initialQuery.type, _selectedTypes),
-          mealType: _selectedTab?.name ?? _listFilters.mealCategory?.toLowerCase() ?? widget.initialQuery.mealType,
-          mood: _mergedList(widget.initialQuery.mood, _selectedMoods),
-          diet: _mergedList(widget.initialQuery.diet, _selectedDiet),
-          effort: _listFilters.difficulty?.toLowerCase() ?? widget.initialQuery.effort,
-          popular: widget.initialQuery.popular,
-          maxCookTime: _listFilters.maxCookTime ?? widget.initialQuery.maxCookTime,
-          maxTotalTime: _listFilters.maxCookTime ?? widget.initialQuery.maxTotalTime,
-          timeTier: widget.initialQuery.timeTier,
-          maxIngredients: widget.initialQuery.maxIngredients,
-          sort: widget.initialQuery.sort,
-          force: force,
-        );
+      limit: _pageSize,
+      offset: offset,
+      search: _query.trim().isEmpty ? null : _query.trim(),
+      cuisine: _mergedCsv(widget.initialQuery.cuisine, <String>{
+        ..._selectedCuisines,
+        ..._listFilters.cuisines,
+      }),
+      type: _mergedCsv(widget.initialQuery.type, _selectedTypes),
+      mealType:
+          _selectedTab?.name ??
+          _listFilters.mealCategory?.toLowerCase() ??
+          widget.initialQuery.mealType,
+      mood: _mergedList(widget.initialQuery.mood, _selectedMoods),
+      diet: _mergedList(widget.initialQuery.diet, _selectedDiet),
+      effort:
+          _listFilters.difficulty?.toLowerCase() ?? widget.initialQuery.effort,
+      popular: widget.initialQuery.popular,
+      maxCookTime: _listFilters.maxCookTime ?? widget.initialQuery.maxCookTime,
+      maxTotalTime:
+          _listFilters.maxCookTime ?? widget.initialQuery.maxTotalTime,
+      timeTier: widget.initialQuery.timeTier,
+      maxIngredients: widget.initialQuery.maxIngredients,
+      sort: widget.initialQuery.sort,
+      force: force,
+    );
   }
 
   List<Dish> _applyPostFilter(List<Dish> items) {
@@ -1123,10 +1163,15 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
         .where((String value) => value.isNotEmpty)
         .toSet();
     if (baseValues.isNotEmpty && selectedValues.isNotEmpty) {
-      final List<String> intersection = baseValues.intersection(selectedValues).toList();
+      final List<String> intersection = baseValues
+          .intersection(selectedValues)
+          .toList();
       return intersection.isEmpty ? <String>['__none__'] : intersection;
     }
-    final List<String> values = <String>{...baseValues, ...selectedValues}.toList();
+    final List<String> values = <String>{
+      ...baseValues,
+      ...selectedValues,
+    }.toList();
     return values.isEmpty ? null : values;
   }
 
@@ -1162,10 +1207,12 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
       if (!mounted || generation != _requestGeneration) {
         return;
       }
-      final Set<String> existingIds = _dishes.map((Dish dish) => dish.id).toSet();
-      final List<Dish> nextItems = _applyPostFilter(page.items)
-          .where((Dish dish) => existingIds.add(dish.id))
-          .toList();
+      final Set<String> existingIds = _dishes
+          .map((Dish dish) => dish.id)
+          .toSet();
+      final List<Dish> nextItems = _applyPostFilter(
+        page.items,
+      ).where((Dish dish) => existingIds.add(dish.id)).toList();
       setState(() {
         _dishes = <Dish>[..._dishes, ...nextItems];
         _offset = page.offset + page.items.length;
@@ -1176,11 +1223,12 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
         return;
       }
       setState(() => _loadMoreError = ErrorMessages.fromException(e));
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_loadMoreError!),
-          action: SnackBarAction(label: 'Retry', onPressed: () => _loadMore()),
-        ),
+      FoodMatchNotifications.show(
+        context,
+        type: FoodMatchNotificationType.error,
+        title: _loadMoreError!,
+        actionLabel: 'Retry',
+        onAction: _loadMore,
       );
     } finally {
       if (mounted && generation == _requestGeneration) {
@@ -1211,7 +1259,10 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
   void _onSearchChanged(String value) {
     setState(() => _query = value);
     _searchDebounce?.cancel();
-    _searchDebounce = Timer(const Duration(milliseconds: 350), () => _loadFirstPage());
+    _searchDebounce = Timer(
+      const Duration(milliseconds: 350),
+      () => _loadFirstPage(),
+    );
   }
 
   void _closeOrClearSearch() {
@@ -1236,7 +1287,10 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
     setState(() {
       _recentSearches
         ..clear()
-        ..addAll(preferences.getStringList('recipe_recent_searches') ?? const <String>[]);
+        ..addAll(
+          preferences.getStringList('recipe_recent_searches') ??
+              const <String>[],
+        );
     });
   }
 
@@ -1251,7 +1305,9 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
       return;
     }
     setState(() {
-      _recentSearches.removeWhere((String item) => item.toLowerCase() == query.toLowerCase());
+      _recentSearches.removeWhere(
+        (String item) => item.toLowerCase() == query.toLowerCase(),
+      );
       _recentSearches.insert(0, query);
       if (_recentSearches.length > 10) {
         _recentSearches.removeRange(10, _recentSearches.length);
@@ -1294,11 +1350,11 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
   }
 
   List<String> get _mealFilterOptions => const <String>[
-        'Breakfast',
-        'Lunch',
-        'Dinner',
-        'Snack',
-      ];
+    'Breakfast',
+    'Lunch',
+    'Dinner',
+    'Snack',
+  ];
 
   @override
   void dispose() {
@@ -1311,7 +1367,10 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final Set<String> savedDishIds = context.select<FavoritesProvider, Set<String>>((FavoritesProvider p) => p.savedDishIds);
+    final Set<String> savedDishIds = context
+        .select<FavoritesProvider, Set<String>>(
+          (FavoritesProvider p) => p.savedDishIds,
+        );
 
     return Scaffold(
       backgroundColor: context.fmColors.background,
@@ -1333,7 +1392,8 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
                   controller: _searchController,
                   focusNode: _searchFocusNode,
                   isActive: _isSearching,
-                  hasActiveFilters: _selectedCuisines.isNotEmpty ||
+                  hasActiveFilters:
+                      _selectedCuisines.isNotEmpty ||
                       _selectedMoods.isNotEmpty ||
                       _selectedDiet.isNotEmpty ||
                       _selectedTypes.isNotEmpty ||
@@ -1398,7 +1458,9 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
               height: 420,
               child: EmptyState(
                 icon: Icons.menu_book_outlined,
-                title: _hasActiveSearchOrFilters ? 'No recipes found' : 'No dishes in this category',
+                title: _hasActiveSearchOrFilters
+                    ? 'No recipes found'
+                    : 'No dishes in this category',
                 subtitle: _hasActiveSearchOrFilters
                     ? 'Try another search or remove filters.'
                     : 'Try another category or reset filters.',
@@ -1416,7 +1478,8 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
         dishes: _dishes,
         savedDishIds: savedDishIds,
         onFavoriteTap: widget.onFavoriteTap,
-        onDishTap: (Dish dish) => context.push('/recipe-detail/${dish.id}', extra: dish),
+        onDishTap: (Dish dish) =>
+            context.push('/recipe-detail/${dish.id}', extra: dish),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       ),
     );
@@ -1583,7 +1646,10 @@ class _SavedDishTile extends StatelessWidget {
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: SafeDishImage(
-                  imageUrl: ImageUtils.getImageUrl(dish.imageUrl, usage: ImageUsage.dishCard),
+                  imageUrl: ImageUtils.getImageUrl(
+                    dish.imageUrl,
+                    usage: ImageUsage.dishCard,
+                  ),
                   width: 64,
                   height: 64,
                   fit: BoxFit.cover,
@@ -1678,8 +1744,8 @@ class _RecipeSearchDelegate extends SearchDelegate<Dish?> {
     final List<Dish> source = q.isEmpty
         ? List<Dish>.from(_dishes)
         : _dishes
-            .where((Dish dish) => dish.name.toLowerCase().contains(q))
-            .toList();
+              .where((Dish dish) => dish.name.toLowerCase().contains(q))
+              .toList();
     final List<Dish> results = List<Dish>.from(source)
       ..sort(
         (Dish a, Dish b) =>
@@ -1699,25 +1765,25 @@ class _RecipeSearchDelegate extends SearchDelegate<Dish?> {
     return ColoredBox(
       color: context.fmColors.background,
       child: ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: results.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (BuildContext context, int index) {
-        final Dish dish = results[index];
-        return _SavedDishTile(
-          dish: dish,
-          isSaved: _savedDishIds.contains(dish.id),
-          onFavoriteTap: () async {
-            await onFavoriteTap(dish);
-            if (_savedDishIds.contains(dish.id)) {
-              _savedDishIds.remove(dish.id);
-            } else {
-              _savedDishIds.add(dish.id);
-            }
-          },
-          onOpen: () => close(context, dish),
-        );
-      },
+        padding: const EdgeInsets.all(16),
+        itemCount: results.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 10),
+        itemBuilder: (BuildContext context, int index) {
+          final Dish dish = results[index];
+          return _SavedDishTile(
+            dish: dish,
+            isSaved: _savedDishIds.contains(dish.id),
+            onFavoriteTap: () async {
+              await onFavoriteTap(dish);
+              if (_savedDishIds.contains(dish.id)) {
+                _savedDishIds.remove(dish.id);
+              } else {
+                _savedDishIds.add(dish.id);
+              }
+            },
+            onOpen: () => close(context, dish),
+          );
+        },
       ),
     );
   }

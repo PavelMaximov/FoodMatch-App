@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/theme/notification_theme.dart';
+import '../../../../core/utils/food_match_notifications.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimensions.dart';
@@ -15,10 +17,7 @@ import '../../logic/couple_provider.dart';
 class ConnectCoupleScreen extends StatefulWidget {
   final bool isBottomSheet;
 
-  const ConnectCoupleScreen({
-    super.key,
-    this.isBottomSheet = false,
-  });
+  const ConnectCoupleScreen({super.key, this.isBottomSheet = false});
 
   @override
   State<ConnectCoupleScreen> createState() => _ConnectCoupleScreenState();
@@ -35,7 +34,8 @@ class _ConnectCoupleScreenState extends State<ConnectCoupleScreen> {
   }
 
   bool _isPresentedAsBottomSheet(BuildContext context) {
-    return widget.isBottomSheet || ModalRoute.of(context) is PopupRoute<dynamic>;
+    return widget.isBottomSheet ||
+        ModalRoute.of(context) is PopupRoute<dynamic>;
   }
 
   Future<void> _createCouple() async {
@@ -73,9 +73,12 @@ class _ConnectCoupleScreenState extends State<ConnectCoupleScreen> {
       return;
     }
 
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(content: Text(AppStrings.codeCopied)));
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    FoodMatchNotifications.show(
+      context,
+      type: FoodMatchNotificationType.success,
+      title: AppStrings.codeCopied,
+    );
   }
 
   Widget _buildContent(CoupleProvider provider) {
@@ -99,7 +102,10 @@ class _ConnectCoupleScreenState extends State<ConnectCoupleScreen> {
             const SizedBox(height: AppDimensions.paddingXL),
             Align(
               alignment: Alignment.centerLeft,
-              child: Text(AppStrings.createSession, style: AppTextStyles.bodyMedium),
+              child: Text(
+                AppStrings.createSession,
+                style: AppTextStyles.bodyMedium,
+              ),
             ),
             const SizedBox(height: 12),
             AppButton(
@@ -119,7 +125,10 @@ class _ConnectCoupleScreenState extends State<ConnectCoupleScreen> {
                 ),
                 child: Column(
                   children: <Widget>[
-                    Text(AppStrings.yourInviteCode, style: AppTextStyles.bodyMedium),
+                    Text(
+                      AppStrings.yourInviteCode,
+                      style: AppTextStyles.bodyMedium,
+                    ),
                     const SizedBox(height: AppDimensions.paddingS),
                     Text(
                       inviteCode,
@@ -146,7 +155,9 @@ class _ConnectCoupleScreenState extends State<ConnectCoupleScreen> {
               children: <Widget>[
                 const Expanded(child: Divider(color: AppColors.divider)),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingM),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppDimensions.paddingM,
+                  ),
                   child: Text(AppStrings.or, style: AppTextStyles.bodySmall),
                 ),
                 const Expanded(child: Divider(color: AppColors.divider)),
@@ -155,7 +166,10 @@ class _ConnectCoupleScreenState extends State<ConnectCoupleScreen> {
             const SizedBox(height: AppDimensions.paddingXL),
             Align(
               alignment: Alignment.centerLeft,
-              child: Text(AppStrings.joinExisting, style: AppTextStyles.bodyMedium),
+              child: Text(
+                AppStrings.joinExisting,
+                style: AppTextStyles.bodyMedium,
+              ),
             ),
             const SizedBox(height: 12),
             AppTextField(
@@ -190,15 +204,9 @@ class _ConnectCoupleScreenState extends State<ConnectCoupleScreen> {
     final Widget content = SafeArea(child: _buildContent(provider));
 
     if (_isPresentedAsBottomSheet(context)) {
-      return Container(
-        color: AppColors.background,
-        child: content,
-      );
+      return Container(color: AppColors.background, child: content);
     }
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: content,
-    );
+    return Scaffold(backgroundColor: AppColors.background, body: content);
   }
 }

@@ -4,7 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/theme_extensions.dart';
-import '../../../../core/utils/snackbar_utils.dart';
+import '../../../../core/theme/notification_theme.dart';
+import '../../../../core/utils/food_match_notifications.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_logo_header.dart';
@@ -29,7 +30,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
-    SnackBarUtils.showSuccess(context, AppStrings.resetLinkSent);
+    FoodMatchNotifications.show(
+      context,
+      type: FoodMatchNotificationType.success,
+      title: AppStrings.resetLinkSent,
+    );
   }
 
   @override
@@ -48,7 +53,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 const AppLogoHeader(showSubtitle: false),
                 Text(
                   AppStrings.resetPasswordTitle,
-                  style: GoogleFonts.fredoka(fontSize: 36, fontWeight: FontWeight.w700, color: context.fmColors.textPrimary),
+                  style: GoogleFonts.fredoka(
+                    fontSize: 36,
+                    fontWeight: FontWeight.w700,
+                    color: context.fmColors.textPrimary,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Text(

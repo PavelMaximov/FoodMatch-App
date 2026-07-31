@@ -5,7 +5,8 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimensions.dart';
-import '../../../../core/utils/snackbar_utils.dart';
+import '../../../../core/theme/notification_theme.dart';
+import '../../../../core/utils/food_match_notifications.dart';
 import '../../../../data/models/couple.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../matches/logic/match_provider.dart';
@@ -47,7 +48,11 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
     await coupleProvider.loadCouple();
     if (!mounted) return;
     if (coupleProvider.error != null) {
-      SnackBarUtils.showError(context, coupleProvider.error!);
+      FoodMatchNotifications.show(
+        context,
+        type: FoodMatchNotificationType.error,
+        title: coupleProvider.error!,
+      );
     }
   }
 
@@ -70,7 +75,8 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
           child: Consumer<CoupleProvider>(
             builder: (BuildContext context, CoupleProvider coupleProvider, _) {
               final Couple? couple = coupleProvider.currentCouple;
-              final bool hasRealCouple = couple != null && couple.inviteCode.trim().isNotEmpty;
+              final bool hasRealCouple =
+                  couple != null && couple.inviteCode.trim().isNotEmpty;
 
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -97,7 +103,9 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
                       coupleProvider.error!,
                       style: GoogleFonts.nunito(
                         fontSize: 13,
-                        color: coupleProvider.hasActiveSessionConflict ? AppColors.textSecondary : AppColors.error,
+                        color: coupleProvider.hasActiveSessionConflict
+                            ? AppColors.textSecondary
+                            : AppColors.error,
                       ),
                     ),
                   ],
@@ -109,8 +117,6 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
       ),
     );
   }
-
-
 
   Widget _buildNoSessionControls(CoupleProvider coupleProvider) {
     return Column(
@@ -127,26 +133,38 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
         const SizedBox(height: 8),
         Text(
           'Start a new invite code or join one from your partner below.',
-          style: GoogleFonts.nunito(fontSize: 14, color: AppColors.textSecondary),
+          style: GoogleFonts.nunito(
+            fontSize: 14,
+            color: AppColors.textSecondary,
+          ),
         ),
         const SizedBox(height: 14),
         SizedBox(
           width: double.infinity,
           height: 48,
           child: ElevatedButton(
-            onPressed: coupleProvider.isLoading ? null : () => _createSession(coupleProvider),
+            onPressed: coupleProvider.isLoading
+                ? null
+                : () => _createSession(coupleProvider),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
-              disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.55),
+              disabledBackgroundColor: AppColors.primary.withValues(
+                alpha: 0.55,
+              ),
               foregroundColor: Colors.white,
               elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             child: coupleProvider.isLoading
                 ? const SizedBox(
                     height: 18,
                     width: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
                   )
                 : Text(
                     'Create session',
@@ -179,12 +197,17 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
           children: <Widget>[
             Expanded(
               child: OutlinedButton(
-                onPressed: coupleProvider.isLoading || coupleProvider.isLeaving || _leaveRequestInFlight
+                onPressed:
+                    coupleProvider.isLoading ||
+                        coupleProvider.isLeaving ||
+                        _leaveRequestInFlight
                     ? null
                     : () => _leaveSession(coupleProvider),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 13),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 child: const Text('Leave session'),
               ),
@@ -192,13 +215,17 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
             const SizedBox(width: 12),
             Expanded(
               child: ElevatedButton(
-                onPressed: coupleProvider.isLoading ? null : coupleProvider.resetCouple,
+                onPressed: coupleProvider.isLoading
+                    ? null
+                    : coupleProvider.resetCouple,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   elevation: 0,
                   padding: const EdgeInsets.symmetric(vertical: 13),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 child: const Text('Reset'),
               ),
@@ -234,7 +261,10 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
             ),
             filled: true,
             fillColor: Colors.white,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 13,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppDimensions.radiusM),
               borderSide: const BorderSide(color: AppColors.divider),
@@ -245,7 +275,10 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppDimensions.radiusM),
-              borderSide: const BorderSide(color: AppColors.primary, width: 1.4),
+              borderSide: const BorderSide(
+                color: AppColors.primary,
+                width: 1.4,
+              ),
             ),
           ),
         ),
@@ -259,10 +292,14 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
                 : () => _connectToSession(coupleProvider),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
-              disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.55),
+              disabledBackgroundColor: AppColors.primary.withValues(
+                alpha: 0.55,
+              ),
               foregroundColor: Colors.white,
               elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             child: coupleProvider.isLoading || coupleProvider.isJoining
                 ? const SizedBox(
@@ -287,12 +324,15 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
     );
   }
 
-
   Future<void> _createSession(CoupleProvider coupleProvider) async {
     await coupleProvider.createCouple();
     if (!mounted) return;
     if (coupleProvider.error != null) {
-      SnackBarUtils.showError(context, coupleProvider.error!);
+      FoodMatchNotifications.show(
+        context,
+        type: FoodMatchNotificationType.error,
+        title: coupleProvider.error!,
+      );
     }
   }
 
@@ -301,51 +341,72 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
       return;
     }
     setState(() => _leaveRequestInFlight = true);
-    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
     await coupleProvider.leaveCouple();
     if (!mounted) return;
     setState(() => _leaveRequestInFlight = false);
     if (coupleProvider.error != null) {
-      SnackBarUtils.showError(context, coupleProvider.error!);
+      FoodMatchNotifications.show(
+        context,
+        type: FoodMatchNotificationType.error,
+        title: coupleProvider.error!,
+      );
       return;
     }
     context.read<SwipeProvider>().clearPreparedDeck();
     context.read<PreSwipeProvider>().clearForLogout();
     context.read<MatchProvider>().clearMatches();
-    Navigator.pop(context);
-    messenger.showSnackBar(
-      const SnackBar(
-        content: Text('Session left'),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-        duration: Duration(seconds: 2),
-      ),
+    FoodMatchNotifications.show(
+      context,
+      type: FoodMatchNotificationType.destructive,
+      title: 'Session left',
     );
+    Navigator.pop(context);
   }
 
   Future<void> _connectToSession(CoupleProvider coupleProvider) async {
     if (coupleProvider.hasCouple) {
-      SnackBarUtils.showError(context, 'You already have an active session. Leave it before joining another one.');
+      FoodMatchNotifications.show(
+        context,
+        type: FoodMatchNotificationType.warning,
+        title:
+            'You already have an active session. Leave it before joining another one.',
+      );
       return;
     }
 
     final String code = _codeController.text.trim();
     if (code.isEmpty) {
-      SnackBarUtils.showError(context, 'Enter the invitation code');
+      FoodMatchNotifications.show(
+        context,
+        type: FoodMatchNotificationType.warning,
+        title: 'Enter the invitation code',
+      );
       return;
     }
 
     await coupleProvider.joinCouple(code);
     if (!mounted) return;
     if (coupleProvider.hasActiveSessionConflict) {
-      SnackBarUtils.showError(context, CoupleProvider.activeSessionMessage);
+      FoodMatchNotifications.show(
+        context,
+        type: FoodMatchNotificationType.warning,
+        title: CoupleProvider.activeSessionMessage,
+      );
       return;
     }
     if (coupleProvider.currentCouple != null) {
       Navigator.pop(context);
-      SnackBarUtils.showSuccess(context, 'Connected to session!');
+      FoodMatchNotifications.show(
+        context,
+        type: FoodMatchNotificationType.success,
+        title: 'Connected to session!',
+      );
     } else if (coupleProvider.error != null) {
-      SnackBarUtils.showError(context, coupleProvider.error!);
+      FoodMatchNotifications.show(
+        context,
+        type: FoodMatchNotificationType.error,
+        title: coupleProvider.error!,
+      );
     }
   }
 
@@ -392,7 +453,11 @@ class _SheetHeader extends StatelessWidget {
           top: -6,
           child: IconButton(
             onPressed: onClose,
-            icon: Icon(Icons.close, size: 28, color: AppColors.textSecondary.withValues(alpha: 0.78)),
+            icon: Icon(
+              Icons.close,
+              size: 28,
+              color: AppColors.textSecondary.withValues(alpha: 0.78),
+            ),
             splashRadius: 22,
           ),
         ),
@@ -491,7 +556,11 @@ class _CopyButton extends StatelessWidget {
     return InkWell(
       onTap: () {
         Clipboard.setData(ClipboardData(text: inviteCode));
-        SnackBarUtils.showSuccess(context, 'Code copied!');
+        FoodMatchNotifications.show(
+          context,
+          type: FoodMatchNotificationType.success,
+          title: 'Code copied!',
+        );
       },
       borderRadius: BorderRadius.circular(20),
       child: Container(
@@ -504,7 +573,11 @@ class _CopyButton extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Icon(Icons.copy, size: 14, color: AppColors.textSecondary.withValues(alpha: 0.72)),
+            Icon(
+              Icons.copy,
+              size: 14,
+              color: AppColors.textSecondary.withValues(alpha: 0.72),
+            ),
             const SizedBox(width: 4),
             Text(
               'Copy',

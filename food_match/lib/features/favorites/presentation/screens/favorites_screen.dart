@@ -4,6 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../core/theme/notification_theme.dart';
+import '../../../../core/utils/food_match_notifications.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../shared/widgets/empty_state.dart';
@@ -54,7 +56,11 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     if (!mounted) return;
     final String? error = context.read<FavoritesProvider>().error;
     if (error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+      FoodMatchNotifications.show(
+        context,
+        type: FoodMatchNotificationType.error,
+        title: error,
+      );
     }
   }
 
@@ -89,13 +95,19 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     setState(() {
       _recentSearches
         ..clear()
-        ..addAll(preferences.getStringList('favorite_recent_searches') ?? const <String>[]);
+        ..addAll(
+          preferences.getStringList('favorite_recent_searches') ??
+              const <String>[],
+        );
     });
   }
 
   Future<void> _saveRecentSearches() async {
     final SharedPreferences preferences = await SharedPreferences.getInstance();
-    await preferences.setStringList('favorite_recent_searches', _recentSearches);
+    await preferences.setStringList(
+      'favorite_recent_searches',
+      _recentSearches,
+    );
   }
 
   Future<void> _rememberSearch(String value) async {
@@ -104,7 +116,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       return;
     }
     setState(() {
-      _recentSearches.removeWhere((String item) => item.toLowerCase() == query.toLowerCase());
+      _recentSearches.removeWhere(
+        (String item) => item.toLowerCase() == query.toLowerCase(),
+      );
       _recentSearches.insert(0, query);
       if (_recentSearches.length > 10) {
         _recentSearches.removeRange(10, _recentSearches.length);
@@ -129,12 +143,16 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   }
 
   Future<void> _openFilters() async {
-    final List<Dish> savedDishes = context.read<FavoritesProvider>().savedDishes;
+    final List<Dish> savedDishes = context
+        .read<FavoritesProvider>()
+        .savedDishes;
     final RecipeListFilters? next = await showRecipeFilterBottomSheet(
       context: context,
       filters: _listFilters,
       mealOptions: const <String>['Breakfast', 'Lunch', 'Dinner', 'Snack'],
-      cuisineOptions: _uniqueSorted(savedDishes.map((Dish dish) => dish.cuisine)),
+      cuisineOptions: _uniqueSorted(
+        savedDishes.map((Dish dish) => dish.cuisine),
+      ),
     );
 
     if (next == null || !mounted) {
@@ -153,32 +171,37 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       _listFilters.difficulty ?? '',
       _listFilters.cuisines.join('|'),
     ].join('::');
-    if (identical(_lastFavoritesInput, favorites) && _lastFilterSignature == signature) {
+    if (identical(_lastFavoritesInput, favorites) &&
+        _lastFilterSignature == signature) {
       return _lastVisibleFavorites;
     }
-    final List<Dish> visible = favorites.where((Dish dish) {
-      if (query.isNotEmpty && !dish.name.toLowerCase().contains(query)) {
-        return false;
-      }
+    final List<Dish> visible = favorites
+        .where((Dish dish) {
+          if (query.isNotEmpty && !dish.name.toLowerCase().contains(query)) {
+            return false;
+          }
 
-      final String cuisine = _normalizeLabel(dish.cuisine);
-      if (_listFilters.cuisines.isNotEmpty && !_listFilters.cuisines.contains(cuisine)) {
-        return false;
-      }
-      if (_listFilters.mealCategory != null &&
-          !_matchesMealCategory(dish, _listFilters.mealCategory!)) {
-        return false;
-      }
-      if (_listFilters.maxCookTime != null &&
-          (dish.cookTime <= 0 || dish.cookTime > _listFilters.maxCookTime!)) {
-        return false;
-      }
-      if (_listFilters.difficulty != null &&
-          !_matchesDifficulty(dish.effort, _listFilters.difficulty!)) {
-        return false;
-      }
-      return true;
-    }).toList(growable: false);
+          final String cuisine = _normalizeLabel(dish.cuisine);
+          if (_listFilters.cuisines.isNotEmpty &&
+              !_listFilters.cuisines.contains(cuisine)) {
+            return false;
+          }
+          if (_listFilters.mealCategory != null &&
+              !_matchesMealCategory(dish, _listFilters.mealCategory!)) {
+            return false;
+          }
+          if (_listFilters.maxCookTime != null &&
+              (dish.cookTime <= 0 ||
+                  dish.cookTime > _listFilters.maxCookTime!)) {
+            return false;
+          }
+          if (_listFilters.difficulty != null &&
+              !_matchesDifficulty(dish.effort, _listFilters.difficulty!)) {
+            return false;
+          }
+          return true;
+        })
+        .toList(growable: false);
     _lastFavoritesInput = favorites;
     _lastFilterSignature = signature;
     _lastVisibleFavorites = visible;
@@ -191,7 +214,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         .where((String value) => value.isNotEmpty)
         .toSet()
         .toList();
-    labels.sort((String a, String b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    labels.sort(
+      (String a, String b) => a.toLowerCase().compareTo(b.toLowerCase()),
+    );
     return labels;
   }
 
@@ -241,7 +266,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       case 'medium':
         return value == 'medium' || value == 'med' || value == 'moderate';
       case 'hard':
-        return value == 'hard' || value == 'complex' || value == 'difficult' || value == 'high';
+        return value == 'hard' ||
+            value == 'complex' ||
+            value == 'difficult' ||
+            value == 'high';
     }
     return false;
   }
@@ -255,8 +283,11 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final FavoritesProvider favoritesProvider = context.watch<FavoritesProvider>();
-    final List<Dish> visibleFavorites = _visibleFavorites(favoritesProvider.savedDishes);
+    final FavoritesProvider favoritesProvider = context
+        .watch<FavoritesProvider>();
+    final List<Dish> visibleFavorites = _visibleFavorites(
+      favoritesProvider.savedDishes,
+    );
 
     return Scaffold(
       backgroundColor: context.fmColors.background,
@@ -269,7 +300,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
               child: AppCenteredHeader(
                 title: 'Favorites',
-                onBackTap: () => context.canPop() ? context.pop() : context.go('/recipes'),
+                onBackTap: () =>
+                    context.canPop() ? context.pop() : context.go('/recipes'),
               ),
             ),
             const SizedBox(height: 14),
@@ -322,7 +354,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     );
   }
 
-  Widget _buildBody(FavoritesProvider favoritesProvider, List<Dish> visibleFavorites) {
+  Widget _buildBody(
+    FavoritesProvider favoritesProvider,
+    List<Dish> visibleFavorites,
+  ) {
     if (favoritesProvider.isLoading && favoritesProvider.savedDishes.isEmpty) {
       return GridView.builder(
         padding: const EdgeInsets.fromLTRB(19, 18, 19, 24),
@@ -338,12 +373,16 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       );
     }
 
-    if (favoritesProvider.error != null && favoritesProvider.savedDishes.isEmpty) {
+    if (favoritesProvider.error != null &&
+        favoritesProvider.savedDishes.isEmpty) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         children: <Widget>[
           const SizedBox(height: 96),
-          ErrorState(message: favoritesProvider.error!, onRetry: _loadFavorites),
+          ErrorState(
+            message: favoritesProvider.error!,
+            onRetry: _loadFavorites,
+          ),
         ],
       );
     }
@@ -383,7 +422,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       dishes: dishes,
       savedDishIds: favoritesProvider.savedDishIds,
       onFavoriteTap: _removeFavorite,
-      onDishTap: (Dish dish) => context.push('/recipe-detail/${dish.id}', extra: dish),
+      onDishTap: (Dish dish) =>
+          context.push('/recipe-detail/${dish.id}', extra: dish),
       isFavoriteUpdating: favoritesProvider.isUpdating,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       physics: const AlwaysScrollableScrollPhysics(),
@@ -410,10 +450,7 @@ class _ResultSummary extends StatelessWidget {
           ),
         ),
         const Spacer(),
-        TextButton(
-          onPressed: onClear,
-          child: const Text('Clear'),
-        ),
+        TextButton(onPressed: onClear, child: const Text('Clear')),
       ],
     );
   }
