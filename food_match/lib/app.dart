@@ -19,7 +19,7 @@ class FoodMatchApp extends StatefulWidget {
 
 class _FoodMatchAppState extends State<FoodMatchApp>
     with WidgetsBindingObserver {
-  static const Duration _minimumSplashDuration = Duration(milliseconds: 1000);
+  static const Duration _minimumSplashDuration = Duration(milliseconds: 3000);
 
   late final GoRouter _router;
   bool _isStartupComplete = false;

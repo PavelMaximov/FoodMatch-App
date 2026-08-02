@@ -23,7 +23,7 @@ class _FoodMatchStartupGateState extends State<FoodMatchStartupGate> {
   static const Duration _completionPause = Duration(milliseconds: 240);
 
   Timer? _progressTimer;
-  double _progress = 0.10;
+  double _progress = 0.08;
   bool _showApp = false;
 
   @override
@@ -43,10 +43,9 @@ class _FoodMatchStartupGateState extends State<FoodMatchStartupGate> {
 
   void _startProgress() {
     _progressTimer = Timer.periodic(_progressTick, (_) {
-      if (!mounted || _progress >= 0.85 || widget.isStartupComplete) return;
+      if (!mounted || _progress >= 0.88 || widget.isStartupComplete) return;
       setState(() {
-        final double remaining = 0.85 - _progress;
-        _progress += remaining.clamp(0.006, 0.035).toDouble();
+        _progress = (_progress + 0.024).clamp(0, 0.88).toDouble();
       });
     });
   }
@@ -123,6 +122,8 @@ class FoodMatchSplashScreen extends StatelessWidget {
               220.0,
               520.0,
             );
+            final double taglineSpacing = isLarge ? 26 : 20;
+            final double logoBottomInset = (logoWidth / 2.7) * 0.30;
             return Stack(
               fit: StackFit.expand,
               children: <Widget>[
@@ -147,15 +148,23 @@ class FoodMatchSplashScreen extends StatelessWidget {
                             ),
                           ),
                         ),
-                        SizedBox(height: isLarge ? 22 : 14),
-                        Text(
-                          'Swipe. Match. Dine',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.nunito(
-                            color: tagline,
-                            fontSize: isLarge ? 36 : 27,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0.7,
+                        Transform.translate(
+                          offset: Offset(
+                            0,
+                            -(logoBottomInset - taglineSpacing),
+                          ),
+                          child: Text(
+                            'Swipe. Match. Dine',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.nunito(
+                              color: tagline,
+                              fontSize: isLarge ? 28 : 21,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.6,
+                              decoration: TextDecoration.none,
+                              decorationColor: Colors.transparent,
+                              decorationThickness: 0,
+                            ),
                           ),
                         ),
                       ],
