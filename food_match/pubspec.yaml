@@ -50,5 +50,7 @@ flutter:
     - assets/animations/loading_3_dots.json
     - assets/animations/waiting.json
     - assets/animations/confetti_transparent.json
+    - assets/animations/splash_logo_light.json
+    - assets/animations/splash_logo_dark.json
     - assets/ui/match_snackbar_light.svg
     - assets/ui/match_snackbar_dark.svg
