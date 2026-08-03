@@ -1,0 +1,17 @@
+workflows:
+  ios-simulator-workflow:
+    name: iOS Simulator Build
+    max_build_duration: 30
+    instance_type: mac_mini_m1
+    scripts:
+      - name: Get dependencies
+        script: flutter packages pub get
+      - name: Build iOS App for Simulator
+        script: |
+          flutter build ios --simulator --no-codesign
+      - name: Archive .app into ZIP for Appetize
+        script: |
+          cd build/ios/iphonesimulator
+          zip -r ios-simulator-app.zip Runner.app
+    artifacts:
+      - build/ios/iphonesimulator/*.zip
