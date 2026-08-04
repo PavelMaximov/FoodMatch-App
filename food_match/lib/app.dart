@@ -8,7 +8,11 @@ import 'core/theme/theme_controller.dart';
 import 'core/widgets/app_pending_overlay.dart';
 import 'features/auth/logic/auth_provider.dart';
 import 'features/couple/logic/couple_provider.dart';
+import 'features/onboarding/presentation/screens/onboarding_screen.dart';
 import 'features/startup/presentation/screens/food_match_splash_screen.dart';
+
+// TODO: Replace this dev flag with persisted first-run onboarding logic before release.
+const bool kForceShowOnboardingOnStartup = true;
 
 class FoodMatchApp extends StatefulWidget {
   const FoodMatchApp({super.key});
@@ -23,6 +27,7 @@ class _FoodMatchAppState extends State<FoodMatchApp>
 
   late final GoRouter _router;
   bool _isStartupComplete = false;
+  bool _isOnboardingComplete = !kForceShowOnboardingOnStartup;
 
   @override
   void initState() {
@@ -81,10 +86,24 @@ class _FoodMatchAppState extends State<FoodMatchApp>
       darkTheme: AppTheme.dark,
       themeMode: context.watch<ThemeController>().themeMode,
       routerConfig: _router,
-      builder: (BuildContext context, Widget? child) => FoodMatchStartupGate(
-        isStartupComplete: _isStartupComplete,
-        child: AppPendingOverlay(child: child ?? const SizedBox.shrink()),
-      ),
+      builder: (BuildContext context, Widget? child) {
+        final Widget resolvedAppRoute = AppPendingOverlay(
+          child: child ?? const SizedBox.shrink(),
+        );
+
+        return FoodMatchStartupGate(
+          isStartupComplete: _isStartupComplete,
+          child: _isOnboardingComplete
+              ? resolvedAppRoute
+              : FoodMatchOnboardingScreen(
+                  onFinished: () {
+                    if (mounted) {
+                      setState(() => _isOnboardingComplete = true);
+                    }
+                  },
+                ),
+        );
+      },
     );
   }
 }

@@ -52,5 +52,10 @@ flutter:
     - assets/animations/confetti_transparent.json
     - assets/animations/splash_logo_light.json
     - assets/animations/splash_logo_dark.json
+    - assets/animations/onboarding_blob_light.json
+    - assets/animations/onboarding_blob_dark.json
+    - assets/onboarding/onboarding_hero_decide.png
+    - assets/onboarding/onboarding_hero_swipe.png
+    - assets/onboarding/onboarding_hero_match.png
     - assets/ui/match_snackbar_light.svg
     - assets/ui/match_snackbar_dark.svg
