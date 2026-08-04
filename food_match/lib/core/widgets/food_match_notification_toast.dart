@@ -35,18 +35,18 @@ class FoodMatchNotificationToast extends StatelessWidget {
       liveRegion: true,
       container: true,
       child: Container(
-        constraints: BoxConstraints(minHeight: hasMessage ? 84 : 72),
+        constraints: BoxConstraints(minHeight: hasMessage ? 74 : 62),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           color: colors.background,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(15),
           border: Border.all(color: colors.border),
         ),
         child: Row(
           children: <Widget>[
             Container(
-              width: 48,
-              height: 48,
+              width: 38,
+              height: 38,
               decoration: BoxDecoration(
                 color: colors.iconBackground,
                 shape: BoxShape.circle,

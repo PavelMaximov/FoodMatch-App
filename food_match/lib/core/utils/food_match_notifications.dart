@@ -55,8 +55,8 @@ class FoodMatchNotifications {
       FoodMatchNotificationType.success ||
       FoodMatchNotificationType.info => const Duration(seconds: 3),
       FoodMatchNotificationType.warning => const Duration(seconds: 4),
-      FoodMatchNotificationType.error => const Duration(seconds: 5),
-      FoodMatchNotificationType.destructive => const Duration(seconds: 5),
+      FoodMatchNotificationType.error => const Duration(seconds: 4),
+      FoodMatchNotificationType.destructive => const Duration(seconds: 4),
     };
   }
 }
