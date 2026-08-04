@@ -11,7 +11,8 @@ import '../../../../core/errors/error_messages.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/theme/app_text_styles.dart';
-import '../../../../core/utils/snackbar_utils.dart';
+import '../../../../core/theme/notification_theme.dart';
+import '../../../../core/utils/food_match_notifications.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../data/repositories/dish_repository.dart';
 import '../../../../data/repositories/upload_repository.dart';
@@ -28,6 +29,20 @@ class AddDishScreen extends StatefulWidget {
   State<AddDishScreen> createState() => _AddDishScreenState();
 }
 
+class _PendingDeletedDish {
+  _PendingDeletedDish({
+    required this.dish,
+    required this.index,
+    required this.repository,
+  });
+
+  final Dish dish;
+  int index;
+  final DishRepository repository;
+  Timer? timer;
+  bool isCommitted = false;
+}
+
 class _AddDishScreenState extends State<AddDishScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _titleController = TextEditingController();
@@ -37,6 +52,8 @@ class _AddDishScreenState extends State<AddDishScreen> {
   bool _isSubmitting = false;
   bool _isLoadingMyDishes = false;
   List<Dish> _myDishes = <Dish>[];
+  final Map<String, _PendingDeletedDish> _pendingDeletedDishes =
+      <String, _PendingDeletedDish>{};
 
   String? _selectedCuisine;
   String? _selectedMood;
@@ -52,7 +69,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
     'Light',
     'Festive',
     'Quick',
-    'Healthy'
+    'Healthy',
   ];
 
   static const List<String> _measureUnits = <String>[
@@ -88,7 +105,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
     'Spanish',
     'Korean',
     'Vietnamese',
-    'Middle Eastern'
+    'Middle Eastern',
   ];
 
   @override
@@ -101,6 +118,14 @@ class _AddDishScreenState extends State<AddDishScreen> {
 
   @override
   void dispose() {
+    final List<_PendingDeletedDish> pendingDeletes = _pendingDeletedDishes
+        .values
+        .toList(growable: false);
+    _pendingDeletedDishes.clear();
+    for (final _PendingDeletedDish pendingDelete in pendingDeletes) {
+      pendingDelete.timer?.cancel();
+      unawaited(_commitDeleteAfterDispose(pendingDelete));
+    }
     _titleController.dispose();
     _cookTimeController.dispose();
     _stepInputController.dispose();
@@ -112,7 +137,9 @@ class _AddDishScreenState extends State<AddDishScreen> {
     try {
       final DishRepository dishRepository = context.read<DishRepository>();
       final List<Dish> dishes = await dishRepository.getMyCustomDishes();
-      _myDishes = dishes;
+      _myDishes = dishes
+          .where((Dish dish) => !_pendingDeletedDishes.containsKey(dish.id))
+          .toList();
     } catch (_) {
       _myDishes = <Dish>[];
     } finally {
@@ -149,19 +176,20 @@ class _AddDishScreenState extends State<AddDishScreen> {
   }
 
   Future<void> _openIngredientSheet({int? index}) async {
-    final _IngredientInput? ingredient = await showModalBottomSheet<_IngredientInput>(
-      context: context,
-      backgroundColor: context.fmColors.modalBackground,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      isScrollControlled: true,
-      builder: (_) => _AddIngredientSheet(
-        searchIngredients: _searchIngredients,
-        units: _measureUnits,
-        initialIngredient: index == null ? null : _ingredients[index],
-      ),
-    );
+    final _IngredientInput? ingredient =
+        await showModalBottomSheet<_IngredientInput>(
+          context: context,
+          backgroundColor: context.fmColors.modalBackground,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          isScrollControlled: true,
+          builder: (_) => _AddIngredientSheet(
+            searchIngredients: _searchIngredients,
+            units: _measureUnits,
+            initialIngredient: index == null ? null : _ingredients[index],
+          ),
+        );
 
     if (ingredient == null) return;
     setState(() {
@@ -178,19 +206,35 @@ class _AddDishScreenState extends State<AddDishScreen> {
     final bool isValidForm = _formKey.currentState?.validate() ?? false;
     if (!isValidForm) return;
     if (_selectedCuisine == null) {
-      SnackBarUtils.showError(context, 'Choose a cuisine.');
+      FoodMatchNotifications.show(
+        context,
+        type: FoodMatchNotificationType.warning,
+        title: 'Choose a cuisine.',
+      );
       return;
     }
     if (_selectedMood == null) {
-      SnackBarUtils.showError(context, 'Choose a mood.');
+      FoodMatchNotifications.show(
+        context,
+        type: FoodMatchNotificationType.warning,
+        title: 'Choose a mood.',
+      );
       return;
     }
     if (_ingredients.isEmpty) {
-      SnackBarUtils.showError(context, 'Add at least one ingredient.');
+      FoodMatchNotifications.show(
+        context,
+        type: FoodMatchNotificationType.warning,
+        title: 'Add at least one ingredient.',
+      );
       return;
     }
     if (_steps.isEmpty) {
-      SnackBarUtils.showError(context, 'Add at least one instruction.');
+      FoodMatchNotifications.show(
+        context,
+        type: FoodMatchNotificationType.warning,
+        title: 'Add at least one instruction.',
+      );
       return;
     }
 
@@ -201,16 +245,26 @@ class _AddDishScreenState extends State<AddDishScreen> {
 
       if (_selectedImageFile != null && imageUpload == null) {
         try {
-          imageUpload = await context.read<UploadRepository>().uploadCustomDishImage(_selectedImageFile!);
+          imageUpload = await context
+              .read<UploadRepository>()
+              .uploadCustomDishImage(_selectedImageFile!);
           _uploadedDishImage = imageUpload;
         } on ApiException catch (_) {
           if (mounted) {
-            SnackBarUtils.showError(context, AppStrings.unableToUploadImage);
+            FoodMatchNotifications.show(
+              context,
+              type: FoodMatchNotificationType.error,
+              title: AppStrings.unableToUploadImage,
+            );
           }
           return;
         } catch (_) {
           if (mounted) {
-            SnackBarUtils.showError(context, AppStrings.unableToUploadImage);
+            FoodMatchNotifications.show(
+              context,
+              type: FoodMatchNotificationType.error,
+              title: AppStrings.unableToUploadImage,
+            );
           }
           return;
         }
@@ -221,11 +275,13 @@ class _AddDishScreenState extends State<AddDishScreen> {
         cuisine: _selectedCuisine!,
         mood: _selectedMood!,
         ingredients: _ingredients
-            .map((item) => <String, String>{
-                  'name': item.name,
-                  'quantity': item.quantity,
-                  'unit': item.unit,
-                })
+            .map(
+              (item) => <String, String>{
+                'name': item.name,
+                'quantity': item.quantity,
+                'unit': item.unit,
+              },
+            )
             .toList(),
         cookTime: int.tryParse(_cookTimeController.text.trim()) ?? 0,
         servings: _selectedServings,
@@ -252,21 +308,35 @@ class _AddDishScreenState extends State<AddDishScreen> {
 
       await _loadMyDishes();
       if (mounted) {
-        SnackBarUtils.showSuccess(context, AppStrings.dishAdded);
+        FoodMatchNotifications.show(
+          context,
+          type: FoodMatchNotificationType.success,
+          title: AppStrings.dishAdded,
+        );
       }
     } on ApiException catch (e) {
       if (mounted) {
-        SnackBarUtils.showError(context, ErrorMessages.fromApiException(e, fallback: AppStrings.failedToAddDish));
+        FoodMatchNotifications.show(
+          context,
+          type: FoodMatchNotificationType.error,
+          title: ErrorMessages.fromApiException(
+            e,
+            fallback: AppStrings.failedToAddDish,
+          ),
+        );
       }
     } catch (_) {
       if (mounted) {
-        SnackBarUtils.showError(context, AppStrings.failedToAddDish);
+        FoodMatchNotifications.show(
+          context,
+          type: FoodMatchNotificationType.error,
+          title: AppStrings.failedToAddDish,
+        );
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
   }
-
 
   void _invalidateSwipeDeckCacheIfAvailable() {
     try {
@@ -276,24 +346,121 @@ class _AddDishScreenState extends State<AddDishScreen> {
     }
   }
 
-  Future<void> _deleteDish(Dish dish) async {
-    try {
-      await context.read<DishRepository>().deleteMyDish(dish.id);
-      _invalidateSwipeDeckCacheIfAvailable();
+  void _deleteDish(Dish dish) {
+    if (_pendingDeletedDishes.containsKey(dish.id)) return;
 
-      await _loadMyDishes();
-      if (mounted) {
-        SnackBarUtils.showSuccess(context, 'Dish deleted');
-      }
-    } on ApiException catch (e) {
-      if (mounted) {
-        SnackBarUtils.showError(context, ErrorMessages.fromApiException(e));
-      }
-    } catch (_) {
-      if (mounted) {
-        SnackBarUtils.showError(context, 'Failed to delete dish');
-      }
+    final int index = _myDishes.indexWhere(
+      (Dish currentDish) => currentDish.id == dish.id,
+    );
+    if (index < 0) return;
+
+    int originalIndex = index;
+    for (final _PendingDeletedDish pendingDelete
+        in _pendingDeletedDishes.values) {
+      if (pendingDelete.index <= originalIndex) originalIndex++;
     }
+
+    final _PendingDeletedDish pendingDelete = _PendingDeletedDish(
+      dish: dish,
+      index: originalIndex,
+      repository: context.read<DishRepository>(),
+    );
+    _pendingDeletedDishes[dish.id] = pendingDelete;
+    pendingDelete.timer = Timer(
+      const Duration(seconds: 6),
+      () => _commitPendingDelete(dish.id),
+    );
+
+    setState(() => _myDishes.removeAt(index));
+
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    FoodMatchNotifications.show(
+      context,
+      type: FoodMatchNotificationType.destructive,
+      title: 'Dish deleted',
+      message: '${dish.name} was removed',
+      actionLabel: 'Undo',
+      onAction: () => _undoDeleteDish(dish.id),
+    );
+  }
+
+  void _undoDeleteDish(String dishId) {
+    final _PendingDeletedDish? pendingDelete = _pendingDeletedDishes.remove(
+      dishId,
+    );
+    if (pendingDelete == null || pendingDelete.isCommitted) return;
+
+    pendingDelete.timer?.cancel();
+    if (!mounted || _myDishes.any((Dish dish) => dish.id == dishId)) return;
+
+    setState(() {
+      final int safeIndex = _visibleIndexFor(pendingDelete);
+      _myDishes.insert(safeIndex, pendingDelete.dish);
+    });
+  }
+
+  Future<void> _commitPendingDelete(String dishId) async {
+    final _PendingDeletedDish? pendingDelete = _pendingDeletedDishes[dishId];
+    if (pendingDelete == null || pendingDelete.isCommitted) return;
+
+    pendingDelete.isCommitted = true;
+    pendingDelete.timer?.cancel();
+    try {
+      await pendingDelete.repository.deleteMyDish(dishId);
+      _pendingDeletedDishes.remove(dishId);
+      for (final _PendingDeletedDish other in _pendingDeletedDishes.values) {
+        if (other.index > pendingDelete.index) other.index--;
+      }
+      if (mounted) _invalidateSwipeDeckCacheIfAvailable();
+    } on ApiException catch (e) {
+      _rollbackFailedDelete(
+        pendingDelete,
+        ErrorMessages.fromApiException(e, fallback: 'Please try again.'),
+      );
+    } catch (_) {
+      _rollbackFailedDelete(pendingDelete, 'Please try again.');
+    }
+  }
+
+  void _rollbackFailedDelete(
+    _PendingDeletedDish pendingDelete,
+    String message,
+  ) {
+    _pendingDeletedDishes.remove(pendingDelete.dish.id);
+    if (!mounted) return;
+
+    if (!_myDishes.any((Dish dish) => dish.id == pendingDelete.dish.id)) {
+      setState(() {
+        final int safeIndex = _visibleIndexFor(pendingDelete);
+        _myDishes.insert(safeIndex, pendingDelete.dish);
+      });
+    }
+    FoodMatchNotifications.show(
+      context,
+      type: FoodMatchNotificationType.error,
+      title: 'Could not delete dish',
+      message: message,
+    );
+  }
+
+  Future<void> _commitDeleteAfterDispose(
+    _PendingDeletedDish pendingDelete,
+  ) async {
+    if (pendingDelete.isCommitted) return;
+    pendingDelete.isCommitted = true;
+    try {
+      await pendingDelete.repository.deleteMyDish(pendingDelete.dish.id);
+    } catch (_) {
+      // A failed delete remains on the backend and will reappear on the next load.
+    }
+  }
+
+  int _visibleIndexFor(_PendingDeletedDish pendingDelete) {
+    final int hiddenBefore = _pendingDeletedDishes.values
+        .where((_PendingDeletedDish other) => other.index < pendingDelete.index)
+        .length;
+    final int visibleIndex = pendingDelete.index - hiddenBefore;
+    return visibleIndex < _myDishes.length ? visibleIndex : _myDishes.length;
   }
 
   @override
@@ -312,12 +479,18 @@ class _AddDishScreenState extends State<AddDishScreen> {
                 const SizedBox(height: 10),
                 Text(
                   AppStrings.addYourDish,
-                  style: AppTextStyles.pageTitle.copyWith(height: 0.95, color: colors.textPrimary),
+                  style: AppTextStyles.pageTitle.copyWith(
+                    height: 0.95,
+                    color: colors.textPrimary,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 Text(
                   AppStrings.addDishDesc,
-                  style: AppTextStyles.bodyMedium.copyWith(fontSize: 15.5, color: colors.textSecondary),
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    fontSize: 15.5,
+                    color: colors.textSecondary,
+                  ),
                 ),
                 const SizedBox(height: AppDimensions.paddingL),
                 const _RequiredLabel(text: 'Enter title of your dish'),
@@ -326,7 +499,8 @@ class _AddDishScreenState extends State<AddDishScreen> {
                   controller: _titleController,
                   hint: 'Name of the dish',
                   validator: (String? value) {
-                    if ((value ?? '').trim().isEmpty) return 'Dish name is required.';
+                    if ((value ?? '').trim().isEmpty)
+                      return 'Dish name is required.';
                     return null;
                   },
                 ),
@@ -337,7 +511,8 @@ class _AddDishScreenState extends State<AddDishScreen> {
                   value: _selectedCuisine,
                   hint: 'Cuisine',
                   items: _cuisines,
-                  onChanged: (String? value) => setState(() => _selectedCuisine = value),
+                  onChanged: (String? value) =>
+                      setState(() => _selectedCuisine = value),
                 ),
                 const SizedBox(height: 14),
                 const _RequiredLabel(text: 'Choose mood of your dish'),
@@ -346,7 +521,8 @@ class _AddDishScreenState extends State<AddDishScreen> {
                   value: _selectedMood,
                   hint: 'Mood',
                   items: _moods,
-                  onChanged: (String? value) => setState(() => _selectedMood = value),
+                  onChanged: (String? value) =>
+                      setState(() => _selectedMood = value),
                 ),
                 const SizedBox(height: 14),
                 Row(
@@ -355,12 +531,18 @@ class _AddDishScreenState extends State<AddDishScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
-                          Text('Serving size', style: AppTextStyles.bodyLarge.copyWith(color: colors.textPrimary)),
+                          Text(
+                            'Serving size',
+                            style: AppTextStyles.bodyLarge.copyWith(
+                              color: colors.textPrimary,
+                            ),
+                          ),
                           const SizedBox(height: 8),
                           _ServingSizeSelect(
                             value: _selectedServings,
-                            onChanged: (int value) => setState(() => _selectedServings = value),
-                          )
+                            onChanged: (int value) =>
+                                setState(() => _selectedServings = value),
+                          ),
                         ],
                       ),
                     ),
@@ -369,7 +551,12 @@ class _AddDishScreenState extends State<AddDishScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
-                          Text('Cooking time', style: AppTextStyles.bodyLarge.copyWith(color: colors.textPrimary)),
+                          Text(
+                            'Cooking time',
+                            style: AppTextStyles.bodyLarge.copyWith(
+                              color: colors.textPrimary,
+                            ),
+                          ),
                           const SizedBox(height: 8),
                           _AppInput(
                             controller: _cookTimeController,
@@ -378,12 +565,14 @@ class _AddDishScreenState extends State<AddDishScreen> {
                             validator: (String? value) {
                               final String trimmed = (value ?? '').trim();
                               final int? minutes = int.tryParse(trimmed);
-                              if (trimmed.isEmpty || minutes == null || minutes <= 0) {
+                              if (trimmed.isEmpty ||
+                                  minutes == null ||
+                                  minutes <= 0) {
                                 return 'Enter a valid cooking time.';
                               }
                               return null;
                             },
-                          )
+                          ),
                         ],
                       ),
                     ),
@@ -401,7 +590,10 @@ class _AddDishScreenState extends State<AddDishScreen> {
                       final _IngredientInput ingredient = entry.value;
 
                       return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: colors.chipBackground,
                           borderRadius: BorderRadius.circular(999),
@@ -411,13 +603,20 @@ class _AddDishScreenState extends State<AddDishScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: <Widget>[
                             Text(
-                              '${ingredient.name} ${ingredient.quantity} ${ingredient.unit}'.trim(),
-                              style: AppTextStyles.bodySmall.copyWith(color: colors.textPrimary),
+                              '${ingredient.name} ${ingredient.quantity} ${ingredient.unit}'
+                                  .trim(),
+                              style: AppTextStyles.bodySmall.copyWith(
+                                color: colors.textPrimary,
+                              ),
                             ),
                             const SizedBox(width: 6),
                             GestureDetector(
                               onTap: () => _openIngredientSheet(index: index),
-                              child: Icon(Icons.edit_outlined, size: 16, color: colors.textMuted),
+                              child: Icon(
+                                Icons.edit_outlined,
+                                size: 16,
+                                color: colors.textMuted,
+                              ),
                             ),
                             const SizedBox(width: 4),
                             GestureDetector(
@@ -426,7 +625,11 @@ class _AddDishScreenState extends State<AddDishScreen> {
                                   _ingredients.removeAt(index);
                                 });
                               },
-                              child: Icon(Icons.close, size: 16, color: colors.textMuted),
+                              child: Icon(
+                                Icons.close,
+                                size: 16,
+                                color: colors.textMuted,
+                              ),
                             ),
                           ],
                         ),
@@ -447,7 +650,9 @@ class _AddDishScreenState extends State<AddDishScreen> {
                 const SizedBox(height: 16),
                 Text(
                   'Cooking instructions',
-                  style: AppTextStyles.bodyLarge.copyWith(color: colors.textPrimary),
+                  style: AppTextStyles.bodyLarge.copyWith(
+                    color: colors.textPrimary,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Row(
@@ -469,37 +674,57 @@ class _AddDishScreenState extends State<AddDishScreen> {
                         _stepInputController.clear();
                       },
                       icon: Icon(Icons.add_circle, color: colors.primary),
-                    )
+                    ),
                   ],
                 ),
                 if (_steps.isNotEmpty) ...<Widget>[
                   const SizedBox(height: 8),
                   ..._steps.asMap().entries.map(
-                        (entry) => Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: colors.card,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: colors.border),
+                    (entry) => Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: colors.card,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: colors.border),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            '${entry.key + 1}. ',
+                            style: AppTextStyles.bodyLarge.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: colors.primary,
+                            ),
                           ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Text('${entry.key + 1}. ', style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w700, color: colors.primary)),
-                              Expanded(child: Text(entry.value, style: AppTextStyles.bodyMedium.copyWith(color: colors.textPrimary))),
-                              GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    _steps.removeAt(entry.key);
-                                  });
-                                },
-                                child: Icon(Icons.delete_outline, color: colors.textMuted, size: 18),
-                              )
-                            ],
+                          Expanded(
+                            child: Text(
+                              entry.value,
+                              style: AppTextStyles.bodyMedium.copyWith(
+                                color: colors.textPrimary,
+                              ),
+                            ),
                           ),
-                        ),
-                      )
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _steps.removeAt(entry.key);
+                              });
+                            },
+                            child: Icon(
+                              Icons.delete_outline,
+                              color: colors.textMuted,
+                              size: 18,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
                 const SizedBox(height: 18),
                 GestureDetector(
@@ -510,21 +735,31 @@ class _AddDishScreenState extends State<AddDishScreen> {
                     decoration: BoxDecoration(
                       color: colors.imageFallbackBackground,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: colors.border, style: BorderStyle.solid),
+                      border: Border.all(
+                        color: colors.border,
+                        style: BorderStyle.solid,
+                      ),
                     ),
                     child: _selectedImageFile == null
                         ? Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: <Widget>[
-                              Icon(Icons.add_a_photo_outlined, color: colors.textMuted),
+                              Icon(
+                                Icons.add_a_photo_outlined,
+                                color: colors.textMuted,
+                              ),
                               const SizedBox(height: 6),
                               Text(
                                 'Add dish photo',
-                                style: AppTextStyles.bodyLarge.copyWith(color: colors.textMuted),
+                                style: AppTextStyles.bodyLarge.copyWith(
+                                  color: colors.textMuted,
+                                ),
                               ),
                               Text(
                                 'Optional',
-                                style: AppTextStyles.bodySmall.copyWith(color: colors.textMuted),
+                                style: AppTextStyles.bodySmall.copyWith(
+                                  color: colors.textMuted,
+                                ),
                               ),
                             ],
                           )
@@ -533,7 +768,10 @@ class _AddDishScreenState extends State<AddDishScreen> {
                             child: Stack(
                               fit: StackFit.expand,
                               children: <Widget>[
-                                Image.file(_selectedImageFile!, fit: BoxFit.cover),
+                                Image.file(
+                                  _selectedImageFile!,
+                                  fit: BoxFit.cover,
+                                ),
                                 Positioned(
                                   top: 8,
                                   right: 8,
@@ -542,8 +780,13 @@ class _AddDishScreenState extends State<AddDishScreen> {
                                     shape: const CircleBorder(),
                                     child: IconButton(
                                       tooltip: 'Remove image',
-                                      onPressed: _isSubmitting ? null : _removeSelectedImage,
-                                      icon: const Icon(Icons.close, color: Colors.white),
+                                      onPressed: _isSubmitting
+                                          ? null
+                                          : _removeSelectedImage,
+                                      icon: const Icon(
+                                        Icons.close,
+                                        color: Colors.white,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -560,27 +803,32 @@ class _AddDishScreenState extends State<AddDishScreen> {
                   isLoading: _isSubmitting,
                 ),
                 const SizedBox(height: AppDimensions.paddingXL),
-                Divider(
-                  color: colors.divider,
-                  height: 1,
-                ),
+                Divider(color: colors.divider, height: 1),
                 const SizedBox(height: AppDimensions.paddingM),
                 Center(
                   child: Text(
                     AppStrings.dishesYouAdded,
                     textAlign: TextAlign.center,
-                    style: AppTextStyles.bodyLarge.copyWith(color: colors.textMuted),
+                    style: AppTextStyles.bodyLarge.copyWith(
+                      color: colors.textMuted,
+                    ),
                   ),
                 ),
                 const SizedBox(height: AppDimensions.paddingM),
                 if (_isLoadingMyDishes)
                   Padding(
-                    padding: const EdgeInsets.symmetric(vertical: AppDimensions.paddingL),
-                    child: Center(child: CircularProgressIndicator(color: colors.primary)),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppDimensions.paddingL,
+                    ),
+                    child: Center(
+                      child: CircularProgressIndicator(color: colors.primary),
+                    ),
                   )
                 else if (_myDishes.isEmpty)
                   Padding(
-                    padding: const EdgeInsets.only(bottom: AppDimensions.paddingL),
+                    padding: const EdgeInsets.only(
+                      bottom: AppDimensions.paddingL,
+                    ),
                     child: EmptyState(
                       icon: Icons.add_circle_outline,
                       title: 'No custom dishes yet',
@@ -597,10 +845,15 @@ class _AddDishScreenState extends State<AddDishScreen> {
                     itemBuilder: (BuildContext context, int index) {
                       final Dish dish = _myDishes[index];
                       return Padding(
-                        padding: const EdgeInsets.only(bottom: AppDimensions.paddingS),
+                        padding: const EdgeInsets.only(
+                          bottom: AppDimensions.paddingS,
+                        ),
                         child: DishCompactCard(
                           dish: dish,
-                          onTap: () => context.push('/recipe-detail/${dish.id}', extra: dish),
+                          onTap: () => context.push(
+                            '/recipe-detail/${dish.id}',
+                            extra: dish,
+                          ),
                           trailing: DishCompactCardIconButton(
                             icon: Icons.delete_outline,
                             tooltip: 'Delete dish',
@@ -631,9 +884,14 @@ class _RequiredLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return RichText(
       text: TextSpan(
-        style: AppTextStyles.bodyLarge.copyWith(color: context.fmColors.textPrimary),
+        style: AppTextStyles.bodyLarge.copyWith(
+          color: context.fmColors.textPrimary,
+        ),
         children: <InlineSpan>[
-          TextSpan(text: '* ', style: TextStyle(color: context.fmColors.error)),
+          TextSpan(
+            text: '* ',
+            style: TextStyle(color: context.fmColors.error),
+          ),
           TextSpan(text: text),
         ],
       ),
@@ -666,10 +924,15 @@ class _AppInput extends StatelessWidget {
       style: TextStyle(color: context.fmColors.textPrimary),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: AppTextStyles.bodyLarge.copyWith(color: context.fmColors.textMuted),
+        hintStyle: AppTextStyles.bodyLarge.copyWith(
+          color: context.fmColors.textMuted,
+        ),
         fillColor: context.fmColors.inputBackground,
         filled: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 13,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: context.fmColors.inputBorder),
@@ -680,7 +943,10 @@ class _AppInput extends StatelessWidget {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: context.fmColors.inputFocusedBorder, width: 2),
+          borderSide: BorderSide(
+            color: context.fmColors.inputFocusedBorder,
+            width: 2,
+          ),
         ),
       ),
     );
@@ -714,15 +980,30 @@ class _AppSelect<T> extends StatelessWidget {
         child: DropdownButton<T>(
           isExpanded: true,
           value: value,
-          hint: Text(hint, style: AppTextStyles.bodyLarge.copyWith(color: context.fmColors.textMuted)),
+          hint: Text(
+            hint,
+            style: AppTextStyles.bodyLarge.copyWith(
+              color: context.fmColors.textMuted,
+            ),
+          ),
           items: items
-              .map((item) => DropdownMenuItem<T>(
-                    value: item,
-                    child: Text(item.toString(), style: AppTextStyles.bodyLarge.copyWith(color: context.fmColors.textPrimary)),
-                  ))
+              .map(
+                (item) => DropdownMenuItem<T>(
+                  value: item,
+                  child: Text(
+                    item.toString(),
+                    style: AppTextStyles.bodyLarge.copyWith(
+                      color: context.fmColors.textPrimary,
+                    ),
+                  ),
+                ),
+              )
               .toList(),
           onChanged: onChanged,
-          icon: Icon(Icons.keyboard_arrow_down, color: context.fmColors.textMuted),
+          icon: Icon(
+            Icons.keyboard_arrow_down,
+            color: context.fmColors.textMuted,
+          ),
         ),
       ),
     );
@@ -752,18 +1033,32 @@ class _ServingSizeSelect extends StatelessWidget {
           onChanged: (int? next) {
             if (next != null) onChanged(next);
           },
-          icon: Icon(Icons.keyboard_arrow_down, color: context.fmColors.textMuted),
+          icon: Icon(
+            Icons.keyboard_arrow_down,
+            color: context.fmColors.textMuted,
+          ),
           items: List<int>.generate(10, (index) => index + 1)
-              .map((item) => DropdownMenuItem<int>(
-                    value: item,
-                    child: Row(
-                      children: <Widget>[
-                        Icon(Icons.groups_2_outlined, size: 16, color: context.fmColors.textMuted),
-                        const SizedBox(width: 8),
-                        Text('$item', style: AppTextStyles.bodyLarge.copyWith(color: context.fmColors.textPrimary)),
-                      ],
-                    ),
-                  ))
+              .map(
+                (item) => DropdownMenuItem<int>(
+                  value: item,
+                  child: Row(
+                    children: <Widget>[
+                      Icon(
+                        Icons.groups_2_outlined,
+                        size: 16,
+                        color: context.fmColors.textMuted,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '$item',
+                        style: AppTextStyles.bodyLarge.copyWith(
+                          color: context.fmColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
               .toList(),
         ),
       ),
@@ -854,7 +1149,12 @@ class _AddIngredientSheetState extends State<_AddIngredientSheet> {
     final FoodMatchThemeColors colors = context.fmColors;
 
     return Padding(
-      padding: EdgeInsets.only(left: 24, right: 24, top: 22, bottom: bottomInset + 22),
+      padding: EdgeInsets.only(
+        left: 24,
+        right: 24,
+        top: 22,
+        bottom: bottomInset + 22,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -862,8 +1162,13 @@ class _AddIngredientSheetState extends State<_AddIngredientSheet> {
           Row(
             children: <Widget>[
               Text(
-                widget.initialIngredient == null ? 'Add ingredient' : 'Edit ingredient',
-                style: AppTextStyles.cardTitle.copyWith(fontSize: 19, color: colors.textPrimary),
+                widget.initialIngredient == null
+                    ? 'Add ingredient'
+                    : 'Edit ingredient',
+                style: AppTextStyles.cardTitle.copyWith(
+                  fontSize: 19,
+                  color: colors.textPrimary,
+                ),
               ),
               const Spacer(),
               IconButton(
@@ -881,28 +1186,44 @@ class _AddIngredientSheetState extends State<_AddIngredientSheet> {
           SizedBox(
             height: _isSearching ? 32 : (_results.isNotEmpty ? 120 : 0),
             child: _isSearching
-                ? Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: colors.primary)))
+                ? Center(
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: colors.primary,
+                      ),
+                    ),
+                  )
                 : (_results.isEmpty
-                    ? const SizedBox.shrink()
-                    : ListView.builder(
-                        itemCount: _results.length,
-                        itemBuilder: (BuildContext context, int index) {
-                          final String result = _results[index];
-                          return ListTile(
-                            dense: true,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-                            visualDensity: VisualDensity.compact,
-                            title: Text(result, style: AppTextStyles.bodyMedium.copyWith(color: colors.textPrimary)),
-                            onTap: () {
-                              setState(() {
-                                _selectedIngredient = result;
-                                _searchController.text = result;
-                                _results = <String>[];
-                              });
-                            },
-                          );
-                        },
-                      )),
+                      ? const SizedBox.shrink()
+                      : ListView.builder(
+                          itemCount: _results.length,
+                          itemBuilder: (BuildContext context, int index) {
+                            final String result = _results[index];
+                            return ListTile(
+                              dense: true,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                              ),
+                              visualDensity: VisualDensity.compact,
+                              title: Text(
+                                result,
+                                style: AppTextStyles.bodyMedium.copyWith(
+                                  color: colors.textPrimary,
+                                ),
+                              ),
+                              onTap: () {
+                                setState(() {
+                                  _selectedIngredient = result;
+                                  _searchController.text = result;
+                                  _results = <String>[];
+                                });
+                              },
+                            );
+                          },
+                        )),
           ),
           const SizedBox(height: 12),
           Row(
@@ -911,7 +1232,9 @@ class _AddIngredientSheetState extends State<_AddIngredientSheet> {
                 child: _AppInput(
                   controller: _quantityController,
                   hint: 'Enter quantity',
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -933,7 +1256,8 @@ class _AddIngredientSheetState extends State<_AddIngredientSheet> {
               child: AppButton(
                 text: widget.initialIngredient == null ? 'Add  +' : 'Update',
                 onPressed: () {
-                  final String ingredientName = (_selectedIngredient ?? _searchController.text).trim();
+                  final String ingredientName =
+                      (_selectedIngredient ?? _searchController.text).trim();
                   if (ingredientName.isEmpty) return;
 
                   Navigator.of(context).pop(

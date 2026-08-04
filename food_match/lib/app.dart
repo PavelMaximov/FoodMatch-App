@@ -8,6 +8,7 @@ import 'core/theme/theme_controller.dart';
 import 'core/widgets/app_pending_overlay.dart';
 import 'features/auth/logic/auth_provider.dart';
 import 'features/couple/logic/couple_provider.dart';
+import 'features/startup/presentation/screens/food_match_splash_screen.dart';
 
 class FoodMatchApp extends StatefulWidget {
   const FoodMatchApp({super.key});
@@ -16,8 +17,12 @@ class FoodMatchApp extends StatefulWidget {
   State<FoodMatchApp> createState() => _FoodMatchAppState();
 }
 
-class _FoodMatchAppState extends State<FoodMatchApp> with WidgetsBindingObserver {
+class _FoodMatchAppState extends State<FoodMatchApp>
+    with WidgetsBindingObserver {
+  static const Duration _minimumSplashDuration = Duration(milliseconds: 3000);
+
   late final GoRouter _router;
+  bool _isStartupComplete = false;
 
   @override
   void initState() {
@@ -28,7 +33,14 @@ class _FoodMatchAppState extends State<FoodMatchApp> with WidgetsBindingObserver
     final authProvider = context.read<AuthProvider>();
     _router = AppRouter(authProvider: authProvider).router;
 
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _bootstrapApp();
+    });
+  }
+
+  Future<void> _bootstrapApp() async {
+    final DateTime startedAt = DateTime.now();
+    try {
       final auth = context.read<AuthProvider>();
       await auth.loadUser();
       if (auth.isAuthenticated && mounted) {
@@ -36,7 +48,12 @@ class _FoodMatchAppState extends State<FoodMatchApp> with WidgetsBindingObserver
         await coupleProvider.loadCouple();
         coupleProvider.startInvitationPolling(reason: 'app_boot');
       }
-    });
+    } finally {
+      final Duration elapsed = DateTime.now().difference(startedAt);
+      final Duration remaining = _minimumSplashDuration - elapsed;
+      if (remaining > Duration.zero) await Future<void>.delayed(remaining);
+      if (mounted) setState(() => _isStartupComplete = true);
+    }
   }
 
   @override
@@ -64,8 +81,9 @@ class _FoodMatchAppState extends State<FoodMatchApp> with WidgetsBindingObserver
       darkTheme: AppTheme.dark,
       themeMode: context.watch<ThemeController>().themeMode,
       routerConfig: _router,
-      builder: (BuildContext context, Widget? child) => AppPendingOverlay(
-        child: child ?? const SizedBox.shrink(),
+      builder: (BuildContext context, Widget? child) => FoodMatchStartupGate(
+        isStartupComplete: _isStartupComplete,
+        child: AppPendingOverlay(child: child ?? const SizedBox.shrink()),
       ),
     );
   }

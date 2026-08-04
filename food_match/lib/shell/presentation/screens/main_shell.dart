@@ -7,6 +7,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/animations/app_motion.dart';
+import '../../../core/theme/notification_theme.dart';
+import '../../../core/utils/food_match_notifications.dart';
 import '../../../core/theme/theme_extensions.dart';
 import '../../../data/models/couple_invitation.dart';
 import '../../../features/couple/logic/couple_provider.dart';
@@ -102,15 +104,16 @@ class _MainShellState extends State<MainShell>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _bootstrapMatchesBadge();
-        context.read<CoupleProvider>().startInvitationPolling(reason: 'main_shell');
+        context.read<CoupleProvider>().startInvitationPolling(
+          reason: 'main_shell',
+        );
       }
     });
   }
 
   @override
   void dispose() {
-    _navBadgeAnimationController
-        ?.removeListener(_handleNavBadgeAnimationEvent);
+    _navBadgeAnimationController?.removeListener(_handleNavBadgeAnimationEvent);
     _soloPlusOneController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -198,7 +201,6 @@ class _MainShellState extends State<MainShell>
     }
   }
 
-
   Future<void> _showContinuationInvitation(CoupleInvitation invitation) async {
     if (!mounted) return;
     final CoupleProvider coupleProvider = context.read<CoupleProvider>();
@@ -216,13 +218,21 @@ class _MainShellState extends State<MainShell>
           await coupleProvider.acceptInvitation(invitation);
           if (!mounted) return;
           widget.navigationShell.goBranch(2);
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Session joined.')));
+          FoodMatchNotifications.show(
+            context,
+            type: FoodMatchNotificationType.success,
+            title: 'Session joined.',
+          );
         },
         onDecline: () async {
           Navigator.pop(sheetContext);
           await coupleProvider.declineInvitation(invitation);
           if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invitation declined.')));
+          FoodMatchNotifications.show(
+            context,
+            type: FoodMatchNotificationType.info,
+            title: 'Invitation declined.',
+          );
         },
       ),
     );
@@ -233,15 +243,24 @@ class _MainShellState extends State<MainShell>
 
   @override
   Widget build(BuildContext context) {
-    final int matchCount = context.select<MatchProvider, int>((MatchProvider p) => p.matchCount);
+    final int matchCount = context.select<MatchProvider, int>(
+      (MatchProvider p) => p.matchCount,
+    );
     final int currentIndex = widget.navigationShell.currentIndex;
     final FoodMatchThemeColors colors = context.fmColors;
-    final CoupleInvitation? invitation = context.select<CoupleProvider, CoupleInvitation?>((CoupleProvider provider) => provider.nextIncomingInvitation);
+    final CoupleInvitation? invitation = context
+        .select<CoupleProvider, CoupleInvitation?>(
+          (CoupleProvider provider) => provider.nextIncomingInvitation,
+        );
     if (invitation != null && invitation.id != _shownInvitationId) {
       _shownInvitationId = invitation.id;
-      WidgetsBinding.instance.addPostFrameCallback((_) => _showContinuationInvitation(invitation));
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _showContinuationInvitation(invitation),
+      );
     }
-    final bool shouldOpenPreviousChoice = context.select<CoupleProvider, bool>((CoupleProvider provider) => provider.shouldOpenPreviousChoiceAfterInvite);
+    final bool shouldOpenPreviousChoice = context.select<CoupleProvider, bool>(
+      (CoupleProvider provider) => provider.shouldOpenPreviousChoiceAfterInvite,
+    );
     if (shouldOpenPreviousChoice) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
@@ -286,11 +305,17 @@ class _MainShellState extends State<MainShell>
                               children: <Widget>[
                                 AnimatedScale(
                                   scale: isActive ? 1 : 0.76,
-                                  duration: AppMotion.durationFor(context, AppMotion.indicatorScale),
+                                  duration: AppMotion.durationFor(
+                                    context,
+                                    AppMotion.indicatorScale,
+                                  ),
                                   curve: Curves.easeOutCubic,
                                   child: AnimatedOpacity(
                                     opacity: isActive ? 1 : 0,
-                                    duration: AppMotion.durationFor(context, AppMotion.fast),
+                                    duration: AppMotion.durationFor(
+                                      context,
+                                      AppMotion.fast,
+                                    ),
                                     curve: AppMotion.curve,
                                     child: Container(
                                       width: 40,
@@ -319,29 +344,31 @@ class _MainShellState extends State<MainShell>
                               child: IgnorePointer(
                                 child: AnimatedBuilder(
                                   animation: _soloPlusOneController,
-                                  builder: (BuildContext context, Widget? child) {
-                                    final double value =
-                                        _soloPlusOneController.value;
-                                    final double opacity = value <= 0.2
-                                        ? value / 0.2
-                                        : (1 - value) / 0.8;
-                                    final double dy = value <= 0.2
-                                        ? 16 * (1 - (value / 0.2))
-                                        : -28 * ((value - 0.2) / 0.8);
-                                    final double scale = value <= 0.2
-                                        ? 0.75 + (0.3 * (value / 0.2))
-                                        : 1.05 - (0.1 * ((value - 0.2) / 0.8));
-                                    return Opacity(
-                                      opacity: opacity.clamp(0.0, 1.0),
-                                      child: Transform.translate(
-                                        offset: Offset(0, dy),
-                                        child: Transform.scale(
-                                          scale: scale,
-                                          child: child,
-                                        ),
-                                      ),
-                                    );
-                                  },
+                                  builder:
+                                      (BuildContext context, Widget? child) {
+                                        final double value =
+                                            _soloPlusOneController.value;
+                                        final double opacity = value <= 0.2
+                                            ? value / 0.2
+                                            : (1 - value) / 0.8;
+                                        final double dy = value <= 0.2
+                                            ? 16 * (1 - (value / 0.2))
+                                            : -28 * ((value - 0.2) / 0.8);
+                                        final double scale = value <= 0.2
+                                            ? 0.75 + (0.3 * (value / 0.2))
+                                            : 1.05 -
+                                                  (0.1 * ((value - 0.2) / 0.8));
+                                        return Opacity(
+                                          opacity: opacity.clamp(0.0, 1.0),
+                                          child: Transform.translate(
+                                            offset: Offset(0, dy),
+                                            child: Transform.scale(
+                                              scale: scale,
+                                              child: child,
+                                            ),
+                                          ),
+                                        );
+                                      },
                                   child: SvgPicture.asset(
                                     'assets/icons/plus_one_badge.svg',
                                     width: 20,
@@ -369,7 +396,9 @@ class _MainShellState extends State<MainShell>
                                   minHeight: 18,
                                 ),
                                 child: Text(
-                                  matchCount > 99 ? '99+' : matchCount.toString(),
+                                  matchCount > 99
+                                      ? '99+'
+                                      : matchCount.toString(),
                                   textAlign: TextAlign.center,
                                   style: GoogleFonts.nunito(
                                     fontSize: 10,
@@ -383,12 +412,19 @@ class _MainShellState extends State<MainShell>
                       ),
                       const SizedBox(height: 2),
                       AnimatedDefaultTextStyle(
-                        duration: AppMotion.durationFor(context, AppMotion.fast),
+                        duration: AppMotion.durationFor(
+                          context,
+                          AppMotion.fast,
+                        ),
                         curve: AppMotion.curve,
                         style: GoogleFonts.nunito(
                           fontSize: 10,
-                          fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
-                          color: isActive ? colors.bottomNavActive : colors.bottomNavInactive,
+                          fontWeight: isActive
+                              ? FontWeight.w700
+                              : FontWeight.w400,
+                          color: isActive
+                              ? colors.bottomNavActive
+                              : colors.bottomNavInactive,
                         ),
                         child: Text(item.label),
                       ),
@@ -435,7 +471,9 @@ class _BottomNavIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final FoodMatchThemeColors colors = context.fmColors;
-    final Color iconColor = isActive ? colors.bottomNavActive : colors.bottomNavInactive;
+    final Color iconColor = isActive
+        ? colors.bottomNavActive
+        : colors.bottomNavInactive;
     final String iconAsset = item.iconAssetFor(isActive: isActive);
 
     return Center(

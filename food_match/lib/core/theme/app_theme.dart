@@ -4,6 +4,7 @@ import 'app_dimensions.dart';
 import 'app_text_styles.dart';
 import 'app_theme_colors.dart';
 import 'theme_extensions.dart';
+import 'notification_theme_colors.dart';
 
 class AppTheme {
   const AppTheme._();
@@ -43,7 +44,12 @@ class AppTheme {
       scaffoldBackgroundColor: colors.background,
       dividerColor: colors.divider,
       cardColor: colors.card,
-      extensions: <ThemeExtension<dynamic>>[colors],
+      extensions: <ThemeExtension<dynamic>>[
+        colors,
+        isDark
+            ? AppNotificationThemeColors.dark
+            : AppNotificationThemeColors.light,
+      ],
     );
 
     return base.copyWith(
@@ -52,7 +58,9 @@ class AppTheme {
         elevation: 0,
         backgroundColor: colors.surface,
         foregroundColor: colors.textPrimary,
-        titleTextStyle: AppTextStyles.sectionHeader.copyWith(color: colors.textPrimary),
+        titleTextStyle: AppTextStyles.sectionHeader.copyWith(
+          color: colors.textPrimary,
+        ),
       ),
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: colors.modalBackground,
@@ -63,12 +71,18 @@ class AppTheme {
       dialogTheme: DialogThemeData(
         backgroundColor: colors.modalBackground,
         surfaceTintColor: Colors.transparent,
-        titleTextStyle: AppTextStyles.cardTitle.copyWith(color: colors.textPrimary),
-        contentTextStyle: AppTextStyles.bodyMedium.copyWith(color: colors.textSecondary),
+        titleTextStyle: AppTextStyles.cardTitle.copyWith(
+          color: colors.textPrimary,
+        ),
+        contentTextStyle: AppTextStyles.bodyMedium.copyWith(
+          color: colors.textSecondary,
+        ),
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: colors.cardElevated,
-        contentTextStyle: AppTextStyles.bodyMedium.copyWith(color: colors.textPrimary),
+        contentTextStyle: AppTextStyles.bodyMedium.copyWith(
+          color: colors.textPrimary,
+        ),
         actionTextColor: colors.primary,
         behavior: SnackBarBehavior.floating,
       ),
@@ -115,10 +129,16 @@ class AppTheme {
           minimumSize: const Size(double.infinity, AppDimensions.buttonHeight),
           backgroundColor: colors.buttonPrimaryBackground,
           foregroundColor: colors.buttonPrimaryText,
-          disabledBackgroundColor: colors.buttonPrimaryBackground.withValues(alpha: 0.45),
-          disabledForegroundColor: colors.buttonPrimaryText.withValues(alpha: 0.65),
+          disabledBackgroundColor: colors.buttonPrimaryBackground.withValues(
+            alpha: 0.45,
+          ),
+          disabledForegroundColor: colors.buttonPrimaryText.withValues(
+            alpha: 0.65,
+          ),
           elevation: 0,
-          textStyle: AppTextStyles.button.copyWith(color: colors.buttonPrimaryText),
+          textStyle: AppTextStyles.button.copyWith(
+            color: colors.buttonPrimaryText,
+          ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppDimensions.radiusButton),
           ),
@@ -139,8 +159,12 @@ class AppTheme {
         backgroundColor: colors.chipBackground,
         selectedColor: colors.primarySoft,
         disabledColor: colors.chipBackground.withValues(alpha: 0.5),
-        labelStyle: AppTextStyles.bodySmall.copyWith(color: colors.textSecondary),
-        secondaryLabelStyle: AppTextStyles.bodySmall.copyWith(color: colors.primary),
+        labelStyle: AppTextStyles.bodySmall.copyWith(
+          color: colors.textSecondary,
+        ),
+        secondaryLabelStyle: AppTextStyles.bodySmall.copyWith(
+          color: colors.primary,
+        ),
         side: BorderSide(color: colors.chipBorder),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppDimensions.radiusXL),
@@ -148,13 +172,25 @@ class AppTheme {
       ),
       textTheme: base.textTheme.copyWith(
         displayLarge: AppTextStyles.logoTitle.copyWith(color: colors.primary),
-        headlineMedium: AppTextStyles.screenHeader.copyWith(color: colors.textPrimary),
-        headlineSmall: AppTextStyles.sectionHeader.copyWith(color: colors.textPrimary),
-        titleMedium: AppTextStyles.cardTitle.copyWith(color: colors.textPrimary),
+        headlineMedium: AppTextStyles.screenHeader.copyWith(
+          color: colors.textPrimary,
+        ),
+        headlineSmall: AppTextStyles.sectionHeader.copyWith(
+          color: colors.textPrimary,
+        ),
+        titleMedium: AppTextStyles.cardTitle.copyWith(
+          color: colors.textPrimary,
+        ),
         bodyLarge: AppTextStyles.bodyLarge.copyWith(color: colors.textPrimary),
-        bodyMedium: AppTextStyles.bodyMedium.copyWith(color: colors.textSecondary),
-        bodySmall: AppTextStyles.bodySmall.copyWith(color: colors.textSecondary),
-        labelLarge: AppTextStyles.button.copyWith(color: colors.buttonPrimaryText),
+        bodyMedium: AppTextStyles.bodyMedium.copyWith(
+          color: colors.textSecondary,
+        ),
+        bodySmall: AppTextStyles.bodySmall.copyWith(
+          color: colors.textSecondary,
+        ),
+        labelLarge: AppTextStyles.button.copyWith(
+          color: colors.buttonPrimaryText,
+        ),
       ),
     );
   }

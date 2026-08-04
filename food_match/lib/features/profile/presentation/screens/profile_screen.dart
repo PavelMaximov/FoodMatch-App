@@ -14,7 +14,8 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/theme/theme_controller.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/utils/image_utils.dart';
-import '../../../../core/utils/snackbar_utils.dart';
+import '../../../../core/theme/notification_theme.dart';
+import '../../../../core/utils/food_match_notifications.dart';
 import '../../../../core/widgets/food_match_ripple.dart';
 import '../../../../data/models/couple.dart';
 import '../../../../data/models/user.dart';
@@ -76,7 +77,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
 
-    final XFile? image = await ImagePicker().pickImage(source: ImageSource.gallery);
+    final XFile? image = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+    );
     if (image == null || !mounted) {
       return;
     }
@@ -90,7 +93,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _isUploadingAvatar = true;
     });
     try {
-      final AvatarUploadResult result = await uploadRepository.uploadAvatar(previewFile);
+      final AvatarUploadResult result = await uploadRepository.uploadAvatar(
+        previewFile,
+      );
       await authProvider.updateCurrentUserAvatar(
         avatarUrl: result.avatarUrl,
         avatarPublicId: result.avatarPublicId,
@@ -103,7 +108,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       bool avatarPrecached = false;
       if (mounted && optimizedAvatarUrl.trim().isNotEmpty) {
         try {
-          await precacheImage(CachedNetworkImageProvider(optimizedAvatarUrl), context);
+          await precacheImage(
+            CachedNetworkImageProvider(optimizedAvatarUrl),
+            context,
+          );
           avatarPrecached = true;
         } catch (_) {
           // Keep the local preview visible if precache fails; the persisted user URL
@@ -115,17 +123,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (avatarPrecached) {
           setState(() => _localAvatarPreview = null);
         }
-        SnackBarUtils.showSuccess(context, 'Avatar updated');
+        FoodMatchNotifications.show(
+          context,
+          type: FoodMatchNotificationType.success,
+          title: 'Avatar updated',
+        );
       }
     } on ApiException catch (e) {
       if (mounted) {
         setState(() => _localAvatarPreview = null);
-        SnackBarUtils.showError(context, ErrorMessages.fromApiException(e, fallback: AppStrings.unableToUploadImage));
+        FoodMatchNotifications.show(
+          context,
+          type: FoodMatchNotificationType.error,
+          title: ErrorMessages.fromApiException(
+            e,
+            fallback: AppStrings.unableToUploadImage,
+          ),
+        );
       }
     } catch (_) {
       if (mounted) {
         setState(() => _localAvatarPreview = null);
-        SnackBarUtils.showError(context, AppStrings.unableToUploadImage);
+        FoodMatchNotifications.show(
+          context,
+          type: FoodMatchNotificationType.error,
+          title: AppStrings.unableToUploadImage,
+        );
       }
     } finally {
       if (mounted) {
@@ -150,15 +173,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
         setState(() => _localAvatarPreview = null);
       }
       if (mounted) {
-        SnackBarUtils.showSuccess(context, 'Avatar deleted');
+        FoodMatchNotifications.show(
+          context,
+          type: FoodMatchNotificationType.destructive,
+          title: 'Avatar deleted',
+        );
       }
     } on ApiException catch (e) {
       if (mounted) {
-        SnackBarUtils.showError(context, ErrorMessages.fromApiException(e));
+        FoodMatchNotifications.show(
+          context,
+          type: FoodMatchNotificationType.error,
+          title: ErrorMessages.fromApiException(e),
+        );
       }
     } catch (_) {
       if (mounted) {
-        SnackBarUtils.showError(context, 'Unable to delete avatar');
+        FoodMatchNotifications.show(
+          context,
+          type: FoodMatchNotificationType.error,
+          title: 'Unable to delete avatar',
+        );
       }
     } finally {
       if (mounted) {
@@ -169,12 +204,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final User? user = context.select<AuthProvider, User?>((AuthProvider p) => p.currentUser);
+    final User? user = context.select<AuthProvider, User?>(
+      (AuthProvider p) => p.currentUser,
+    );
     final CoupleProvider couple = context.watch<CoupleProvider>();
     final String displayName = user?.displayName.trim().isNotEmpty == true
         ? user!.displayName.trim()
         : 'Name';
-    final String email = user?.email.trim().isNotEmpty == true ? user!.email : 'name@gmail.com';
+    final String email = user?.email.trim().isNotEmpty == true
+        ? user!.email
+        : 'name@gmail.com';
 
     return Scaffold(
       backgroundColor: context.fmColors.background,
@@ -185,7 +224,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: <Widget>[
             Text(
               AppStrings.profile,
-              style: AppTextStyles.pageTitle.copyWith(color: context.fmColors.textPrimary),
+              style: AppTextStyles.pageTitle.copyWith(
+                color: context.fmColors.textPrimary,
+              ),
             ),
             const SizedBox(height: 18),
             _UserInfoCard(
@@ -195,7 +236,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               localAvatarPreview: _localAvatarPreview,
               isUploadingAvatar: _isUploadingAvatar,
               onAvatarTap: _pickAndUploadAvatar,
-              onDeleteAvatar: user?.avatarUrl?.trim().isNotEmpty == true ? _deleteAvatar : null,
+              onDeleteAvatar: user?.avatarUrl?.trim().isNotEmpty == true
+                  ? _deleteAvatar
+                  : null,
               onEdit: () => _showComingSoon(context, 'Edit profile'),
             ),
             const SizedBox(height: 18),
@@ -222,7 +265,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 final AuthProvider authProvider = context.read<AuthProvider>();
                 await authProvider.logout();
                 if (context.mounted) {
-                  SnackBarUtils.showSuccess(context, 'Logout');
+                  FoodMatchNotifications.show(
+                    context,
+                    type: FoodMatchNotificationType.destructive,
+                    title: 'Logout',
+                  );
                   context.go('/login');
                 }
               },
@@ -235,7 +282,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showComingSoon(BuildContext context, String label) {
-    SnackBarUtils.showSuccess(context, '$label coming soon');
+    FoodMatchNotifications.show(
+      context,
+      type: FoodMatchNotificationType.info,
+      title: '$label coming soon',
+    );
   }
 }
 
@@ -253,7 +304,9 @@ class ProfileSettingsScreen extends StatelessWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (BuildContext sheetContext) {
-        final ThemeMode selectedMode = sheetContext.watch<ThemeController>().themeMode;
+        final ThemeMode selectedMode = sheetContext
+            .watch<ThemeController>()
+            .themeMode;
         return SafeArea(
           top: false,
           child: Padding(
@@ -326,7 +379,10 @@ class ProfileSettingsScreen extends StatelessWidget {
                 const SizedBox(width: 12),
                 Text(
                   'Settings',
-                  style: AppTextStyles.pageTitle.copyWith(fontSize: 34, color: colors.textPrimary),
+                  style: AppTextStyles.pageTitle.copyWith(
+                    fontSize: 34,
+                    color: colors.textPrimary,
+                  ),
                 ),
               ],
             ),
@@ -365,7 +421,6 @@ class ProfileSettingsScreen extends StatelessWidget {
     );
   }
 }
-
 
 class _HeaderIconButton extends StatelessWidget {
   const _HeaderIconButton({required this.icon, required this.onTap});
@@ -440,7 +495,10 @@ class _UserInfoCard extends StatelessWidget {
                   const SizedBox(
                     width: 28,
                     height: 28,
-                    child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: Colors.white,
+                    ),
                   )
                 else
                   Positioned(
@@ -448,8 +506,15 @@ class _UserInfoCard extends StatelessWidget {
                     bottom: 0,
                     child: Container(
                       padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                      child: const Icon(Icons.camera_alt, size: 14, color: AppColors.primary),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.camera_alt,
+                        size: 14,
+                        color: AppColors.primary,
+                      ),
                     ),
                   ),
               ],
@@ -539,7 +604,10 @@ class _PremiumCta extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(ProfileScreen._cardRadius),
             gradient: const LinearGradient(
-              colors: <Color>[ProfileScreen._premiumStart, ProfileScreen._premiumEnd],
+              colors: <Color>[
+                ProfileScreen._premiumStart,
+                ProfileScreen._premiumEnd,
+              ],
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
             ),
@@ -547,7 +615,10 @@ class _PremiumCta extends StatelessWidget {
           child: Row(
             children: <Widget>[
               const SizedBox(width: 82),
-              const Icon(Icons.workspace_premium_outlined, color: ProfileScreen._premiumContent),
+              const Icon(
+                Icons.workspace_premium_outlined,
+                color: ProfileScreen._premiumContent,
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -559,7 +630,11 @@ class _PremiumCta extends StatelessWidget {
                   ),
                 ),
               ),
-              const Icon(Icons.chevron_right, color: ProfileScreen._premiumContent, size: 26),
+              const Icon(
+                Icons.chevron_right,
+                color: ProfileScreen._premiumContent,
+                size: 26,
+              ),
               const SizedBox(width: 18),
             ],
           ),
@@ -568,7 +643,6 @@ class _PremiumCta extends StatelessWidget {
     );
   }
 }
-
 
 class _AvatarContent extends StatelessWidget {
   const _AvatarContent({
@@ -583,7 +657,8 @@ class _AvatarContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool hasImage = localAvatarPreview != null || (avatarUrl ?? '').trim().isNotEmpty;
+    final bool hasImage =
+        localAvatarPreview != null || (avatarUrl ?? '').trim().isNotEmpty;
     if (hasImage) {
       return SafeAvatarImage(
         imageUrl: avatarUrl,
@@ -619,7 +694,11 @@ class _FavoritesCard extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(20, 14, 16, 14),
           child: Row(
             children: <Widget>[
-              const Icon(Icons.bookmark_border, size: 18, color: AppColors.textPrimary),
+              const Icon(
+                Icons.bookmark_border,
+                size: 18,
+                color: AppColors.textPrimary,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Column(
@@ -648,7 +727,11 @@ class _FavoritesCard extends StatelessWidget {
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right, size: 28, color: context.fmColors.textPrimary),
+              Icon(
+                Icons.chevron_right,
+                size: 28,
+                color: context.fmColors.textPrimary,
+              ),
             ],
           ),
         ),
@@ -656,7 +739,6 @@ class _FavoritesCard extends StatelessWidget {
     );
   }
 }
-
 
 String _themeModeLabel(ThemeMode mode) {
   return switch (mode) {
@@ -684,7 +766,10 @@ class _ThemeModeOption extends StatelessWidget {
     final FoodMatchThemeColors colors = context.fmColors;
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      leading: Icon(icon, color: isSelected ? colors.primary : colors.textSecondary),
+      leading: Icon(
+        icon,
+        color: isSelected ? colors.primary : colors.textSecondary,
+      ),
       title: Text(
         label,
         style: GoogleFonts.nunito(
@@ -693,7 +778,9 @@ class _ThemeModeOption extends StatelessWidget {
           color: colors.textPrimary,
         ),
       ),
-      trailing: isSelected ? Icon(Icons.check_circle, color: colors.primary) : null,
+      trailing: isSelected
+          ? Icon(Icons.check_circle, color: colors.primary)
+          : null,
       onTap: onTap,
     );
   }
@@ -716,9 +803,17 @@ class _SettingsGroup extends StatelessWidget {
       padding: EdgeInsets.zero,
       child: Column(
         children: <Widget>[
-          _SettingsRow(icon: Icons.settings_outlined, label: 'Settings', onTap: onSettings),
+          _SettingsRow(
+            icon: Icons.settings_outlined,
+            label: 'Settings',
+            onTap: onSettings,
+          ),
           _Separator(),
-          _SettingsRow(icon: Icons.info_outline, label: 'About FoodMatch', onTap: onAbout),
+          _SettingsRow(
+            icon: Icons.info_outline,
+            label: 'About FoodMatch',
+            onTap: onAbout,
+          ),
           _Separator(),
           _SettingsRow(icon: Icons.help_outline, label: 'Help', onTap: onHelp),
         ],
@@ -773,7 +868,11 @@ class _SettingsRow extends StatelessWidget {
                 ),
                 const SizedBox(width: 6),
               ],
-              Icon(Icons.chevron_right, size: 28, color: context.fmColors.textPrimary),
+              Icon(
+                Icons.chevron_right,
+                size: 28,
+                color: context.fmColors.textPrimary,
+              ),
             ],
           ),
         ),
@@ -801,7 +900,11 @@ class _SessionCard extends StatelessWidget {
             children: <Widget>[
               Padding(
                 padding: const EdgeInsets.only(top: 4),
-                child: Icon(Icons.link, size: 15, color: context.fmColors.textPrimary),
+                child: Icon(
+                  Icons.link,
+                  size: 15,
+                  color: context.fmColors.textPrimary,
+                ),
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -809,7 +912,9 @@ class _SessionCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(
-                      isInSession ? 'You are in a session' : 'No active paired session',
+                      isInSession
+                          ? 'You are in a session'
+                          : 'No active paired session',
                       style: GoogleFonts.nunito(
                         fontSize: 17,
                         fontWeight: FontWeight.w700,
@@ -844,14 +949,23 @@ class _SessionCard extends StatelessWidget {
                     isLoading: couple.isLoading,
                     isOutlined: true,
                     onPressed: () async {
-                      final CoupleProvider coupleProvider = context.read<CoupleProvider>();
+                      final CoupleProvider coupleProvider = context
+                          .read<CoupleProvider>();
                       await coupleProvider.resetCouple();
                       if (!context.mounted) return;
                       final String? error = coupleProvider.error;
                       if (error == null) {
-                        SnackBarUtils.showSuccess(context, 'Session reset');
+                        FoodMatchNotifications.show(
+                          context,
+                          type: FoodMatchNotificationType.destructive,
+                          title: 'Session reset',
+                        );
                       } else {
-                        SnackBarUtils.showError(context, error);
+                        FoodMatchNotifications.show(
+                          context,
+                          type: FoodMatchNotificationType.error,
+                          title: error,
+                        );
                       }
                     },
                   ),
@@ -862,13 +976,15 @@ class _SessionCard extends StatelessWidget {
                     label: 'Leave',
                     isLoading: couple.isLoading,
                     onPressed: () async {
-                      final bool confirmed = await ProfileScreen._showConfirmDialog(
-                        context,
-                        'Leave',
-                        AppStrings.confirmLeave,
-                      );
+                      final bool confirmed =
+                          await ProfileScreen._showConfirmDialog(
+                            context,
+                            'Leave',
+                            AppStrings.confirmLeave,
+                          );
                       if (!confirmed || !context.mounted) return;
-                      final CoupleProvider coupleProvider = context.read<CoupleProvider>();
+                      final CoupleProvider coupleProvider = context
+                          .read<CoupleProvider>();
                       await coupleProvider.leaveCouple();
                       if (!context.mounted) return;
                       final String? error = coupleProvider.error;
@@ -876,9 +992,17 @@ class _SessionCard extends StatelessWidget {
                         context.read<SwipeProvider>().clearPreparedDeck();
                         context.read<PreSwipeProvider>().clearForLogout();
                         context.read<MatchProvider>().clearMatches();
-                        SnackBarUtils.showSuccess(context, 'Leave');
+                        FoodMatchNotifications.show(
+                          context,
+                          type: FoodMatchNotificationType.destructive,
+                          title: 'Leave',
+                        );
                       } else {
-                        SnackBarUtils.showError(context, error);
+                        FoodMatchNotifications.show(
+                          context,
+                          type: FoodMatchNotificationType.error,
+                          title: error,
+                        );
                       }
                     },
                   ),
@@ -928,15 +1052,22 @@ class _SmallSessionButton extends StatelessWidget {
     final ButtonStyle style = isOutlined
         ? OutlinedButton.styleFrom(
             foregroundColor: context.fmColors.primaryPressed,
-            side: BorderSide(color: context.fmColors.primaryPressed, width: 1.4),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
+            side: BorderSide(
+              color: context.fmColors.primaryPressed,
+              width: 1.4,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(36),
+            ),
             padding: EdgeInsets.zero,
           )
         : ElevatedButton.styleFrom(
             backgroundColor: context.fmColors.buttonPrimaryBackground,
             foregroundColor: context.fmColors.buttonPrimaryText,
             elevation: 0,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(36),
+            ),
             padding: EdgeInsets.zero,
           );
 
@@ -946,7 +1077,9 @@ class _SmallSessionButton extends StatelessWidget {
             height: 16,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              color: isOutlined ? context.fmColors.primaryPressed : context.fmColors.buttonPrimaryText,
+              color: isOutlined
+                  ? context.fmColors.primaryPressed
+                  : context.fmColors.buttonPrimaryText,
             ),
           )
         : Text(
@@ -954,15 +1087,25 @@ class _SmallSessionButton extends StatelessWidget {
             style: GoogleFonts.nunito(
               fontSize: 12,
               fontWeight: FontWeight.w800,
-              color: isOutlined ? context.fmColors.primaryPressed : context.fmColors.buttonPrimaryText,
+              color: isOutlined
+                  ? context.fmColors.primaryPressed
+                  : context.fmColors.buttonPrimaryText,
             ),
           );
 
     return SizedBox(
       height: 38,
       child: isOutlined
-          ? OutlinedButton(onPressed: isLoading ? null : onPressed, style: style, child: child)
-          : ElevatedButton(onPressed: isLoading ? null : onPressed, style: style, child: child),
+          ? OutlinedButton(
+              onPressed: isLoading ? null : onPressed,
+              style: style,
+              child: child,
+            )
+          : ElevatedButton(
+              onPressed: isLoading ? null : onPressed,
+              style: style,
+              child: child,
+            ),
     );
   }
 }
@@ -983,7 +1126,9 @@ class _LogoutButton extends StatelessWidget {
           backgroundColor: context.fmColors.buttonSecondaryBackground,
           foregroundColor: context.fmColors.primary,
           side: BorderSide(color: context.fmColors.primary, width: 1.7),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(36),
+          ),
         ),
         child: Text(
           'Logout',
@@ -1012,7 +1157,9 @@ class _ProfileSurface extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: minHeight == null ? null : BoxConstraints(minHeight: minHeight!),
+      constraints: minHeight == null
+          ? null
+          : BoxConstraints(minHeight: minHeight!),
       decoration: BoxDecoration(
         color: context.fmColors.card,
         borderRadius: BorderRadius.circular(ProfileScreen._cardRadius),
