@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import 'core/router/app_route_transitions.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
@@ -115,11 +114,8 @@ class _FoodMatchAppState extends State<FoodMatchApp>
     }
 
     _router.go('/register');
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        setState(() => _completedOnboardingThisStartup = true);
-      }
-    });
+    if (!mounted) return;
+    setState(() => _completedOnboardingThisStartup = true);
   }
 }
 
@@ -140,15 +136,39 @@ class _DevOnboardingGate extends StatelessWidget {
         kForceShowOnboardingOnStartup && !completedOnboardingThisStartup;
 
     return AnimatedSwitcher(
-      duration: kSlideUpFadeTransitionDuration,
+      duration: const Duration(milliseconds: 520),
       switchInCurve: Curves.easeOutCubic,
       switchOutCurve: Curves.easeOutCubic,
+      layoutBuilder: (Widget? currentChild, List<Widget> previousChildren) {
+        return Stack(
+          fit: StackFit.expand,
+          children: <Widget>[
+            ...previousChildren,
+            if (currentChild != null) currentChild,
+          ],
+        );
+      },
       transitionBuilder: (Widget child, Animation<double> animation) {
-        return slideUpFadeTransition(
-          context,
-          animation,
-          kAlwaysDismissedAnimation,
-          child,
+        final bool isResolvedRoute =
+            child.key == const ValueKey<String>('resolved-route');
+        final CurvedAnimation curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+          reverseCurve: Curves.easeOutCubic,
+        );
+
+        if (!isResolvedRoute) {
+          return FadeTransition(opacity: curved, child: child);
+        }
+
+        final Animation<Offset> offset = Tween<Offset>(
+          begin: const Offset(0, 0.07),
+          end: Offset.zero,
+        ).animate(curved);
+
+        return FadeTransition(
+          opacity: curved,
+          child: SlideTransition(position: offset, child: child),
         );
       },
       child: showOnboarding
