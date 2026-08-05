@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
+import 'core/router/app_route_transitions.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
@@ -12,7 +12,8 @@ import 'features/couple/logic/couple_provider.dart';
 import 'features/onboarding/presentation/screens/onboarding_screen.dart';
 import 'features/startup/presentation/screens/food_match_splash_screen.dart';
 
-const String kOnboardingCompletedStorageKey = 'foodmatch_onboarding_completed';
+// TODO: Replace this dev flag with persisted first-run onboarding logic before release.
+const bool kForceShowOnboardingOnStartup = true;
 
 class FoodMatchApp extends StatefulWidget {
   const FoodMatchApp({super.key});
@@ -27,7 +28,7 @@ class _FoodMatchAppState extends State<FoodMatchApp>
 
   late final GoRouter _router;
   bool _isStartupComplete = false;
-  bool _hasCompletedOnboarding = false;
+  bool _completedOnboardingThisStartup = false;
 
   @override
   void initState() {
@@ -47,9 +48,6 @@ class _FoodMatchAppState extends State<FoodMatchApp>
     final DateTime startedAt = DateTime.now();
     try {
       final auth = context.read<AuthProvider>();
-      final SharedPreferences preferences = await SharedPreferences.getInstance();
-      _hasCompletedOnboarding =
-          preferences.getBool(kOnboardingCompletedStorageKey) ?? false;
       await auth.loadUser();
       if (auth.isAuthenticated && mounted) {
         final CoupleProvider coupleProvider = context.read<CoupleProvider>();
@@ -94,8 +92,8 @@ class _FoodMatchAppState extends State<FoodMatchApp>
 
         return FoodMatchStartupGate(
           isStartupComplete: _isStartupComplete,
-          child: _OnboardingGate(
-            hasCompletedOnboarding: _hasCompletedOnboarding,
+          child: _DevOnboardingGate(
+            completedOnboardingThisStartup: _completedOnboardingThisStartup,
             onFinished: _completeOnboarding,
             child: AppPendingOverlay(child: routerContent),
           ),
@@ -103,34 +101,54 @@ class _FoodMatchAppState extends State<FoodMatchApp>
       },
     );
   }
-  Future<void> _completeOnboarding() async {
-    final SharedPreferences preferences = await SharedPreferences.getInstance();
-    await preferences.setBool(kOnboardingCompletedStorageKey, true);
-    if (!mounted) return;
-    setState(() => _hasCompletedOnboarding = true);
-    context.go('/register');
+  void _completeOnboarding() {
+    final AuthProvider auth = context.read<AuthProvider>();
+    if (!auth.isAuthenticated) {
+      context.go('/register');
+    }
+    if (mounted) {
+      setState(() => _completedOnboardingThisStartup = true);
+    }
   }
 }
 
-class _OnboardingGate extends StatelessWidget {
-  const _OnboardingGate({
-    required this.hasCompletedOnboarding,
+class _DevOnboardingGate extends StatelessWidget {
+  const _DevOnboardingGate({
+    required this.completedOnboardingThisStartup,
     required this.onFinished,
     required this.child,
   });
 
-  final bool hasCompletedOnboarding;
-  final Future<void> Function() onFinished;
+  final bool completedOnboardingThisStartup;
+  final VoidCallback onFinished;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    final AuthProvider authProvider = context.watch<AuthProvider>();
     final bool showOnboarding =
-        !authProvider.isAuthenticated && !hasCompletedOnboarding;
+        kForceShowOnboardingOnStartup && !completedOnboardingThisStartup;
 
-    if (!showOnboarding) return child;
-
-    return FoodMatchOnboardingScreen(onFinished: onFinished);
+    return AnimatedSwitcher(
+      duration: kSlideUpFadeTransitionDuration,
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeOutCubic,
+      transitionBuilder: (Widget child, Animation<double> animation) {
+        return slideUpFadeTransition(
+          context,
+          animation,
+          kAlwaysDismissedAnimation,
+          child,
+        );
+      },
+      child: showOnboarding
+          ? FoodMatchOnboardingScreen(
+              key: const ValueKey<String>('onboarding'),
+              onFinished: onFinished,
+            )
+          : KeyedSubtree(
+              key: const ValueKey<String>('resolved-route'),
+              child: child,
+            ),
+    );
   }
 }

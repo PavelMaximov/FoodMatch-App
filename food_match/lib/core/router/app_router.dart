@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../animations/app_motion.dart';
+import 'app_route_transitions.dart';
 import '../../data/models/dish.dart';
 import '../../features/auth/logic/auth_provider.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
@@ -333,23 +334,9 @@ CustomTransitionPage<void> _slideFadePage({
 }) {
   return CustomTransitionPage<void>(
     key: state.pageKey,
-    transitionDuration: AppMotion.durationFor(context, AppMotion.normal),
-    reverseTransitionDuration: AppMotion.durationFor(context, AppMotion.fast),
+    transitionDuration: kSlideUpFadeTransitionDuration,
+    reverseTransitionDuration: kSlideUpFadeTransitionDuration,
     child: child,
-    transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      final Animation<double> curved = CurvedAnimation(
-        parent: animation,
-        curve: AppMotion.curve,
-        reverseCurve: AppMotion.curve,
-      );
-      final Animation<Offset> offset = Tween<Offset>(
-        begin: const Offset(0, 0.08),
-        end: Offset.zero,
-      ).animate(curved);
-      return FadeTransition(
-        opacity: curved,
-        child: SlideTransition(position: offset, child: child),
-      );
-    },
+    transitionsBuilder: slideUpFadeTransition,
   );
 }
