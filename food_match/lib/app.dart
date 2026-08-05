@@ -149,27 +149,12 @@ class _DevOnboardingGate extends StatelessWidget {
         );
       },
       transitionBuilder: (Widget child, Animation<double> animation) {
-        final bool isResolvedRoute =
-            child.key == const ValueKey<String>('resolved-route');
         final CurvedAnimation curved = CurvedAnimation(
           parent: animation,
           curve: Curves.easeOutCubic,
           reverseCurve: Curves.easeOutCubic,
         );
-
-        if (!isResolvedRoute) {
-          return FadeTransition(opacity: curved, child: child);
-        }
-
-        final Animation<Offset> offset = Tween<Offset>(
-          begin: const Offset(0, 0.07),
-          end: Offset.zero,
-        ).animate(curved);
-
-        return FadeTransition(
-          opacity: curved,
-          child: SlideTransition(position: offset, child: child),
-        );
+        return FadeTransition(opacity: curved, child: child);
       },
       child: showOnboarding
           ? FoodMatchOnboardingScreen(

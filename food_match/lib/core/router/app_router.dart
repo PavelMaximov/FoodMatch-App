@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../animations/app_motion.dart';
-import 'app_route_transitions.dart';
 import '../../data/models/dish.dart';
 import '../../features/auth/logic/auth_provider.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
@@ -94,19 +93,15 @@ class AppRouter {
                 navigationShell: navigationShell,
                 children: children,
               ),
-              pageBuilder: (
+              builder: (
                 BuildContext context,
                 GoRouterState state,
                 StatefulNavigationShell navigationShell,
               ) =>
-                  _slideFadePage(
-                context: context,
-                state: state,
-                child: MainShell(
-                  key: ValueKey<String>(authProvider.currentUser?.id ?? 'anonymous'),
-                  navigationShell: navigationShell,
-                ),
-              ),
+                  MainShell(
+                    key: ValueKey<String>(authProvider.currentUser?.id ?? 'anonymous'),
+                    navigationShell: navigationShell,
+                  ),
               branches: <StatefulShellBranch>[
                 StatefulShellBranch(
                   routes: <RouteBase>[
@@ -323,20 +318,5 @@ CustomTransitionPage<void> _fadeScalePage({
         ),
       );
     },
-  );
-}
-
-
-CustomTransitionPage<void> _slideFadePage({
-  required BuildContext context,
-  required GoRouterState state,
-  required Widget child,
-}) {
-  return CustomTransitionPage<void>(
-    key: state.pageKey,
-    transitionDuration: kSlideUpFadeTransitionDuration,
-    reverseTransitionDuration: kSlideUpFadeTransitionDuration,
-    child: child,
-    transitionsBuilder: slideUpFadeTransition,
   );
 }

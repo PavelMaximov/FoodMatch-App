@@ -14,6 +14,7 @@ import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_logo_header.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../../logic/auth_provider.dart';
+import '../widgets/auth_content_entrance.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -175,9 +176,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Form(
-            key: _formKey,
-            child: Column(
+          child: AuthContentEntrance(
+            delay: const Duration(milliseconds: 100),
+            child: Form(
+              key: _formKey,
+              child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: <Widget>[
                 const SizedBox(height: 20),
@@ -245,7 +248,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   onTap: () => context.go('/login'),
                 ),
                 const SizedBox(height: 32),
-              ],
+                ],
+              ),
             ),
           ),
         ),
