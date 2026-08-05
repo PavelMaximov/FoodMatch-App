@@ -29,6 +29,7 @@ class _FoodMatchStartupGateState extends State<FoodMatchStartupGate> {
   @override
   void initState() {
     super.initState();
+    debugPrint('[StartupGate] init');
     _startProgress();
     if (widget.isStartupComplete) _completeStartup();
   }
@@ -54,7 +55,10 @@ class _FoodMatchStartupGateState extends State<FoodMatchStartupGate> {
     _progressTimer?.cancel();
     if (mounted) setState(() => _progress = 1);
     await Future<void>.delayed(_completionPause);
-    if (mounted) setState(() => _showApp = true);
+    if (mounted) {
+      debugPrint('[StartupGate] splash complete');
+      setState(() => _showApp = true);
+    }
   }
 
   @override

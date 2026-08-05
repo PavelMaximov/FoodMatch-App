@@ -27,7 +27,6 @@ class _FoodMatchAppState extends State<FoodMatchApp>
 
   late final GoRouter _router;
   bool _isStartupComplete = false;
-  bool _isOnboardingComplete = !kForceShowOnboardingOnStartup;
 
   @override
   void initState() {
@@ -87,22 +86,53 @@ class _FoodMatchAppState extends State<FoodMatchApp>
       themeMode: context.watch<ThemeController>().themeMode,
       routerConfig: _router,
       builder: (BuildContext context, Widget? child) {
-        final Widget resolvedAppRoute = AppPendingOverlay(
-          child: child ?? const SizedBox.shrink(),
-        );
+        final Widget routerContent = child ?? const SizedBox.shrink();
 
         return FoodMatchStartupGate(
           isStartupComplete: _isStartupComplete,
-          child: _isOnboardingComplete
-              ? resolvedAppRoute
-              : FoodMatchOnboardingScreen(
-                  onFinished: () {
-                    if (mounted) {
-                      setState(() => _isOnboardingComplete = true);
-                    }
-                  },
-                ),
+          child: _DevOnboardingGate(
+            child: AppPendingOverlay(child: routerContent),
+          ),
         );
+      },
+    );
+  }
+}
+
+class _DevOnboardingGate extends StatefulWidget {
+  const _DevOnboardingGate({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_DevOnboardingGate> createState() => _DevOnboardingGateState();
+}
+
+class _DevOnboardingGateState extends State<_DevOnboardingGate> {
+  bool _onboardingCompleted = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool showOnboarding =
+        kForceShowOnboardingOnStartup && !_onboardingCompleted;
+
+    debugPrint(
+      '[OnboardingGate] force=$kForceShowOnboardingOnStartup '
+      'completed=$_onboardingCompleted show=$showOnboarding',
+    );
+
+    if (!showOnboarding) {
+      debugPrint('[OnboardingGate] render app');
+      return widget.child;
+    }
+
+    debugPrint('[OnboardingGate] render onboarding');
+    return FoodMatchOnboardingScreen(
+      onFinished: () {
+        debugPrint('[OnboardingGate] finished');
+        if (mounted) {
+          setState(() => _onboardingCompleted = true);
+        }
       },
     );
   }
