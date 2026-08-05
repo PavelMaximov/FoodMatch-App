@@ -107,12 +107,19 @@ class _FoodMatchAppState extends State<FoodMatchApp>
     _isCompletingOnboarding = true;
 
     final AuthProvider auth = context.read<AuthProvider>();
-    if (mounted) {
-      setState(() => _completedOnboardingThisStartup = true);
+    if (auth.isAuthenticated) {
+      if (mounted) {
+        setState(() => _completedOnboardingThisStartup = true);
+      }
+      return;
     }
-    if (!auth.isAuthenticated) {
-      _router.go('/register');
-    }
+
+    _router.go('/register');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() => _completedOnboardingThisStartup = true);
+      }
+    });
   }
 }
 

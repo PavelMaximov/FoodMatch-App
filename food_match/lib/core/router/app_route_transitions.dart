@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-const Duration kSlideUpFadeTransitionDuration = Duration(milliseconds: 400);
+const Duration kSlideUpFadeTransitionDuration = Duration(milliseconds: 480);
 
 Widget slideUpFadeTransition(
   BuildContext context,
@@ -14,7 +14,7 @@ Widget slideUpFadeTransition(
     reverseCurve: Curves.easeOutCubic,
   );
   final Animation<Offset> offset = Tween<Offset>(
-    begin: const Offset(0, 0.08),
+    begin: const Offset(0, 0.06),
     end: Offset.zero,
   ).animate(curved);
 
