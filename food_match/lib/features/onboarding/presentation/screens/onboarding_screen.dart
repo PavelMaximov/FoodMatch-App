@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 
 import '../widgets/onboarding_progress_button.dart';
@@ -76,10 +77,15 @@ class _FoodMatchOnboardingScreenState extends State<FoodMatchOnboardingScreen> {
         ? 'assets/animations/onboarding_blob_dark.json'
         : 'assets/animations/onboarding_blob_light.json';
 
-    return ColoredBox(
+    return Material(
       color: palette.background,
-      child: SafeArea(
-        child: LayoutBuilder(
+      child: DefaultTextStyle(
+        style: GoogleFonts.nunito(
+          color: palette.description,
+          decoration: TextDecoration.none,
+        ),
+        child: SafeArea(
+          child: LayoutBuilder(
           builder: (BuildContext context, BoxConstraints constraints) {
             final double contentWidth = constraints.maxWidth.clamp(0.0, 440.0).toDouble();
             final double textWidth = constraints.maxWidth < 700 ? 360.0 : 440.0;
@@ -113,7 +119,7 @@ class _FoodMatchOnboardingScreenState extends State<FoodMatchOnboardingScreen> {
                         ),
                       ),
                       Padding(
-                        padding: const EdgeInsets.only(bottom: 18, top: 18),
+                        padding: const EdgeInsets.only(bottom: 26, top: 18),
                         child: Semantics(
                           label: _pageIndex == _pages.length - 1
                               ? 'Continue to FoodMatch'
@@ -135,6 +141,7 @@ class _FoodMatchOnboardingScreenState extends State<FoodMatchOnboardingScreen> {
             );
           },
         ),
+      ),
       ),
     );
   }
@@ -189,12 +196,13 @@ class _OnboardingPage extends StatelessWidget {
                 child: Text(
                   data.title,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: GoogleFonts.fredoka(
                     color: palette.title,
                     fontSize: 30,
                     height: 1.12,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                     letterSpacing: -0.4,
+                    decoration: TextDecoration.none,
                   ),
                 ),
               ),
@@ -207,11 +215,12 @@ class _OnboardingPage extends StatelessWidget {
                 child: Text(
                   data.description,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: GoogleFonts.nunito(
                     color: palette.description,
-                    fontSize: 16,
-                    height: 1.46,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 15,
+                    height: 1.36,
+                    fontWeight: FontWeight.w600,
+                    decoration: TextDecoration.none,
                   ),
                 ),
               ),

@@ -35,16 +35,19 @@ class OnboardingProgressButton extends StatelessWidget {
             ),
           );
         },
-        child: SizedBox.square(
-          dimension: 58,
-          child: DecoratedBox(
-            decoration: const BoxDecoration(color: accent, shape: BoxShape.circle),
-            child: IconButton(
-              onPressed: onPressed,
-              icon: const Icon(Icons.arrow_forward_rounded),
-              color: Colors.white,
-              splashRadius: 28,
-              tooltip: semanticProgress,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onPressed,
+          child: SizedBox.square(
+            dimension: 58,
+            child: DecoratedBox(
+              decoration: const BoxDecoration(
+                color: accent,
+                shape: BoxShape.circle,
+              ),
+              child: const Center(
+                child: Icon(Icons.arrow_forward_rounded, color: Colors.white),
+              ),
             ),
           ),
         ),
