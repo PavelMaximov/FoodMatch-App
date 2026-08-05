@@ -29,6 +29,7 @@ class _FoodMatchAppState extends State<FoodMatchApp>
   late final GoRouter _router;
   bool _isStartupComplete = false;
   bool _completedOnboardingThisStartup = false;
+  bool _isCompletingOnboarding = false;
 
   @override
   void initState() {
@@ -102,12 +103,15 @@ class _FoodMatchAppState extends State<FoodMatchApp>
     );
   }
   void _completeOnboarding() {
+    if (_isCompletingOnboarding) return;
+    _isCompletingOnboarding = true;
+
     final AuthProvider auth = context.read<AuthProvider>();
-    if (!auth.isAuthenticated) {
-      context.go('/register');
-    }
     if (mounted) {
       setState(() => _completedOnboardingThisStartup = true);
+    }
+    if (!auth.isAuthenticated) {
+      _router.go('/register');
     }
   }
 }
