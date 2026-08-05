@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
@@ -11,8 +12,7 @@ import 'features/couple/logic/couple_provider.dart';
 import 'features/onboarding/presentation/screens/onboarding_screen.dart';
 import 'features/startup/presentation/screens/food_match_splash_screen.dart';
 
-// TODO: Replace this dev flag with persisted first-run onboarding logic before release.
-const bool kForceShowOnboardingOnStartup = true;
+const String kOnboardingCompletedStorageKey = 'foodmatch_onboarding_completed';
 
 class FoodMatchApp extends StatefulWidget {
   const FoodMatchApp({super.key});
@@ -27,6 +27,7 @@ class _FoodMatchAppState extends State<FoodMatchApp>
 
   late final GoRouter _router;
   bool _isStartupComplete = false;
+  bool _hasCompletedOnboarding = false;
 
   @override
   void initState() {
@@ -46,6 +47,9 @@ class _FoodMatchAppState extends State<FoodMatchApp>
     final DateTime startedAt = DateTime.now();
     try {
       final auth = context.read<AuthProvider>();
+      final SharedPreferences preferences = await SharedPreferences.getInstance();
+      _hasCompletedOnboarding =
+          preferences.getBool(kOnboardingCompletedStorageKey) ?? false;
       await auth.loadUser();
       if (auth.isAuthenticated && mounted) {
         final CoupleProvider coupleProvider = context.read<CoupleProvider>();
@@ -90,50 +94,43 @@ class _FoodMatchAppState extends State<FoodMatchApp>
 
         return FoodMatchStartupGate(
           isStartupComplete: _isStartupComplete,
-          child: _DevOnboardingGate(
+          child: _OnboardingGate(
+            hasCompletedOnboarding: _hasCompletedOnboarding,
+            onFinished: _completeOnboarding,
             child: AppPendingOverlay(child: routerContent),
           ),
         );
       },
     );
   }
+  Future<void> _completeOnboarding() async {
+    final SharedPreferences preferences = await SharedPreferences.getInstance();
+    await preferences.setBool(kOnboardingCompletedStorageKey, true);
+    if (!mounted) return;
+    setState(() => _hasCompletedOnboarding = true);
+    context.go('/register');
+  }
 }
 
-class _DevOnboardingGate extends StatefulWidget {
-  const _DevOnboardingGate({required this.child});
+class _OnboardingGate extends StatelessWidget {
+  const _OnboardingGate({
+    required this.hasCompletedOnboarding,
+    required this.onFinished,
+    required this.child,
+  });
 
+  final bool hasCompletedOnboarding;
+  final Future<void> Function() onFinished;
   final Widget child;
 
   @override
-  State<_DevOnboardingGate> createState() => _DevOnboardingGateState();
-}
-
-class _DevOnboardingGateState extends State<_DevOnboardingGate> {
-  bool _onboardingCompleted = false;
-
-  @override
   Widget build(BuildContext context) {
+    final AuthProvider authProvider = context.watch<AuthProvider>();
     final bool showOnboarding =
-        kForceShowOnboardingOnStartup && !_onboardingCompleted;
+        !authProvider.isAuthenticated && !hasCompletedOnboarding;
 
-    debugPrint(
-      '[OnboardingGate] force=$kForceShowOnboardingOnStartup '
-      'completed=$_onboardingCompleted show=$showOnboarding',
-    );
+    if (!showOnboarding) return child;
 
-    if (!showOnboarding) {
-      debugPrint('[OnboardingGate] render app');
-      return widget.child;
-    }
-
-    debugPrint('[OnboardingGate] render onboarding');
-    return FoodMatchOnboardingScreen(
-      onFinished: () {
-        debugPrint('[OnboardingGate] finished');
-        if (mounted) {
-          setState(() => _onboardingCompleted = true);
-        }
-      },
-    );
+    return FoodMatchOnboardingScreen(onFinished: onFinished);
   }
 }

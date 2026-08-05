@@ -93,15 +93,19 @@ class AppRouter {
                 navigationShell: navigationShell,
                 children: children,
               ),
-              builder: (
+              pageBuilder: (
                 BuildContext context,
                 GoRouterState state,
                 StatefulNavigationShell navigationShell,
               ) =>
-                  MainShell(
-                    key: ValueKey<String>(authProvider.currentUser?.id ?? 'anonymous'),
-                    navigationShell: navigationShell,
-                  ),
+                  _slideFadePage(
+                context: context,
+                state: state,
+                child: MainShell(
+                  key: ValueKey<String>(authProvider.currentUser?.id ?? 'anonymous'),
+                  navigationShell: navigationShell,
+                ),
+              ),
               branches: <StatefulShellBranch>[
                 StatefulShellBranch(
                   routes: <RouteBase>[
@@ -316,6 +320,35 @@ CustomTransitionPage<void> _fadeScalePage({
           scale: Tween<double>(begin: 0.94, end: 1).animate(curved),
           child: child,
         ),
+      );
+    },
+  );
+}
+
+
+CustomTransitionPage<void> _slideFadePage({
+  required BuildContext context,
+  required GoRouterState state,
+  required Widget child,
+}) {
+  return CustomTransitionPage<void>(
+    key: state.pageKey,
+    transitionDuration: AppMotion.durationFor(context, AppMotion.normal),
+    reverseTransitionDuration: AppMotion.durationFor(context, AppMotion.fast),
+    child: child,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final Animation<double> curved = CurvedAnimation(
+        parent: animation,
+        curve: AppMotion.curve,
+        reverseCurve: AppMotion.curve,
+      );
+      final Animation<Offset> offset = Tween<Offset>(
+        begin: const Offset(0, 0.08),
+        end: Offset.zero,
+      ).animate(curved);
+      return FadeTransition(
+        opacity: curved,
+        child: SlideTransition(position: offset, child: child),
       );
     },
   );
