@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/assets/app_empty_state_assets.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/errors/error_messages.dart';
 import '../../../../core/theme/theme_extensions.dart';
@@ -831,6 +832,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
                     ),
                     child: EmptyState(
                       icon: Icons.add_circle_outline,
+                      imageAsset: AppEmptyStateAssets.emptyCustomDishes,
                       title: 'No custom dishes yet',
                       subtitle: 'Add your own dish and use it in your swipes.',
                       buttonText: 'Add dish',

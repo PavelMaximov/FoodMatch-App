@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../core/assets/app_empty_state_assets.dart';
 import '../../../../core/theme/notification_theme.dart';
 import '../../../../core/utils/food_match_notifications.dart';
 import '../../../../core/theme/theme_extensions.dart';
@@ -395,6 +396,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           const SizedBox(height: 120),
           EmptyState(
             icon: Icons.bookmark_border,
+            imageAsset: AppEmptyStateAssets.emptyFavorites,
             title: 'No saved dishes yet',
             subtitle: 'Bookmark dishes you want to cook later.',
             buttonText: 'Browse recipes',
@@ -411,6 +413,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           SizedBox(height: 120),
           EmptyState(
             icon: Icons.search_off,
+            imageAsset: AppEmptyStateAssets.emptyFavorites,
             title: 'No dishes found',
             subtitle: 'Try removing some filters or choosing more cuisines.',
           ),

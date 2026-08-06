@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/theme_extensions.dart';
 import '../../../core/utils/image_utils.dart';
+import '../../../core/widgets/food_match_empty_state_image.dart';
 import 'safe_network_image.dart';
 
 class SafeDishImage extends StatelessWidget {
@@ -12,6 +13,7 @@ class SafeDishImage extends StatelessWidget {
     this.width,
     this.height,
     this.borderRadius,
+    this.emptyImageAsset,
     super.key,
   });
 
@@ -21,10 +23,11 @@ class SafeDishImage extends StatelessWidget {
   final double? width;
   final double? height;
   final BorderRadius? borderRadius;
+  final String? emptyImageAsset;
 
   @override
   Widget build(BuildContext context) {
-    return SafeNetworkImage(
+    final Widget networkImage = SafeNetworkImage(
       imageUrl: imageUrl,
       usage: usage,
       fit: fit,
@@ -34,6 +37,16 @@ class SafeDishImage extends StatelessWidget {
       backgroundColor: context.fmColors.imageFallbackBackground,
       placeholderIcon: Icons.restaurant_menu,
       errorIcon: Icons.restaurant_menu,
+    );
+    if ((imageUrl?.trim().isNotEmpty ?? false) || emptyImageAsset == null) {
+      return networkImage;
+    }
+    return FoodMatchEmptyStateImage(
+      assetPath: emptyImageAsset!,
+      width: width,
+      height: height,
+      fit: fit,
+      fallback: networkImage,
     );
   }
 }

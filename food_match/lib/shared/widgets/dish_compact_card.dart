@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'media/safe_dish_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../core/assets/app_empty_state_assets.dart';
 import '../../core/theme/theme_extensions.dart';
+import '../../core/utils/dish_image_placeholders.dart';
 import '../../core/utils/image_utils.dart';
 import '../../core/widgets/food_match_ripple.dart';
 import '../../data/models/dish.dart';
@@ -84,7 +86,7 @@ class DishCompactCard extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               _CompactDishImage(
-                imageUrl: dish.imageUrl,
+                dish: dish,
                 isBookmarked: isSaved,
                 onBookmarkTap: onFavoriteTap,
                 trailing: trailing,
@@ -113,13 +115,13 @@ class DishCompactCard extends StatelessWidget {
 
 class _CompactDishImage extends StatelessWidget {
   const _CompactDishImage({
-    required this.imageUrl,
+    required this.dish,
     this.isBookmarked,
     this.onBookmarkTap,
     this.trailing,
   });
 
-  final String imageUrl;
+  final Dish dish;
   final bool? isBookmarked;
   final VoidCallback? onBookmarkTap;
   final Widget? trailing;
@@ -131,10 +133,13 @@ class _CompactDishImage extends StatelessWidget {
         ClipRRect(
           borderRadius: BorderRadius.circular(20),
           child: SafeDishImage(
-            imageUrl: ImageUtils.getImageUrl(imageUrl, usage: ImageUsage.dishCard),
+            imageUrl: ImageUtils.getImageUrl(dish.imageUrl, usage: ImageUsage.dishCard),
             width: 100,
             height: 100,
             fit: BoxFit.cover,
+            emptyImageAsset: isCustomDishWithoutPhoto(dish)
+                ? AppEmptyStateAssets.customDishDetailPlaceholder
+                : null,
           ),
         ),
         if (onBookmarkTap != null && isBookmarked != null)
