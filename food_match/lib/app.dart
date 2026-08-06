@@ -8,11 +8,9 @@ import 'core/theme/theme_controller.dart';
 import 'core/widgets/app_pending_overlay.dart';
 import 'features/auth/logic/auth_provider.dart';
 import 'features/couple/logic/couple_provider.dart';
+import 'features/onboarding/data/onboarding_storage.dart';
 import 'features/onboarding/presentation/screens/onboarding_screen.dart';
 import 'features/startup/presentation/screens/food_match_splash_screen.dart';
-
-// TODO: Replace this dev flag with persisted first-run onboarding logic before release.
-const bool kForceShowOnboardingOnStartup = true;
 
 class FoodMatchApp extends StatefulWidget {
   const FoodMatchApp({super.key});
@@ -26,8 +24,10 @@ class _FoodMatchAppState extends State<FoodMatchApp>
   static const Duration _minimumSplashDuration = Duration(milliseconds: 3000);
 
   late final GoRouter _router;
+  final OnboardingStorage _onboardingStorage = OnboardingStorage();
   bool _isStartupComplete = false;
-  bool _completedOnboardingThisStartup = false;
+  bool _hasLoadedOnboardingState = false;
+  bool _hasCompletedOnboarding = false;
   bool _isCompletingOnboarding = false;
 
   @override
@@ -47,6 +47,17 @@ class _FoodMatchAppState extends State<FoodMatchApp>
   Future<void> _bootstrapApp() async {
     final DateTime startedAt = DateTime.now();
     try {
+      bool hasCompletedOnboarding = false;
+      try {
+        hasCompletedOnboarding = await _onboardingStorage.isCompleted();
+      } catch (_) {
+        // A storage read failure must not bypass first-install onboarding.
+      }
+      if (mounted) {
+        _hasCompletedOnboarding = hasCompletedOnboarding;
+        _hasLoadedOnboardingState = true;
+      }
+
       final auth = context.read<AuthProvider>();
       await auth.loadUser();
       if (auth.isAuthenticated && mounted) {
@@ -92,8 +103,9 @@ class _FoodMatchAppState extends State<FoodMatchApp>
 
         return FoodMatchStartupGate(
           isStartupComplete: _isStartupComplete,
-          child: _DevOnboardingGate(
-            completedOnboardingThisStartup: _completedOnboardingThisStartup,
+          child: _OnboardingGate(
+            hasLoadedOnboardingState: _hasLoadedOnboardingState,
+            hasCompletedOnboarding: _hasCompletedOnboarding,
             onFinished: _completeOnboarding,
             child: AppPendingOverlay(child: routerContent),
           ),
@@ -101,39 +113,45 @@ class _FoodMatchAppState extends State<FoodMatchApp>
       },
     );
   }
-  void _completeOnboarding() {
+
+  Future<void> _completeOnboarding() async {
     if (_isCompletingOnboarding) return;
     _isCompletingOnboarding = true;
 
-    final AuthProvider auth = context.read<AuthProvider>();
-    if (auth.isAuthenticated) {
-      if (mounted) {
-        setState(() => _completedOnboardingThisStartup = true);
+    try {
+      await _onboardingStorage.markCompleted();
+      if (!mounted) return;
+
+      final AuthProvider auth = context.read<AuthProvider>();
+      if (!auth.isAuthenticated) {
+        _router.go('/register');
       }
+
+      setState(() => _hasCompletedOnboarding = true);
+    } catch (_) {
+      _isCompletingOnboarding = false;
       return;
     }
-
-    _router.go('/register');
-    if (!mounted) return;
-    setState(() => _completedOnboardingThisStartup = true);
   }
 }
 
-class _DevOnboardingGate extends StatelessWidget {
-  const _DevOnboardingGate({
-    required this.completedOnboardingThisStartup,
+class _OnboardingGate extends StatelessWidget {
+  const _OnboardingGate({
+    required this.hasLoadedOnboardingState,
+    required this.hasCompletedOnboarding,
     required this.onFinished,
     required this.child,
   });
 
-  final bool completedOnboardingThisStartup;
+  final bool hasLoadedOnboardingState;
+  final bool hasCompletedOnboarding;
   final VoidCallback onFinished;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
     final bool showOnboarding =
-        kForceShowOnboardingOnStartup && !completedOnboardingThisStartup;
+        hasLoadedOnboardingState && !hasCompletedOnboarding;
 
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 520),

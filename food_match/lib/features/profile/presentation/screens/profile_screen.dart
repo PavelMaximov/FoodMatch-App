@@ -269,6 +269,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     context,
                     type: FoodMatchNotificationType.destructive,
                     title: 'Logout',
+                    icon: Icons.logout_rounded,
                   );
                   context.go('/login');
                 }
