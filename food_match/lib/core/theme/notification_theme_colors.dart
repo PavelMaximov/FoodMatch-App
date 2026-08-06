@@ -72,7 +72,7 @@ class AppNotificationThemeColors {
     warning: FoodMatchNotificationColors(
       background: Color(0xFF2E2208),
       border: Color(0xFF886B36),
-      icon: Color.fromARGB(255, 112, 88, 41),
+      icon: Color.fromARGB(255, 178, 137, 56),
       iconBackground: Color(0xFF6F5D3C),
       actionColor: Color(0xFFD8B56D),
       titleColor: Color(0xFFFFF4EE),

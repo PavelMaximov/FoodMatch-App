@@ -14,6 +14,7 @@ import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_logo_header.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../../logic/auth_provider.dart';
+import '../widgets/auth_staggered_entrance.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -190,8 +191,7 @@ class _LoginScreenState extends State<LoginScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Form(
             key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
+            child: AuthStaggeredEntrance(
               children: <Widget>[
                 const SizedBox(height: 20),
                 const AppLogoHeader(showSubtitle: true),
