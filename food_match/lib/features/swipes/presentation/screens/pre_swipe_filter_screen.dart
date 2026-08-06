@@ -1153,7 +1153,7 @@ class PreSwipeIntroScreen extends StatelessWidget {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
                   child: Text(
-                    'Customize my feed >',
+                    'Customize my feed',
                     style: GoogleFonts.nunito(fontSize: 17, fontWeight: FontWeight.w700),
                   ),
                 ),

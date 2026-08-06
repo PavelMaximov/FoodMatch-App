@@ -6,9 +6,9 @@ class AuthStaggeredEntrance extends StatefulWidget {
   const AuthStaggeredEntrance({
     super.key,
     required this.children,
-    this.initialDelay = const Duration(milliseconds: 80),
-    this.itemDelay = const Duration(milliseconds: 70),
-    this.itemDuration = const Duration(milliseconds: 460),
+    this.initialDelay = const Duration(milliseconds: 320),
+    this.itemDelay = const Duration(milliseconds: 80),
+    this.itemDuration = const Duration(milliseconds: 550),
   });
 
   final List<Widget> children;
