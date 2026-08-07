@@ -10,12 +10,15 @@ import '../../../../core/assets/app_empty_state_assets.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/utils/dish_image_placeholders.dart';
 import '../../../../core/utils/image_utils.dart';
+import '../../../../core/utils/food_match_notifications.dart';
+import '../../../../core/theme/notification_theme.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../data/models/recipe_step.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/media/safe_dish_image.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
 import '../../../favorites/logic/favorites_provider.dart';
+import '../../../shopping_list/logic/shopping_list_provider.dart';
 import '../../logic/recipe_provider.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
@@ -348,6 +351,22 @@ class _RecipeContent extends StatelessWidget {
             const SizedBox(height: 18),
             _StatsRow(dish: dish),
             const SizedBox(height: 24),
+            if (dish.ingredients.any((String ingredient) => ingredient.trim().isNotEmpty)) ...<Widget>[
+              TextButton.icon(
+                onPressed: () => _addIngredients(context),
+                style: TextButton.styleFrom(
+                  foregroundColor: colors.primary,
+                  padding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                ),
+                icon: const Icon(Icons.add_rounded, size: 21),
+                label: Text(
+                  'Add ingredients to the shopping list',
+                  style: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w800),
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
             _Tabs(activeTab: activeTab, onChanged: onTabChanged),
             _TabPanel(
               child: activeTab == _RecipeDetailTab.ingredients
@@ -357,6 +376,24 @@ class _RecipeContent extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Future<void> _addIngredients(BuildContext context) async {
+    final int count = await context.read<ShoppingListProvider>().addIngredients(
+          ingredients: dish.ingredients,
+          sourceDishId: dish.id,
+          sourceDishName: dish.name,
+        );
+    if (!context.mounted) return;
+    FoodMatchNotifications.show(
+      context,
+      type: count > 0 ? FoodMatchNotificationType.success : FoodMatchNotificationType.info,
+      title: count > 0 ? 'Added to shopping list' : 'Already in shopping list',
+      message: count > 0
+          ? '$count ingredients added.'
+          : 'These ingredients are already on your list.',
+      icon: count > 0 ? Icons.shopping_bag_outlined : Icons.info_outline_rounded,
     );
   }
 

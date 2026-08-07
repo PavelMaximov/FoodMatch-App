@@ -19,6 +19,7 @@ import 'features/couple/logic/couple_provider.dart';
 import 'features/dishes/logic/recipe_provider.dart';
 import 'features/favorites/logic/favorites_provider.dart';
 import 'features/matches/logic/match_provider.dart';
+import 'features/shopping_list/logic/shopping_list_provider.dart';
 import 'features/swipes/logic/filter_scoring_service.dart';
 import 'features/swipes/logic/pre_swipe_provider.dart';
 import 'features/swipes/logic/swipe_provider.dart';
@@ -154,6 +155,9 @@ Future<void> main() async {
         ),
         ChangeNotifierProvider<RecipeProvider>(
           create: (_) => RecipeProvider(repository: dishRepo),
+        ),
+        ChangeNotifierProvider<ShoppingListProvider>(
+          create: (_) => ShoppingListProvider()..load(),
         ),
       ],
       child: const FoodMatchApp(),

@@ -16,6 +16,7 @@ import '../../features/matches/presentation/screens/matches_screen.dart';
 import '../../features/favorites/presentation/screens/favorites_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/recipes/presentation/screens/recipes_screen.dart';
+import '../../features/shopping_list/presentation/screens/shopping_list_screen.dart';
 import '../../features/swipes/presentation/screens/swipes_screen.dart';
 import '../../shared/widgets/root_tab_skeleton.dart';
 import '../../shell/presentation/screens/main_shell.dart';
@@ -140,6 +141,10 @@ class AppRouter {
                       routes: <RouteBase>[
                         GoRoute(path: 'settings', builder: (_, __) => const ProfileSettingsScreen()),
                       ],
+                    ),
+                    GoRoute(
+                      path: '/shopping-list',
+                      builder: (_, __) => const ShoppingListScreen(),
                     ),
                   ],
                 ),
