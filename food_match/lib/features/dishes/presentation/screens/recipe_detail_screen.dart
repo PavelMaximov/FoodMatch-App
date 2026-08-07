@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/constants/app_strings.dart';
@@ -19,6 +20,7 @@ import '../../../../shared/widgets/media/safe_dish_image.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
 import '../../../favorites/logic/favorites_provider.dart';
 import '../../../shopping_list/logic/shopping_list_provider.dart';
+import '../../domain/ingredient_formatter.dart';
 import '../../logic/recipe_provider.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
@@ -309,6 +311,8 @@ class _RecipeContent extends StatelessWidget {
     final FoodMatchThemeColors colors = context.fmColors;
     final EdgeInsets safePadding = MediaQuery.paddingOf(context);
     final List<_IngredientDisplayRow> ingredientRows = _buildIngredientRows(dish);
+    final List<ShoppingListIngredientInput> shoppingIngredients =
+        _buildShoppingIngredients(dish);
 
     return ColoredBox(
       color: colors.background,
@@ -351,9 +355,9 @@ class _RecipeContent extends StatelessWidget {
             const SizedBox(height: 18),
             _StatsRow(dish: dish),
             const SizedBox(height: 24),
-            if (dish.ingredients.any((String ingredient) => ingredient.trim().isNotEmpty)) ...<Widget>[
+            if (shoppingIngredients.isNotEmpty) ...<Widget>[
               TextButton.icon(
-                onPressed: () => _addIngredients(context),
+                onPressed: () => _addIngredients(context, shoppingIngredients),
                 style: TextButton.styleFrom(
                   foregroundColor: colors.primary,
                   padding: EdgeInsets.zero,
@@ -379,9 +383,12 @@ class _RecipeContent extends StatelessWidget {
     );
   }
 
-  Future<void> _addIngredients(BuildContext context) async {
+  Future<void> _addIngredients(
+    BuildContext context,
+    List<ShoppingListIngredientInput> ingredients,
+  ) async {
     final int count = await context.read<ShoppingListProvider>().addIngredients(
-          ingredients: dish.ingredients,
+          ingredients: ingredients,
           sourceDishId: dish.id,
           sourceDishName: dish.name,
         );
@@ -395,12 +402,14 @@ class _RecipeContent extends StatelessWidget {
           : 'These ingredients are already on your list.',
       icon: count > 0 ? Icons.shopping_bag_outlined : Icons.info_outline_rounded,
     );
+    context.push('/shopping-list');
   }
 
   List<_IngredientDisplayRow> _buildIngredientRows(Dish dish) {
     final List<_IngredientDisplayRow> structuredRows = dish.sections
         .expand((DishSection section) => section.components)
-        .map((DishComponent component) => _IngredientDisplayRow(name: component.ingredient.name.trim()))
+        .map((DishComponent component) =>
+            _IngredientDisplayRow(name: formatIngredientLine(component)))
         .where((_IngredientDisplayRow row) => row.name.isNotEmpty)
         .toList();
 
@@ -411,6 +420,28 @@ class _RecipeContent extends StatelessWidget {
     return dish.ingredients
         .map((String ingredient) => _IngredientDisplayRow(name: ingredient.trim()))
         .where((_IngredientDisplayRow row) => row.name.isNotEmpty)
+        .toList();
+  }
+
+  List<ShoppingListIngredientInput> _buildShoppingIngredients(Dish dish) {
+    final List<ShoppingListIngredientInput> richIngredients = dish.sections
+        .expand((DishSection section) => section.components)
+        .where((DishComponent component) => component.resolvedName.isNotEmpty)
+        .map((DishComponent component) {
+          final DishIngredientMeasurement? measurement =
+              component.measurements.isEmpty ? null : component.measurements.first;
+          return ShoppingListIngredientInput(
+            name: component.resolvedName,
+            quantity: formatIngredientQuantity(measurement?.quantity),
+            measure: measurement?.unit,
+          );
+        })
+        .toList();
+    if (richIngredients.isNotEmpty) return richIngredients;
+    return dish.ingredients
+        .map(ShoppingListIngredientInput.fromName)
+        .where((ShoppingListIngredientInput ingredient) =>
+            ingredient.name.trim().isNotEmpty)
         .toList();
   }
 }

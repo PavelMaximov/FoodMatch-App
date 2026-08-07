@@ -6,10 +6,18 @@ part 'dish.g.dart';
 
 @JsonSerializable()
 class DishIngredient {
-  const DishIngredient({required this.name});
+  const DishIngredient({
+    required this.name,
+    this.displaySingular = '',
+    this.displayPlural = '',
+  });
 
   @JsonKey(defaultValue: '')
   final String name;
+  @JsonKey(name: 'display_singular', defaultValue: '')
+  final String displaySingular;
+  @JsonKey(name: 'display_plural', defaultValue: '')
+  final String displayPlural;
 
   factory DishIngredient.fromJson(Map<String, dynamic> json) =>
       _$DishIngredientFromJson(json);
@@ -19,10 +27,37 @@ class DishIngredient {
 
 @JsonSerializable()
 class DishComponent {
-  const DishComponent({required this.ingredient});
+  const DishComponent({
+    required this.ingredient,
+    this.position = 0,
+    this.name = '',
+    this.displayName = '',
+    this.rawText,
+    this.extraComment,
+    this.measurements = const <DishIngredientMeasurement>[],
+  });
 
   @JsonKey(defaultValue: DishIngredient(name: ''))
   final DishIngredient ingredient;
+  final int position;
+  final String name;
+  final String displayName;
+  final String? rawText;
+  final String? extraComment;
+  final List<DishIngredientMeasurement> measurements;
+
+  String get resolvedName {
+    return <String>[
+      displayName,
+      ingredient.displaySingular,
+      ingredient.displayPlural,
+      name,
+      ingredient.name,
+    ].map((String value) => value.trim()).firstWhere(
+          (String value) => value.isNotEmpty,
+          orElse: () => '',
+        );
+  }
 
   factory DishComponent.fromJson(Map<String, dynamic> json) =>
       _$DishComponentFromJson(json);
@@ -32,15 +67,34 @@ class DishComponent {
 
 @JsonSerializable()
 class DishSection {
-  const DishSection({required this.components});
+  const DishSection({
+    required this.components,
+    this.name = '',
+    this.position = 0,
+  });
 
   @JsonKey(defaultValue: <DishComponent>[])
   final List<DishComponent> components;
+  final String name;
+  final int position;
 
   factory DishSection.fromJson(Map<String, dynamic> json) =>
       _$DishSectionFromJson(json);
 
   Map<String, dynamic> toJson() => _$DishSectionToJson(this);
+}
+
+@JsonSerializable()
+class DishIngredientMeasurement {
+  const DishIngredientMeasurement({this.quantity, this.unit});
+
+  final String? quantity;
+  final String? unit;
+
+  factory DishIngredientMeasurement.fromJson(Map<String, dynamic> json) =>
+      _$DishIngredientMeasurementFromJson(json);
+
+  Map<String, dynamic> toJson() => _$DishIngredientMeasurementToJson(this);
 }
 
 

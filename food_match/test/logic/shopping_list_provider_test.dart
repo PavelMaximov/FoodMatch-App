@@ -15,7 +15,12 @@ void main() {
     final ShoppingListProvider provider = ShoppingListProvider();
 
     final int added = await provider.addIngredients(
-      ingredients: <String>[' Tomato ', 'tomato', '', 'Basil'],
+      ingredients: const <ShoppingListIngredientInput>[
+        ShoppingListIngredientInput(name: ' Tomato '),
+        ShoppingListIngredientInput(name: 'tomato'),
+        ShoppingListIngredientInput(name: ''),
+        ShoppingListIngredientInput(name: 'Basil'),
+      ],
       sourceDishId: 'dish-1',
       sourceDishName: 'Pasta',
     );
@@ -26,6 +31,26 @@ void main() {
     await restored.load();
     expect(restored.items, hasLength(2));
     expect(restored.items.first.sourceDishId, 'dish-1');
+  });
+
+  test('recipe duplicate fills missing measurement without duplication', () async {
+    final ShoppingListProvider provider = ShoppingListProvider();
+    await provider.addManualItem(name: 'Spaghetti');
+
+    final int added = await provider.addIngredients(
+      ingredients: const <ShoppingListIngredientInput>[
+        ShoppingListIngredientInput(
+          name: 'spaghetti',
+          quantity: '200',
+          measure: 'g',
+        ),
+      ],
+    );
+
+    expect(added, 0);
+    expect(provider.items, hasLength(1));
+    expect(provider.items.single.quantity, '200');
+    expect(provider.items.single.measure, 'g');
   });
 
   test('manual duplicates fill missing details without adding a row', () async {

@@ -3,6 +3,21 @@ import 'package:flutter/foundation.dart';
 import '../data/shopping_list_storage.dart';
 import '../domain/shopping_list_item.dart';
 
+class ShoppingListIngredientInput {
+  const ShoppingListIngredientInput({
+    required this.name,
+    this.quantity,
+    this.measure,
+  });
+
+  factory ShoppingListIngredientInput.fromName(String name) =>
+      ShoppingListIngredientInput(name: name);
+
+  final String name;
+  final String? quantity;
+  final String? measure;
+}
+
 class ShoppingListProvider extends ChangeNotifier {
   ShoppingListProvider({ShoppingListStorage? storage})
       : _storage = storage ?? ShoppingListStorage();
@@ -76,22 +91,41 @@ class ShoppingListProvider extends ChangeNotifier {
   }
 
   Future<int> addIngredients({
-    required List<String> ingredients,
+    required List<ShoppingListIngredientInput> ingredients,
     String? sourceDishId,
     String? sourceDishName,
   }) async {
     await load();
-    final Set<String> names = _items.map((ShoppingListItem item) => item.normalizedName).toSet();
     int added = 0;
-    for (final String ingredient in ingredients) {
-      final String name = ingredient.trim();
+    bool updated = false;
+    for (final ShoppingListIngredientInput ingredient in ingredients) {
+      final String name = ingredient.name.trim();
       final String normalized = _normalize(name);
-      if (normalized.isEmpty || !names.add(normalized)) continue;
+      if (normalized.isEmpty) continue;
+      final int existingIndex = _items.indexWhere(
+        (ShoppingListItem item) => item.normalizedName == normalized,
+      );
+      if (existingIndex >= 0) {
+        final ShoppingListItem existing = _items[existingIndex];
+        final String? quantity = existing.quantity ?? _optional(ingredient.quantity);
+        final String? measure = existing.measure ?? _optional(ingredient.measure);
+        if (quantity != existing.quantity || measure != existing.measure) {
+          _items[existingIndex] = existing.copyWith(
+            quantity: quantity,
+            measure: measure,
+            updatedAt: DateTime.now(),
+          );
+          updated = true;
+        }
+        continue;
+      }
       final DateTime now = DateTime.now();
       _items.add(ShoppingListItem(
         id: '${now.microsecondsSinceEpoch}-${_idSequence++}',
         name: name,
         normalizedName: normalized,
+        quantity: _optional(ingredient.quantity),
+        measure: _optional(ingredient.measure),
         sourceDishId: _optional(sourceDishId),
         sourceDishName: _optional(sourceDishName),
         checked: false,
@@ -101,9 +135,22 @@ class ShoppingListProvider extends ChangeNotifier {
       ));
       added++;
     }
-    if (added > 0) await _persist();
+    if (added > 0 || updated) await _persist();
     return added;
   }
+
+  Future<int> addIngredientNames({
+    required List<String> ingredients,
+    String? sourceDishId,
+    String? sourceDishName,
+  }) =>
+      addIngredients(
+        ingredients: ingredients
+            .map(ShoppingListIngredientInput.fromName)
+            .toList(),
+        sourceDishId: sourceDishId,
+        sourceDishName: sourceDishName,
+      );
 
   Future<void> toggleChecked(String id) async => _update(
         id,
