@@ -251,7 +251,7 @@ class DishRepository {
     required String mood,
     required List<Map<String, String>> ingredients,
     required int cookTime,
-    required int servings,
+    required String servings,
     required List<String> instructions,
     required String imageUrl,
     String? imagePublicId,
@@ -262,7 +262,7 @@ class DishRepository {
       'mood': mood,
       'ingredients': ingredients,
       'cookTime': cookTime,
-      'servings': servings.toString(),
+      'servings': servings.trim(),
       'steps': instructions
           .asMap()
           .entries

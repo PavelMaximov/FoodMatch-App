@@ -22,6 +22,7 @@ import '../../../swipes/logic/swipe_provider.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/dish_compact_card.dart';
 import '../../../../shared/widgets/empty_state.dart';
+import '../../domain/dish_taxonomy.dart';
 
 class AddDishScreen extends StatefulWidget {
   const AddDishScreen({super.key});
@@ -58,20 +59,11 @@ class _AddDishScreenState extends State<AddDishScreen> {
 
   String? _selectedCuisine;
   String? _selectedMood;
-  int _selectedServings = 2;
+  int? _selectedServings;
   File? _selectedImageFile;
   DishImageUploadResult? _uploadedDishImage;
   final List<_IngredientInput> _ingredients = <_IngredientInput>[];
   final List<String> _steps = <String>[];
-
-  static const List<String> _moods = <String>[
-    'Comfort',
-    'Romantic',
-    'Light',
-    'Festive',
-    'Quick',
-    'Healthy',
-  ];
 
   static const List<String> _measureUnits = <String>[
     'piece',
@@ -89,24 +81,6 @@ class _AddDishScreenState extends State<AddDishScreen> {
     'clove',
     'oz',
     'lb',
-  ];
-
-  static const List<String> _cuisines = <String>[
-    'American',
-    'Italian',
-    'Mexican',
-    'Indian',
-    'Chinese',
-    'Japanese',
-    'Thai',
-    'French',
-    'Mediterranean',
-    'Turkish',
-    'Greek',
-    'Spanish',
-    'Korean',
-    'Vietnamese',
-    'Middle Eastern',
   ];
 
   @override
@@ -222,23 +196,6 @@ class _AddDishScreenState extends State<AddDishScreen> {
       );
       return;
     }
-    if (_ingredients.isEmpty) {
-      FoodMatchNotifications.show(
-        context,
-        type: FoodMatchNotificationType.warning,
-        title: 'Add at least one ingredient.',
-      );
-      return;
-    }
-    if (_steps.isEmpty) {
-      FoodMatchNotifications.show(
-        context,
-        type: FoodMatchNotificationType.warning,
-        title: 'Add at least one instruction.',
-      );
-      return;
-    }
-
     setState(() => _isSubmitting = true);
     try {
       final DishRepository dishRepository = context.read<DishRepository>();
@@ -285,7 +242,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
             )
             .toList(),
         cookTime: int.tryParse(_cookTimeController.text.trim()) ?? 0,
-        servings: _selectedServings,
+        servings: _selectedServings?.toString() ?? '',
         instructions: _steps,
         imageUrl: imageUpload?.imageUrl ?? '',
         imagePublicId: imageUpload?.imagePublicId,
@@ -298,7 +255,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
       setState(() {
         _selectedCuisine = null;
         _selectedMood = null;
-        _selectedServings = 2;
+        _selectedServings = null;
         _ingredients.clear();
         _steps.clear();
         _selectedImageFile = null;
@@ -511,7 +468,8 @@ class _AddDishScreenState extends State<AddDishScreen> {
                 _AppSelect<String>(
                   value: _selectedCuisine,
                   hint: 'Cuisine',
-                  items: _cuisines,
+                  items: DishTaxonomy.cuisines,
+                  itemLabel: DishTaxonomy.labelFor,
                   onChanged: (String? value) =>
                       setState(() => _selectedCuisine = value),
                 ),
@@ -521,7 +479,8 @@ class _AddDishScreenState extends State<AddDishScreen> {
                 _AppSelect<String>(
                   value: _selectedMood,
                   hint: 'Mood',
-                  items: _moods,
+                  items: DishTaxonomy.moods,
+                  itemLabel: DishTaxonomy.labelFor,
                   onChanged: (String? value) =>
                       setState(() => _selectedMood = value),
                 ),
@@ -541,7 +500,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
                           const SizedBox(height: 8),
                           _ServingSizeSelect(
                             value: _selectedServings,
-                            onChanged: (int value) =>
+                            onChanged: (int? value) =>
                                 setState(() => _selectedServings = value),
                           ),
                         ],
@@ -552,12 +511,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
-                          Text(
-                            'Cooking time',
-                            style: AppTextStyles.bodyLarge.copyWith(
-                              color: colors.textPrimary,
-                            ),
-                          ),
+                          const _RequiredLabel(text: 'Cooking time'),
                           const SizedBox(height: 8),
                           _AppInput(
                             controller: _cookTimeController,
@@ -580,7 +534,12 @@ class _AddDishScreenState extends State<AddDishScreen> {
                   ],
                 ),
                 const SizedBox(height: 14),
-                const _RequiredLabel(text: 'Ingredients'),
+                Text(
+                  'Ingredients (optional)',
+                  style: AppTextStyles.bodyLarge.copyWith(
+                    color: colors.textPrimary,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 if (_ingredients.isNotEmpty)
                   Wrap(
@@ -650,7 +609,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Cooking instructions',
+                  'Cooking instructions (optional)',
                   style: AppTextStyles.bodyLarge.copyWith(
                     color: colors.textPrimary,
                   ),
@@ -960,12 +919,14 @@ class _AppSelect<T> extends StatelessWidget {
     required this.items,
     required this.hint,
     required this.onChanged,
+    this.itemLabel,
   });
 
   final T? value;
   final List<T> items;
   final String hint;
   final ValueChanged<T?> onChanged;
+  final String Function(T item)? itemLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -992,7 +953,7 @@ class _AppSelect<T> extends StatelessWidget {
                 (item) => DropdownMenuItem<T>(
                   value: item,
                   child: Text(
-                    item.toString(),
+                    itemLabel?.call(item) ?? item.toString(),
                     style: AppTextStyles.bodyLarge.copyWith(
                       color: context.fmColors.textPrimary,
                     ),
@@ -1014,8 +975,8 @@ class _AppSelect<T> extends StatelessWidget {
 class _ServingSizeSelect extends StatelessWidget {
   const _ServingSizeSelect({required this.value, required this.onChanged});
 
-  final int value;
-  final ValueChanged<int> onChanged;
+  final int? value;
+  final ValueChanged<int?> onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -1031,15 +992,23 @@ class _ServingSizeSelect extends StatelessWidget {
         child: DropdownButton<int>(
           isExpanded: true,
           value: value,
-          onChanged: (int? next) {
-            if (next != null) onChanged(next);
-          },
+          hint: Text(
+            'Optional',
+            style: AppTextStyles.bodyLarge.copyWith(
+              color: context.fmColors.textMuted,
+            ),
+          ),
+          onChanged: onChanged,
           icon: Icon(
             Icons.keyboard_arrow_down,
             color: context.fmColors.textMuted,
           ),
-          items: List<int>.generate(10, (index) => index + 1)
-              .map(
+          items: <DropdownMenuItem<int>>[
+            const DropdownMenuItem<int>(
+              value: null,
+              child: Text('Not specified'),
+            ),
+            ...List<int>.generate(10, (index) => index + 1).map(
                 (item) => DropdownMenuItem<int>(
                   value: item,
                   child: Row(
@@ -1059,8 +1028,8 @@ class _ServingSizeSelect extends StatelessWidget {
                     ],
                   ),
                 ),
-              )
-              .toList(),
+              ),
+          ],
         ),
       ),
     );
