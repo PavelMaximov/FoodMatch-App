@@ -27,13 +27,11 @@ import '../../../matches/logic/match_provider.dart';
 import '../../../swipes/logic/pre_swipe_provider.dart';
 import '../../../swipes/logic/swipe_provider.dart';
 import '../../../../shared/widgets/media/safe_avatar_image.dart';
+import '../widgets/profile_premium_banner.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
-  static const Color _premiumStart = Color(0xFF614A4D);
-  static const Color _premiumEnd = Color(0xFF4A436C);
-  static const Color _premiumContent = Color(0xFFF7D218);
   static const double _cardRadius = 12;
 
   static Future<bool> _showConfirmDialog(
@@ -242,7 +240,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               onEdit: () => _showComingSoon(context, 'Edit profile'),
             ),
             const SizedBox(height: 18),
-            _PremiumCta(onTap: () => _showComingSoon(context, 'Premium')),
+            ProfilePremiumBanner(
+              onTap: () => _showComingSoon(context, 'Premium'),
+            ),
             const SizedBox(height: 18),
             _FavoritesCard(onTap: () => context.push('/favorites')),
             const SizedBox(height: 18),
@@ -582,64 +582,6 @@ class _UserInfoCard extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _PremiumCta extends StatelessWidget {
-  const _PremiumCta({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return FoodMatchRipple(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(ProfileScreen._cardRadius),
-      rippleColor: context.fmColors.primaryRipple,
-      child: Material(
-        color: Colors.transparent,
-        child: Ink(
-          height: 56,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(ProfileScreen._cardRadius),
-            gradient: const LinearGradient(
-              colors: <Color>[
-                ProfileScreen._premiumStart,
-                ProfileScreen._premiumEnd,
-              ],
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-            ),
-          ),
-          child: Row(
-            children: <Widget>[
-              const SizedBox(width: 82),
-              const Icon(
-                Icons.workspace_premium_outlined,
-                color: ProfileScreen._premiumContent,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Upgrade to Premium',
-                  style: GoogleFonts.nunito(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: ProfileScreen._premiumContent,
-                  ),
-                ),
-              ),
-              const Icon(
-                Icons.chevron_right,
-                color: ProfileScreen._premiumContent,
-                size: 26,
-              ),
-              const SizedBox(width: 18),
-            ],
-          ),
-        ),
       ),
     );
   }
