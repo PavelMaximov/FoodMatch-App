@@ -7,10 +7,8 @@ abstract final class AppEmptyStateAssets {
       'assets/empty_states/empty_favorites.png';
   static const String emptyCustomDishes =
       'assets/empty_states/empty_custom_dishes.png';
-  static const String customDishSwipePlaceholder =
+  static const String customDishPlaceholder =
       'assets/empty_states/custom_dish_swipe_placeholder.png';
-  static const String customDishDetailPlaceholder =
-      'assets/empty_states/custom_dish_detail_placeholder.png';
   static const String emptyMatches =
       'assets/empty_states/empty_matches.png';
 }

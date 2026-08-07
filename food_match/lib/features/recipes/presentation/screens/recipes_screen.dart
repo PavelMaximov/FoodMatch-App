@@ -1660,7 +1660,7 @@ class _SavedDishTile extends StatelessWidget {
                   height: 64,
                   fit: BoxFit.cover,
                   emptyImageAsset: isCustomDishWithoutPhoto(dish)
-                      ? AppEmptyStateAssets.customDishDetailPlaceholder
+                      ? AppEmptyStateAssets.customDishPlaceholder
                       : null,
                 ),
               ),

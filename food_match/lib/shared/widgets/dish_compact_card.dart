@@ -138,7 +138,7 @@ class _CompactDishImage extends StatelessWidget {
             height: 100,
             fit: BoxFit.cover,
             emptyImageAsset: isCustomDishWithoutPhoto(dish)
-                ? AppEmptyStateAssets.customDishDetailPlaceholder
+                ? AppEmptyStateAssets.customDishPlaceholder
                 : null,
           ),
         ),

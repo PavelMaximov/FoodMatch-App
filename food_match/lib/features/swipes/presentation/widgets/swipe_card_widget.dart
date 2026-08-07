@@ -106,7 +106,7 @@ class SwipeCardWidget extends StatelessWidget {
               width: double.infinity,
               height: double.infinity,
               emptyImageAsset: isCustomDishWithoutPhoto(dish)
-                  ? AppEmptyStateAssets.customDishSwipePlaceholder
+                  ? AppEmptyStateAssets.customDishPlaceholder
                   : null,
             ),
           ),

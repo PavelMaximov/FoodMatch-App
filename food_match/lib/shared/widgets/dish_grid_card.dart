@@ -37,7 +37,7 @@ class DishGridCard extends StatelessWidget {
       imageUrl: ImageUtils.getImageUrl(dish.imageUrl, usage: ImageUsage.dishCard),
       fit: BoxFit.cover,
       emptyImageAsset: isCustomDishWithoutPhoto(dish)
-          ? AppEmptyStateAssets.customDishDetailPlaceholder
+          ? AppEmptyStateAssets.customDishPlaceholder
           : null,
     );
 

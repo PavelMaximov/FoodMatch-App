@@ -187,7 +187,7 @@ class _HeroImage extends StatelessWidget {
             imageUrl: ImageUtils.getImageUrl(dish.imageUrl, usage: ImageUsage.dishHero),
             fit: BoxFit.cover,
             emptyImageAsset: isCustomDishWithoutPhoto(dish)
-                ? AppEmptyStateAssets.customDishDetailPlaceholder
+                ? AppEmptyStateAssets.customDishPlaceholder
                 : null,
           ),
         ),
