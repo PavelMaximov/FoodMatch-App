@@ -826,8 +826,8 @@ class _AddDishScreenState extends State<AddDishScreen> {
                     ),
                   )
                 else if (_myDishes.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(
+                  const Padding(
+                    padding: EdgeInsets.only(
                       bottom: AppDimensions.paddingL,
                     ),
                     child: EmptyState(
@@ -835,8 +835,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
                       imageAsset: AppEmptyStateAssets.emptyCustomDishes,
                       title: 'No custom dishes yet',
                       subtitle: 'Add your own dish and use it in your swipes.',
-                      buttonText: 'Add dish',
-                      onButtonPressed: () {},
+                      
                     ),
                   )
                 else

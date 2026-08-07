@@ -32,7 +32,11 @@ import '../widgets/profile_premium_banner.dart';
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
-  static const double _cardRadius = 12;
+ 
+  static const Color _premiumStart = Color(0xFF614A4D);
+  static const Color _premiumEnd = Color(0xFF4A436C);
+  static const Color _premiumContent = Color(0xFFF7D218);
+  static const double _cardRadius = 15;
 
   static Future<bool> _showConfirmDialog(
     BuildContext context,
