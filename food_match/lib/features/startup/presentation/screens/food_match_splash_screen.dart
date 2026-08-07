@@ -144,7 +144,7 @@ class FoodMatchSplashScreen extends StatelessWidget {
                             child: Lottie.asset(
                               logoAsset,
                               fit: BoxFit.contain,
-                              repeat: true,
+                              repeat: false,
                               errorBuilder: (_, __, ___) => _FallbackLogo(
                                 isDark: isDark,
                                 isLarge: isLarge,

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/theme_extensions.dart';
+import '../../core/widgets/food_match_empty_state_image.dart';
 
 class EmptyState extends StatelessWidget {
   const EmptyState({
-    required this.icon,
+    this.icon,
+    this.imageAsset,
     required this.title,
     required this.subtitle,
     this.buttonText,
@@ -12,7 +14,8 @@ class EmptyState extends StatelessWidget {
     super.key,
   });
 
-  final IconData icon;
+  final IconData? icon;
+  final String? imageAsset;
   final String title;
   final String subtitle;
   final String? buttonText;
@@ -27,7 +30,17 @@ class EmptyState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            Icon(icon, size: 80, color: colors.textMuted),
+            if (imageAsset != null)
+              FoodMatchEmptyStateImage(
+                assetPath: imageAsset!,
+                width: 200,
+                height: 180,
+                fallback: icon == null
+                    ? null
+                    : Icon(icon, size: 80, color: colors.textMuted),
+              )
+            else if (icon != null)
+              Icon(icon, size: 80, color: colors.textMuted),
             const SizedBox(height: 16),
             Text(
               title,

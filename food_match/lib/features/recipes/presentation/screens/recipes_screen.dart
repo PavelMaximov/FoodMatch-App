@@ -7,12 +7,14 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../core/assets/app_empty_state_assets.dart';
 import '../../../../core/theme/notification_theme.dart';
 import '../../../../core/utils/food_match_notifications.dart';
 import '../../../../core/animations/app_motion.dart';
 import '../../../../core/errors/error_messages.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/theme/theme_extensions.dart';
+import '../../../../core/utils/dish_image_placeholders.dart';
 import '../../../../core/utils/image_utils.dart';
 import '../../../../core/widgets/food_match_ripple.dart';
 import '../../../../data/models/dish.dart';
@@ -407,6 +409,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
           const SizedBox(height: 24),
           const EmptyState(
             icon: Icons.menu_book_outlined,
+            imageAsset: AppEmptyStateAssets.emptyRecipesSearch,
             title: 'No recipes found',
             subtitle: 'No dishes match the selected meal tab and filters.',
           ),
@@ -1458,6 +1461,9 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
               height: 420,
               child: EmptyState(
                 icon: Icons.menu_book_outlined,
+                imageAsset: _hasActiveSearchOrFilters
+                    ? AppEmptyStateAssets.emptyRecipesSearch
+                    : AppEmptyStateAssets.emptyRecipesCategory,
                 title: _hasActiveSearchOrFilters
                     ? 'No recipes found'
                     : 'No dishes in this category',
@@ -1653,6 +1659,9 @@ class _SavedDishTile extends StatelessWidget {
                   width: 64,
                   height: 64,
                   fit: BoxFit.cover,
+                  emptyImageAsset: isCustomDishWithoutPhoto(dish)
+                      ? AppEmptyStateAssets.customDishPlaceholder
+                      : null,
                 ),
               ),
               const SizedBox(width: 10),
@@ -1756,6 +1765,7 @@ class _RecipeSearchDelegate extends SearchDelegate<Dish?> {
       return const Center(
         child: EmptyState(
           icon: Icons.search_off,
+          imageAsset: AppEmptyStateAssets.emptyRecipesCategory,
           title: 'No dishes found',
           subtitle: 'Try another dish name',
         ),

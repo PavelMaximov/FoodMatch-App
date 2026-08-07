@@ -6,7 +6,9 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_dimensions.dart';
+import '../../../../core/assets/app_empty_state_assets.dart';
 import '../../../../core/theme/theme_extensions.dart';
+import '../../../../core/utils/dish_image_placeholders.dart';
 import '../../../../core/utils/image_utils.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../data/models/recipe_step.dart';
@@ -184,6 +186,9 @@ class _HeroImage extends StatelessWidget {
           child: SafeDishImage(
             imageUrl: ImageUtils.getImageUrl(dish.imageUrl, usage: ImageUsage.dishHero),
             fit: BoxFit.cover,
+            emptyImageAsset: isCustomDishWithoutPhoto(dish)
+                ? AppEmptyStateAssets.customDishPlaceholder
+                : null,
           ),
         ),
       ),

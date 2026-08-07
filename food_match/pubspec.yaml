@@ -39,6 +39,8 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
+    - assets/empty_states/
+    - assets/profile/
     - assets/media/
     - assets/icons/
     - assets/icons/nav/

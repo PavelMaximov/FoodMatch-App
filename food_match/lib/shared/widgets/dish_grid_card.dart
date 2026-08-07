@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../core/assets/app_empty_state_assets.dart';
 import '../../core/theme/theme_extensions.dart';
+import '../../core/utils/dish_image_placeholders.dart';
 import '../../core/utils/image_utils.dart';
 import '../../core/widgets/food_match_ripple.dart';
 import '../../data/models/dish.dart';
@@ -34,6 +36,9 @@ class DishGridCard extends StatelessWidget {
     final Widget image = SafeDishImage(
       imageUrl: ImageUtils.getImageUrl(dish.imageUrl, usage: ImageUsage.dishCard),
       fit: BoxFit.cover,
+      emptyImageAsset: isCustomDishWithoutPhoto(dish)
+          ? AppEmptyStateAssets.customDishPlaceholder
+          : null,
     );
 
     return SizedBox(

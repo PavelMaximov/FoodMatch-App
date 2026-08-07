@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/assets/app_empty_state_assets.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../data/models/match_item.dart';
@@ -108,6 +109,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
             const SizedBox(height: 120),
             EmptyState(
               icon: Icons.favorite_border,
+              imageAsset: AppEmptyStateAssets.emptyMatches,
               title: 'No matches yet',
               subtitle: isSoloMode
                   ? 'Your solo likes will appear here.'

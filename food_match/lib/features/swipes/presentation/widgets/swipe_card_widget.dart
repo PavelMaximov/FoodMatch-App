@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../core/assets/app_empty_state_assets.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/theme/app_dimensions.dart';
+import '../../../../core/utils/dish_image_placeholders.dart';
 import '../../../../core/utils/image_utils.dart';
 import '../../../../core/widgets/food_match_ripple.dart';
 import '../../../../data/models/dish.dart';
@@ -103,6 +105,9 @@ class SwipeCardWidget extends StatelessWidget {
               fit: BoxFit.cover,
               width: double.infinity,
               height: double.infinity,
+              emptyImageAsset: isCustomDishWithoutPhoto(dish)
+                  ? AppEmptyStateAssets.customDishPlaceholder
+                  : null,
             ),
           ),
 
