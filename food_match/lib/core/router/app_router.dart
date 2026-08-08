@@ -75,6 +75,16 @@ class AppRouter {
               ),
             ),
             GoRoute(
+              path: '/shopping-list',
+              name: 'shoppingList',
+              pageBuilder: (BuildContext context, GoRouterState state) =>
+                  _bottomUpPage(
+                context: context,
+                state: state,
+                child: const ShoppingListScreen(),
+              ),
+            ),
+            GoRoute(
               path: '/match-overlay',
               pageBuilder: (BuildContext context, GoRouterState state) => _fadeScalePage(
                 context: context,
@@ -141,10 +151,6 @@ class AppRouter {
                       routes: <RouteBase>[
                         GoRoute(path: 'settings', builder: (_, __) => const ProfileSettingsScreen()),
                       ],
-                    ),
-                    GoRoute(
-                      path: '/shopping-list',
-                      builder: (_, __) => const ShoppingListScreen(),
                     ),
                   ],
                 ),

@@ -36,7 +36,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   _RecipeDetailTab _activeTab = _RecipeDetailTab.ingredients;
   bool _isScrolled = false;
   bool _isAddingIngredientsToShoppingList = false;
-  bool _isShoppingListNavigationPending = false;
+  bool _hasScheduledShoppingListNavigation = false;
 
   @override
   void initState() {
@@ -151,7 +151,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                   activeTab: _activeTab,
                   onTabChanged: (_RecipeDetailTab tab) => setState(() => _activeTab = tab),
                   isAddingIngredients: _isAddingIngredientsToShoppingList ||
-                      _isShoppingListNavigationPending,
+                      _hasScheduledShoppingListNavigation,
                   onAddIngredients: _handleAddIngredientsToShoppingList,
                 ),
               ),
@@ -174,7 +174,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     List<ShoppingListIngredientInput> ingredients,
   ) async {
     if (_isAddingIngredientsToShoppingList ||
-        _isShoppingListNavigationPending) {
+        _hasScheduledShoppingListNavigation) {
       return;
     }
     setState(() => _isAddingIngredientsToShoppingList = true);
@@ -185,13 +185,19 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             sourceDishName: dish.name,
       );
       if (!mounted) return;
-      setState(() => _isShoppingListNavigationPending = true);
+      setState(() => _hasScheduledShoppingListNavigation = true);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        final Future<Object?> navigation = context.push('/shopping-list');
+        final GoRouter router = GoRouter.of(context);
+        if (router.routeInformationProvider.value.uri.path ==
+            '/shopping-list') {
+          setState(() => _hasScheduledShoppingListNavigation = false);
+          return;
+        }
+        final Future<Object?> navigation = context.pushNamed('shoppingList');
         navigation.whenComplete(() {
           if (!mounted) return;
-          setState(() => _isShoppingListNavigationPending = false);
+          setState(() => _hasScheduledShoppingListNavigation = false);
         });
       });
     } finally {
