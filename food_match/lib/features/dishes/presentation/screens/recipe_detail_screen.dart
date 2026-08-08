@@ -36,6 +36,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   _RecipeDetailTab _activeTab = _RecipeDetailTab.ingredients;
   bool _isScrolled = false;
   bool _isAddingIngredientsToShoppingList = false;
+  bool _isShoppingListNavigationPending = false;
 
   @override
   void initState() {
@@ -149,7 +150,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                   fallbackDishId: widget.dishId,
                   activeTab: _activeTab,
                   onTabChanged: (_RecipeDetailTab tab) => setState(() => _activeTab = tab),
-                  isAddingIngredients: _isAddingIngredientsToShoppingList,
+                  isAddingIngredients: _isAddingIngredientsToShoppingList ||
+                      _isShoppingListNavigationPending,
                   onAddIngredients: _handleAddIngredientsToShoppingList,
                 ),
               ),
@@ -171,26 +173,29 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     Dish dish,
     List<ShoppingListIngredientInput> ingredients,
   ) async {
-    if (_isAddingIngredientsToShoppingList) return;
+    if (_isAddingIngredientsToShoppingList ||
+        _isShoppingListNavigationPending) {
+      return;
+    }
     setState(() => _isAddingIngredientsToShoppingList = true);
-    bool navigationScheduled = false;
     try {
       await context.read<ShoppingListProvider>().addIngredients(
             ingredients: ingredients,
             sourceDishId: dish.id,
             sourceDishName: dish.name,
-          );
+      );
       if (!mounted) return;
-      navigationScheduled = true;
+      setState(() => _isShoppingListNavigationPending = true);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        context.push('/shopping-list');
-        if (mounted) {
-          setState(() => _isAddingIngredientsToShoppingList = false);
-        }
+        final Future<Object?> navigation = context.push('/shopping-list');
+        navigation.whenComplete(() {
+          if (!mounted) return;
+          setState(() => _isShoppingListNavigationPending = false);
+        });
       });
     } finally {
-      if (!navigationScheduled && mounted) {
+      if (mounted) {
         setState(() => _isAddingIngredientsToShoppingList = false);
       }
     }

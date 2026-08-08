@@ -32,4 +32,16 @@ void main() {
     expect(formatIngredientLine(measured), '0.5 tsp black pepper');
     expect(formatIngredientLine(unmeasured), 'onion');
   });
+
+  test('trims compound units and supports quantity-only measurements', () {
+    const DishIngredientMeasurement compound = DishIngredientMeasurement(
+      quantity: '1.0',
+      unit: '  tbsp chopped  ',
+    );
+    const DishIngredientMeasurement quantityOnly =
+        DishIngredientMeasurement(quantity: '200');
+
+    expect(formatIngredientMeasurement(compound), '1 tbsp chopped');
+    expect(formatIngredientMeasurement(quantityOnly), '200');
+  });
 }
