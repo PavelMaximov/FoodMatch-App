@@ -49,6 +49,7 @@ export interface DishDocument extends Document {
   visibility: 'public' | 'session' | 'private';
   isCustom: boolean;
   structuredIngredients: StructuredIngredient[];
+  sections?: unknown[];
   status: 'active' | 'approved' | 'hidden' | 'deleted';
   hiddenAt?: Date | null;
   createdAt: Date;
@@ -100,6 +101,9 @@ const dishSchema = new Schema<DishDocument>(
     visibility: { type: String, enum: ['public', 'session', 'private'], default: 'public', index: true },
     isCustom: { type: Boolean, default: false, index: true },
     structuredIngredients: { type: [structuredIngredientSchema], default: [] },
+    // Imported catalog dishes may contain rich, provider-specific ingredient
+    // components. Keep them losslessly while the public DTO normalizes them.
+    sections: { type: [Schema.Types.Mixed], default: undefined },
     status: { type: String, enum: ['active', 'approved', 'hidden', 'deleted'], default: 'approved', index: true },
     hiddenAt: { type: Date, default: null }
   },

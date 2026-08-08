@@ -47,4 +47,70 @@ void main() {
     expect(dish.steps, isEmpty);
     expect(dish.popular, isFalse);
   });
+
+  test('Dish.fromJson parses normalized rich ingredient sections', () {
+    final Dish dish = Dish.fromJson(<String, dynamic>{
+      'id': 'rich',
+      'ingredients': <String>['spaghetti'],
+      'ingredientSections': <Map<String, dynamic>>[
+        <String, dynamic>{
+          'name': 'Main',
+          'position': 0,
+          'components': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'position': 1,
+              'name': 'spaghetti',
+              'displayName': 'spaghetti',
+              'measurements': <Map<String, dynamic>>[
+                <String, dynamic>{'quantity': 200, 'unit': 'g'},
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(dish.ingredients, <String>['spaghetti']);
+    expect(dish.sections.single.name, 'Main');
+    expect(dish.sections.single.components.single.resolvedName, 'spaghetti');
+    expect(
+      dish.sections.single.components.single.measurements.single.quantity,
+      '200',
+    );
+    expect(
+      dish.sections.single.components.single.measurements.single.unit,
+      'g',
+    );
+  });
+
+  test('Dish.fromJson parses raw database ingredient sections', () {
+    final Dish dish = Dish.fromJson(<String, dynamic>{
+      'id': 'raw',
+      'sections': <Map<String, dynamic>>[
+        <String, dynamic>{
+          'components': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'raw_text': '2 eggs',
+              'ingredient': <String, dynamic>{
+                'name': 'eggs',
+                'display_plural': 'eggs',
+              },
+              'measurements': <Map<String, dynamic>>[
+                <String, dynamic>{
+                  'quantity': 2.0,
+                  'unit': <String, dynamic>{'display_singular': 'piece'},
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    final DishComponent component = dish.sections.single.components.single;
+    expect(component.resolvedName, 'eggs');
+    expect(component.rawText, '2 eggs');
+    expect(component.measurements.single.quantity, '2.0');
+    expect(component.measurements.single.unit, 'piece');
+  });
 }

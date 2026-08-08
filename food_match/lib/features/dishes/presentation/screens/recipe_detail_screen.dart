@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/constants/app_strings.dart';
@@ -16,6 +17,8 @@ import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/media/safe_dish_image.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
 import '../../../favorites/logic/favorites_provider.dart';
+import '../../../shopping_list/logic/shopping_list_provider.dart';
+import '../../domain/ingredient_formatter.dart';
 import '../../logic/recipe_provider.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
@@ -32,6 +35,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   final ScrollController _scrollController = ScrollController();
   _RecipeDetailTab _activeTab = _RecipeDetailTab.ingredients;
   bool _isScrolled = false;
+  bool _isAddingIngredientsToShoppingList = false;
+  bool _hasScheduledShoppingListNavigation = false;
 
   @override
   void initState() {
@@ -145,6 +150,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                   fallbackDishId: widget.dishId,
                   activeTab: _activeTab,
                   onTabChanged: (_RecipeDetailTab tab) => setState(() => _activeTab = tab),
+                  isAddingIngredients: _isAddingIngredientsToShoppingList ||
+                      _hasScheduledShoppingListNavigation,
+                  onAddIngredients: _handleAddIngredientsToShoppingList,
                 ),
               ),
             ],
@@ -159,6 +167,44 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _handleAddIngredientsToShoppingList(
+    Dish dish,
+    List<ShoppingListIngredientInput> ingredients,
+  ) async {
+    if (_isAddingIngredientsToShoppingList ||
+        _hasScheduledShoppingListNavigation) {
+      return;
+    }
+    setState(() => _isAddingIngredientsToShoppingList = true);
+    try {
+      await context.read<ShoppingListProvider>().addIngredients(
+            ingredients: ingredients,
+            sourceDishId: dish.id,
+            sourceDishName: dish.name,
+      );
+      if (!mounted) return;
+      setState(() => _hasScheduledShoppingListNavigation = true);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final GoRouter router = GoRouter.of(context);
+        if (router.routeInformationProvider.value.uri.path ==
+            '/shopping-list') {
+          setState(() => _hasScheduledShoppingListNavigation = false);
+          return;
+        }
+        final Future<Object?> navigation = context.pushNamed('shoppingList');
+        navigation.whenComplete(() {
+          if (!mounted) return;
+          setState(() => _hasScheduledShoppingListNavigation = false);
+        });
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isAddingIngredientsToShoppingList = false);
+      }
+    }
   }
 }
 
@@ -294,18 +340,27 @@ class _RecipeContent extends StatelessWidget {
     required this.fallbackDishId,
     required this.activeTab,
     required this.onTabChanged,
+    required this.isAddingIngredients,
+    required this.onAddIngredients,
   });
 
   final Dish dish;
   final String fallbackDishId;
   final _RecipeDetailTab activeTab;
   final ValueChanged<_RecipeDetailTab> onTabChanged;
+  final bool isAddingIngredients;
+  final Future<void> Function(
+    Dish dish,
+    List<ShoppingListIngredientInput> ingredients,
+  ) onAddIngredients;
 
   @override
   Widget build(BuildContext context) {
     final FoodMatchThemeColors colors = context.fmColors;
     final EdgeInsets safePadding = MediaQuery.paddingOf(context);
     final List<_IngredientDisplayRow> ingredientRows = _buildIngredientRows(dish);
+    final List<ShoppingListIngredientInput> shoppingIngredients =
+        _buildShoppingIngredients(dish);
 
     return ColoredBox(
       color: colors.background,
@@ -348,6 +403,29 @@ class _RecipeContent extends StatelessWidget {
             const SizedBox(height: 18),
             _StatsRow(dish: dish),
             const SizedBox(height: 24),
+            if (shoppingIngredients.isNotEmpty) ...<Widget>[
+              TextButton.icon(
+                onPressed: isAddingIngredients
+                    ? null
+                    : () => onAddIngredients(dish, shoppingIngredients),
+                style: TextButton.styleFrom(
+                  foregroundColor: colors.primary,
+                  padding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                ),
+                icon: isAddingIngredients
+                    ? const SizedBox.square(
+                        dimension: 17,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.add_rounded, size: 21),
+                label: Text(
+                  'Add ingredients to the grocery list',
+                  style: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w800),
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
             _Tabs(activeTab: activeTab, onChanged: onTabChanged),
             _TabPanel(
               child: activeTab == _RecipeDetailTab.ingredients
@@ -363,7 +441,14 @@ class _RecipeContent extends StatelessWidget {
   List<_IngredientDisplayRow> _buildIngredientRows(Dish dish) {
     final List<_IngredientDisplayRow> structuredRows = dish.sections
         .expand((DishSection section) => section.components)
-        .map((DishComponent component) => _IngredientDisplayRow(name: component.ingredient.name.trim()))
+        .map((DishComponent component) {
+          final DishIngredientMeasurement? measurement =
+              component.measurements.isEmpty ? null : component.measurements.first;
+          return _IngredientDisplayRow(
+            name: component.resolvedName,
+            measurement: formatIngredientMeasurement(measurement),
+          );
+        })
         .where((_IngredientDisplayRow row) => row.name.isNotEmpty)
         .toList();
 
@@ -374,6 +459,28 @@ class _RecipeContent extends StatelessWidget {
     return dish.ingredients
         .map((String ingredient) => _IngredientDisplayRow(name: ingredient.trim()))
         .where((_IngredientDisplayRow row) => row.name.isNotEmpty)
+        .toList();
+  }
+
+  List<ShoppingListIngredientInput> _buildShoppingIngredients(Dish dish) {
+    final List<ShoppingListIngredientInput> richIngredients = dish.sections
+        .expand((DishSection section) => section.components)
+        .where((DishComponent component) => component.resolvedName.isNotEmpty)
+        .map((DishComponent component) {
+          final DishIngredientMeasurement? measurement =
+              component.measurements.isEmpty ? null : component.measurements.first;
+          return ShoppingListIngredientInput(
+            name: component.resolvedName,
+            quantity: formatIngredientQuantity(measurement?.quantity),
+            measure: measurement?.unit,
+          );
+        })
+        .toList();
+    if (richIngredients.isNotEmpty) return richIngredients;
+    return dish.ingredients
+        .map(ShoppingListIngredientInput.fromName)
+        .where((ShoppingListIngredientInput ingredient) =>
+            ingredient.name.trim().isNotEmpty)
         .toList();
   }
 }
@@ -632,9 +739,10 @@ class _TabPanel extends StatelessWidget {
 }
 
 class _IngredientDisplayRow {
-  const _IngredientDisplayRow({required this.name});
+  const _IngredientDisplayRow({required this.name, this.measurement = ''});
 
   final String name;
+  final String measurement;
 }
 
 class _IngredientsContent extends StatelessWidget {
@@ -680,7 +788,22 @@ class _IngredientText extends StatelessWidget {
       height: 1.35,
       color: colors.textPrimary,
     );
-    return Text(row.name, textAlign: TextAlign.start, style: baseStyle);
+    return Text.rich(
+      TextSpan(
+        children: <InlineSpan>[
+          if (row.measurement.isNotEmpty)
+            TextSpan(
+              text: '${row.measurement} ',
+              style: baseStyle.copyWith(fontWeight: FontWeight.w700),
+            ),
+          TextSpan(
+            text: row.name,
+            style: baseStyle.copyWith(fontWeight: FontWeight.w400),
+          ),
+        ],
+      ),
+      textAlign: TextAlign.start,
+    );
   }
 }
 

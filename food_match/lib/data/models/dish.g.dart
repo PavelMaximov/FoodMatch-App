@@ -2,30 +2,74 @@
 
 part of 'dish.dart';
 
-DishIngredient _$DishIngredientFromJson(Map<String, dynamic> json) =>
-    DishIngredient(name: json['name'] as String? ?? '');
+DishIngredient _$DishIngredientFromJson(Map<String, dynamic> json) => DishIngredient(
+      name: json['name'] as String? ?? '',
+      displaySingular: json['display_singular'] as String? ?? '',
+      displayPlural: json['display_plural'] as String? ?? '',
+    );
 
 Map<String, dynamic> _$DishIngredientToJson(DishIngredient instance) =>
-    <String, dynamic>{'name': instance.name};
+    <String, dynamic>{
+      'name': instance.name,
+      'display_singular': instance.displaySingular,
+      'display_plural': instance.displayPlural,
+    };
 
 DishComponent _$DishComponentFromJson(Map<String, dynamic> json) => DishComponent(
       ingredient: json['ingredient'] == null
           ? const DishIngredient(name: '')
           : DishIngredient.fromJson(json['ingredient'] as Map<String, dynamic>),
+      position: (json['position'] as num?)?.toInt() ?? 0,
+      name: json['name'] as String? ?? '',
+      displayName: json['displayName'] as String? ?? '',
+      rawText: (json['rawText'] ?? json['raw_text']) as String?,
+      extraComment: (json['extraComment'] ?? json['extra_comment']) as String?,
+      measurements: (json['measurements'] as List<dynamic>?)
+              ?.whereType<Map>()
+              .map((Map<dynamic, dynamic> value) => DishIngredientMeasurement.fromJson(
+                    Map<String, dynamic>.from(value),
+                  ))
+              .toList() ??
+          <DishIngredientMeasurement>[],
     );
 
 Map<String, dynamic> _$DishComponentToJson(DishComponent instance) =>
-    <String, dynamic>{'ingredient': instance.ingredient};
+    <String, dynamic>{
+      'ingredient': instance.ingredient,
+      'position': instance.position,
+      'name': instance.name,
+      'displayName': instance.displayName,
+      'rawText': instance.rawText,
+      'extraComment': instance.extraComment,
+      'measurements': instance.measurements,
+    };
 
 DishSection _$DishSectionFromJson(Map<String, dynamic> json) => DishSection(
       components: (json['components'] as List<dynamic>?)
               ?.map((e) => DishComponent.fromJson(e as Map<String, dynamic>))
               .toList() ??
           <DishComponent>[],
+      name: json['name'] as String? ?? '',
+      position: (json['position'] as num?)?.toInt() ?? 0,
     );
 
 Map<String, dynamic> _$DishSectionToJson(DishSection instance) =>
-    <String, dynamic>{'components': instance.components};
+    <String, dynamic>{
+      'components': instance.components,
+      'name': instance.name,
+      'position': instance.position,
+    };
+
+DishIngredientMeasurement _$DishIngredientMeasurementFromJson(
+  Map<String, dynamic> json,
+) => DishIngredientMeasurement(
+  quantity: _readMeasurementValue(json['quantity']),
+  unit: _readMeasurementUnit(json['unit']),
+);
+
+Map<String, dynamic> _$DishIngredientMeasurementToJson(
+  DishIngredientMeasurement instance,
+) => <String, dynamic>{'quantity': instance.quantity, 'unit': instance.unit};
 
 
 DishNutrition _$DishNutritionFromJson(Map<String, dynamic> json) => DishNutrition(
@@ -93,7 +137,7 @@ Map<String, dynamic> _$DishToJson(Dish instance) => <String, dynamic>{
 
 
 List<DishSection> _readDishSections(Map<String, dynamic> json) {
-  final dynamic rawSections = json['sections'];
+  final dynamic rawSections = json['ingredientSections'] ?? json['sections'];
   if (rawSections is List) {
     return rawSections
         .whereType<Map>()
@@ -105,7 +149,16 @@ List<DishSection> _readDishSections(Map<String, dynamic> json) {
   if (structuredIngredients is List && structuredIngredients.isNotEmpty) {
     final List<DishComponent> components = structuredIngredients.whereType<Map>().map((Map ingredient) {
       final String name = ingredient['name']?.toString() ?? '';
-      return DishComponent(ingredient: DishIngredient(name: name));
+      final String? quantity = _readMeasurementValue(ingredient['quantity']);
+      final String? unit = _readMeasurementUnit(ingredient['unit']);
+      return DishComponent(
+        ingredient: DishIngredient(name: name),
+        measurements: quantity == null && unit == null
+            ? const <DishIngredientMeasurement>[]
+            : <DishIngredientMeasurement>[
+                DishIngredientMeasurement(quantity: quantity, unit: unit),
+              ],
+      );
     }).where((DishComponent component) => component.ingredient.name.isNotEmpty).toList();
 
     if (components.isNotEmpty) {
@@ -114,6 +167,19 @@ List<DishSection> _readDishSections(Map<String, dynamic> json) {
   }
 
   return <DishSection>[];
+}
+
+String? _readMeasurementValue(dynamic value) {
+  if (value == null) return null;
+  final String result = value.toString().trim();
+  return result.isEmpty ? null : result;
+}
+
+String? _readMeasurementUnit(dynamic value) {
+  if (value is Map) {
+    value = value['abbreviation'] ?? value['display_singular'] ?? value['name'];
+  }
+  return _readMeasurementValue(value);
 }
 
 List<String> _readDishTags(Map<String, dynamic> json) {

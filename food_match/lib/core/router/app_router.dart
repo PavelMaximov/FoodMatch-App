@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../animations/app_motion.dart';
+import 'app_route_transitions.dart';
 import '../../data/models/dish.dart';
 import '../../features/auth/logic/auth_provider.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
@@ -16,6 +17,7 @@ import '../../features/matches/presentation/screens/matches_screen.dart';
 import '../../features/favorites/presentation/screens/favorites_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/recipes/presentation/screens/recipes_screen.dart';
+import '../../features/shopping_list/presentation/screens/shopping_list_screen.dart';
 import '../../features/swipes/presentation/screens/swipes_screen.dart';
 import '../../shared/widgets/root_tab_skeleton.dart';
 import '../../shell/presentation/screens/main_shell.dart';
@@ -71,6 +73,18 @@ class AppRouter {
                   dishId: state.pathParameters['dishId'] ?? 'unknown',
                   dish: state.extra is Dish ? state.extra! as Dish : null,
                 ),
+              ),
+            ),
+            GoRoute(
+              path: '/shopping-list',
+              name: 'shoppingList',
+              pageBuilder: (BuildContext context, GoRouterState state) =>
+                  CustomTransitionPage<void>(
+                key: state.pageKey,
+                transitionDuration: const Duration(milliseconds: 380),
+                reverseTransitionDuration: const Duration(milliseconds: 300),
+                child: const ShoppingListScreen(),
+                transitionsBuilder: slideFromRightFadeTransition,
               ),
             ),
             GoRoute(

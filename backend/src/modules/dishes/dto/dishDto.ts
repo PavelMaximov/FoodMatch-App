@@ -74,6 +74,20 @@ export interface DishDto {
   season: string[];
   popular: boolean;
   steps: Array<{ step: number; text: string }>;
+  ingredientSections?: IngredientSectionDto[];
+}
+
+export interface IngredientSectionDto {
+  name: string;
+  position: number;
+  components: Array<{
+    position: number;
+    name: string;
+    displayName: string;
+    rawText: string | null;
+    extraComment: string | null;
+    measurements: Array<{ quantity: string | number | null; unit: string | null }>;
+  }>;
 }
 
 export function toDishDto(dish: any): DishDto | null {
@@ -118,7 +132,8 @@ export function toDishDto(dish: any): DishDto | null {
     source: asStringList(raw.source),
     season: asStringList(raw.season),
     popular: typeof raw.popular === 'boolean' ? raw.popular : false,
-    steps: readSteps(raw)
+    steps: readSteps(raw),
+    ingredientSections: readIngredientSections(raw)
   };
 }
 
@@ -150,7 +165,7 @@ function readIngredients(rawDish: any): string[] {
   const fromSections = Array.isArray(rawDish.sections)
     ? rawDish.sections.flatMap((section: any) =>
         Array.isArray(section?.components)
-          ? section.components.map((component: any) => firstString(component?.raw_text, component?.ingredient?.name))
+          ? section.components.map((component: any) => firstString(component?.ingredient?.name, component?.name))
           : []
       )
     : [];
@@ -164,6 +179,58 @@ function readIngredients(rawDish: any): string[] {
   }
 
   return [];
+}
+
+function readIngredientSections(rawDish: any): IngredientSectionDto[] | undefined {
+  if (!Array.isArray(rawDish.sections) || rawDish.sections.length === 0) {
+    return undefined;
+  }
+
+  const sections = rawDish.sections.map((section: any, sectionIndex: number) => ({
+    name: asString(section?.name),
+    position: firstNumber(section?.position, sectionIndex),
+    components: Array.isArray(section?.components)
+      ? section.components.map((component: any, componentIndex: number) => {
+          const ingredient = component?.ingredient ?? {};
+          const name = firstString(component?.name, ingredient?.name);
+          return {
+            position: firstNumber(component?.position, componentIndex),
+            name,
+            displayName: firstString(
+              component?.displayName,
+              ingredient?.display_singular,
+              ingredient?.display_plural,
+              name,
+            ),
+            rawText: nullableString(component?.raw_text ?? component?.rawText),
+            extraComment: nullableString(component?.extra_comment ?? component?.extraComment),
+            measurements: Array.isArray(component?.measurements)
+              ? component.measurements.map((measurement: any) => ({
+                  quantity: readMeasurementQuantity(measurement?.quantity),
+                  unit: nullableString(readMeasurementUnit(measurement?.unit)),
+                }))
+              : [],
+          };
+        }).filter((component: { name: string }) => component.name.length > 0)
+      : [],
+  })).filter((section: IngredientSectionDto) => section.components.length > 0);
+
+  return sections.length > 0 ? sections : undefined;
+}
+
+function readMeasurementQuantity(value: any): string | number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  return nullableString(value);
+}
+
+function readMeasurementUnit(value: any): string {
+  if (typeof value === 'string') return value.trim();
+  return firstString(value?.abbreviation, value?.display_singular, value?.name);
+}
+
+function nullableString(value: any): string | null {
+  const result = asString(value);
+  return result || null;
 }
 
 function readNutrition(nutrition: any): DishNutritionDto | null {

@@ -249,6 +249,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 18),
             _FavoritesCard(onTap: () => context.push('/favorites')),
+            const SizedBox(height: 10),
+            _ShoppingListCard(onTap: () => context.push('/shopping-list')),
             const SizedBox(height: 18),
             _SettingsGroup(
               onSettings: () => context.push('/profile/settings'),
@@ -641,11 +643,7 @@ class _FavoritesCard extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(20, 14, 16, 14),
           child: Row(
             children: <Widget>[
-              const Icon(
-                Icons.bookmark_border,
-                size: 18,
-                color: AppColors.textPrimary,
-              ),
+               Icon(Icons.bookmark_border, size: 18, color: context.fmColors.textPrimary),
               const SizedBox(width: 8),
               Expanded(
                 child: Column(
@@ -662,7 +660,7 @@ class _FavoritesCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'You will find your favorite dishes here.',
+                      'You will find your favorite dishes here',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.nunito(
@@ -675,10 +673,56 @@ class _FavoritesCard extends StatelessWidget {
                 ),
               ),
               Icon(
-                Icons.chevron_right,
+                Icons.chevron_right_rounded,
                 size: 28,
                 color: context.fmColors.textPrimary,
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ShoppingListCard extends StatelessWidget {
+  const _ShoppingListCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return _ProfileSurface(
+      minHeight: 74,
+      padding: EdgeInsets.zero,
+      child: _ProfileInk(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 16, 14),
+          child: Row(
+            children: <Widget>[
+              Icon(Icons.checklist_rtl_rounded, size: 18, color: context.fmColors.textPrimary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      'Grocery list',
+                      style: GoogleFonts.nunito(fontSize: 17, fontWeight: FontWeight.w700, color: context.fmColors.textPrimary),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Products you want to buy',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w500, color: context.fmColors.textMuted),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded, size: 28, color: context.fmColors.textPrimary),
             ],
           ),
         ),
@@ -816,7 +860,7 @@ class _SettingsRow extends StatelessWidget {
                 const SizedBox(width: 6),
               ],
               Icon(
-                Icons.chevron_right,
+                Icons.chevron_right_rounded,
                 size: 28,
                 color: context.fmColors.textPrimary,
               ),
