@@ -11,8 +11,6 @@ import '../../../../core/assets/app_empty_state_assets.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/utils/dish_image_placeholders.dart';
 import '../../../../core/utils/image_utils.dart';
-import '../../../../core/utils/food_match_notifications.dart';
-import '../../../../core/theme/notification_theme.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../data/models/recipe_step.dart';
 import '../../../../shared/widgets/error_state.dart';
@@ -37,6 +35,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   final ScrollController _scrollController = ScrollController();
   _RecipeDetailTab _activeTab = _RecipeDetailTab.ingredients;
   bool _isScrolled = false;
+  bool _isAddingIngredientsToShoppingList = false;
 
   @override
   void initState() {
@@ -150,6 +149,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                   fallbackDishId: widget.dishId,
                   activeTab: _activeTab,
                   onTabChanged: (_RecipeDetailTab tab) => setState(() => _activeTab = tab),
+                  isAddingIngredients: _isAddingIngredientsToShoppingList,
+                  onAddIngredients: _handleAddIngredientsToShoppingList,
                 ),
               ),
             ],
@@ -164,6 +165,35 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _handleAddIngredientsToShoppingList(
+    Dish dish,
+    List<ShoppingListIngredientInput> ingredients,
+  ) async {
+    if (_isAddingIngredientsToShoppingList) return;
+    setState(() => _isAddingIngredientsToShoppingList = true);
+    bool navigationScheduled = false;
+    try {
+      await context.read<ShoppingListProvider>().addIngredients(
+            ingredients: ingredients,
+            sourceDishId: dish.id,
+            sourceDishName: dish.name,
+          );
+      if (!mounted) return;
+      navigationScheduled = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context.push('/shopping-list');
+        if (mounted) {
+          setState(() => _isAddingIngredientsToShoppingList = false);
+        }
+      });
+    } finally {
+      if (!navigationScheduled && mounted) {
+        setState(() => _isAddingIngredientsToShoppingList = false);
+      }
+    }
   }
 }
 
@@ -299,12 +329,19 @@ class _RecipeContent extends StatelessWidget {
     required this.fallbackDishId,
     required this.activeTab,
     required this.onTabChanged,
+    required this.isAddingIngredients,
+    required this.onAddIngredients,
   });
 
   final Dish dish;
   final String fallbackDishId;
   final _RecipeDetailTab activeTab;
   final ValueChanged<_RecipeDetailTab> onTabChanged;
+  final bool isAddingIngredients;
+  final Future<void> Function(
+    Dish dish,
+    List<ShoppingListIngredientInput> ingredients,
+  ) onAddIngredients;
 
   @override
   Widget build(BuildContext context) {
@@ -357,13 +394,20 @@ class _RecipeContent extends StatelessWidget {
             const SizedBox(height: 24),
             if (shoppingIngredients.isNotEmpty) ...<Widget>[
               TextButton.icon(
-                onPressed: () => _addIngredients(context, shoppingIngredients),
+                onPressed: isAddingIngredients
+                    ? null
+                    : () => onAddIngredients(dish, shoppingIngredients),
                 style: TextButton.styleFrom(
                   foregroundColor: colors.primary,
                   padding: EdgeInsets.zero,
                   visualDensity: VisualDensity.compact,
                 ),
-                icon: const Icon(Icons.add_rounded, size: 21),
+                icon: isAddingIngredients
+                    ? const SizedBox.square(
+                        dimension: 17,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.add_rounded, size: 21),
                 label: Text(
                   'Add ingredients to the shopping list',
                   style: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w800),
@@ -383,33 +427,17 @@ class _RecipeContent extends StatelessWidget {
     );
   }
 
-  Future<void> _addIngredients(
-    BuildContext context,
-    List<ShoppingListIngredientInput> ingredients,
-  ) async {
-    final int count = await context.read<ShoppingListProvider>().addIngredients(
-          ingredients: ingredients,
-          sourceDishId: dish.id,
-          sourceDishName: dish.name,
-        );
-    if (!context.mounted) return;
-    FoodMatchNotifications.show(
-      context,
-      type: count > 0 ? FoodMatchNotificationType.success : FoodMatchNotificationType.info,
-      title: count > 0 ? 'Added to shopping list' : 'Already in shopping list',
-      message: count > 0
-          ? '$count ingredients added.'
-          : 'These ingredients are already on your list.',
-      icon: count > 0 ? Icons.shopping_bag_outlined : Icons.info_outline_rounded,
-    );
-    context.push('/shopping-list');
-  }
-
   List<_IngredientDisplayRow> _buildIngredientRows(Dish dish) {
     final List<_IngredientDisplayRow> structuredRows = dish.sections
         .expand((DishSection section) => section.components)
-        .map((DishComponent component) =>
-            _IngredientDisplayRow(name: formatIngredientLine(component)))
+        .map((DishComponent component) {
+          final DishIngredientMeasurement? measurement =
+              component.measurements.isEmpty ? null : component.measurements.first;
+          return _IngredientDisplayRow(
+            name: component.resolvedName,
+            measurement: formatIngredientMeasurement(measurement),
+          );
+        })
         .where((_IngredientDisplayRow row) => row.name.isNotEmpty)
         .toList();
 
@@ -700,9 +728,10 @@ class _TabPanel extends StatelessWidget {
 }
 
 class _IngredientDisplayRow {
-  const _IngredientDisplayRow({required this.name});
+  const _IngredientDisplayRow({required this.name, this.measurement = ''});
 
   final String name;
+  final String measurement;
 }
 
 class _IngredientsContent extends StatelessWidget {
@@ -748,7 +777,22 @@ class _IngredientText extends StatelessWidget {
       height: 1.35,
       color: colors.textPrimary,
     );
-    return Text(row.name, textAlign: TextAlign.start, style: baseStyle);
+    return Text.rich(
+      TextSpan(
+        children: <InlineSpan>[
+          if (row.measurement.isNotEmpty)
+            TextSpan(
+              text: '${row.measurement} ',
+              style: baseStyle.copyWith(fontWeight: FontWeight.w700),
+            ),
+          TextSpan(
+            text: row.name,
+            style: baseStyle.copyWith(fontWeight: FontWeight.w400),
+          ),
+        ],
+      ),
+      textAlign: TextAlign.start,
+    );
   }
 }
 

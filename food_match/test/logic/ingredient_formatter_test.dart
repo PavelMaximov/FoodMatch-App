@@ -12,6 +12,10 @@ void main() {
     );
 
     expect(formatIngredientLine(component), '2 piece eggs');
+    expect(
+      formatIngredientMeasurement(component.measurements.first),
+      '2 piece',
+    );
   });
 
   test('formats decimal quantity and falls back to ingredient name', () {

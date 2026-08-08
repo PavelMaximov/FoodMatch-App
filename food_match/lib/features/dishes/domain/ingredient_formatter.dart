@@ -8,13 +8,20 @@ String formatIngredientQuantity(String? quantity) {
   return parsed % 1 == 0 ? parsed.toInt().toString() : parsed.toString();
 }
 
+String formatIngredientMeasurement(DishIngredientMeasurement? measurement) {
+  final String quantity = formatIngredientQuantity(measurement?.quantity);
+  final String unit = measurement?.unit?.trim() ?? '';
+  return <String>[quantity, unit]
+      .where((String part) => part.isNotEmpty)
+      .join(' ');
+}
+
 String formatIngredientLine(DishComponent component) {
   final String name = component.resolvedName;
   final DishIngredientMeasurement? measurement =
       component.measurements.isEmpty ? null : component.measurements.first;
-  final String quantity = formatIngredientQuantity(measurement?.quantity);
-  final String unit = measurement?.unit?.trim() ?? '';
-  return <String>[quantity, unit, name]
+  final String measurementText = formatIngredientMeasurement(measurement);
+  return <String>[measurementText, name]
       .where((String part) => part.isNotEmpty)
       .join(' ');
 }
