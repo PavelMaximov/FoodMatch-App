@@ -420,7 +420,7 @@ class _RecipeContent extends StatelessWidget {
                       )
                     : const Icon(Icons.add_rounded, size: 21),
                 label: Text(
-                  'Add ingredients to the shopping list',
+                  'Add ingredients to the grocery list',
                   style: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w800),
                 ),
               ),

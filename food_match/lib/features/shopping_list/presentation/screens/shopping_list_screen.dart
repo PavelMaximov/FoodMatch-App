@@ -26,9 +26,9 @@ class ShoppingListScreen extends StatelessWidget {
           icon: Icon(Icons.arrow_back, color: colors.textPrimary),
         ),
         title: Text(
-          'Shopping list',
+          'Grocery list',
           style: AppTextStyles.pageTitle.copyWith(
-            fontSize: 28,
+            fontSize: 30,
             color: colors.textPrimary,
           ),
         ),
@@ -50,23 +50,28 @@ class ShoppingListScreen extends StatelessWidget {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        heroTag: 'shopping-list-add',
-        onPressed: () => showModalBottomSheet<void>(
-          context: context,
-          isScrollControlled: true,
-          useSafeArea: true,
-          backgroundColor: Colors.transparent,
-          barrierColor: colors.modalBarrier,
-          builder: (_) => ChangeNotifierProvider<ShoppingListProvider>.value(
-            value: provider,
-            child: const _AddProductSheet(),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 15),
+        child: FloatingActionButton(
+          heroTag: 'shopping-list-add',
+          onPressed: () => showModalBottomSheet<void>(
+            context: context,
+            isScrollControlled: true,
+            useSafeArea: true,
+            backgroundColor: Colors.transparent,
+            barrierColor: colors.modalBarrier,
+            builder: (_) => ChangeNotifierProvider<ShoppingListProvider>.value(
+              value: provider,
+              child: const _AddProductSheet(),
+            ),
           ),
+          backgroundColor: colors.primary,
+          foregroundColor: colors.buttonPrimaryText,
+          elevation: 4,
+          highlightElevation: 6,
+          shape: const CircleBorder(),
+          child: const Icon(Icons.add_rounded, size: 34),
         ),
-        backgroundColor: colors.primary,
-        foregroundColor: colors.buttonPrimaryText,
-        shape: const CircleBorder(),
-        child: const Icon(Icons.add_rounded, size: 34),
       ),
     );
   }
@@ -108,7 +113,7 @@ class _ProgressRow extends StatelessWidget {
         const SizedBox(width: 8),
         _SmallAction(
           icon: Icons.delete_rounded,
-          tooltip: 'Clear shopping list',
+          tooltip: 'Clear grocery list',
           onPressed: provider.items.isEmpty ? null : () => _confirmClear(context),
         ),
       ],
@@ -121,9 +126,9 @@ class _ProgressRow extends StatelessWidget {
       context: context,
       builder: (BuildContext dialogContext) => AlertDialog(
         backgroundColor: colors.modalBackground,
-        title: Text('Clear shopping list?', style: TextStyle(color: colors.textPrimary)),
+        title: Text('Clear grocery list?', style: TextStyle(color: colors.textPrimary)),
         content: Text(
-          'This will remove all products from your shopping list.',
+          'This will remove all products from your grocery list.',
           style: TextStyle(color: colors.textSecondary),
         ),
         actions: <Widget>[
@@ -267,12 +272,12 @@ class _EmptyState extends StatelessWidget {
     final colors = context.fmColors;
     return Center(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 0, 24, 64),
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 64),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Text(
-              'Your shopping list is empty',
+              'Your grocery list is empty',
               textAlign: TextAlign.center,
               style: GoogleFonts.nunito(fontSize: 20, fontWeight: FontWeight.w800, color: colors.textPrimary),
             ),
