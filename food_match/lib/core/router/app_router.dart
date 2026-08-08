@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../animations/app_motion.dart';
+import 'app_route_transitions.dart';
 import '../../data/models/dish.dart';
 import '../../features/auth/logic/auth_provider.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
@@ -78,10 +79,12 @@ class AppRouter {
               path: '/shopping-list',
               name: 'shoppingList',
               pageBuilder: (BuildContext context, GoRouterState state) =>
-                  _bottomUpPage(
-                context: context,
-                state: state,
+                  CustomTransitionPage<void>(
+                key: state.pageKey,
+                transitionDuration: const Duration(milliseconds: 380),
+                reverseTransitionDuration: const Duration(milliseconds: 300),
                 child: const ShoppingListScreen(),
+                transitionsBuilder: slideFromRightFadeTransition,
               ),
             ),
             GoRoute(
