@@ -12,8 +12,8 @@ import { SoloSwipeSessionModel } from '../models/SoloSwipeSession';
 
 const MAX_DECK_SIZE = 30;
 
-type SoloFilterInput = { cuisines?: string[]; moods?: string[]; diet?: string[]; exclusions?: string[] };
-type NormalizedSoloFilter = { cuisines: string[]; moods: string[]; diet: string[]; exclusions: string[] };
+type SoloFilterInput = { dishRegisters?: string[]; cuisines?: string[]; moods?: string[]; diet?: string[]; exclusions?: string[] };
+type NormalizedSoloFilter = { dishRegisters: string[]; cuisines: string[]; moods: string[]; diet: string[]; exclusions: string[] };
 type DeckBuildResult = { dishes: DishDocument[]; meta: RecommendedDeckMeta };
 
 export class SoloSwipeService {
@@ -75,7 +75,7 @@ export class SoloSwipeService {
   return { undone:true, lastUndoneDishId:toPublicDishId(lastSwipe.dishId), session:await this.toDeck(session) };
  }
  async assertNoActiveSession(userId:string){ const [solo, paired] = await Promise.all([SoloSwipeSessionModel.exists({userId:new Types.ObjectId(userId),status:'active'}), CoupleSessionModel.exists({members:new Types.ObjectId(userId),status:'active'})]); if(solo || paired) throw new AppError('You already have an active swipe session.',409,'ACTIVE_SESSION_EXISTS'); }
- private normalizeFilter(filter:SoloFilterInput): NormalizedSoloFilter { return { cuisines:normalizeFilterList(filter.cuisines), moods:normalizeFilterList(filter.moods), diet:normalizeFilterList(filter.diet), exclusions:normalizeFilterList(filter.exclusions) }; }
+ private normalizeFilter(filter:SoloFilterInput): NormalizedSoloFilter { return { dishRegisters:normalizeFilterList(filter.dishRegisters), cuisines:normalizeFilterList(filter.cuisines), moods:normalizeFilterList(filter.moods), diet:normalizeFilterList(filter.diet), exclusions:normalizeFilterList(filter.exclusions) }; }
  private async requireSession(userId:string, sessionId:string){ if(!Types.ObjectId.isValid(sessionId)) throw new AppError('Session not found',404); const session=await SoloSwipeSessionModel.findOne({_id:sessionId,userId:new Types.ObjectId(userId),status:'active'}); if(!session) throw new AppError('No active solo session',404,'NO_ACTIVE_SESSION'); return session; }
  private async toDeck(session:any, loaded?:DishDocument[], recommendationMeta?: RecommendedDeckMeta){ recommendationMeta = recommendationMeta ?? session.recommendationMeta; const ids=session.deckDishIds.slice(session.deckIndex); const dishes = loaded ?? await DishModel.find({_id:{$in:ids}}).select(DISH_DTO_SELECT); const byId=new Map(dishes.map(d=>[d._id.toString(),d])); return { sessionId:session.id, mode:'solo', status:session.status, deckIndex:session.deckIndex, matchedCount:session.matchedCount, filter:session.filter, dishes:ids.map((id:Types.ObjectId)=>byId.get(id.toString())).filter((d: DishDocument | undefined): d is DishDocument => Boolean(d)).map((d: DishDocument)=>toDishDto(d)), meta:{totalCatalogCount:recommendationMeta?.totalCatalogCount ?? session.deckDishIds.length,candidateCount:recommendationMeta?.candidateCount ?? session.deckDishIds.length,finalCount:ids.length,usedPartnerChoices:false,bothConfirmed:false,...(recommendationMeta ? { recommendationMeta, algorithm: recommendationMeta.algorithm, excludedByExclusionsCount: recommendationMeta.excludedByExclusionsCount, candidateCountAfterExclusions: recommendationMeta.candidateCountAfterExclusions, expansionApplied: recommendationMeta.expansionApplied, expansionReason: recommendationMeta.expansionReason ?? null, diagnosticsNotes: recommendationMeta.diagnosticsNotes ?? [] } : {})} }; }
  private async buildDeck(userId:string, filter:NormalizedSoloFilter, excludeDishIds = new Set<string>(), recentlySeenDishIds = new Set<string>()): Promise<DeckBuildResult>{

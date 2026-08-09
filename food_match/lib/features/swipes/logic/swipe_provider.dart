@@ -218,25 +218,25 @@ class SwipeProvider extends ChangeNotifier {
     return false;
   }
 
-  Future<bool> createSoloSession({required List<String> cuisines, required List<String> moods, required List<String> blocked, required List<String> diet}) async {
+  Future<bool> createSoloSession({required List<String> dishRegisters, required List<String> cuisines, required List<String> moods, required List<String> blocked, required List<String> diet}) async {
     if (_isApplyingSoloFilterRequest) {
       return false;
     }
     if (activeSoloSessionId != null && !_soloSessionCompleted) {
-      return rebuildActiveSoloSessionFilters(cuisines: cuisines, moods: moods, blocked: blocked, diet: diet);
+      return rebuildActiveSoloSessionFilters(dishRegisters: dishRegisters, cuisines: cuisines, moods: moods, blocked: blocked, diet: diet);
     }
     _isApplyingSoloFilterRequest = true;
     isLoading = true;
     error = null;
     notifyListeners();
     try {
-      return await _createSoloSessionRequest(cuisines: cuisines, moods: moods, blocked: blocked, diet: diet);
+      return await _createSoloSessionRequest(dishRegisters: dishRegisters, cuisines: cuisines, moods: moods, blocked: blocked, diet: diet);
     } on ApiException catch (e) {
       final bool activeSessionConflict = e.statusCode == 409 && e.message.toLowerCase().contains('active');
       if (activeSessionConflict) {
         final bool loadedActiveSolo = await _loadActiveSoloSessionRequest();
         if (loadedActiveSolo && activeSoloSessionId != null) {
-          return await _rebuildActiveSoloSessionRequest(cuisines: cuisines, moods: moods, blocked: blocked, diet: diet);
+          return await _rebuildActiveSoloSessionRequest(dishRegisters: dishRegisters, cuisines: cuisines, moods: moods, blocked: blocked, diet: diet);
         }
       }
       error = _mapSwipeError(e);
@@ -251,7 +251,7 @@ class SwipeProvider extends ChangeNotifier {
   }
 
 
-  Future<bool> rebuildActiveSoloSessionFilters({required List<String> cuisines, required List<String> moods, required List<String> blocked, required List<String> diet}) async {
+  Future<bool> rebuildActiveSoloSessionFilters({required List<String> dishRegisters, required List<String> cuisines, required List<String> moods, required List<String> blocked, required List<String> diet}) async {
     if (_isApplyingSoloFilterRequest) {
       return false;
     }
@@ -260,7 +260,7 @@ class SwipeProvider extends ChangeNotifier {
     error = null;
     notifyListeners();
     try {
-      return await _rebuildActiveSoloSessionRequest(cuisines: cuisines, moods: moods, blocked: blocked, diet: diet);
+      return await _rebuildActiveSoloSessionRequest(dishRegisters: dishRegisters, cuisines: cuisines, moods: moods, blocked: blocked, diet: diet);
     } catch (e) {
       error = _mapSwipeError(e);
     } finally {
@@ -271,13 +271,13 @@ class SwipeProvider extends ChangeNotifier {
     return false;
   }
 
-  Future<bool> _createSoloSessionRequest({required List<String> cuisines, required List<String> moods, required List<String> blocked, required List<String> diet}) async {
-    final dynamic data = await _swipeRepository.createSoloSession(filter: _soloFilterPayload(cuisines: cuisines, moods: moods, blocked: blocked, diet: diet));
+  Future<bool> _createSoloSessionRequest({required List<String> dishRegisters, required List<String> cuisines, required List<String> moods, required List<String> blocked, required List<String> diet}) async {
+    final dynamic data = await _swipeRepository.createSoloSession(filter: _soloFilterPayload(dishRegisters: dishRegisters, cuisines: cuisines, moods: moods, blocked: blocked, diet: diet));
     return _applySoloSessionFromResponse(data);
   }
 
-  Future<bool> _rebuildActiveSoloSessionRequest({required List<String> cuisines, required List<String> moods, required List<String> blocked, required List<String> diet}) async {
-    final dynamic data = await _swipeRepository.updateActiveSoloFilter(filter: _soloFilterPayload(cuisines: cuisines, moods: moods, blocked: blocked, diet: diet));
+  Future<bool> _rebuildActiveSoloSessionRequest({required List<String> dishRegisters, required List<String> cuisines, required List<String> moods, required List<String> blocked, required List<String> diet}) async {
+    final dynamic data = await _swipeRepository.updateActiveSoloFilter(filter: _soloFilterPayload(dishRegisters: dishRegisters, cuisines: cuisines, moods: moods, blocked: blocked, diet: diet));
     return _applySoloSessionFromResponse(data);
   }
 
@@ -286,8 +286,8 @@ class SwipeProvider extends ChangeNotifier {
     return _applySoloSessionFromResponse(data);
   }
 
-  Map<String, dynamic> _soloFilterPayload({required List<String> cuisines, required List<String> moods, required List<String> blocked, required List<String> diet}) =>
-      <String, dynamic>{'cuisines': cuisines, 'moods': moods, 'exclusions': blocked, 'diet': diet};
+  Map<String, dynamic> _soloFilterPayload({required List<String> dishRegisters, required List<String> cuisines, required List<String> moods, required List<String> blocked, required List<String> diet}) =>
+      <String, dynamic>{'dishRegisters': dishRegisters, 'cuisines': cuisines, 'moods': moods, 'exclusions': blocked, 'diet': diet};
 
   bool _applySoloSessionFromResponse(dynamic data) {
     final dynamic session = data is Map<String, dynamic> ? data['session'] : null;
@@ -298,11 +298,11 @@ class SwipeProvider extends ChangeNotifier {
     return false;
   }
 
-  Future<bool> updateActiveSoloFilter({required List<String> cuisines, required List<String> moods, required List<String> blocked, required List<String> diet}) async {
+  Future<bool> updateActiveSoloFilter({required List<String> dishRegisters, required List<String> cuisines, required List<String> moods, required List<String> blocked, required List<String> diet}) async {
     if (activeSoloSessionId == null || _soloSessionCompleted) {
-      return createSoloSession(cuisines: cuisines, moods: moods, blocked: blocked, diet: diet);
+      return createSoloSession(dishRegisters: dishRegisters, cuisines: cuisines, moods: moods, blocked: blocked, diet: diet);
     }
-    return rebuildActiveSoloSessionFilters(cuisines: cuisines, moods: moods, blocked: blocked, diet: diet);
+    return rebuildActiveSoloSessionFilters(dishRegisters: dishRegisters, cuisines: cuisines, moods: moods, blocked: blocked, diet: diet);
   }
 
   Future<void> abandonActiveSoloSession() async {

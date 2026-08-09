@@ -55,6 +55,7 @@ class FilterScoringService {
   }
 
   FilterConfig buildConfig({
+    List<String> myDishRegisters = const <String>[],
     required List<String> myCuisines,
     required List<String> myMoods,
     required List<String> myBlocked,
@@ -63,8 +64,10 @@ class FilterScoringService {
     required List<String> partnerMoods,
     required List<String> partnerBlocked,
     required List<String> partnerDiet,
+    List<String> partnerDishRegisters = const <String>[],
   }) {
     return FilterConfig(
+      dishRegisters: resolvePairCuisines(myDishRegisters, partnerDishRegisters),
       cuisines: resolvePairCuisines(myCuisines, partnerCuisines),
       moods: _normalizedUnique(<String>[...myMoods, ...partnerMoods]),
       blocked: _normalizedExclusions(<String>[...myBlocked, ...partnerBlocked]),
@@ -149,6 +152,13 @@ class FilterScoringService {
     }
 
     for (final String exclusion in _normalizedExclusions(selectedExclusions)) {
+      if (exclusion == 'no_spicy') {
+        pool = pool.where((Dish dish) {
+          final String level = _normalize(dish.spiceLevel);
+          return level.isEmpty || level == 'none';
+        });
+        continue;
+      }
       final List<String> blockedWords = blockedGroups[exclusion] ?? const <String>[];
       if (blockedWords.isEmpty) {
         continue;
@@ -186,6 +196,10 @@ class FilterScoringService {
 
   double scoreDish(Dish dish, FilterConfig config, UserProfile profile, DateTime now) {
     double score = 0;
+
+    if (config.dishRegisters.isNotEmpty) {
+      score += _normalizedSet(config.dishRegisters).contains(_normalize(dish.dishRegister)) ? 30 : 6;
+    }
 
     final Set<String> selectedMoods = _normalizedSet(config.moods);
     final int moodMatches = dish.mood.where((String mood) => selectedMoods.contains(_normalize(mood))).length;

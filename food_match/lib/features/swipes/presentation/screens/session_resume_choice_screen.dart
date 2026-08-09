@@ -192,27 +192,27 @@ class _PartnerAvatar extends StatelessWidget {
 
 class _FilterSummaryCard extends StatelessWidget {
   const _FilterSummaryCard({
+    required this.dishRegisters,
     required this.cuisines,
-    required this.moods,
     required this.exclusions,
     this.isLoading = false,
   });
 
   factory _FilterSummaryCard.fromPreset(LastFilterPreset? preset) => _FilterSummaryCard(
+        dishRegisters: preset?.dishRegisters ?? const <String>[],
         cuisines: preset?.cuisines ?? const <String>[],
-        moods: preset?.moods ?? const <String>[],
         exclusions: preset?.exclusions ?? const <String>[],
       );
 
   factory _FilterSummaryCard.loading() => const _FilterSummaryCard(
+        dishRegisters: <String>[],
         cuisines: <String>[],
-        moods: <String>[],
         exclusions: <String>[],
         isLoading: true,
       );
 
+  final List<String> dishRegisters;
   final List<String> cuisines;
-  final List<String> moods;
   final List<String> exclusions;
   final bool isLoading;
 
@@ -227,9 +227,9 @@ class _FilterSummaryCard extends StatelessWidget {
       ),
       child: Column(
         children: <Widget>[
-          _FilterSection(icon: Icons.room_service_outlined, label: 'Cuisine:', values: cuisines, type: _FilterChipType.cuisine, isLoading: isLoading),
+          _FilterSection(icon: Icons.restaurant_menu, label: 'Meal format:', values: dishRegisters, type: _FilterChipType.cuisine, isLoading: isLoading),
           Divider(height: 1, color: colors.divider),
-          _FilterSection(icon: Icons.auto_awesome, label: 'Mood:', values: moods, type: _FilterChipType.mood, isLoading: isLoading),
+          _FilterSection(icon: Icons.room_service_outlined, label: 'Cuisine:', values: cuisines, type: _FilterChipType.cuisine, isLoading: isLoading),
           Divider(height: 1, color: colors.divider),
           _FilterSection(icon: Icons.do_not_disturb_alt_outlined, label: 'Exceptions:', values: exclusions, type: _FilterChipType.exception, isLoading: isLoading),
         ],

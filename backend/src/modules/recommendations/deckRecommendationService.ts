@@ -8,6 +8,7 @@ export const WEIGHTED_SCORING_PAIR_SHARED_MVP_ALGORITHM = 'weighted_scoring_pair
 export const WEIGHTED_SCORING_PAIR_SHARED_V2_ALGORITHM = 'weighted_scoring_pair_shared_v2' as const;
 
 export interface DeckRecommendationFilters {
+  dishRegisters?: string[];
   cuisines: string[];
   moods: string[];
   diet: string[];
@@ -68,14 +69,15 @@ interface ScoredDish {
   components: {
     countryScore: number;
     moodScore: number;
+    dishRegisterScore: number;
     historyScore: number;
     popularityScore: number;
     recencyScore: number;
   };
 }
 
-const COLD_WEIGHTS = { country: 0.35, mood: 0.30, history: 0.05, popularity: 0.20, recency: 0.10 };
-const WARM_WEIGHTS = { country: 0.20, mood: 0.20, history: 0.35, popularity: 0.15, recency: 0.10 };
+const COLD_WEIGHTS = { country: 0.30, mood: 0.05, dishRegister: 0.30, history: 0.05, popularity: 0.20, recency: 0.10 };
+const WARM_WEIGHTS = { country: 0.18, mood: 0.05, dishRegister: 0.20, history: 0.32, popularity: 0.15, recency: 0.10 };
 const LOW_CANDIDATE_THRESHOLD = 15;
 const CRITICAL_CANDIDATE_THRESHOLD = 5;
 const DEFAULT_EXPLORE_SHARE = 0.25;
@@ -307,6 +309,7 @@ function scoreDishForUser({
   const components = {
     countryScore: countryScore(dish, filters.cuisines),
     moodScore: moodScore(dish, filters.moods),
+    dishRegisterScore: dishRegisterScore(dish, filters.dishRegisters ?? []),
     historyScore: historyScore(dish, historyTags),
     popularityScore: popularityScore(dish),
     recencyScore: recencyScores?.get(getDishId(dish)) ?? recencyScore(dish, recentlySeenDishIds ?? new Set<string>())
@@ -314,6 +317,7 @@ function scoreDishForUser({
   const score =
     weights.country * components.countryScore +
     weights.mood * components.moodScore +
+    weights.dishRegister * components.dishRegisterScore +
     weights.history * components.historyScore +
     weights.popularity * components.popularityScore +
     weights.recency * components.recencyScore;
@@ -328,7 +332,7 @@ export function combinePairScoresGeometric(scores: number[]) {
 }
 
 function neutralComponents(): ScoredDish['components'] {
-  return { countryScore: 0.5, moodScore: 0.5, historyScore: 0.5, popularityScore: 0.3, recencyScore: 1.0 };
+  return { countryScore: 0.5, moodScore: 0.5, dishRegisterScore: 0.5, historyScore: 0.5, popularityScore: 0.3, recencyScore: 1.0 };
 }
 
 function applyScoringOptions(weights: ReturnType<typeof interpolateWeights>, options?: { moodWeightMultiplier?: number; ignoreCuisineAndMood?: boolean }) {
@@ -339,11 +343,12 @@ function applyScoringOptions(weights: ReturnType<typeof interpolateWeights>, opt
 
 function interpolateWeights(warmth: number, criticalCandidates: boolean) {
   if (criticalCandidates) {
-    return { country: 0, mood: 0, history: 0.10, popularity: 0.60, recency: 0.30 };
+    return { country: 0, mood: 0, dishRegister: 0, history: 0.10, popularity: 0.60, recency: 0.30 };
   }
   return {
     country: COLD_WEIGHTS.country * (1 - warmth) + WARM_WEIGHTS.country * warmth,
     mood: COLD_WEIGHTS.mood * (1 - warmth) + WARM_WEIGHTS.mood * warmth,
+    dishRegister: COLD_WEIGHTS.dishRegister * (1 - warmth) + WARM_WEIGHTS.dishRegister * warmth,
     history: COLD_WEIGHTS.history * (1 - warmth) + WARM_WEIGHTS.history * warmth,
     popularity: COLD_WEIGHTS.popularity * (1 - warmth) + WARM_WEIGHTS.popularity * warmth,
     recency: COLD_WEIGHTS.recency * (1 - warmth) + WARM_WEIGHTS.recency * warmth
@@ -393,6 +398,12 @@ function moodScore(dish: DishDocument, moods: string[]) {
   if (dishMoods.length === 0) return 0.2;
   const matched = moods.filter((mood) => dishMoods.includes(mood)).length;
   return clamp(matched / moods.length, 0, 1);
+}
+
+function dishRegisterScore(dish: DishDocument, selected: string[]) {
+  if (selected.length === 0) return 0.5;
+  const value = normalize(dish.dishRegister ?? dish.dish_register ?? (dish as any).rawSourceData?.dish_register);
+  return selected.includes(value) ? 1.0 : 0.2;
 }
 
 function popularityScore(dish: DishDocument) {
@@ -455,6 +466,7 @@ function matchesStrictDiet(dish: DishDocument, diet: string[]) {
 
 function normalizeFilters(filters: DeckRecommendationFilters): DeckRecommendationFilters {
   return {
+    dishRegisters: normalizeList(filters.dishRegisters),
     cuisines: normalizeList(filters.cuisines),
     moods: normalizeList(filters.moods),
     diet: normalizeList(filters.diet),

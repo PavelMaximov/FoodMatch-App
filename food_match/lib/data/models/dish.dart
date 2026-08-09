@@ -121,6 +121,8 @@ class Dish {
     required this.cuisine,
     required this.type,
     required this.mood,
+    this.dishRegister = '',
+    this.spiceLevel = '',
     required this.diet,
     required this.ingredients,
     required this.cookTime,
@@ -152,6 +154,10 @@ class Dish {
   final String type;
   @JsonKey(defaultValue: <String>[])
   final List<String> mood;
+  @JsonKey(defaultValue: '')
+  final String dishRegister;
+  @JsonKey(defaultValue: '')
+  final String spiceLevel;
   @JsonKey(defaultValue: <String>[])
   final List<String> diet;
   @JsonKey(defaultValue: <String>[])

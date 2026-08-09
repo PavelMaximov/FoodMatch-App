@@ -2,6 +2,7 @@ import 'swipe_record.dart';
 
 class LastFilterPreset {
   const LastFilterPreset({
+    this.dishRegisters = const <String>[],
     required this.cuisines,
     required this.moods,
     required this.diet,
@@ -11,6 +12,7 @@ class LastFilterPreset {
   });
 
   final List<String> cuisines;
+  final List<String> dishRegisters;
   final List<String> moods;
   final List<String> diet;
   final List<String> exclusions;
@@ -18,7 +20,8 @@ class LastFilterPreset {
   final DateTime usedAt;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'cuisines': cuisines,
+      'cuisines': cuisines,
+        'dishRegisters': dishRegisters,
         'moods': moods,
         'diet': diet,
         'exclusions': exclusions,
@@ -27,6 +30,7 @@ class LastFilterPreset {
       };
 
   factory LastFilterPreset.fromJson(Map<dynamic, dynamic> json) => LastFilterPreset(
+        dishRegisters: List<String>.from(json['dishRegisters'] as List<dynamic>? ?? <dynamic>[]),
         cuisines: List<String>.from(json['cuisines'] as List<dynamic>? ?? <dynamic>[]),
         moods: List<String>.from(json['moods'] as List<dynamic>? ?? <dynamic>[]),
         diet: List<String>.from(json['diet'] as List<dynamic>? ?? <dynamic>[]),

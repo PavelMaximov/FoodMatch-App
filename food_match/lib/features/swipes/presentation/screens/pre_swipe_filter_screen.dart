@@ -66,6 +66,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   late final CoupleProvider _coupleProvider;
 
   final Set<String> _cuisines = <String>{};
+  final Set<String> _dishRegisters = <String>{'everyday_staple'};
   final Set<String> _moods = <String>{};
   final Set<String> _blocked = <String>{};
   final Set<String> _diet = <String>{};
@@ -78,6 +79,10 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
 
   static const Map<String, String> _filterIconNameOverrides = <String, String>{
     'Any': 'any',
+    'everyday_staple': 'daily_meal',
+    'home_classic': 'homestyle_dish',
+    'celebration': 'celebration_menu',
+    'restaurant_style': 'restaurant_style',
     'Comfort': 'mood_comfort',
     'Healthy': 'mood_healthy',
     'Exotic': 'mood_exotic',
@@ -86,9 +91,9 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     'Light': 'mood_light',
     'Vegetarian': 'diet_vegetarian',
     'Vegan': 'diet_vegan',
-    'Halal': 'diet_halal',
     'no_meat': 'no_meat',
     'no_dairy': 'no_dairy',
+    'no_spicy': 'no_spicy',
     'no_gluten': 'no_gluten',
     'no_nuts': 'no_nuts',
     'no_seafood': 'no_seafood',
@@ -118,24 +123,25 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     return 'assets/icons/filters/$fileName.svg';
   }
 
-  static const List<String> _moodOptions = <String>[
-    'Comfort',
-    'Healthy',
-    'Exotic',
-    'Indulgent',
-    'Quick',
-    'Light',
+  static const List<String> _mealFormatOptions = <String>[
+    'everyday_staple',
+    'home_classic',
+    'celebration',
+    'restaurant_style',
   ];
 
   static const List<String> _exceptionOptions = <String>[
     'no_meat',
     'no_dairy',
+    'no_spicy',
     'no_gluten',
     'no_nuts',
     'no_seafood',
   ];
 
-  static const List<String> _dietOptions = <String>['Any', 'Vegetarian', 'Vegan', 'Halal'];
+  static const List<String> _exclusionOptions = <String>[
+    'Any', 'Vegetarian', 'Vegan', 'no_meat', 'no_dairy', 'no_spicy', 'no_gluten', 'no_nuts', 'no_seafood',
+  ];
 
   @override
   void initState() {
@@ -218,6 +224,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     try {
       await context.read<SwipeRepository>().saveLastFilterPreset(
             mode: widget.mode,
+            dishRegisters: _dishRegisters.toList(),
             cuisines: _cuisines.toList(),
             moods: _moods.toList(),
             diet: _diet.toList(),
@@ -228,6 +235,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       debugPrint('[PreSwipe] backend last filter save failed $e');
     }
     _lastFilterPreset = LastFilterPreset(
+      dishRegisters: _dishRegisters.toList(),
       cuisines: _cuisines.toList(),
       moods: _moods.toList(),
       diet: _diet.toList(),
@@ -331,9 +339,13 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
               Consumer<CoupleProvider>(
                 builder: (BuildContext context, CoupleProvider coupleProvider, _) {
                   return _FilterBottomPanel(
+                    dishRegisters: _dishRegisters.toList(),
                     cuisines: _cuisines.toList(),
+                    diet: _diet.toList(),
+                    exclusions: _blocked.toList(),
                     availability: context.read<PreSwipeProvider>().buildAvailabilitySummary(
                           allDishes: _allDishes,
+                          dishRegisters: _dishRegisters.toList(),
                           cuisines: _cuisines.toList(),
                           moods: _moods.toList(),
                           blocked: _blocked.toList(),
@@ -362,85 +374,51 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   }
 
   String get _title => _step == 1
-      ? 'Cuisine'
+      ? 'Meal format'
       : _step == 2
-          ? 'Mood'
+          ? 'Cuisine'
           : 'Exclusions';
 
   String get _subtitle => _step == 1
-      ? 'Pick the cuisines you want to see.'
+      ? "We'll prioritize dishes with this vibe."
       : _step == 2
-          ? "We'll prioritize dishes with this vibe."
+          ? 'Pick the cuisine you want to see.'
           : "Choose ingredients you want to avoid. We'll remove dishes that contain them.";
 
   Widget _buildStepContent() {
     if (_step == 1) {
       return _buildTopAlignedScrollable(
-        _buildChipGrid(
-          options: _cuisineOptions,
-          selected: _cuisines,
-          onTap: _toggleCuisine,
-          chipStates: context
-              .read<PreSwipeProvider>()
-              .buildCuisineChipStates(_cuisineOptions, _allDishes),
-          anyWhenEmpty: true,
-        ),
+        Column(children: _mealFormatOptions.map((String option) => Padding(
+          padding: const EdgeInsets.only(bottom: 14),
+          child: SizedBox(width: double.infinity, child: _FilterOptionChip(
+            option: option, label: _displayLabel(option), assetPath: _filterIconAssetPath(option),
+            assetExists: _hasFilterIconAsset(_filterIconAssetPath(option)), selected: _dishRegisters.contains(option),
+            enabled: true, highlighted: false, onTap: () => setState(() { _dishRegisters..clear()..add(option); }),
+          )),
+        )).toList()),
       );
     }
 
     if (_step == 2) {
       return _buildTopAlignedScrollable(
         _buildChipGrid(
-          options: _moodOptions,
-          selected: _moods,
-          onTap: (String value) {
-            setState(() {
-              if (_moods.contains(value)) {
-                _moods.remove(value);
-              } else if (_moods.length < 3) {
-                _moods.add(value);
-              }
-            });
-          },
-          chipStates: context.read<PreSwipeProvider>().buildMoodChipStates(
-                options: _moodOptions,
-                allDishes: _allDishes,
-                selectedCuisines: _cuisines.toList(),
-              ),
+          options: _cuisineOptions,
+          selected: _cuisines,
+          onTap: _toggleCuisine,
+          chipStates: context.read<PreSwipeProvider>().buildCuisineChipStates(_cuisineOptions, _allDishes),
+          anyWhenEmpty: true,
         ),
       );
     }
 
     return _buildTopAlignedScrollable(
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          _buildChipGrid(
-            options: _dietOptions,
-            selected: _diet,
-            onTap: _toggleDiet,
-            anyWhenEmpty: true,
-          ),
-          const SizedBox(height: 16),
-          _buildChipGrid(
-            options: _exceptionOptions,
-            selected: _blocked,
-            onTap: (String value) {
-              setState(() {
-                if (_blocked.contains(value)) {
-                  _blocked.remove(value);
-                } else {
-                  _blocked.add(value);
-                }
-              });
-            },
-            chipStates: context.read<PreSwipeProvider>().buildExceptionChipStates(
-                  options: _exceptionOptions,
-                  allDishes: _allDishes,
-                  selectedCuisines: _cuisines.toList(),
-                ),
-          ),
-        ],
+      _buildChipGrid(
+        options: _exclusionOptions,
+        selected: <String>{..._diet, ..._blocked},
+        anyWhenEmpty: true,
+        onTap: _toggleExclusion,
+        chipStates: context.read<PreSwipeProvider>().buildExceptionChipStates(
+          options: _exceptionOptions, allDishes: _allDishes, selectedCuisines: _cuisines.toList()),
       ),
     );
   }
@@ -509,6 +487,16 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         return 'No meat';
       case 'no_dairy':
         return 'No dairy';
+      case 'no_spicy':
+        return 'No spicy';
+      case 'everyday_staple':
+        return 'Daily meal';
+      case 'home_classic':
+        return 'Homestyle dish';
+      case 'celebration':
+        return 'Celebration menu';
+      case 'restaurant_style':
+        return 'Restaurant style';
       case 'no_gluten':
         return 'No gluten';
       case 'no_nuts':
@@ -549,6 +537,17 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     });
   }
 
+  void _toggleExclusion(String value) {
+    setState(() {
+      if (value == 'Any') { _diet.clear(); _blocked.clear(); return; }
+      if (value == 'Vegetarian' || value == 'Vegan') {
+        _diet..clear()..add(value);
+      } else if (!_blocked.remove(value)) {
+        _blocked.add(value);
+      }
+    });
+  }
+
   Future<void> _continueFromIntro() async {
     final String? userId = context.read<AuthProvider>().currentUser?.id;
     if (userId != null) {
@@ -567,6 +566,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     setState(() {
       _showPreviousChoice = false;
       _step = 1;
+      _dishRegisters..clear()..add('everyday_staple');
       _cuisines.clear();
       _moods.clear();
       _blocked.clear();
@@ -582,6 +582,9 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     }
     setState(() {
       _showPreviousChoice = false;
+      _dishRegisters
+        ..clear()
+        ..addAll(preset.dishRegisters.isEmpty ? const <String>['everyday_staple'] : preset.dishRegisters.take(1));
       _cuisines
         ..clear()
         ..addAll(preset.cuisines);
@@ -644,6 +647,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     final CoupleProvider coupleProvider = context.read<CoupleProvider>();
     final int matchedLastTime = preSwipeProvider.countMatchingDishes(
       allDishes: _allDishes,
+      dishRegisters: _dishRegisters.toList(),
       cuisines: _cuisines.toList(),
       moods: _moods.toList(),
       blocked: _blocked.toList(),
@@ -662,12 +666,14 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
               swipeProvider.hasActiveSoloSession;
       final bool ready = shouldUpdateActiveSession
           ? await swipeProvider.rebuildActiveSoloSessionFilters(
+              dishRegisters: _dishRegisters.toList(),
               cuisines: _cuisines.toList(),
               moods: _moods.toList(),
               blocked: _blocked.toList(),
               diet: _diet.toList(),
             )
           : await swipeProvider.createSoloSession(
+              dishRegisters: _dishRegisters.toList(),
               cuisines: _cuisines.toList(),
               moods: _moods.toList(),
               blocked: _blocked.toList(),
@@ -691,6 +697,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     await preSwipeProvider.saveAndConfirmChoices(
       userId: userId,
       coupleProvider: coupleProvider,
+      dishRegisters: _dishRegisters.toList(),
       cuisines: _cuisines.toList(),
       moods: _moods.toList(),
       blocked: _blocked.toList(),
@@ -1017,12 +1024,14 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
               swipeProvider.hasActiveSoloSession;
       final bool ready = shouldUpdateActiveSession
           ? await swipeProvider.rebuildActiveSoloSessionFilters(
+              dishRegisters: _dishRegisters.toList(),
               cuisines: const <String>[],
               moods: const <String>[],
               blocked: const <String>[],
               diet: const <String>[],
             )
           : await swipeProvider.createSoloSession(
+              dishRegisters: _dishRegisters.toList(),
               cuisines: const <String>[],
               moods: const <String>[],
               blocked: const <String>[],
@@ -1266,7 +1275,10 @@ class _FilterOptionChip extends StatelessWidget {
 
 class _FilterBottomPanel extends StatelessWidget {
   const _FilterBottomPanel({
+    required this.dishRegisters,
     required this.cuisines,
+    required this.diet,
+    required this.exclusions,
     required this.availability,
     required this.isLoading,
     required this.canGoBack,
@@ -1276,7 +1288,10 @@ class _FilterBottomPanel extends StatelessWidget {
     required this.onContinue,
   });
 
+  final List<String> dishRegisters;
   final List<String> cuisines;
+  final List<String> diet;
+  final List<String> exclusions;
   final FilterAvailabilitySummary availability;
   final bool isLoading;
   final bool canGoBack;
@@ -1392,11 +1407,22 @@ class _FilterBottomPanel extends StatelessWidget {
   }
 
   String _summaryChoiceText() {
-    if (cuisines.isEmpty) {
-      return 'Any cuisine';
-    }
-    return cuisines.map(formatOptionLabel).join(', ');
+    final List<String> values = <String>[
+      ...dishRegisters.map(_mealFormatLabel),
+      ...cuisines.map(formatOptionLabel),
+      ...diet.map(formatOptionLabel),
+      ...exclusions.map(formatOptionLabel),
+    ];
+    return values.isEmpty ? 'Any cuisine' : values.join(', ');
   }
+
+  String _mealFormatLabel(String value) => switch (value) {
+    'everyday_staple' => 'Daily meal',
+    'home_classic' => 'Homestyle dish',
+    'celebration' => 'Celebration menu',
+    'restaurant_style' => 'Restaurant style',
+    _ => formatOptionLabel(value),
+  };
 }
 
 class _EmptyPoolScreen extends StatelessWidget {

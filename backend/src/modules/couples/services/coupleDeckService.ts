@@ -10,6 +10,7 @@ import { SwipeModel } from '../../swipes/models/Swipe';
 import { CoupleFilterUserChoice, CoupleSessionDocument, CoupleSessionModel } from '../models/CoupleSession';
 
 export interface EffectiveDeckFilters {
+  dishRegisters: string[];
   cuisines: string[];
   moods: string[];
   diet: string[];
@@ -504,9 +505,10 @@ export function buildEffectiveFilters(session: CoupleSessionDocument, userId?: s
   const partnerDiet = normalizeList(partner?.diet);
   const diet = resolveDiet(myDiet, partnerDiet);
   const bothConfirmed = Boolean(mine && partner && mine.confirmed && partner.confirmed);
-  const usedPartnerChoices = Boolean(partner && (partnerCuisines.length > 0 || normalizeList(partner.moods).length > 0 || partnerDiet.length > 0 || normalizeList(partner.exclusions).length > 0));
+  const usedPartnerChoices = Boolean(partner && (partnerCuisines.length > 0 || normalizeList(partner.dishRegisters).length > 0 || normalizeList(partner.moods).length > 0 || partnerDiet.length > 0 || normalizeList(partner.exclusions).length > 0));
 
   return {
+    dishRegisters: resolvePairCuisines(normalizeList(mine?.dishRegisters), normalizeList(partner?.dishRegisters)).cuisines,
     cuisines: cuisineResult.cuisines,
     moods: normalizeList([...(mine?.moods ?? []), ...(partner?.moods ?? [])]),
     diet,
@@ -519,6 +521,7 @@ export function buildEffectiveFilters(session: CoupleSessionDocument, userId?: s
 
 export function createFiltersHash(filters: EffectiveDeckFilters) {
   const stable = {
+    dishRegisters: [...filters.dishRegisters].sort(),
     cuisines: [...filters.cuisines].sort(),
     moods: [...filters.moods].sort(),
     diet: [...filters.diet].sort(),
@@ -544,6 +547,7 @@ function matchesStrictPairDiet(dish: DishDocument, diet: string[]) {
 
 function filtersFromChoice(choice: CoupleFilterUserChoice): DeckRecommendationFilters {
   return {
+    dishRegisters: normalizeList(choice.dishRegisters),
     cuisines: normalizeList(choice.cuisines),
     moods: normalizeList(choice.moods),
     diet: normalizeList(choice.diet),

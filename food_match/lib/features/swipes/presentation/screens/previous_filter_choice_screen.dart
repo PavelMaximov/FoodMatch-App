@@ -174,16 +174,16 @@ class _PresetCard extends StatelessWidget {
       child: Column(
         children: <Widget>[
           _FilterSection(
-            icon: Icons.room_service_outlined,
-            label: 'Cuisine:',
-            values: preset.cuisines,
+            icon: Icons.restaurant_menu,
+            label: 'Meal format:',
+            values: preset.dishRegisters,
             type: PreviousChoicePillType.cuisine,
           ),
           Divider(height: 1, color: colors.divider),
           _FilterSection(
-            icon: Icons.auto_awesome,
-            label: 'Mood:',
-            values: preset.moods,
+            icon: Icons.room_service_outlined,
+            label: 'Cuisine:',
+            values: preset.cuisines,
             type: PreviousChoicePillType.mood,
           ),
           Divider(height: 1, color: colors.divider),

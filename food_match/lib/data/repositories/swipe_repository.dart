@@ -40,6 +40,7 @@ class SwipeRepository {
       _apiService.get('${ApiConstants.filtersLast}?mode=$mode');
 
   Future<dynamic> saveLastFilterPreset({
+    required List<String> dishRegisters,
     required String mode,
     required List<String> cuisines,
     required List<String> moods,
@@ -49,6 +50,7 @@ class SwipeRepository {
   }) =>
       _apiService.put(ApiConstants.filtersLast, <String, dynamic>{
         'mode': mode,
+        'dishRegisters': dishRegisters,
         'cuisines': cuisines,
         'moods': moods,
         'diet': diet,

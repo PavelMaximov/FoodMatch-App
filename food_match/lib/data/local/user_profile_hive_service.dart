@@ -54,6 +54,7 @@ class UserProfileHiveService {
 
   Future<void> saveLastFilterPreset(
     String userId, {
+    required List<String> dishRegisters,
     required List<String> cuisines,
     required List<String> moods,
     required List<String> diet,
@@ -65,6 +66,7 @@ class UserProfileHiveService {
       userId,
       profile.copyWith(
         lastFilterPreset: LastFilterPreset(
+          dishRegisters: dishRegisters,
           cuisines: cuisines,
           moods: moods,
           diet: diet,

@@ -106,6 +106,7 @@ class PreSwipeProvider extends ChangeNotifier {
 
   Future<void> saveLastFilterPreset({
     required String userId,
+    required List<String> dishRegisters,
     required List<String> cuisines,
     required List<String> moods,
     required List<String> blocked,
@@ -114,6 +115,7 @@ class PreSwipeProvider extends ChangeNotifier {
   }) =>
       _profileService.saveLastFilterPreset(
         userId,
+        dishRegisters: dishRegisters,
         cuisines: cuisines,
         moods: moods,
         diet: diet,
@@ -186,6 +188,7 @@ class PreSwipeProvider extends ChangeNotifier {
   Future<void> saveChoices({
     required String userId,
     required CoupleProvider coupleProvider,
+    required List<String> dishRegisters,
     required List<String> cuisines,
     required List<String> moods,
     required List<String> blocked,
@@ -197,13 +200,14 @@ class PreSwipeProvider extends ChangeNotifier {
       moods: moods,
       blocked: blocked,
     );
-    await coupleProvider.saveMyChoices(cuisines: cuisines, moods: moods, diet: diet, exclusions: blocked);
+    await coupleProvider.saveMyChoices(dishRegisters: dishRegisters, cuisines: cuisines, moods: moods, diet: diet, exclusions: blocked);
   }
 
 
   Future<void> saveAndConfirmChoices({
     required String userId,
     required CoupleProvider coupleProvider,
+    required List<String> dishRegisters,
     required List<String> cuisines,
     required List<String> moods,
     required List<String> blocked,
@@ -216,6 +220,7 @@ class PreSwipeProvider extends ChangeNotifier {
       blocked: blocked,
     );
     await coupleProvider.saveAndConfirmMyChoices(
+      dishRegisters: dishRegisters,
       cuisines: cuisines,
       moods: moods,
       diet: diet,
@@ -226,6 +231,7 @@ class PreSwipeProvider extends ChangeNotifier {
   Future<PreparedPoolResult> prepare({
     required String userId,
     required CoupleProvider coupleProvider,
+    required List<String> dishRegisters,
     required List<String> cuisines,
     required List<String> moods,
     required List<String> blocked,
@@ -237,6 +243,7 @@ class PreSwipeProvider extends ChangeNotifier {
       await saveChoices(
         userId: userId,
         coupleProvider: coupleProvider,
+        dishRegisters: dishRegisters,
         cuisines: cuisines,
         moods: moods,
         blocked: blocked,
@@ -255,6 +262,7 @@ class PreSwipeProvider extends ChangeNotifier {
     }
 
     final FilterConfig config = _scoringService.buildConfig(
+      myDishRegisters: dishRegisters,
       myCuisines: cuisines,
       myMoods: moods,
       myBlocked: blocked,
@@ -263,6 +271,7 @@ class PreSwipeProvider extends ChangeNotifier {
       partnerMoods: partner?.moods ?? const <String>[],
       partnerBlocked: partner?.exclusions ?? const <String>[],
       partnerDiet: partner?.diet ?? const <String>[],
+      partnerDishRegisters: partner?.dishRegisters ?? const <String>[],
     );
 
     final List<Dish> all = await _dishRepository.getCatalogDishes();
@@ -401,17 +410,19 @@ class PreSwipeProvider extends ChangeNotifier {
 
   FilterAvailabilitySummary buildAvailabilitySummary({
     required List<Dish> allDishes,
+    required List<String> dishRegisters,
     required List<String> cuisines,
     required List<String> moods,
     required List<String> blocked,
     required List<String> diet,
     CoupleFilterChoices? partnerChoices,
   }) {
-    final bool hasUserSelections = cuisines.isNotEmpty || moods.isNotEmpty || blocked.isNotEmpty || diet.isNotEmpty;
+    final bool hasUserSelections = dishRegisters.isNotEmpty || cuisines.isNotEmpty || blocked.isNotEmpty || diet.isNotEmpty;
     final bool partnerHasChoices = partnerChoices != null;
     final List<String> partnerCuisines = partnerHasChoices ? partnerChoices.cuisines : const <String>[];
     final bool usedCuisineUnionFallback = _scoringService.shouldShowPairCuisineFallback(cuisines, partnerCuisines);
     final FilterConfig config = _scoringService.buildConfig(
+      myDishRegisters: dishRegisters,
       myCuisines: cuisines,
       myMoods: moods,
       myBlocked: blocked,
@@ -420,6 +431,7 @@ class PreSwipeProvider extends ChangeNotifier {
       partnerMoods: partnerHasChoices ? partnerChoices.moods : const <String>[],
       partnerBlocked: partnerHasChoices ? partnerChoices.exclusions : const <String>[],
       partnerDiet: partnerHasChoices ? partnerChoices.diet : const <String>[],
+      partnerDishRegisters: partnerHasChoices ? partnerChoices.dishRegisters : const <String>[],
     );
     final int availableCount = hasUserSelections ? _scoringService.applyHardFilters(allDishes, config).length : 0;
 
@@ -434,6 +446,7 @@ class PreSwipeProvider extends ChangeNotifier {
 
   int countMatchingDishes({
     required List<Dish> allDishes,
+    required List<String> dishRegisters,
     required List<String> cuisines,
     required List<String> moods,
     required List<String> blocked,
@@ -442,6 +455,7 @@ class PreSwipeProvider extends ChangeNotifier {
   }) {
     final bool partnerHasChoices = partnerChoices != null;
     final FilterConfig config = _scoringService.buildConfig(
+      myDishRegisters: dishRegisters,
       myCuisines: cuisines,
       myMoods: moods,
       myBlocked: blocked,
@@ -450,6 +464,7 @@ class PreSwipeProvider extends ChangeNotifier {
       partnerMoods: partnerHasChoices ? partnerChoices.moods : const <String>[],
       partnerBlocked: partnerHasChoices ? partnerChoices.exclusions : const <String>[],
       partnerDiet: partnerHasChoices ? partnerChoices.diet : const <String>[],
+      partnerDishRegisters: partnerHasChoices ? partnerChoices.dishRegisters : const <String>[],
     );
     return _scoringService.applyHardFilters(allDishes, config).length;
   }

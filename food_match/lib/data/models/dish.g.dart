@@ -88,6 +88,8 @@ Dish _$DishFromJson(Map<String, dynamic> json) => Dish(
       cuisine: json['cuisine'] as String? ?? '',
       type: json['type'] as String? ?? '',
       mood: (json['mood'] as List<dynamic>?)?.map((e) => e as String).toList() ?? <String>[],
+      dishRegister: json['dishRegister'] as String? ?? json['dish_register'] as String? ?? '',
+      spiceLevel: json['spiceLevel'] as String? ?? json['spice_level'] as String? ?? '',
       diet: (json['diet'] as List<dynamic>?)?.map((e) => e as String).toList() ?? <String>[],
       ingredients:
           (json['ingredients'] as List<dynamic>?)?.map((e) => e as String).toList() ?? <String>[],
@@ -119,6 +121,8 @@ Map<String, dynamic> _$DishToJson(Dish instance) => <String, dynamic>{
       'cuisine': instance.cuisine,
       'type': instance.type,
       'mood': instance.mood,
+      'dishRegister': instance.dishRegister,
+      'spiceLevel': instance.spiceLevel,
       'diet': instance.diet,
       'ingredients': instance.ingredients,
       'cookTime': instance.cookTime,

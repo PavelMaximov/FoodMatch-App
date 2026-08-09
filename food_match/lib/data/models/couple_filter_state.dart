@@ -1,5 +1,6 @@
 class CoupleFilterChoices {
   const CoupleFilterChoices({
+    this.dishRegisters = const <String>[],
     this.cuisines = const <String>[],
     this.moods = const <String>[],
     this.diet = const <String>[],
@@ -9,6 +10,7 @@ class CoupleFilterChoices {
   });
 
   final List<String> cuisines;
+  final List<String> dishRegisters;
   final List<String> moods;
   final List<String> diet;
   final List<String> exclusions;
@@ -18,6 +20,7 @@ class CoupleFilterChoices {
   factory CoupleFilterChoices.fromJson(Map<String, dynamic>? json) {
     if (json == null) return const CoupleFilterChoices();
     return CoupleFilterChoices(
+      dishRegisters: (json['dishRegisters'] as List<dynamic>? ?? const <dynamic>[]).map((e) => e.toString()).toList(),
       cuisines: (json['cuisines'] as List<dynamic>? ?? const <dynamic>[]).map((e) => e.toString()).toList(),
       moods: (json['moods'] as List<dynamic>? ?? const <dynamic>[]).map((e) => e.toString()).toList(),
       diet: (json['diet'] as List<dynamic>? ?? const <dynamic>[]).map((e) => e.toString()).toList(),
@@ -28,7 +31,8 @@ class CoupleFilterChoices {
   }
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'cuisines': cuisines,
+      'cuisines': cuisines,
+        'dishRegisters': dishRegisters,
         'moods': moods,
         'diet': diet,
         'exclusions': exclusions,

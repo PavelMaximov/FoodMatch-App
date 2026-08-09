@@ -347,6 +347,7 @@ class CoupleProvider extends ChangeNotifier {
   }
 
   Future<void> saveMyChoices({
+    required List<String> dishRegisters,
     required List<String> cuisines,
     required List<String> moods,
     required List<String> diet,
@@ -355,7 +356,7 @@ class CoupleProvider extends ChangeNotifier {
     final int requestVersion = _sessionStateVersion;
     final String? requestUserId = _activeUserId;
     _filterState = await _repository.updateMyFilterState(
-      CoupleFilterChoices(cuisines: cuisines, moods: moods, diet: diet, exclusions: exclusions),
+      CoupleFilterChoices(dishRegisters: dishRegisters, cuisines: cuisines, moods: moods, diet: diet, exclusions: exclusions),
     );
     if (!_isCurrentSession(requestVersion, requestUserId)) return;
     _sessionStateVersion++;
@@ -365,6 +366,7 @@ class CoupleProvider extends ChangeNotifier {
   }
 
   Future<void> saveAndConfirmMyChoices({
+    required List<String> dishRegisters,
     required List<String> cuisines,
     required List<String> moods,
     required List<String> diet,
@@ -376,7 +378,7 @@ class CoupleProvider extends ChangeNotifier {
       '[FilterState] saving choices cuisines=$cuisines moods=$moods diet=$diet exclusions=$exclusions',
     );
     final CoupleFilterState savedState = await _repository.updateMyFilterState(
-      CoupleFilterChoices(cuisines: cuisines, moods: moods, diet: diet, exclusions: exclusions),
+      CoupleFilterChoices(dishRegisters: dishRegisters, cuisines: cuisines, moods: moods, diet: diet, exclusions: exclusions),
     );
     if (!_isCurrentSession(requestVersion, requestUserId)) return;
     _filterState = savedState;
