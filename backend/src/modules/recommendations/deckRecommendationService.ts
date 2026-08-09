@@ -9,6 +9,7 @@ export const WEIGHTED_SCORING_PAIR_SHARED_V2_ALGORITHM = 'weighted_scoring_pair_
 
 export interface DeckRecommendationFilters {
   dishRegisters?: string[];
+  includeCustomDishesFirst?: boolean;
   cuisines: string[];
   moods: string[];
   diet: string[];
@@ -467,6 +468,7 @@ function matchesStrictDiet(dish: DishDocument, diet: string[]) {
 function normalizeFilters(filters: DeckRecommendationFilters): DeckRecommendationFilters {
   return {
     dishRegisters: normalizeList(filters.dishRegisters),
+    includeCustomDishesFirst: filters.includeCustomDishesFirst === true,
     cuisines: normalizeList(filters.cuisines),
     moods: normalizeList(filters.moods),
     diet: normalizeList(filters.diet),

@@ -4,6 +4,7 @@ import { RecommendationMeta } from '../../recommendations/recommendationTypes';
 export interface CoupleFilterUserChoice {
   userId: Types.ObjectId;
   dishRegisters: string[];
+  includeCustomDishesFirst: boolean;
   cuisines: string[];
   moods: string[];
   diet: string[];
@@ -64,6 +65,7 @@ const filterUserChoiceSchema = new Schema<CoupleFilterUserChoice>(
   {
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     dishRegisters: { type: [String], default: [] },
+    includeCustomDishesFirst: { type: Boolean, default: false },
     cuisines: { type: [String], default: [] },
     moods: { type: [String], default: [] },
     diet: { type: [String], default: [] },

@@ -8,6 +8,7 @@ function assert(condition: unknown, message: string) {
 }
 
 const direct = normalizeCoupleFilterStatePayload({
+  includeCustomDishesFirst: true,
   cuisines: ['American', ' eastern eu ', 'German', 'american'],
   moods: ['Comfort'],
   diet: [],
@@ -16,6 +17,8 @@ const direct = normalizeCoupleFilterStatePayload({
 assert(JSON.stringify(direct.cuisines) === JSON.stringify(['american', 'eastern eu', 'german']), 'Direct payload should preserve normalized cuisines.');
 assert(JSON.stringify(direct.moods) === JSON.stringify(['comfort']), 'Direct payload should preserve normalized moods.');
 assert(JSON.stringify(direct.exclusions) === JSON.stringify(['no_nuts']), 'Direct payload should preserve normalized exclusions.');
+assert(direct.includeCustomDishesFirst === true, 'Custom-first preference should be normalized separately from dishRegisters.');
+assert(updateCoupleFilterStateSchema.safeParse({ includeCustomDishesFirst: true, dishRegisters: [] }).success, 'Schema should accept custom-first without a fake custom_dishes register.');
 
 const nested = normalizeCoupleFilterStatePayload({
   choices: {

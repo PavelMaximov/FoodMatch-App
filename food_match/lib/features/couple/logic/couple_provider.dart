@@ -12,14 +12,19 @@ import '../../../data/repositories/couple_repository.dart';
 import '../../../data/services/api_service.dart';
 
 class CoupleProvider extends ChangeNotifier {
-  CoupleProvider({required CoupleRepository repository}) : _repository = repository;
+  CoupleProvider({required CoupleRepository repository})
+    : _repository = repository;
 
-  static const String activeSessionMessage = 'You already have an active session.';
-  static const String activeSessionHasPartnerMessage = 'Please leave your current session before joining another one.';
-  static const String activeSoloSessionMessage = 'Please finish or leave your solo session before joining a pair session.';
+  static const String activeSessionMessage =
+      'You already have an active session.';
+  static const String activeSessionHasPartnerMessage =
+      'Please leave your current session before joining another one.';
+  static const String activeSoloSessionMessage =
+      'Please finish or leave your solo session before joining a pair session.';
   static const String invalidInviteCodeMessage = 'Invalid session code.';
   static const String sessionFullMessage = 'This session is already full.';
-  static const String sessionInactiveMessage = 'This session is no longer active.';
+  static const String sessionInactiveMessage =
+      'This session is no longer active.';
   static const String ownSessionMessage = 'You can’t join your own session.';
   static const String partnerLeftSessionMessage =
       'Your partner has left this session. Please start or join a new session.';
@@ -65,9 +70,11 @@ class CoupleProvider extends ChangeNotifier {
     final Couple? couple = currentCouple;
     return couple != null && couple.inviteCode.trim().isNotEmpty;
   }
+
   String? get inviteCode => currentCouple?.inviteCode;
   int get sessionStateVersion => _sessionStateVersion;
-  CoupleFilterChoices get myChoices => _filterState?.myChoices ?? const CoupleFilterChoices();
+  CoupleFilterChoices get myChoices =>
+      _filterState?.myChoices ?? const CoupleFilterChoices();
   CoupleFilterChoices? get partnerChoices => _filterState?.partnerChoices;
   bool get bothConfirmed => _filterState?.bothConfirmed ?? false;
   int get compatibility => _filterState?.compatibility ?? 0;
@@ -83,13 +90,21 @@ class CoupleProvider extends ChangeNotifier {
 
   CoupleInvitation? get nextIncomingInvitation {
     for (final CoupleInvitation invitation in pendingInvitations) {
-      if (invitation.isIncoming && invitation.isPending && !hiddenInvitationIds.contains(invitation.id)) {
+      if (invitation.isIncoming &&
+          invitation.isPending &&
+          !hiddenInvitationIds.contains(invitation.id)) {
         return invitation;
       }
     }
     return null;
   }
-  bool get _canPollFilterState => !_disposed && _isAppActive && _isAuthenticated && (_activeUserId?.isNotEmpty ?? false) && hasCouple;
+
+  bool get _canPollFilterState =>
+      !_disposed &&
+      _isAppActive &&
+      _isAuthenticated &&
+      (_activeUserId?.isNotEmpty ?? false) &&
+      hasCouple;
   bool get _hasFreshCurrentCoupleCache {
     final DateTime? loadedAt = _currentCoupleLoadedAt;
     return loadedAt != null &&
@@ -97,7 +112,9 @@ class CoupleProvider extends ChangeNotifier {
   }
 
   void setAuthenticatedUser(String? userId, {required bool isAuthenticated}) {
-    final String? normalized = userId?.trim().isEmpty == true ? null : userId?.trim();
+    final String? normalized = userId?.trim().isEmpty == true
+        ? null
+        : userId?.trim();
     final bool nextAuthenticated = isAuthenticated && normalized != null;
     final bool userChanged = _activeUserId != normalized;
     if (!userChanged && _isAuthenticated == nextAuthenticated) {
@@ -121,7 +138,9 @@ class CoupleProvider extends ChangeNotifier {
       shouldOpenPreviousChoiceAfterInvite = false;
       previousChoiceAfterInviteWasUserAccepted = false;
       shouldOpenPairFilterChange = false;
-      AppLogger.info('[CoupleProvider] session state cleared for account switch');
+      AppLogger.info(
+        '[CoupleProvider] session state cleared for account switch',
+      );
     }
   }
 
@@ -139,14 +158,18 @@ class CoupleProvider extends ChangeNotifier {
       return;
     }
     if (_isRefreshingCurrentCouple) {
-      AppLogger.info('[RequestDedup] couple/me refresh skipped: already in flight');
+      AppLogger.info(
+        '[RequestDedup] couple/me refresh skipped: already in flight',
+      );
       return;
     }
     final int requestVersion = _sessionStateVersion;
     final String? requestUserId = _activeUserId;
     final bool previouslyHadSession = hasCouple;
     if (!force && _hasFreshCurrentCoupleCache) {
-      final int age = DateTime.now().difference(_currentCoupleLoadedAt!).inSeconds;
+      final int age = DateTime.now()
+          .difference(_currentCoupleLoadedAt!)
+          .inSeconds;
       AppLogger.info('[Cache] couple/me hit hasCouple=$hasCouple age=${age}s');
       if (hasCouple) {
         await refreshFilterState();
@@ -159,7 +182,9 @@ class CoupleProvider extends ChangeNotifier {
     error = null;
     _safeNotify();
     try {
-      AppLogger.info(force ? '[Cache] couple/me force refresh' : '[Cache] couple/me miss');
+      AppLogger.info(
+        force ? '[Cache] couple/me force refresh' : '[Cache] couple/me miss',
+      );
       final Couple? loadedCouple = await _repository.getMyCouple();
       if (!_isCurrentSession(requestVersion, requestUserId)) return;
       final String? previousCoupleId = currentCouple?.id;
@@ -167,7 +192,9 @@ class CoupleProvider extends ChangeNotifier {
       if (previousCoupleId != null && previousCoupleId != currentCouple?.id) {
         hiddenInvitationIds.clear();
         outgoingContinuationInvite = null;
-        AppLogger.info('[PairInvitation] cleared local invitation state reason=session_changed');
+        AppLogger.info(
+          '[PairInvitation] cleared local invitation state reason=session_changed',
+        );
       }
       _currentCoupleLoadedAt = DateTime.now();
       _detectPairLifecycleResync();
@@ -178,7 +205,10 @@ class CoupleProvider extends ChangeNotifier {
       }
     } catch (e) {
       if (e is ApiException && e.statusCode == 404) {
-        _handleSessionEndedIfNeeded(previouslyHadSession: previouslyHadSession, incrementVersion: false);
+        _handleSessionEndedIfNeeded(
+          previouslyHadSession: previouslyHadSession,
+          incrementVersion: false,
+        );
       } else {
         error = _mapError(e);
       }
@@ -215,7 +245,10 @@ class CoupleProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> joinCouple(String inviteCode, {bool replaceEmptyCurrentSession = false}) async {
+  Future<void> joinCouple(
+    String inviteCode, {
+    bool replaceEmptyCurrentSession = false,
+  }) async {
     if (_joinInFlight || isLoading) return;
     if (hasCouple && !replaceEmptyCurrentSession) {
       error = activeSessionMessage;
@@ -259,11 +292,11 @@ class CoupleProvider extends ChangeNotifier {
     }
   }
 
-
   Future<Map<String, dynamic>?> requestDeckRestart() async {
     try {
       error = null;
-      final Map<String, dynamic> status = await _repository.requestDeckRestart();
+      final Map<String, dynamic> status = await _repository
+          .requestDeckRestart();
       if (status['allRequested'] == true) {
         _filterState = const CoupleFilterState(
           myChoices: CoupleFilterChoices(),
@@ -284,7 +317,8 @@ class CoupleProvider extends ChangeNotifier {
 
   Future<Map<String, dynamic>?> getDeckRestartStatus() async {
     try {
-      final Map<String, dynamic> status = await _repository.getDeckRestartStatus();
+      final Map<String, dynamic> status = await _repository
+          .getDeckRestartStatus();
       if (status['allRequested'] == true) {
         _filterState = const CoupleFilterState(
           myChoices: CoupleFilterChoices(),
@@ -348,6 +382,7 @@ class CoupleProvider extends ChangeNotifier {
 
   Future<void> saveMyChoices({
     required List<String> dishRegisters,
+    required bool includeCustomDishesFirst,
     required List<String> cuisines,
     required List<String> moods,
     required List<String> diet,
@@ -356,7 +391,14 @@ class CoupleProvider extends ChangeNotifier {
     final int requestVersion = _sessionStateVersion;
     final String? requestUserId = _activeUserId;
     _filterState = await _repository.updateMyFilterState(
-      CoupleFilterChoices(dishRegisters: dishRegisters, cuisines: cuisines, moods: moods, diet: diet, exclusions: exclusions),
+      CoupleFilterChoices(
+        dishRegisters: dishRegisters,
+        includeCustomDishesFirst: includeCustomDishesFirst,
+        cuisines: cuisines,
+        moods: moods,
+        diet: diet,
+        exclusions: exclusions,
+      ),
     );
     if (!_isCurrentSession(requestVersion, requestUserId)) return;
     _sessionStateVersion++;
@@ -367,6 +409,7 @@ class CoupleProvider extends ChangeNotifier {
 
   Future<void> saveAndConfirmMyChoices({
     required List<String> dishRegisters,
+    required bool includeCustomDishesFirst,
     required List<String> cuisines,
     required List<String> moods,
     required List<String> diet,
@@ -378,12 +421,20 @@ class CoupleProvider extends ChangeNotifier {
       '[FilterState] saving choices cuisines=$cuisines moods=$moods diet=$diet exclusions=$exclusions',
     );
     final CoupleFilterState savedState = await _repository.updateMyFilterState(
-      CoupleFilterChoices(dishRegisters: dishRegisters, cuisines: cuisines, moods: moods, diet: diet, exclusions: exclusions),
+      CoupleFilterChoices(
+        dishRegisters: dishRegisters,
+        includeCustomDishesFirst: includeCustomDishesFirst,
+        cuisines: cuisines,
+        moods: moods,
+        diet: diet,
+        exclusions: exclusions,
+      ),
     );
     if (!_isCurrentSession(requestVersion, requestUserId)) return;
     _filterState = savedState;
 
-    final CoupleFilterState confirmedState = await _repository.confirmMyFilterState();
+    final CoupleFilterState confirmedState = await _repository
+        .confirmMyFilterState();
     if (!_isCurrentSession(requestVersion, requestUserId)) return;
     _filterState = confirmedState;
     _sessionStateVersion++;
@@ -394,7 +445,9 @@ class CoupleProvider extends ChangeNotifier {
 
   Future<void> confirmMyChoices() async {
     if (_isRefreshingFilterState) {
-      AppLogger.info('[RequestDedup] confirm filter-state waits for refresh in flight');
+      AppLogger.info(
+        '[RequestDedup] confirm filter-state waits for refresh in flight',
+      );
     }
     final int requestVersion = _sessionStateVersion;
     final String? requestUserId = _activeUserId;
@@ -414,11 +467,15 @@ class CoupleProvider extends ChangeNotifier {
     }
     final Future<CoupleFilterState?>? existing = _filterStateRefreshFuture;
     if (existing != null) {
-      AppLogger.info('[RequestDedup] filter-state reused existing request reason=$reason');
+      AppLogger.info(
+        '[RequestDedup] filter-state reused existing request reason=$reason',
+      );
       return existing;
     }
 
-    final Future<CoupleFilterState?> future = _refreshFilterStateInternal(reason: reason);
+    final Future<CoupleFilterState?> future = _refreshFilterStateInternal(
+      reason: reason,
+    );
     _filterStateRefreshFuture = future;
     future.whenComplete(() {
       if (identical(_filterStateRefreshFuture, future)) {
@@ -428,34 +485,54 @@ class CoupleProvider extends ChangeNotifier {
     return future;
   }
 
-  Future<CoupleFilterState?> _refreshFilterStateInternal({required String reason}) async {
+  Future<CoupleFilterState?> _refreshFilterStateInternal({
+    required String reason,
+  }) async {
     _isRefreshingFilterState = true;
     final int requestVersion = _sessionStateVersion;
     final String? requestUserId = _activeUserId;
     final String? requestCoupleId = currentCouple?.id;
     try {
-      final previousPartnerConfirmed = _filterState?.partnerChoices?.confirmed == true;
+      final previousPartnerConfirmed =
+          _filterState?.partnerChoices?.confirmed == true;
       final CoupleFilterState nextState = await _repository.getFilterState();
-      if (!_isCurrentSession(requestVersion, requestUserId, coupleId: requestCoupleId)) {
-        AppLogger.info('[SessionSync] stale response ignored sessionVersion=$requestVersion current=$_sessionStateVersion');
+      if (!_isCurrentSession(
+        requestVersion,
+        requestUserId,
+        coupleId: requestCoupleId,
+      )) {
+        AppLogger.info(
+          '[SessionSync] stale response ignored sessionVersion=$requestVersion current=$_sessionStateVersion',
+        );
         return null;
       }
       _pollErrorStreak = 0;
       error = null;
       _filterState = nextState;
-      AppLogger.info('[CoupleFilterState] loaded reason=$reason status=${nextState.status} bothConfirmed=${nextState.bothConfirmed}');
+      AppLogger.info(
+        '[CoupleFilterState] loaded reason=$reason status=${nextState.status} bothConfirmed=${nextState.bothConfirmed}',
+      );
       if (nextState.myChoices.confirmed) {
-        AppLogger.info('[PairFlow] filters confirmed user=self session=${currentCouple?.id ?? 'none'} generation=${currentCouple?.lifecycleGeneration ?? 0}');
+        AppLogger.info(
+          '[PairFlow] filters confirmed user=self session=${currentCouple?.id ?? 'none'} generation=${currentCouple?.lifecycleGeneration ?? 0}',
+        );
       }
-      if (!previousPartnerConfirmed && (nextState.partnerChoices?.confirmed == true)) {
+      if (!previousPartnerConfirmed &&
+          (nextState.partnerChoices?.confirmed == true)) {
         AppLogger.info('[CoupleFilterState] partner confirmed=true');
-        AppLogger.info('[PairFlow] filters confirmed user=partner session=${currentCouple?.id ?? 'none'} generation=${currentCouple?.lifecycleGeneration ?? 0}');
+        AppLogger.info(
+          '[PairFlow] filters confirmed user=partner session=${currentCouple?.id ?? 'none'} generation=${currentCouple?.lifecycleGeneration ?? 0}',
+        );
       }
       if (nextState.myChoices.confirmed && !nextState.bothConfirmed) {
-        AppLogger.info('[PairFlow] waiting for partner filters session=${currentCouple?.id ?? 'none'} generation=${currentCouple?.lifecycleGeneration ?? 0}');
+        AppLogger.info(
+          '[PairFlow] waiting for partner filters session=${currentCouple?.id ?? 'none'} generation=${currentCouple?.lifecycleGeneration ?? 0}',
+        );
       }
       if (nextState.bothConfirmed) {
-        AppLogger.info('[PairFlow] both filters confirmed session=${currentCouple?.id ?? 'none'} generation=${currentCouple?.lifecycleGeneration ?? 0}');
+        AppLogger.info(
+          '[PairFlow] both filters confirmed session=${currentCouple?.id ?? 'none'} generation=${currentCouple?.lifecycleGeneration ?? 0}',
+        );
       }
       _safeNotify();
       _restartPollingIfIntervalChanged();
@@ -463,7 +540,9 @@ class CoupleProvider extends ChangeNotifier {
     } on ApiException catch (e) {
       _pollErrorStreak++;
       if (_isPairSessionInactive(e)) {
-        AppLogger.info('[SessionSync] no active couple while refreshing; clearing session state');
+        AppLogger.info(
+          '[SessionSync] no active couple while refreshing; clearing session state',
+        );
         _handleSessionEndedIfNeeded(previouslyHadSession: true);
         _safeNotify();
         return null;
@@ -520,8 +599,8 @@ class CoupleProvider extends ChangeNotifier {
           reason: !_isAuthenticated
               ? 'unauthenticated'
               : !_isAppActive
-                  ? 'app_background'
-                  : 'no active couple',
+              ? 'app_background'
+              : 'no active couple',
         );
         return;
       }
@@ -579,12 +658,15 @@ class CoupleProvider extends ChangeNotifier {
     await refreshInvitations();
   }
 
-
   void startInvitationPolling({String reason = 'manual'}) {
-    if (!_isAuthenticated || (_activeUserId?.isEmpty ?? true) || !_isAppActive) return;
+    if (!_isAuthenticated || (_activeUserId?.isEmpty ?? true) || !_isAppActive)
+      return;
     _invitationPollTimer?.cancel();
     AppLogger.info('[InvitationSync] polling started reason=$reason');
-    _invitationPollTimer = Timer.periodic(const Duration(seconds: 8), (_) => refreshInvitations());
+    _invitationPollTimer = Timer.periodic(
+      const Duration(seconds: 8),
+      (_) => refreshInvitations(),
+    );
     unawaited(refreshInvitations());
   }
 
@@ -592,7 +674,8 @@ class CoupleProvider extends ChangeNotifier {
     final bool hadTimer = _invitationPollTimer != null;
     _invitationPollTimer?.cancel();
     _invitationPollTimer = null;
-    if (hadTimer) AppLogger.info('[InvitationSync] polling stopped reason=$reason');
+    if (hadTimer)
+      AppLogger.info('[InvitationSync] polling stopped reason=$reason');
   }
 
   Future<void> refreshInvitations() async {
@@ -602,7 +685,9 @@ class CoupleProvider extends ChangeNotifier {
       CoupleInvitation? outgoingInvite;
       CoupleInvitation? acceptedInvite;
       for (final CoupleInvitation invitation in pendingInvitations) {
-        if (outgoingInvite == null && invitation.isOutgoing && invitation.isPending) {
+        if (outgoingInvite == null &&
+            invitation.isOutgoing &&
+            invitation.isPending) {
           outgoingInvite = invitation;
         }
         if (acceptedInvite == null && invitation.status == 'accepted') {
@@ -610,14 +695,17 @@ class CoupleProvider extends ChangeNotifier {
         }
       }
       outgoingContinuationInvite = outgoingInvite;
-      if (acceptedInvite != null && _consumedAcceptedInviteIds.add(acceptedInvite.id)) {
+      if (acceptedInvite != null &&
+          _consumedAcceptedInviteIds.add(acceptedInvite.id)) {
         // A sheet dismissal is local only. An accepted continuation always wins.
         hiddenInvitationIds.remove(acceptedInvite.id);
         outgoingContinuationInvite = null;
         shouldOpenPreviousChoiceAfterInvite = true;
         previousChoiceAfterInviteWasUserAccepted = acceptedInvite.isIncoming;
         await loadCouple(force: true);
-        AppLogger.info('[PairInvitation] accepted continuation converging to previous choices');
+        AppLogger.info(
+          '[PairInvitation] accepted continuation converging to previous choices',
+        );
       }
       _safeNotify();
     } catch (e) {
@@ -631,8 +719,11 @@ class CoupleProvider extends ChangeNotifier {
     }
     try {
       final CoupleInvitation invite = await _repository.continueAsBefore();
-      outgoingContinuationInvite = invite.isOutgoing && invite.isPending ? invite : null;
-      if (invite.status == 'accepted' && _consumedAcceptedInviteIds.add(invite.id)) {
+      outgoingContinuationInvite = invite.isOutgoing && invite.isPending
+          ? invite
+          : null;
+      if (invite.status == 'accepted' &&
+          _consumedAcceptedInviteIds.add(invite.id)) {
         hiddenInvitationIds.remove(invite.id);
         outgoingContinuationInvite = null;
         shouldOpenPreviousChoiceAfterInvite = true;
@@ -656,11 +747,15 @@ class CoupleProvider extends ChangeNotifier {
 
   Future<bool> commitPairFilterChange() async {
     try {
-      final Map<String, dynamic> response = await _repository.commitFilterChange();
+      final Map<String, dynamic> response = await _repository
+          .commitFilterChange();
       await loadCouple(force: true);
       final Object? eventId = response['eventId'] ?? response['generation'];
-      final Object generation = response['generation'] ?? currentCouple?.lifecycleGeneration ?? 0;
-      AppLogger.info('[PairFilterChange] committed event=$eventId generation=$generation by=self');
+      final Object generation =
+          response['generation'] ?? currentCouple?.lifecycleGeneration ?? 0;
+      AppLogger.info(
+        '[PairFilterChange] committed event=$eventId generation=$generation by=self',
+      );
       return true;
     } catch (e) {
       error = _mapError(e);
@@ -674,7 +769,9 @@ class CoupleProvider extends ChangeNotifier {
     currentCouple = couple ?? await _repository.getMyCouple();
     _currentCoupleLoadedAt = DateTime.now();
     hiddenInvitationIds.add(invitation.id);
-    pendingInvitations = pendingInvitations.where((CoupleInvitation item) => item.id != invitation.id).toList();
+    pendingInvitations = pendingInvitations
+        .where((CoupleInvitation item) => item.id != invitation.id)
+        .toList();
     if (hasCouple) {
       shouldOpenSessionResumeForResync = false;
       pairNeedsResyncMessage = null;
@@ -690,13 +787,16 @@ class CoupleProvider extends ChangeNotifier {
   Future<void> declineInvitation(CoupleInvitation invitation) async {
     await _repository.declineInvitation(invitation.id);
     hiddenInvitationIds.add(invitation.id);
-    pendingInvitations = pendingInvitations.where((CoupleInvitation item) => item.id != invitation.id).toList();
+    pendingInvitations = pendingInvitations
+        .where((CoupleInvitation item) => item.id != invitation.id)
+        .toList();
     _safeNotify();
   }
 
   void markPairNeedsResyncFromDeckError() {
     shouldOpenSessionResumeForResync = true;
-    pairNeedsResyncMessage = 'Your pair session changed. Please continue together or start a new session.';
+    pairNeedsResyncMessage =
+        'Your pair session changed. Please continue together or start a new session.';
     _safeNotify();
   }
 
@@ -724,7 +824,9 @@ class CoupleProvider extends ChangeNotifier {
 
   void clearHandledFilterChangeMarkers({String reason = 'manual'}) {
     if (_handledFilterChangeGenerations.isNotEmpty) {
-      AppLogger.info('[PairFilterChange] clearing provider handled generations reason=$reason');
+      AppLogger.info(
+        '[PairFilterChange] clearing provider handled generations reason=$reason',
+      );
     }
     _handledFilterChangeGenerations.clear();
   }
@@ -738,10 +840,10 @@ class CoupleProvider extends ChangeNotifier {
     if (_pollErrorStreak > 0) return const Duration(seconds: 10);
     if (!hasPartner) return const Duration(seconds: 3);
     if (bothConfirmed) return const Duration(seconds: 20);
-    if (isMyChoicesConfirmed && !isPartnerReady) return const Duration(seconds: 3);
+    if (isMyChoicesConfirmed && !isPartnerReady)
+      return const Duration(seconds: 3);
     return const Duration(seconds: 5);
   }
-
 
   void _detectPairLifecycleResync() {
     final Couple? couple = currentCouple;
@@ -749,7 +851,9 @@ class CoupleProvider extends ChangeNotifier {
       return;
     }
     if (couple.pairLifecycleStatus == 'filter_change_pending') {
-      AppLogger.info('[PairFilterChange] notification skipped reason=local_editing event=${couple.lifecycleGeneration} generation=${couple.lifecycleGeneration}');
+      AppLogger.info(
+        '[PairFilterChange] notification skipped reason=local_editing event=${couple.lifecycleGeneration} generation=${couple.lifecycleGeneration}',
+      );
       return;
     }
     if (couple.pairLifecycleStatus == 'partner_action_required') {
@@ -758,7 +862,9 @@ class CoupleProvider extends ChangeNotifier {
           changedBy != _activeUserId &&
           _handledFilterChangeGenerations.add(couple.lifecycleGeneration)) {
         shouldOpenPairFilterChange = true;
-        AppLogger.info('[PairFilterChange] partner committed event=${couple.lifecycleGeneration} generation=${couple.lifecycleGeneration}');
+        AppLogger.info(
+          '[PairFilterChange] partner committed event=${couple.lifecycleGeneration} generation=${couple.lifecycleGeneration}',
+        );
       }
       return;
     }
@@ -776,8 +882,11 @@ class CoupleProvider extends ChangeNotifier {
       return;
     }
     shouldOpenSessionResumeForResync = true;
-    pairNeedsResyncMessage = 'Your partner left this session. You can wait for them to continue or start a new session.';
-    AppLogger.info('[SessionSync] pair lifecycle needs resync generation=${couple.lifecycleGeneration}');
+    pairNeedsResyncMessage =
+        'Your partner left this session. You can wait for them to continue or start a new session.';
+    AppLogger.info(
+      '[SessionSync] pair lifecycle needs resync generation=${couple.lifecycleGeneration}',
+    );
   }
 
   void _restartPollingIfNeeded({required String reason}) {
@@ -787,7 +896,11 @@ class CoupleProvider extends ChangeNotifier {
   }
 
   void _restartPollingIfIntervalChanged() {
-    if (_pollingSuspendedForDeckPrepare || !_pollingWanted || !_canPollFilterState || _pollTimer == null) return;
+    if (_pollingSuspendedForDeckPrepare ||
+        !_pollingWanted ||
+        !_canPollFilterState ||
+        _pollTimer == null)
+      return;
     if (_activePollInterval != _pollInterval) {
       _stopPollingTimer(reason: 'interval_change');
       startFilterStatePolling(reason: 'interval_change');
@@ -906,7 +1019,10 @@ class CoupleProvider extends ChangeNotifier {
       sessionEndedMessage = partnerLeftSessionMessage;
       AppLogger.info('[SessionSync] pair session ended or partner left');
     }
-    _clearSessionState(incrementVersion: incrementVersion, clearEndedMessage: false);
+    _clearSessionState(
+      incrementVersion: incrementVersion,
+      clearEndedMessage: false,
+    );
   }
 
   Future<void> _refreshActiveSessionAfterConflict() async {
@@ -928,15 +1044,22 @@ class CoupleProvider extends ChangeNotifier {
       if (e.statusCode == 404) {
         _clearSessionState();
       } else {
-        AppLogger.error('[CoupleProvider] failed to refresh active session after 409', e);
+        AppLogger.error(
+          '[CoupleProvider] failed to refresh active session after 409',
+          e,
+        );
       }
     } catch (e) {
-      AppLogger.error('[CoupleProvider] failed to refresh active session after 409', e);
+      AppLogger.error(
+        '[CoupleProvider] failed to refresh active session after 409',
+        e,
+      );
     }
   }
 
   bool _isActiveSessionConflict(ApiException e) {
-    return e.statusCode == 409 && e.message.toLowerCase().contains('active session');
+    return e.statusCode == 409 &&
+        e.message.toLowerCase().contains('active session');
   }
 
   void _safeNotify() {
@@ -944,12 +1067,15 @@ class CoupleProvider extends ChangeNotifier {
   }
 
   bool _isCurrentSession(int version, String? userId, {String? coupleId}) {
-    final bool matches = !_disposed &&
+    final bool matches =
+        !_disposed &&
         version == _sessionStateVersion &&
         userId == _activeUserId &&
         (coupleId == null || coupleId == currentCouple?.id);
     if (!matches) {
-      AppLogger.info('[SessionSync] stale response ignored sessionVersion=$version current=$_sessionStateVersion');
+      AppLogger.info(
+        '[SessionSync] stale response ignored sessionVersion=$version current=$_sessionStateVersion',
+      );
     }
     return matches;
   }
@@ -958,8 +1084,11 @@ class CoupleProvider extends ChangeNotifier {
     if (e is ApiException && _isPairSessionInactive(e)) {
       return partnerLeftSessionMessage;
     }
-    if (e is ApiException && e.statusCode == 404) return 'Create or join a session';
-    if (e is ApiException && (e.message.toLowerCase().contains('timeout') || e.message.toLowerCase().contains('internet'))) {
+    if (e is ApiException && e.statusCode == 404)
+      return 'Create or join a session';
+    if (e is ApiException &&
+        (e.message.toLowerCase().contains('timeout') ||
+            e.message.toLowerCase().contains('internet'))) {
       return 'Connection is slow. We’ll keep checking.';
     }
     return 'We’re having trouble syncing. We’ll keep checking.';
@@ -984,6 +1113,10 @@ class CoupleProvider extends ChangeNotifier {
 
   bool _isPairSessionInactive(ApiException e) {
     final String lower = e.message.toLowerCase();
-    return e.statusCode == 404 || e.statusCode == 409 || lower.contains('pair_session_inactive') || lower.contains('no active paired session') || lower.contains('no active session');
+    return e.statusCode == 404 ||
+        e.statusCode == 409 ||
+        lower.contains('pair_session_inactive') ||
+        lower.contains('no active paired session') ||
+        lower.contains('no active session');
   }
 }

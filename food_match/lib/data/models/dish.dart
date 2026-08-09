@@ -48,15 +48,14 @@ class DishComponent {
 
   String get resolvedName {
     return <String>[
-      displayName,
-      ingredient.displaySingular,
-      ingredient.displayPlural,
-      name,
-      ingredient.name,
-    ].map((String value) => value.trim()).firstWhere(
-          (String value) => value.isNotEmpty,
-          orElse: () => '',
-        );
+          displayName,
+          ingredient.displaySingular,
+          ingredient.displayPlural,
+          name,
+          ingredient.name,
+        ]
+        .map((String value) => value.trim())
+        .firstWhere((String value) => value.isNotEmpty, orElse: () => '');
   }
 
   factory DishComponent.fromJson(Map<String, dynamic> json) =>
@@ -97,7 +96,6 @@ class DishIngredientMeasurement {
   Map<String, dynamic> toJson() => _$DishIngredientMeasurementToJson(this);
 }
 
-
 @JsonSerializable()
 class DishNutrition {
   const DishNutrition({this.calories});
@@ -123,6 +121,7 @@ class Dish {
     required this.mood,
     this.dishRegister = '',
     this.spiceLevel = '',
+    this.isCustom = false,
     required this.diet,
     required this.ingredients,
     required this.cookTime,
@@ -158,6 +157,8 @@ class Dish {
   final String dishRegister;
   @JsonKey(defaultValue: '')
   final String spiceLevel;
+  @JsonKey(defaultValue: false)
+  final bool isCustom;
   @JsonKey(defaultValue: <String>[])
   final List<String> diet;
   @JsonKey(defaultValue: <String>[])

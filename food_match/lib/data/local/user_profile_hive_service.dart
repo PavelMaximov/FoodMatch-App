@@ -55,6 +55,7 @@ class UserProfileHiveService {
   Future<void> saveLastFilterPreset(
     String userId, {
     required List<String> dishRegisters,
+    required bool includeCustomDishesFirst,
     required List<String> cuisines,
     required List<String> moods,
     required List<String> diet,
@@ -67,6 +68,7 @@ class UserProfileHiveService {
       profile.copyWith(
         lastFilterPreset: LastFilterPreset(
           dishRegisters: dishRegisters,
+          includeCustomDishesFirst: includeCustomDishesFirst,
           cuisines: cuisines,
           moods: moods,
           diet: diet,
@@ -97,16 +99,18 @@ class UserProfileHiveService {
     required String cuisine,
   }) async {
     final UserProfile profile = await getProfile(userId);
-    final List<SwipeRecord> history = List<SwipeRecord>.from(profile.swipeHistory)
-      ..add(
-        SwipeRecord(
-          dishId: dishId,
-          direction: direction,
-          timestamp: DateTime.now(),
-        ),
-      );
+    final List<SwipeRecord> history =
+        List<SwipeRecord>.from(profile.swipeHistory)..add(
+          SwipeRecord(
+            dishId: dishId,
+            direction: direction,
+            timestamp: DateTime.now(),
+          ),
+        );
 
-    final Map<String, int> weights = Map<String, int>.from(profile.cuisineWeights);
+    final Map<String, int> weights = Map<String, int>.from(
+      profile.cuisineWeights,
+    );
     if (direction == 'like') {
       weights[cuisine] = (weights[cuisine] ?? 0) + 2;
     } else {
@@ -123,12 +127,16 @@ class UserProfileHiveService {
     await saveProfile(userId, next);
   }
 
-  Future<void> recordMatch({required String userId, required String dishId}) async {
+  Future<void> recordMatch({
+    required String userId,
+    required String dishId,
+  }) async {
     final UserProfile profile = await getProfile(userId);
     if (profile.matchHistory.contains(dishId)) {
       return;
     }
-    final List<String> matches = List<String>.from(profile.matchHistory)..add(dishId);
+    final List<String> matches = List<String>.from(profile.matchHistory)
+      ..add(dishId);
     await saveProfile(userId, profile.copyWith(matchHistory: matches));
   }
 }

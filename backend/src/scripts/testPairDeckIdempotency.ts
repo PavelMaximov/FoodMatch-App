@@ -22,6 +22,8 @@ assert(source.includes('loadPreparedDeckDishes'), 'Idempotent prepare should ret
 assert(source.includes("status: 'ready'"), 'Successful generation should persist a ready shared preparedDeck.');
 assert(source.includes("status: 'failed'"), 'Failed generation should not leave the shared deck stuck preparing.');
 assert(source.includes('buildPairSharedRecommendedDeck'), 'Pair v2 recommendation builder should still be used.');
+assert(source.includes('customFirstUserIds: [...filters.customFirstUserIds].sort()'), 'Pair filtersHash should include the selected custom-first users.');
+assert(source.includes('buildCustomFirstPairDeck'), 'Backend should own canonical custom-first Pair ordering.');
 assert(source.includes('weighted_scoring_pair_shared_v2') || readFileSync('src/modules/recommendations/deckRecommendationService.ts', 'utf8').includes('weighted_scoring_pair_shared_v2'), 'Pair v2 algorithm label should remain available.');
 assert(!source.includes('preparedDeckByUser'), 'No per-user pair prepared deck should be introduced.');
 assert(!model.includes('preparedDeckByUser'), 'CoupleSession should still store one shared preparedDeck.');

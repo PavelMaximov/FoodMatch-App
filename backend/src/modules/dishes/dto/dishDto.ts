@@ -81,6 +81,7 @@ export interface DishDto {
   popular: boolean;
   steps: Array<{ step: number; text: string }>;
   ingredientSections?: IngredientSectionDto[];
+  isCustom: boolean;
 }
 
 export interface IngredientSectionDto {
@@ -141,7 +142,8 @@ export function toDishDto(dish: any): DishDto | null {
     season: asStringList(raw.season),
     popular: typeof raw.popular === 'boolean' ? raw.popular : false,
     steps: readSteps(raw),
-    ingredientSections: readIngredientSections(raw)
+    ingredientSections: readIngredientSections(raw),
+    isCustom: raw.isCustom === true
   };
 }
 

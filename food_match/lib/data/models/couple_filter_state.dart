@@ -1,6 +1,7 @@
 class CoupleFilterChoices {
   const CoupleFilterChoices({
     this.dishRegisters = const <String>[],
+    this.includeCustomDishesFirst = false,
     this.cuisines = const <String>[],
     this.moods = const <String>[],
     this.diet = const <String>[],
@@ -11,6 +12,7 @@ class CoupleFilterChoices {
 
   final List<String> cuisines;
   final List<String> dishRegisters;
+  final bool includeCustomDishesFirst;
   final List<String> moods;
   final List<String> diet;
   final List<String> exclusions;
@@ -20,23 +22,38 @@ class CoupleFilterChoices {
   factory CoupleFilterChoices.fromJson(Map<String, dynamic>? json) {
     if (json == null) return const CoupleFilterChoices();
     return CoupleFilterChoices(
-      dishRegisters: (json['dishRegisters'] as List<dynamic>? ?? const <dynamic>[]).map((e) => e.toString()).toList(),
-      cuisines: (json['cuisines'] as List<dynamic>? ?? const <dynamic>[]).map((e) => e.toString()).toList(),
-      moods: (json['moods'] as List<dynamic>? ?? const <dynamic>[]).map((e) => e.toString()).toList(),
-      diet: (json['diet'] as List<dynamic>? ?? const <dynamic>[]).map((e) => e.toString()).toList(),
-      exclusions: (json['exclusions'] as List<dynamic>? ?? const <dynamic>[]).map((e) => e.toString()).toList(),
+      dishRegisters:
+          (json['dishRegisters'] as List<dynamic>? ?? const <dynamic>[])
+              .map((e) => e.toString())
+              .toList(),
+      includeCustomDishesFirst: json['includeCustomDishesFirst'] == true,
+      cuisines: (json['cuisines'] as List<dynamic>? ?? const <dynamic>[])
+          .map((e) => e.toString())
+          .toList(),
+      moods: (json['moods'] as List<dynamic>? ?? const <dynamic>[])
+          .map((e) => e.toString())
+          .toList(),
+      diet: (json['diet'] as List<dynamic>? ?? const <dynamic>[])
+          .map((e) => e.toString())
+          .toList(),
+      exclusions: (json['exclusions'] as List<dynamic>? ?? const <dynamic>[])
+          .map((e) => e.toString())
+          .toList(),
       confirmed: json['confirmed'] == true,
-      updatedAt: json['updatedAt'] != null ? DateTime.tryParse(json['updatedAt'].toString()) : null,
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.tryParse(json['updatedAt'].toString())
+          : null,
     );
   }
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-      'cuisines': cuisines,
-        'dishRegisters': dishRegisters,
-        'moods': moods,
-        'diet': diet,
-        'exclusions': exclusions,
-      };
+    'cuisines': cuisines,
+    'dishRegisters': dishRegisters,
+    'includeCustomDishesFirst': includeCustomDishesFirst,
+    'moods': moods,
+    'diet': diet,
+    'exclusions': exclusions,
+  };
 }
 
 class CoupleFilterState {
@@ -54,10 +71,15 @@ class CoupleFilterState {
   final int compatibility;
   final String status;
 
-  factory CoupleFilterState.fromJson(Map<String, dynamic> json) => CoupleFilterState(
-        myChoices: CoupleFilterChoices.fromJson(json['myChoices'] as Map<String, dynamic>?),
+  factory CoupleFilterState.fromJson(Map<String, dynamic> json) =>
+      CoupleFilterState(
+        myChoices: CoupleFilterChoices.fromJson(
+          json['myChoices'] as Map<String, dynamic>?,
+        ),
         partnerChoices: json['partnerChoices'] is Map<String, dynamic>
-            ? CoupleFilterChoices.fromJson(json['partnerChoices'] as Map<String, dynamic>)
+            ? CoupleFilterChoices.fromJson(
+                json['partnerChoices'] as Map<String, dynamic>,
+              )
             : null,
         bothConfirmed: json['bothConfirmed'] == true,
         compatibility: (json['compatibility'] as num?)?.toInt() ?? 0,
