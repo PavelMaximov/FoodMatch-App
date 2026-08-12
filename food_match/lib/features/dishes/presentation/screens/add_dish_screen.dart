@@ -50,6 +50,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _cookTimeController = TextEditingController();
   final TextEditingController _stepInputController = TextEditingController();
+  final TextEditingController _otherCuisineController = TextEditingController();
 
   bool _isSubmitting = false;
   bool _isLoadingMyDishes = false;
@@ -58,7 +59,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
       <String, _PendingDeletedDish>{};
 
   String? _selectedCuisine;
-  String? _selectedMood;
+  String? _selectedMealFormat;
   int? _selectedServings;
   File? _selectedImageFile;
   DishImageUploadResult? _uploadedDishImage;
@@ -104,6 +105,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
     _titleController.dispose();
     _cookTimeController.dispose();
     _stepInputController.dispose();
+    _otherCuisineController.dispose();
     super.dispose();
   }
 
@@ -176,6 +178,20 @@ class _AddDishScreenState extends State<AddDishScreen> {
     });
   }
 
+  String _canonicalCuisine(String value) {
+    final String normalized = value
+        .trim()
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
+        .replaceAll(RegExp(r'^_+|_+$'), '');
+    const Map<String, String> aliases = <String, String>{
+      'italien': 'italian',
+      'eastern_ue': 'eastern_eu',
+      'middle_east': 'middle_east',
+    };
+    return aliases[normalized] ?? normalized;
+  }
+
   Future<void> _submit() async {
     if (_isSubmitting) return;
     final bool isValidForm = _formKey.currentState?.validate() ?? false;
@@ -188,11 +204,20 @@ class _AddDishScreenState extends State<AddDishScreen> {
       );
       return;
     }
-    if (_selectedMood == null) {
+    if (_selectedCuisine == 'other' &&
+        _otherCuisineController.text.trim().isEmpty) {
       FoodMatchNotifications.show(
         context,
         type: FoodMatchNotificationType.warning,
-        title: 'Choose a mood.',
+        title: 'Enter a cuisine or country.',
+      );
+      return;
+    }
+    if (_selectedMealFormat == null) {
+      FoodMatchNotifications.show(
+        context,
+        type: FoodMatchNotificationType.warning,
+        title: 'Choose a meal format.',
       );
       return;
     }
@@ -230,8 +255,12 @@ class _AddDishScreenState extends State<AddDishScreen> {
 
       await dishRepository.createCustomDish(
         title: _titleController.text.trim(),
-        cuisine: _selectedCuisine!,
-        mood: _selectedMood!,
+        cuisine: _canonicalCuisine(
+          _selectedCuisine == 'other'
+              ? _otherCuisineController.text
+              : _selectedCuisine!,
+        ),
+        dishRegister: _selectedMealFormat!,
         ingredients: _ingredients
             .map(
               (item) => <String, String>{
@@ -252,9 +281,10 @@ class _AddDishScreenState extends State<AddDishScreen> {
       _titleController.clear();
       _cookTimeController.clear();
       _stepInputController.clear();
+      _otherCuisineController.clear();
       setState(() {
         _selectedCuisine = null;
-        _selectedMood = null;
+        _selectedMealFormat = null;
         _selectedServings = null;
         _ingredients.clear();
         _steps.clear();
@@ -468,21 +498,29 @@ class _AddDishScreenState extends State<AddDishScreen> {
                 _AppSelect<String>(
                   value: _selectedCuisine,
                   hint: 'Cuisine',
-                  items: DishTaxonomy.cuisines,
-                  itemLabel: DishTaxonomy.labelFor,
+                  items: <String>[...DishTaxonomy.cuisines, 'other'],
+                  itemLabel: (String value) =>
+                      value == 'other' ? 'Other' : DishTaxonomy.labelFor(value),
                   onChanged: (String? value) =>
                       setState(() => _selectedCuisine = value),
                 ),
+                if (_selectedCuisine == 'other') ...<Widget>[
+                  const SizedBox(height: 10),
+                  _AppInput(
+                    controller: _otherCuisineController,
+                    hint: 'Enter cuisine or country',
+                  ),
+                ],
                 const SizedBox(height: 14),
-                const _RequiredLabel(text: 'Choose mood of your dish'),
+                const _RequiredLabel(text: 'Choose meal format'),
                 const SizedBox(height: 8),
                 _AppSelect<String>(
-                  value: _selectedMood,
-                  hint: 'Mood',
-                  items: DishTaxonomy.moods,
+                  value: _selectedMealFormat,
+                  hint: 'Meal format',
+                  items: DishTaxonomy.mealFormats,
                   itemLabel: DishTaxonomy.labelFor,
                   onChanged: (String? value) =>
-                      setState(() => _selectedMood = value),
+                      setState(() => _selectedMealFormat = value),
                 ),
                 const SizedBox(height: 14),
                 Row(
@@ -786,15 +824,12 @@ class _AddDishScreenState extends State<AddDishScreen> {
                   )
                 else if (_myDishes.isEmpty)
                   const Padding(
-                    padding: EdgeInsets.only(
-                      bottom: AppDimensions.paddingL,
-                    ),
+                    padding: EdgeInsets.only(bottom: AppDimensions.paddingL),
                     child: EmptyState(
                       icon: Icons.add_circle_outline,
                       imageAsset: AppEmptyStateAssets.emptyCustomDishes,
                       title: 'No custom dishes yet',
                       subtitle: 'Add your own dish and use it in your swipes.',
-                      
                     ),
                   )
                 else
@@ -1009,26 +1044,26 @@ class _ServingSizeSelect extends StatelessWidget {
               child: Text('Not specified'),
             ),
             ...List<int>.generate(10, (index) => index + 1).map(
-                (item) => DropdownMenuItem<int>(
-                  value: item,
-                  child: Row(
-                    children: <Widget>[
-                      Icon(
-                        Icons.groups_2_outlined,
-                        size: 16,
-                        color: context.fmColors.textMuted,
+              (item) => DropdownMenuItem<int>(
+                value: item,
+                child: Row(
+                  children: <Widget>[
+                    Icon(
+                      Icons.groups_2_outlined,
+                      size: 16,
+                      color: context.fmColors.textMuted,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '$item',
+                      style: AppTextStyles.bodyLarge.copyWith(
+                        color: context.fmColors.textPrimary,
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '$item',
-                        style: AppTextStyles.bodyLarge.copyWith(
-                          color: context.fmColors.textPrimary,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
+            ),
           ],
         ),
       ),

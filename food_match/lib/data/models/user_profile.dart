@@ -32,25 +32,35 @@ class LastFilterPreset {
     'usedAt': usedAt.toIso8601String(),
   };
 
-  factory LastFilterPreset.fromJson(
-    Map<dynamic, dynamic> json,
-  ) => LastFilterPreset(
-    dishRegisters: List<String>.from(
-      json['dishRegisters'] as List<dynamic>? ?? <dynamic>[],
-    ),
-    includeCustomDishesFirst: json['includeCustomDishesFirst'] == true,
-    cuisines: List<String>.from(
-      json['cuisines'] as List<dynamic>? ?? <dynamic>[],
-    ),
-    moods: List<String>.from(json['moods'] as List<dynamic>? ?? <dynamic>[]),
-    diet: List<String>.from(json['diet'] as List<dynamic>? ?? <dynamic>[]),
-    exclusions: List<String>.from(
-      json['exclusions'] as List<dynamic>? ?? <dynamic>[],
-    ),
-    matchedLastTime: (json['matchedLastTime'] as num?)?.toInt() ?? 0,
-    usedAt:
-        DateTime.tryParse(json['usedAt']?.toString() ?? '') ?? DateTime.now(),
-  );
+  factory LastFilterPreset.fromJson(Map<dynamic, dynamic> json) =>
+      LastFilterPreset(
+        dishRegisters: List<String>.from(
+          json['dishRegisters'] as List<dynamic>? ?? <dynamic>[],
+        ),
+        includeCustomDishesFirst: json['includeCustomDishesFirst'] == true,
+        cuisines: List<String>.from(
+          json['cuisines'] as List<dynamic>? ?? <dynamic>[],
+        ),
+        moods: List<String>.from(
+          json['moods'] as List<dynamic>? ?? <dynamic>[],
+        ),
+        diet: List<String>.from(json['diet'] as List<dynamic>? ?? <dynamic>[]),
+        exclusions: List<String>.from(
+          json['exclusions'] as List<dynamic>? ?? <dynamic>[],
+        ),
+        matchedLastTime: (json['matchedLastTime'] as num?)?.toInt() ?? 0,
+        usedAt:
+            DateTime.tryParse(json['usedAt']?.toString() ?? '') ??
+            DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+      );
+
+  bool get isMeaningful =>
+      usedAt.millisecondsSinceEpoch > 0 &&
+      (dishRegisters.isNotEmpty ||
+          includeCustomDishesFirst ||
+          cuisines.isNotEmpty ||
+          diet.isNotEmpty ||
+          exclusions.isNotEmpty);
 }
 
 class UserProfile {

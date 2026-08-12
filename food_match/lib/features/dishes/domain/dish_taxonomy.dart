@@ -4,17 +4,24 @@ abstract final class DishTaxonomy {
     'american',
     'asian',
     'balkan',
-    'eastern UE',
+    'eastern_eu',
     'french',
     'german',
     'indian',
-    'italien',
+    'italian',
     'japanese',
     'mediterranean',
     'mexican',
-    'middle east',
+    'middle_east',
     'spanish',
     'turkish',
+  ];
+
+  static const List<String> mealFormats = <String>[
+    'everyday_staple',
+    'home_classic',
+    'celebration',
+    'restaurant_style',
   ];
 
   static const List<String> moods = <String>[
@@ -30,15 +37,15 @@ abstract final class DishTaxonomy {
     'american': 'American',
     'asian': 'Asian',
     'balkan': 'Balkan',
-    'eastern UE': 'Eastern UE',
+    'eastern_eu': 'Eastern EU',
     'french': 'French',
     'german': 'German',
     'indian': 'Indian',
-    'italien': 'Italien',
+    'italian': 'Italian',
     'japanese': 'Japanese',
     'mediterranean': 'Mediterranean',
     'mexican': 'Mexican',
-    'middle east': 'Middle East',
+    'middle_east': 'Middle East',
     'spanish': 'Spanish',
     'turkish': 'Turkish',
     'comfort': 'Comfort',
@@ -47,6 +54,10 @@ abstract final class DishTaxonomy {
     'indulgent': 'Indulgent',
     'quick': 'Quick',
     'light': 'Light',
+    'everyday_staple': 'Daily meal',
+    'home_classic': 'Homestyle dish',
+    'celebration': 'Celebration menu',
+    'restaurant_style': 'Restaurant style',
   };
 
   static String labelFor(String value) => _labels[value] ?? value;

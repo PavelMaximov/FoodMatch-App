@@ -65,9 +65,13 @@ class InlineDeckEndRestartCard extends StatelessWidget {
                   assetPath: AppEmptyStateAssets.emptyDeckComplete,
                   width: 180,
                   height: 150,
-                  fallback: _DeckStatusIcon(
-                    colors: colors,
-                    icon: Icons.restart_alt_rounded,
+                  fallback: Container(
+                    width: 180,
+                    height: 150,
+                    decoration: BoxDecoration(
+                      color: colors.primarySoft,
+                      borderRadius: BorderRadius.circular(24),
+                    ),
                   ),
                 ),
               const SizedBox(height: 24),

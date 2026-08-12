@@ -58,6 +58,8 @@ const swipesScreen = readFileSync('../food_match/lib/features/swipes/presentatio
 const swipeProvider = readFileSync('../food_match/lib/features/swipes/logic/swipe_provider.dart', 'utf8');
 assert(preSwipeProvider.includes('prepareCanonicalPairDeck'), 'Pair flow should use canonical-only backend deck preparation.');
 assert(preSwipeScreen.includes('Could not load the shared deck. Please try again.'), 'Pair prepare errors should show a safe retry/error state.');
+assert(preSwipeScreen.includes('_WaitingOrigin.previousChoice'), 'Waiting Back should preserve the PreviousFilterChoiceScreen origin.');
+assert(preSwipeScreen.includes("title: 'No custom dishes yet'"), 'Disabled custom dishes should explain why they are unavailable.');
 assert(!preSwipeScreen.includes('Could not prepare shared deck. Using local fallback for now.'), 'Pair screen must not expose local fallback copy.');
 assert(swipesScreen.includes('pair_deck_error_retry'), 'Pair deck error retry should use canonical Pair deck loading.');
 assert(swipesScreen.includes('canonical load retry attempt'), 'Pair deck loading should retry transient empty/not-ready states before showing final error.');

@@ -9,8 +9,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/animations/app_motion.dart';
+import '../../../../core/theme/notification_theme.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/theme/theme_extensions.dart';
+import '../../../../core/utils/food_match_notifications.dart';
 import '../../../../core/widgets/app_pending_overlay.dart';
 import '../../../../core/widgets/food_match_loader.dart';
 import '../../../../core/widgets/food_match_ripple.dart';
@@ -27,6 +29,8 @@ import '../../logic/swipe_provider.dart';
 import 'previous_filter_choice_screen.dart';
 
 enum PreSwipeFilterIntent { createNewSession, updateActiveSoloSession }
+
+enum _WaitingOrigin { manualSteps, previousChoice }
 
 class PreSwipeFilterScreen extends StatefulWidget {
   const PreSwipeFilterScreen({
@@ -58,6 +62,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   bool _isApplyingFilters = false;
   bool _isGoingBack = false;
   bool _isReturningFromWaiting = false;
+  _WaitingOrigin _waitingOrigin = _WaitingOrigin.manualSteps;
   String? _sharedDeckError;
   String? _pendingUserId;
   LastFilterPreset? _lastFilterPreset;
@@ -214,7 +219,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         _allDishes = dishes;
         _cuisineOptions = cuisines;
         if (!_showIntro &&
-            _lastFilterPreset != null &&
+            _lastFilterPreset?.isMeaningful == true &&
             !_coupleProvider.isMyChoicesConfirmed) {
           _showPreviousChoice = true;
         }
@@ -380,7 +385,6 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
                       return _FilterBottomPanel(
                         dishRegisters: _dishRegisters.toList(),
                         includeCustomDishesFirst: _includeCustomDishesFirst,
-                        progress: _filterProgress,
                         cuisines: _cuisines.toList(),
                         diet: _diet.toList(),
                         exclusions: _blocked.toList(),
@@ -441,13 +445,6 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   bool get _hasMealTypeSelection =>
       _includeCustomDishesFirst || _dishRegisters.isNotEmpty;
 
-  double get _filterProgress {
-    if (!_hasMealTypeSelection) return 0;
-    if (_step == 1) return 1 / 3;
-    if (_step == 2) return 2 / 3;
-    return 1;
-  }
-
   void _selectMealType(String option) {
     if (option == 'custom_dishes' && !_hasAvailableCustomDishes) return;
     setState(() {
@@ -458,6 +455,15 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
           _includeCustomDishesFirst ? const <String>[] : <String>[option],
         );
     });
+  }
+
+  void _showNoCustomDishesNotice() {
+    FoodMatchNotifications.show(
+      context,
+      type: FoodMatchNotificationType.info,
+      title: 'No custom dishes yet',
+      message: 'Add your own dishes first to use them here.',
+    );
   }
 
   Widget _buildStepContent() {
@@ -485,6 +491,9 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
                           _hasAvailableCustomDishes,
                       highlighted: false,
                       onTap: () => _selectMealType(option),
+                      onDisabledTap: option == 'custom_dishes'
+                          ? _showNoCustomDishesNotice
+                          : null,
                     ),
                   ),
                 ),
@@ -672,8 +681,9 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     }
     setState(() {
       _showIntro = false;
-      _showPreviousChoice =
-          _lastFilterPreset != null && !_coupleProvider.isMyChoicesConfirmed;
+      // Completing the intro is a first-run action; never redirect that action
+      // into a stale/default previous-preset document.
+      _showPreviousChoice = false;
     });
   }
 
@@ -697,6 +707,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       return;
     }
     setState(() {
+      _waitingOrigin = _WaitingOrigin.previousChoice;
       _showPreviousChoice = false;
       _dishRegisters
         ..clear()
@@ -727,6 +738,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       });
       return;
     }
+    _waitingOrigin = _WaitingOrigin.manualSteps;
     await _confirmCurrentFilters();
   }
 
@@ -1049,7 +1061,10 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       setState(() {
         _waitingForPartner = false;
         _hasStartedPrepareAfterBothConfirmed = false;
-        _step = 3;
+        _showPreviousChoice =
+            _waitingOrigin == _WaitingOrigin.previousChoice &&
+            _lastFilterPreset?.isMeaningful == true;
+        _step = _showPreviousChoice ? 1 : 3;
         _isGoingBack = true;
       });
     } catch (_) {
@@ -1403,6 +1418,7 @@ class _FilterOptionChip extends StatelessWidget {
     required this.enabled,
     required this.highlighted,
     required this.onTap,
+    this.onDisabledTap,
   });
 
   final String option;
@@ -1413,6 +1429,7 @@ class _FilterOptionChip extends StatelessWidget {
   final bool enabled;
   final bool highlighted;
   final VoidCallback onTap;
+  final VoidCallback? onDisabledTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1430,8 +1447,8 @@ class _FilterOptionChip extends StatelessWidget {
         : context.fmColors.textMuted;
 
     return FoodMatchRipple(
-      onTap: enabled ? onTap : null,
-      enabled: enabled,
+      onTap: enabled ? onTap : onDisabledTap,
+      enabled: enabled || onDisabledTap != null,
       borderRadius: BorderRadius.circular(
         _PreSwipeFilterScreenState._chipRadius,
       ),
@@ -1510,7 +1527,6 @@ class _FilterBottomPanel extends StatelessWidget {
   const _FilterBottomPanel({
     required this.dishRegisters,
     required this.includeCustomDishesFirst,
-    required this.progress,
     required this.cuisines,
     required this.diet,
     required this.exclusions,
@@ -1525,7 +1541,6 @@ class _FilterBottomPanel extends StatelessWidget {
 
   final List<String> dishRegisters;
   final bool includeCustomDishesFirst;
-  final double progress;
   final List<String> cuisines;
   final List<String> diet;
   final List<String> exclusions;
@@ -1570,7 +1585,7 @@ class _FilterBottomPanel extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Text(
-                '⚡ ${availability.availableCount} $dishLabel matched',
+                '⚡ ${availability.availableCount} $dishLabel',
                 style: GoogleFonts.nunito(
                   fontSize: 14,
                   fontWeight: FontWeight.w800,
@@ -1593,7 +1608,7 @@ class _FilterBottomPanel extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(99),
             child: TweenAnimationBuilder<double>(
-              tween: Tween<double>(end: progress),
+              tween: Tween<double>(end: availability.progress),
               duration: const Duration(milliseconds: 220),
               builder: (BuildContext context, double value, _) =>
                   LinearProgressIndicator(

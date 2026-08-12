@@ -47,6 +47,7 @@ interface CreateCustomDishInput {
   name: string;
   cuisine: string;
   mood: string | string[];
+  dishRegister: string;
   type?: string;
   description?: string;
   diet?: string[];
@@ -172,6 +173,8 @@ export class DishService {
       cuisine: input.cuisine.trim(),
       type: (input.type ?? '').trim(),
       mood: mood.map((value) => value.trim()).filter(Boolean).slice(0, 10),
+      dishRegister: input.dishRegister.trim().toLowerCase(),
+      dish_register: input.dishRegister.trim().toLowerCase(),
       diet: (input.diet ?? []).map((value) => value.trim()).filter(Boolean).slice(0, 10),
       ingredients: sanitizedIngredients.map((ingredient) => ingredient.name),
       cookTime: Number.isFinite(input.cookTime) ? Math.max(0, Math.trunc(input.cookTime)) : 0,
@@ -226,6 +229,8 @@ export class DishService {
     candidate.cuisine = input.cuisine.trim();
     candidate.type = (input.type ?? '').trim();
     candidate.mood = mood.map((value) => value.trim()).filter(Boolean).slice(0, 10);
+    candidate.dishRegister = input.dishRegister.trim().toLowerCase();
+    candidate.dish_register = input.dishRegister.trim().toLowerCase();
     candidate.diet = (input.diet ?? []).map((value) => value.trim()).filter(Boolean).slice(0, 10);
     candidate.ingredients = sanitizedIngredients.map((ingredient) => ingredient.name);
     candidate.structuredIngredients = sanitizedIngredients;
@@ -638,6 +643,15 @@ export class DishService {
     }
 
     if (dish.createdBy?.toString() === userId) return;
+
+    if (dish.isCustom && dish.createdBy) {
+      const sharedSession = await CoupleSessionModel.findOne({
+        status: 'active',
+        members: { $all: [new Types.ObjectId(userId), dish.createdBy] },
+        'preparedDeck.dishIds': dish._id
+      }).select('_id');
+      if (sharedSession) return;
+    }
 
     if (dish.visibility === 'session' && dish.coupleId) {
       const activeSession = await this.getActiveSessionForUser(userId);

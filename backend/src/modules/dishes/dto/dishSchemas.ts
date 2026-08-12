@@ -5,17 +5,16 @@ const nameText = z.string().trim().max(80, 'Dish name must be 80 characters or f
 const shortText = z.string().trim().max(50);
 const ingredientText = z.string().trim().max(80);
 const mediumText = z.string().trim().max(500);
-const cuisineValue = z.enum([
-  'american', 'asian', 'balkan', 'eastern UE', 'french', 'german', 'indian',
-  'italien', 'japanese', 'mediterranean', 'mexican', 'middle east', 'spanish', 'turkish'
-]);
+const cuisineValue = z.string().trim().toLowerCase().regex(/^[a-z0-9]+(?:_[a-z0-9]+)*$/).max(50);
 const moodValue = z.enum(['comfort', 'healthy', 'exotic', 'indulgent', 'quick', 'light']);
+const dishRegisterValue = z.enum(['everyday_staple', 'home_classic', 'celebration', 'restaurant_style']);
 
 export const customDishSchema = z.object({
   name: nameText.min(1, 'Dish name is required.'),
   cuisine: cuisineValue,
   type: shortText.optional().default(''),
-  mood: z.union([moodValue, z.array(moodValue).max(6)]),
+  mood: z.union([moodValue, z.array(moodValue).max(6)]).optional().default([]),
+  dishRegister: dishRegisterValue,
   diet: z.array(shortText).max(10).optional().default([]),
   source: z.array(shortText).max(10).optional().default([]),
   season: z.array(shortText).max(10).optional().default([]),

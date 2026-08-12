@@ -115,6 +115,7 @@ export class CoupleDeckService {
       deckSize: MAX_DECK_SIZE,
       customDishIds
     });
+    result.dishes = shuffleWithinScoreBands(result.dishes, crypto.randomUUID());
     const finalDishes = buildCustomFirstPairDeck(
       allDishes,
       result.dishes,
@@ -660,6 +661,23 @@ function normalize(value?: string) {
 
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function shuffleWithinScoreBands(dishes: DishDocument[], seed: string) {
+  return dishes.flatMap((_, start) => start % 4 === 0
+    ? seededShuffle(dishes.slice(start, start + 4), `${seed}:${start}`)
+    : []);
+}
+
+function seededShuffle<T>(items: T[], seed: string) {
+  const result = [...items];
+  let state = crypto.createHash('sha1').update(seed).digest().readUInt32BE(0);
+  for (let index = result.length - 1; index > 0; index -= 1) {
+    state = (state * 1664525 + 1013904223) >>> 0;
+    const target = state % (index + 1);
+    [result[index], result[target]] = [result[target], result[index]];
+  }
+  return result;
 }
 
 function isSessionCustomDish(dish: DishDocument) {

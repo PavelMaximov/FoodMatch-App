@@ -31,7 +31,8 @@ class DishRepository {
   DateTime? _catalogLoadedAt;
   Future<List<Dish>>? _catalogLoadFuture;
 
-  bool get _hasCatalogCache => _catalogCache.isNotEmpty && _catalogLoadedAt != null;
+  bool get _hasCatalogCache =>
+      _catalogCache.isNotEmpty && _catalogLoadedAt != null;
   bool get _hasFreshCatalogCache {
     final DateTime? loadedAt = _catalogLoadedAt;
     return loadedAt != null &&
@@ -82,14 +83,17 @@ class DishRepository {
       if (cuisine?.trim().isNotEmpty == true) 'cuisine': cuisine!.trim(),
       if (type?.trim().isNotEmpty == true) 'type': type!.trim(),
       if (mealType?.trim().isNotEmpty == true) 'mealType': mealType!.trim(),
-      if (mood != null && mood.where((String v) => v.trim().isNotEmpty).isNotEmpty)
+      if (mood != null &&
+          mood.where((String v) => v.trim().isNotEmpty).isNotEmpty)
         'mood': mood.where((String v) => v.trim().isNotEmpty).join(','),
-      if (diet != null && diet.where((String v) => v.trim().isNotEmpty).isNotEmpty)
+      if (diet != null &&
+          diet.where((String v) => v.trim().isNotEmpty).isNotEmpty)
         'diet': diet.where((String v) => v.trim().isNotEmpty).join(','),
       if (effort?.trim().isNotEmpty == true) 'effort': effort!.trim(),
       if (popular != null) 'popular': popular.toString(),
       if (source?.trim().isNotEmpty == true) 'source': source!.trim(),
-      if (season != null && season.where((String v) => v.trim().isNotEmpty).isNotEmpty)
+      if (season != null &&
+          season.where((String v) => v.trim().isNotEmpty).isNotEmpty)
         'season': season.where((String v) => v.trim().isNotEmpty).join(','),
       if (maxCookTime != null) 'maxCookTime': maxCookTime.toString(),
       if (maxTotalTime != null) 'maxTotalTime': maxTotalTime.toString(),
@@ -100,9 +104,16 @@ class DishRepository {
       if (sort?.trim().isNotEmpty == true) 'sort': sort!.trim(),
       if (force) '_refresh': DateTime.now().millisecondsSinceEpoch.toString(),
     };
-    final String endpoint = Uri(path: ApiConstants.dishes, queryParameters: query).toString();
+    final String endpoint = Uri(
+      path: ApiConstants.dishes,
+      queryParameters: query,
+    ).toString();
     final data = await _apiService.get(endpoint);
-    return _parsePaginatedDishes(data, fallbackLimit: limit, fallbackOffset: offset);
+    return _parsePaginatedDishes(
+      data,
+      fallbackLimit: limit,
+      fallbackOffset: offset,
+    );
   }
 
   PaginatedDishesResult _parsePaginatedDishes(
@@ -113,8 +124,12 @@ class DishRepository {
     if (data is Map<String, dynamic>) {
       final dynamic rawItems = data['items'] ?? data['dishes'];
       final dynamic rawMeta = data['meta'];
-      final Map<String, dynamic> meta = rawMeta is Map<String, dynamic> ? rawMeta : data;
-      final List<dynamic> list = rawItems is List<dynamic> ? rawItems : <dynamic>[];
+      final Map<String, dynamic> meta = rawMeta is Map<String, dynamic>
+          ? rawMeta
+          : data;
+      final List<dynamic> list = rawItems is List<dynamic>
+          ? rawItems
+          : <dynamic>[];
       final List<Dish> items = list
           .map((item) => Dish.fromJson(Map<String, dynamic>.from(item as Map)))
           .toList();
@@ -165,7 +180,9 @@ class DishRepository {
   Future<List<Dish>> getCatalogDishes({bool force = false}) async {
     if (!force && _hasFreshCatalogCache) {
       final int age = DateTime.now().difference(_catalogLoadedAt!).inSeconds;
-      AppLogger.info('[Cache] catalog hit count=${_catalogCache.length} age=${age}s');
+      AppLogger.info(
+        '[Cache] catalog hit count=${_catalogCache.length} age=${age}s',
+      );
       return List<Dish>.unmodifiable(_catalogCache);
     }
 
@@ -175,13 +192,18 @@ class DishRepository {
       return inFlight;
     }
 
-    AppLogger.info(force ? '[Cache] catalog force refresh' : '[Cache] catalog miss');
+    AppLogger.info(
+      force ? '[Cache] catalog force refresh' : '[Cache] catalog miss',
+    );
     _catalogLoadFuture = _loadCatalogFromApi();
     try {
       return await _catalogLoadFuture!;
     } catch (e) {
       if (_hasCatalogCache) {
-        AppLogger.error('[Cache] catalog refresh failed; returning stale cache', e);
+        AppLogger.error(
+          '[Cache] catalog refresh failed; returning stale cache',
+          e,
+        );
         return List<Dish>.unmodifiable(_catalogCache);
       }
       rethrow;
@@ -201,7 +223,9 @@ class DishRepository {
         .toList();
     _catalogCache = List<Dish>.from(dishes);
     _catalogLoadedAt = DateTime.now();
-    debugPrint('[DishRepository] getCatalogDishes loaded ${dishes.length} dishes');
+    debugPrint(
+      '[DishRepository] getCatalogDishes loaded ${dishes.length} dishes',
+    );
     return List<Dish>.unmodifiable(_catalogCache);
   }
 
@@ -231,7 +255,19 @@ class DishRepository {
         ? (data['ingredients'] as List<dynamic>? ?? <dynamic>[])
         : <dynamic>[];
 
-    return list.map((item) => item.toString()).toList();
+    return list
+        .map((dynamic item) {
+          if (item is Map) {
+            final Map<dynamic, dynamic> ingredient = item;
+            return (ingredient['name'] ?? ingredient['normalizedName'] ?? '')
+                .toString();
+          }
+          return item.toString();
+        })
+        .map((String name) => name.trim())
+        .where((String name) => name.isNotEmpty)
+        .toSet()
+        .toList();
   }
 
   Future<Dish> getDishById(String dishId) async {
@@ -248,7 +284,7 @@ class DishRepository {
   Future<Dish> createCustomDish({
     required String title,
     required String cuisine,
-    required String mood,
+    required String dishRegister,
     required List<Map<String, String>> ingredients,
     required int cookTime,
     required String servings,
@@ -259,7 +295,7 @@ class DishRepository {
     final data = await _apiService.post(ApiConstants.dishesCustom, {
       'name': title,
       'cuisine': cuisine,
-      'mood': mood,
+      'dishRegister': dishRegister,
       'ingredients': ingredients,
       'cookTime': cookTime,
       'servings': servings.trim(),
@@ -267,13 +303,16 @@ class DishRepository {
           .asMap()
           .entries
           .where((entry) => entry.value.trim().isNotEmpty)
-          .map((entry) => <String, dynamic>{
-                'step': entry.key + 1,
-                'text': entry.value.trim(),
-              })
+          .map(
+            (entry) => <String, dynamic>{
+              'step': entry.key + 1,
+              'text': entry.value.trim(),
+            },
+          )
           .toList(),
       if (imageUrl.trim().isNotEmpty) 'imageUrl': imageUrl,
-      if (imagePublicId?.trim().isNotEmpty == true) 'imagePublicId': imagePublicId,
+      if (imagePublicId?.trim().isNotEmpty == true)
+        'imagePublicId': imagePublicId,
     });
     invalidateCatalogCache(reason: 'custom-dish-create');
 

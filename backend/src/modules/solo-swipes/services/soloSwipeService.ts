@@ -1,4 +1,5 @@
 import { FilterQuery, Types } from 'mongoose';
+import crypto from 'crypto';
 import { AppError } from '../../../core/errors/AppError';
 import { CoupleSessionModel } from '../../couples/models/CoupleSession';
 import { DishDocument, DishModel } from '../../dishes/models/Dish';
@@ -83,6 +84,7 @@ export class SoloSwipeService {
   const query:FilterQuery<DishDocument>={$or:[{visibility:'public',status:'approved'},{isCustom:true,status:'approved',createdBy:new Types.ObjectId(userId)}]};
   const [all, history] = await Promise.all([DishModel.find(query).select(DISH_DTO_SELECT), this.loadUserHistory(userId)]);
   const result = buildRecommendedDeck({ userId, dishes: all, filters: filter, userHistory: history, recentlySeenDishIds, excludedDishIds: excludeDishIds, deckSize: MAX_DECK_SIZE, mode: 'solo' });
+  result.dishes = shuffleWithinScoreBands(result.dishes, crypto.randomUUID());
   if (!filter.includeCustomDishesFirst) return result;
   const custom = all.filter((dish) => dish.isCustom === true && dish.createdBy?.toString() === userId && !excludeDishIds.has(dish._id.toString()) && !dishMatchesExclusions(dish, filter.exclusions) && matchesCustomDiet(dish, filter.diet)).sort((a,b) => b.createdAt.getTime() - a.createdAt.getTime());
   const customIds = new Set(custom.map((dish) => dish._id.toString()));
@@ -113,3 +115,18 @@ export class SoloSwipeService {
 }
 
 function matchesCustomDiet(dish: DishDocument, diet: string[]) { const values = new Set((dish.diet ?? []).map((value) => value.trim().toLowerCase())); if (diet.includes('vegan')) return values.has('vegan'); if (diet.includes('vegetarian')) return values.has('vegetarian') || values.has('vegan'); return true; }
+
+function shuffleWithinScoreBands(dishes: DishDocument[], seed: string) {
+ return dishes.flatMap((_, start) => start % 4 === 0 ? seededShuffle(dishes.slice(start, start + 4), `${seed}:${start}`) : []);
+}
+
+function seededShuffle<T>(items: T[], seed: string) {
+ const result = [...items];
+ let state = crypto.createHash('sha1').update(seed).digest().readUInt32BE(0);
+ for (let index = result.length - 1; index > 0; index -= 1) {
+  state = (state * 1664525 + 1013904223) >>> 0;
+  const target = state % (index + 1);
+  [result[index], result[target]] = [result[target], result[index]];
+ }
+ return result;
+}

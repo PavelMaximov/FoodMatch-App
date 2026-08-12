@@ -518,8 +518,22 @@ class PreSwipeProvider extends ChangeNotifier {
           ? partnerChoices.dishRegisters
           : const <String>[],
     );
+    List<Dish> preferred = allDishes;
+    if (includeCustomDishesFirst) {
+      preferred = preferred.where((Dish dish) => dish.isCustom).toList();
+    } else if (dishRegisters.isNotEmpty) {
+      final Set<String> registers = dishRegisters
+          .map((String value) => value.trim().toLowerCase())
+          .toSet();
+      preferred = preferred
+          .where(
+            (Dish dish) =>
+                registers.contains(dish.dishRegister.trim().toLowerCase()),
+          )
+          .toList();
+    }
     final int availableCount = hasUserSelections
-        ? _scoringService.applyHardFilters(allDishes, config).length
+        ? _scoringService.applyHardFilters(preferred, config).length
         : 0;
 
     return FilterAvailabilitySummary(
