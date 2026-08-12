@@ -326,9 +326,6 @@ class _InviteCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final FoodMatchThemeColors colors = context.fmColors;
-    final int activeSlot = controller.selection.baseOffset < 0
-        ? (code.length >= 6 ? 5 : code.length)
-        : controller.selection.baseOffset.clamp(0, 5).toInt();
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -472,6 +469,11 @@ class _CodeInput extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final FoodMatchThemeColors colors = context.fmColors;
+    final String code = controller.text;
+    final int rawOffset = controller.selection.baseOffset;
+    final int activeSlot = rawOffset < 0
+        ? (code.length >= 6 ? 5 : code.length)
+        : rawOffset.clamp(0, 5).toInt();
     return GestureDetector(
       onTap: focusNode.requestFocus,
       child: Stack(
