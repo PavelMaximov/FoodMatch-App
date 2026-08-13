@@ -485,8 +485,9 @@ class _CodeInput extends StatelessWidget {
               focusNode: focusNode,
               maxLength: 6,
               keyboardType: TextInputType.text,
+              textCapitalization: TextCapitalization.characters,
               inputFormatters: <TextInputFormatter>[
-                FilteringTextInputFormatter.allow(RegExp('[a-zA-Z0-9]')),
+                const _UppercaseInviteCodeFormatter(),
                 LengthLimitingTextInputFormatter(6),
               ],
             ),
@@ -588,3 +589,26 @@ class _OrangeButton extends StatelessWidget {
 
 String _sanitizeCode(String value) =>
     value.replaceAll(RegExp('[^a-zA-Z0-9]'), '').toUpperCase();
+
+class _UppercaseInviteCodeFormatter extends TextInputFormatter {
+  const _UppercaseInviteCodeFormatter();
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final String sanitized = _sanitizeCode(newValue.text);
+    final int removedBeforeCursor = newValue.text
+        .substring(0, newValue.selection.end.clamp(0, newValue.text.length))
+        .replaceAll(RegExp('[a-zA-Z0-9]'), '')
+        .length;
+    final int cursor = (newValue.selection.end - removedBeforeCursor)
+        .clamp(0, sanitized.length)
+        .toInt();
+    return TextEditingValue(
+      text: sanitized,
+      selection: TextSelection.collapsed(offset: cursor),
+    );
+  }
+}

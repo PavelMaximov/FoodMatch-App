@@ -331,7 +331,9 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     context.read<PreSwipeProvider>().clearDraft();
   }
 
-  Future<void> _loadCanonicalPairDeckAndShowSwipe({required String reason}) async {
+  Future<void> _loadCanonicalPairDeckAndShowSwipe({
+    required String reason,
+  }) async {
     if (_isPairDeckReadyLoading || !mounted) {
       return;
     }
@@ -339,12 +341,17 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     if (swipeProvider.isSoloMode) {
       return;
     }
+    if (reason == 'pair_deck_error_retry') {
+      _pairDeckReadyAutoLoadEnabled = true;
+    }
     _isPairDeckReadyLoading = true;
     _lastPairDeckReadyLoadAttemptAt = DateTime.now();
     swipeProvider.clearDeckError(notify: false);
     setState(() {});
     final CoupleProvider coupleProvider = context.read<CoupleProvider>();
-    debugPrint('[PairFlow] both filters confirmed session=${coupleProvider.currentCouple?.id ?? 'none'} generation=${coupleProvider.currentCouple?.lifecycleGeneration ?? 0}');
+    debugPrint(
+      '[PairFlow] both filters confirmed session=${coupleProvider.currentCouple?.id ?? 'none'} generation=${coupleProvider.currentCouple?.lifecycleGeneration ?? 0}',
+    );
     try {
       _clearStalePairDeckSetupState(reason: reason);
       swipeProvider.clearPreparedDeck();
@@ -353,41 +360,98 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
         Duration(milliseconds: 700),
         Duration(milliseconds: 1200),
         Duration(milliseconds: 2000),
+        Duration(milliseconds: 3000),
+        Duration(milliseconds: 4000),
+        Duration(milliseconds: 5000),
       ];
+      Object? lastError;
       for (int attempt = 0; attempt < retryDelays.length; attempt++) {
         if (retryDelays[attempt] > Duration.zero) {
-          debugPrint('[PairDeck] canonical load retry attempt=$attempt reason=$reason');
+          debugPrint(
+            '[PairDeck] canonical load retry attempt=$attempt reason=$reason',
+          );
           await Future<void>.delayed(retryDelays[attempt]);
         }
         if (!mounted) {
           return;
         }
-        final bool loaded = await swipeProvider.loadExistingPreparedDeck(force: true);
+        bool loaded = false;
+        try {
+          final PreparedPoolResult result = await context
+              .read<PreSwipeProvider>()
+              .prepareCanonicalPairDeck();
+          if (!mounted) return;
+          debugPrint(
+            '[PairDeck] POST prepare result attempt=${attempt + 1} '
+            'source=$reason dishes=${result.dishes.length}',
+          );
+          if (result.dishes.isNotEmpty) {
+            swipeProvider.applyPreparedDeck(
+              result.dishes,
+              preparedDeckMeta: result.preparedDeckMeta,
+            );
+            loaded = true;
+          } else {
+            debugPrint(
+              '[PairDeck] retry reason=prepare_not_ready attempt=${attempt + 1}',
+            );
+          }
+        } catch (error) {
+          lastError = error;
+          debugPrint(
+            '[PairDeck] prepare attempt=${attempt + 1} source=$reason '
+            'retryReason=$error',
+          );
+          // A competing client may hold the prepare lock. GET is diagnostic and
+          // can recover immediately if that client completed between calls.
+          loaded = await swipeProvider.loadExistingPreparedDeck(force: true);
+          debugPrint(
+            '[PairDeck] GET deck result attempt=${attempt + 1} '
+            'dishes=${swipeProvider.deck.length}',
+          );
+        }
         if (!mounted) {
           return;
         }
         if (loaded && swipeProvider.deck.isNotEmpty) {
           final PreparedDeckMeta? meta = swipeProvider.preparedDeckMeta;
-          final Object generation = meta?.filtersHash ?? coupleProvider.currentCouple?.lifecycleGeneration ?? 0;
-          debugPrint('[PairDeck] ready session=${coupleProvider.currentCouple?.id ?? 'none'} generation=$generation size=${swipeProvider.deck.length}');
-          debugPrint('[PairDeck] canonical deck loaded session=${coupleProvider.currentCouple?.id ?? 'none'} generation=$generation size=${swipeProvider.deck.length}');
+          final Object generation =
+              meta?.filtersHash ??
+              coupleProvider.currentCouple?.lifecycleGeneration ??
+              0;
+          debugPrint(
+            '[PairDeck] ready session=${coupleProvider.currentCouple?.id ?? 'none'} generation=$generation size=${swipeProvider.deck.length}',
+          );
+          debugPrint(
+            '[PairDeck] canonical deck loaded session=${coupleProvider.currentCouple?.id ?? 'none'} generation=$generation size=${swipeProvider.deck.length}',
+          );
           debugPrint('[AppFlow] pair deck ready -> Swipe');
           _resetSwipeStackController();
           _startPairLifecyclePolling();
           _startPairMatchPolling();
-          Navigator.of(context).popUntil((Route<dynamic> route) => route.isFirst);
+          Navigator.of(
+            context,
+          ).popUntil((Route<dynamic> route) => route.isFirst);
           setState(() {});
           return;
         }
       }
-      debugPrint('[PairDeck] canonical load exhausted retries reason=$reason');
-      swipeProvider.setDeckError('Could not load the shared deck. Please try again.');
+      debugPrint(
+        '[PairDeck] canonical acquisition terminal failure reason=$reason '
+        'lastError=$lastError',
+      );
+      _pairDeckReadyAutoLoadEnabled = false;
+      swipeProvider.setDeckError(
+        'Could not load the shared deck. Please try again.',
+      );
     } finally {
       _isPairDeckReadyLoading = false;
       if (mounted) {
         setState(() {});
         Future<void>.delayed(const Duration(seconds: 2), () {
-          if (mounted && _pairDeckReadyAutoLoadEnabled && context.read<SwipeProvider>().deck.isEmpty) {
+          if (mounted &&
+              _pairDeckReadyAutoLoadEnabled &&
+              context.read<SwipeProvider>().deck.isEmpty) {
             setState(() {});
           }
         });

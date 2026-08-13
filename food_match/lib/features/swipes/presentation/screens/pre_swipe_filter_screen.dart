@@ -53,6 +53,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   static const double _chipFontSize = 17;
 
   int _step = 1;
+  bool _isResolvingInitialFilterEntry = true;
   bool _showIntro = false;
   bool _showPreviousChoice = false;
   bool _loading = false;
@@ -169,11 +170,16 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       final String? userId = context.read<AuthProvider>().currentUser?.id;
       UserProfile? profile;
       if (userId != null) {
-        profile = await context.read<PreSwipeProvider>().loadProfile(userId);
+        try {
+          profile = await context.read<PreSwipeProvider>().loadProfile(userId);
+        } catch (error) {
+          debugPrint('[PreSwipe] initial profile resolution failed $error');
+        }
         if (mounted) {
           setState(() {
-            _favoriteCuisines = profile!.favoriteCuisines.toSet();
-            _showIntro = profile.preSwipeFilterIntroSeenAt == null;
+            _favoriteCuisines = profile?.favoriteCuisines.toSet() ?? <String>{};
+            _showIntro =
+                profile == null || profile.preSwipeFilterIntroSeenAt == null;
           });
         }
       }
@@ -204,14 +210,21 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
           _showIntro = false;
           _waitingForPartner = true;
           _pendingUserId = userId;
+          _isResolvingInitialFilterEntry = false;
         });
         _startWaitingPolling();
         return;
       }
       final PreSwipeProvider preSwipeProvider = context
           .read<PreSwipeProvider>();
-      final List<Dish> dishes = await preSwipeProvider.loadDishes();
-      final List<String> cuisines = await preSwipeProvider.loadCuisineOptions();
+      List<Dish> dishes = <Dish>[];
+      List<String> cuisines = <String>['Any'];
+      try {
+        dishes = await preSwipeProvider.loadDishes();
+        cuisines = await preSwipeProvider.loadCuisineOptions();
+      } catch (error) {
+        debugPrint('[PreSwipe] initial catalog resolution failed $error');
+      }
       if (!mounted) {
         return;
       }
@@ -223,6 +236,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
             !_coupleProvider.isMyChoicesConfirmed) {
           _showPreviousChoice = true;
         }
+        _isResolvingInitialFilterEntry = false;
       });
     });
   }
@@ -281,6 +295,13 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isResolvingInitialFilterEntry) {
+      return Scaffold(
+        backgroundColor: context.fmColors.background,
+        body: const SafeArea(child: Center(child: FoodMatchLoader(size: 120))),
+      );
+    }
+
     if (_showIntro) {
       return PreSwipeIntroScreen(
         onClose: () => Navigator.of(context).pop(),
@@ -1133,7 +1154,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       coupleProvider.pauseFilterStatePollingForDeckPrepare();
       var deckPrepareSucceeded = false;
       try {
-        result = await preSwipeProvider.prepareCanonicalPairDeck();
+        result = await _acquireCanonicalPairDeck(preSwipeProvider);
         deckPrepareSucceeded = true;
       } finally {
         coupleProvider.resumeFilterStatePollingAfterDeckPrepare(
@@ -1300,6 +1321,54 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     }
     Navigator.pop(context, result);
   }
+}
+
+Future<PreparedPoolResult> _acquireCanonicalPairDeck(
+  PreSwipeProvider provider,
+) async {
+  const List<Duration> delays = <Duration>[
+    Duration.zero,
+    Duration(milliseconds: 700),
+    Duration(milliseconds: 1200),
+    Duration(milliseconds: 2000),
+    Duration(milliseconds: 3000),
+    Duration(milliseconds: 4000),
+    Duration(milliseconds: 5000),
+  ];
+  Object? lastError;
+  final String source = _waitingOrigin == _WaitingOrigin.previousChoice
+      ? 'previous_choice'
+      : 'manual_steps';
+  for (int attempt = 0; attempt < delays.length; attempt += 1) {
+    if (delays[attempt] > Duration.zero) {
+      await Future<void>.delayed(delays[attempt]);
+    }
+    if (!mounted) throw StateError('Pre-swipe closed during deck prepare');
+    try {
+      debugPrint(
+        '[PairDeck] POST prepare attempt=${attempt + 1} source=$source '
+        'session=${_coupleProvider.currentCouple?.id ?? 'none'}',
+      );
+      final PreparedPoolResult result = await provider
+          .prepareCanonicalPairDeck();
+      debugPrint(
+        '[PairDeck] POST prepare result attempt=${attempt + 1} '
+        'dishes=${result.dishes.length}',
+      );
+      if (result.dishes.isNotEmpty) return result;
+      lastError = StateError('prepared deck is not ready');
+    } catch (error) {
+      lastError = error;
+      debugPrint(
+        '[PairDeck] prepare retry attempt=${attempt + 1} reason=$error',
+      );
+      if (error is ApiException &&
+          error.code == 'PAIR_WAITING_FOR_PARTNER_FILTERS') {
+        rethrow;
+      }
+    }
+  }
+  throw lastError ?? StateError('Shared deck preparation timed out');
 }
 
 String formatOptionLabel(String value) {
