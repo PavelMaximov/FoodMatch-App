@@ -1321,54 +1321,54 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     }
     Navigator.pop(context, result);
   }
-}
 
-Future<PreparedPoolResult> _acquireCanonicalPairDeck(
-  PreSwipeProvider provider,
-) async {
-  const List<Duration> delays = <Duration>[
-    Duration.zero,
-    Duration(milliseconds: 700),
-    Duration(milliseconds: 1200),
-    Duration(milliseconds: 2000),
-    Duration(milliseconds: 3000),
-    Duration(milliseconds: 4000),
-    Duration(milliseconds: 5000),
-  ];
-  Object? lastError;
-  final String source = _waitingOrigin == _WaitingOrigin.previousChoice
-      ? 'previous_choice'
-      : 'manual_steps';
-  for (int attempt = 0; attempt < delays.length; attempt += 1) {
-    if (delays[attempt] > Duration.zero) {
-      await Future<void>.delayed(delays[attempt]);
-    }
-    if (!mounted) throw StateError('Pre-swipe closed during deck prepare');
-    try {
-      debugPrint(
-        '[PairDeck] POST prepare attempt=${attempt + 1} source=$source '
-        'session=${_coupleProvider.currentCouple?.id ?? 'none'}',
-      );
-      final PreparedPoolResult result = await provider
-          .prepareCanonicalPairDeck();
-      debugPrint(
-        '[PairDeck] POST prepare result attempt=${attempt + 1} '
-        'dishes=${result.dishes.length}',
-      );
-      if (result.dishes.isNotEmpty) return result;
-      lastError = StateError('prepared deck is not ready');
-    } catch (error) {
-      lastError = error;
-      debugPrint(
-        '[PairDeck] prepare retry attempt=${attempt + 1} reason=$error',
-      );
-      if (error is ApiException &&
-          error.code == 'PAIR_WAITING_FOR_PARTNER_FILTERS') {
-        rethrow;
+  Future<PreparedPoolResult> _acquireCanonicalPairDeck(
+    PreSwipeProvider provider,
+  ) async {
+    const List<Duration> delays = <Duration>[
+      Duration.zero,
+      Duration(milliseconds: 700),
+      Duration(milliseconds: 1200),
+      Duration(milliseconds: 2000),
+      Duration(milliseconds: 3000),
+      Duration(milliseconds: 4000),
+      Duration(milliseconds: 5000),
+    ];
+    Object? lastError;
+    final String source = _waitingOrigin == _WaitingOrigin.previousChoice
+        ? 'previous_choice'
+        : 'manual_steps';
+    for (int attempt = 0; attempt < delays.length; attempt += 1) {
+      if (delays[attempt] > Duration.zero) {
+        await Future<void>.delayed(delays[attempt]);
+      }
+      if (!mounted) throw StateError('Pre-swipe closed during deck prepare');
+      try {
+        debugPrint(
+          '[PairDeck] POST prepare attempt=${attempt + 1} source=$source '
+          'session=${_coupleProvider.currentCouple?.id ?? 'none'}',
+        );
+        final PreparedPoolResult result = await provider
+            .prepareCanonicalPairDeck();
+        debugPrint(
+          '[PairDeck] POST prepare result attempt=${attempt + 1} '
+          'dishes=${result.dishes.length}',
+        );
+        if (result.dishes.isNotEmpty) return result;
+        lastError = StateError('prepared deck is not ready');
+      } catch (error) {
+        lastError = error;
+        debugPrint(
+          '[PairDeck] prepare retry attempt=${attempt + 1} reason=$error',
+        );
+        if (error is ApiException &&
+            error.code == 'PAIR_WAITING_FOR_PARTNER_FILTERS') {
+          rethrow;
+        }
       }
     }
+    throw lastError ?? StateError('Shared deck preparation timed out');
   }
-  throw lastError ?? StateError('Shared deck preparation timed out');
 }
 
 String formatOptionLabel(String value) {
