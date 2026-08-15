@@ -143,7 +143,9 @@ export function toDishDto(dish: any): DishDto | null {
     popular: typeof raw.popular === 'boolean' ? raw.popular : false,
     steps: readSteps(raw),
     ingredientSections: readIngredientSections(raw),
-    isCustom: raw.isCustom === true
+    // Older user-created records predate the isCustom flag but always carry
+    // sourceType=custom. Keep the API and custom-first eligibility aligned.
+    isCustom: raw.isCustom === true || raw.sourceType === 'custom'
   };
 }
 

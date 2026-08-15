@@ -4,8 +4,9 @@ import { LastFilterPresetModel } from '../../filters/models/LastFilterPreset';
 import { buildPairKey } from '../../filters/services/lastFilterPresetService';
 import { MatchModel } from '../../matches/models/Match';
 import { UserModel } from '../../users/models/User';
-import { CoupleSessionModel } from '../models/CoupleSession';
 import { CoupleInvitationDocument, CoupleInvitationModel } from '../models/CoupleInvitation';
+import { CoupleFilterUserChoice, CoupleSessionDocument, CoupleSessionModel } from '../models/CoupleSession';
+import { clearPreparedDeck } from './coupleDeckService';
 import { CoupleService } from './coupleService';
 
 const INVITE_TTL_MS = 20 * 60 * 1000;
@@ -100,9 +101,72 @@ export class CoupleInvitationService {
       session.members.push(userObjectId);
       await session.save();
     }
+    await this.applyPreviousChoices(session, invite);
     invite.status = 'accepted';
     await invite.save();
     return { invite: await this.toDto(invite, userId), session: await this.coupleService.getMyActiveSession(userId) };
+  }
+
+  private async applyPreviousChoices(
+    session: CoupleSessionDocument,
+    invite: CoupleInvitationDocument
+  ) {
+    const memberIds = session.members.map((memberId) => memberId.toString());
+    const presets = await LastFilterPresetModel.find({
+      mode: 'paired',
+      pairKey: invite.pairKey,
+      userId: { $in: session.members }
+    }).lean();
+    const presetByUserId = new Map(
+      presets.map((preset) => [preset.userId?.toString() ?? '', preset])
+    );
+    const previousSession = invite.previousCoupleSessionId
+      ? await CoupleSessionModel.findById(invite.previousCoupleSessionId).lean()
+      : null;
+    const previousChoiceByUserId = new Map(
+      (previousSession?.filterState?.users ?? []).map((choice) => [
+        choice.userId.toString(),
+        choice
+      ])
+    );
+    const now = new Date();
+    const users: CoupleFilterUserChoice[] = memberIds.map((memberId) => {
+      const preset = presetByUserId.get(memberId);
+      const previous = previousChoiceByUserId.get(memberId);
+      return {
+        userId: new Types.ObjectId(memberId),
+        dishRegisters: normalizeList(preset?.dishRegisters ?? previous?.dishRegisters),
+        includeCustomDishesFirst: preset
+          ? preset.includeCustomDishesFirst === true
+          : previous?.includeCustomDishesFirst === true,
+        cuisines: normalizeList(preset?.cuisines ?? previous?.cuisines),
+        moods: normalizeList(preset?.moods ?? previous?.moods),
+        diet: normalizeList(preset?.diet ?? previous?.diet),
+        exclusions: normalizeList(preset?.exclusions ?? previous?.exclusions),
+        confirmed: true,
+        updatedAt: now
+      };
+    });
+    session.filterState = { users, status: 'ready', updatedAt: now };
+    session.pairLifecycleState = {
+      status: 'active',
+      reason: null,
+      changedBy: null,
+      generation: session.pairLifecycleState?.generation ?? 0,
+      updatedAt: now
+    };
+    session.restartState = {
+      requestedBy: [],
+      status: 'idle',
+      generation: session.restartState?.generation ?? 0,
+      updatedAt: now
+    };
+    clearPreparedDeck(session);
+    await session.save();
+    console.log(
+      `[PairInvitation] accepted previous choices session=${session.id} ` +
+        `members=${users.length} bothConfirmed=${users.length >= 2}`
+    );
   }
 
   async decline(userId: string, inviteId: string) {
@@ -153,4 +217,9 @@ export class CoupleInvitationService {
       avatarUrl: user?.avatarUrl ?? null
     };
   }
+}
+
+function normalizeList(values?: string[]) {
+  if (!Array.isArray(values)) return [];
+  return [...new Set(values.map((value) => (value ?? '').trim().toLowerCase()).filter(Boolean))];
 }

@@ -11,6 +11,12 @@ import '../../../data/models/couple_invitation.dart';
 import '../../../data/repositories/couple_repository.dart';
 import '../../../data/services/api_service.dart';
 
+enum PairContinuationFlowOrigin {
+  none,
+  previousSessionInviteSender,
+  previousSessionInviteAccepter,
+}
+
 class CoupleProvider extends ChangeNotifier {
   CoupleProvider({required CoupleRepository repository})
     : _repository = repository;
@@ -58,6 +64,9 @@ class CoupleProvider extends ChangeNotifier {
   final Set<String> hiddenInvitationIds = <String>{};
   bool shouldOpenPreviousChoiceAfterInvite = false;
   bool previousChoiceAfterInviteWasUserAccepted = false;
+  bool shouldAcquireDeckAfterContinuationInvite = false;
+  PairContinuationFlowOrigin continuationFlowOrigin =
+      PairContinuationFlowOrigin.none;
   bool shouldOpenSessionResumeForResync = false;
   bool shouldOpenPairFilterChange = false;
   String? pairNeedsResyncMessage;
@@ -137,6 +146,8 @@ class CoupleProvider extends ChangeNotifier {
       _consumedAcceptedInviteIds.clear();
       shouldOpenPreviousChoiceAfterInvite = false;
       previousChoiceAfterInviteWasUserAccepted = false;
+      shouldAcquireDeckAfterContinuationInvite = false;
+      continuationFlowOrigin = PairContinuationFlowOrigin.none;
       shouldOpenPairFilterChange = false;
       AppLogger.info(
         '[CoupleProvider] session state cleared for account switch',
@@ -687,7 +698,8 @@ class CoupleProvider extends ChangeNotifier {
       for (final CoupleInvitation invitation in pendingInvitations) {
         if (outgoingInvite == null &&
             invitation.isOutgoing &&
-            invitation.isPending) {
+            invitation.isPending &&
+            !hiddenInvitationIds.contains(invitation.id)) {
           outgoingInvite = invitation;
         }
         if (acceptedInvite == null && invitation.status == 'accepted') {
@@ -700,11 +712,16 @@ class CoupleProvider extends ChangeNotifier {
         // A sheet dismissal is local only. An accepted continuation always wins.
         hiddenInvitationIds.remove(acceptedInvite.id);
         outgoingContinuationInvite = null;
-        shouldOpenPreviousChoiceAfterInvite = true;
-        previousChoiceAfterInviteWasUserAccepted = acceptedInvite.isIncoming;
+        shouldOpenPreviousChoiceAfterInvite = false;
+        previousChoiceAfterInviteWasUserAccepted = false;
+        shouldAcquireDeckAfterContinuationInvite = true;
+        continuationFlowOrigin = acceptedInvite.isIncoming
+            ? PairContinuationFlowOrigin.previousSessionInviteAccepter
+            : PairContinuationFlowOrigin.previousSessionInviteSender;
         await loadCouple(force: true);
         AppLogger.info(
-          '[PairInvitation] accepted continuation converging to previous choices',
+          '[PairInvitation] accepted continuation converging to canonical deck '
+          'origin=${continuationFlowOrigin.name}',
         );
       }
       _safeNotify();
@@ -726,8 +743,12 @@ class CoupleProvider extends ChangeNotifier {
           _consumedAcceptedInviteIds.add(invite.id)) {
         hiddenInvitationIds.remove(invite.id);
         outgoingContinuationInvite = null;
-        shouldOpenPreviousChoiceAfterInvite = true;
-        previousChoiceAfterInviteWasUserAccepted = invite.isIncoming;
+        shouldOpenPreviousChoiceAfterInvite = false;
+        previousChoiceAfterInviteWasUserAccepted = false;
+        shouldAcquireDeckAfterContinuationInvite = true;
+        continuationFlowOrigin = invite.isIncoming
+            ? PairContinuationFlowOrigin.previousSessionInviteAccepter
+            : PairContinuationFlowOrigin.previousSessionInviteSender;
         await loadCouple(force: true);
       }
       await refreshInvitations();
@@ -778,8 +799,11 @@ class CoupleProvider extends ChangeNotifier {
       startFilterStatePolling(reason: 'invitation_accept');
       await refreshFilterState(reason: 'invitation_accept');
     }
-    shouldOpenPreviousChoiceAfterInvite = true;
-    previousChoiceAfterInviteWasUserAccepted = true;
+    shouldOpenPreviousChoiceAfterInvite = false;
+    previousChoiceAfterInviteWasUserAccepted = false;
+    shouldAcquireDeckAfterContinuationInvite = true;
+    continuationFlowOrigin =
+        PairContinuationFlowOrigin.previousSessionInviteAccepter;
     _consumedAcceptedInviteIds.add(invitation.id);
     _safeNotify();
   }
@@ -813,6 +837,20 @@ class CoupleProvider extends ChangeNotifier {
     previousChoiceAfterInviteWasUserAccepted = false;
     if (shouldOpen) _safeNotify();
     return shouldOpen;
+  }
+
+  PairContinuationFlowOrigin consumeContinuationDeckAcquisition() {
+    if (!shouldAcquireDeckAfterContinuationInvite) {
+      return PairContinuationFlowOrigin.none;
+    }
+    final PairContinuationFlowOrigin origin = continuationFlowOrigin;
+    shouldAcquireDeckAfterContinuationInvite = false;
+    continuationFlowOrigin = PairContinuationFlowOrigin.none;
+    outgoingContinuationInvite = null;
+    shouldOpenPreviousChoiceAfterInvite = false;
+    previousChoiceAfterInviteWasUserAccepted = false;
+    _safeNotify();
+    return origin;
   }
 
   bool consumeOpenPairFilterChange() {
@@ -948,6 +986,8 @@ class CoupleProvider extends ChangeNotifier {
     clearSessionStateForLogout(notify: notify);
     shouldOpenPreviousChoiceAfterInvite = false;
     previousChoiceAfterInviteWasUserAccepted = false;
+    shouldAcquireDeckAfterContinuationInvite = false;
+    continuationFlowOrigin = PairContinuationFlowOrigin.none;
     shouldOpenSessionResumeForResync = false;
     shouldOpenPairFilterChange = false;
     pairNeedsResyncMessage = null;

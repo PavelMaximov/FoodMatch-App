@@ -81,17 +81,19 @@ export class SoloSwipeService {
  private async requireSession(userId:string, sessionId:string){ if(!Types.ObjectId.isValid(sessionId)) throw new AppError('Session not found',404); const session=await SoloSwipeSessionModel.findOne({_id:sessionId,userId:new Types.ObjectId(userId),status:'active'}); if(!session) throw new AppError('No active solo session',404,'NO_ACTIVE_SESSION'); return session; }
  private async toDeck(session:any, loaded?:DishDocument[], recommendationMeta?: RecommendedDeckMeta){ recommendationMeta = recommendationMeta ?? session.recommendationMeta; const ids=session.deckDishIds.slice(session.deckIndex); const dishes = loaded ?? await DishModel.find({_id:{$in:ids}}).select(DISH_DTO_SELECT); const byId=new Map(dishes.map(d=>[d._id.toString(),d])); return { sessionId:session.id, mode:'solo', status:session.status, deckIndex:session.deckIndex, matchedCount:session.matchedCount, filter:session.filter, dishes:ids.map((id:Types.ObjectId)=>byId.get(id.toString())).filter((d: DishDocument | undefined): d is DishDocument => Boolean(d)).map((d: DishDocument)=>toDishDto(d)), meta:{totalCatalogCount:recommendationMeta?.totalCatalogCount ?? session.deckDishIds.length,candidateCount:recommendationMeta?.candidateCount ?? session.deckDishIds.length,finalCount:ids.length,usedPartnerChoices:false,bothConfirmed:false,...(recommendationMeta ? { recommendationMeta, algorithm: recommendationMeta.algorithm, excludedByExclusionsCount: recommendationMeta.excludedByExclusionsCount, candidateCountAfterExclusions: recommendationMeta.candidateCountAfterExclusions, expansionApplied: recommendationMeta.expansionApplied, expansionReason: recommendationMeta.expansionReason ?? null, diagnosticsNotes: recommendationMeta.diagnosticsNotes ?? [] } : {})} }; }
  private async buildDeck(userId:string, filter:NormalizedSoloFilter, excludeDishIds = new Set<string>(), recentlySeenDishIds = new Set<string>()): Promise<DeckBuildResult>{
-  const query:FilterQuery<DishDocument>={$or:[{visibility:'public',status:'approved'},{isCustom:true,status:'approved',createdBy:new Types.ObjectId(userId)}]};
+  const query:FilterQuery<DishDocument>={$or:[{visibility:'public',status:'approved'},{$and:[{$or:[{isCustom:true},{sourceType:'custom'}]},{status:'approved',createdBy:new Types.ObjectId(userId)}]}]};
   const [all, history] = await Promise.all([DishModel.find(query).select(DISH_DTO_SELECT), this.loadUserHistory(userId)]);
   const result = buildRecommendedDeck({ userId, dishes: all, filters: filter, userHistory: history, recentlySeenDishIds, excludedDishIds: excludeDishIds, deckSize: MAX_DECK_SIZE, mode: 'solo' });
-  result.dishes = shuffleWithinScoreBands(result.dishes, crypto.randomUUID());
-  if (!filter.includeCustomDishesFirst) return result;
-  const custom = all.filter((dish) => dish.isCustom === true && dish.createdBy?.toString() === userId && !excludeDishIds.has(dish._id.toString()) && !dishMatchesExclusions(dish, filter.exclusions) && matchesCustomDiet(dish, filter.diet)).sort((a,b) => b.createdAt.getTime() - a.createdAt.getTime());
+  const shuffledTail = shuffleWithinScoreBands(result.dishes, crypto.randomUUID());
+  if (!filter.includeCustomDishesFirst) return { ...result, dishes: shuffledTail };
+  const custom = all.filter((dish) => isUsableOwnedCustomDish(dish, userId) && !excludeDishIds.has(dish._id.toString()) && !dishMatchesExclusions(dish, filter.exclusions) && matchesCustomDiet(dish, filter.diet)).sort((a,b) => b.createdAt.getTime() - a.createdAt.getTime());
   const customIds = new Set(custom.map((dish) => dish._id.toString()));
   const discoveryTarget = Math.max(1, Math.floor(MAX_DECK_SIZE * 0.2));
   const customPrefix = custom.length >= MAX_DECK_SIZE - discoveryTarget ? custom.slice(0, MAX_DECK_SIZE - discoveryTarget) : custom;
   const tailTarget = MAX_DECK_SIZE - customPrefix.length;
-  const tail = result.dishes.filter((dish) => !customIds.has(dish._id.toString())).slice(0, Math.max(0, tailTarget));
+  // Variation belongs exclusively to the recommendation tail. The persisted
+  // session order always starts with the custom prefix.
+  const tail = shuffledTail.filter((dish) => !customIds.has(dish._id.toString())).slice(0, Math.max(0, tailTarget));
   return { ...result, dishes: [...customPrefix, ...tail], meta: { ...result.meta, finalCount: customPrefix.length + tail.length, customIncludedCount: customPrefix.length } };
  }
  private async loadUserHistory(userId:string): Promise<DeckRecommendationHistoryEntry[]> {
@@ -111,7 +113,11 @@ export class SoloSwipeService {
   }
   return history;
  }
- private isSoloVisibleDish(d:DishDocument,userId:string){ return (d.visibility==='public'&&d.status==='approved') || (d.isCustom&&d.status==='approved'&&d.createdBy?.toString()===userId); }
+ private isSoloVisibleDish(d:DishDocument,userId:string){ return (d.visibility==='public'&&d.status==='approved') || isUsableOwnedCustomDish(d,userId); }
+}
+
+function isUsableOwnedCustomDish(dish: DishDocument, userId: string) {
+ return (dish.isCustom === true || dish.sourceType === 'custom') && dish.status === 'approved' && dish.createdBy?.toString() === userId;
 }
 
 function matchesCustomDiet(dish: DishDocument, diet: string[]) { const values = new Set((dish.diet ?? []).map((value) => value.trim().toLowerCase())); if (diet.includes('vegan')) return values.has('vegan'); if (diet.includes('vegetarian')) return values.has('vegetarian') || values.has('vegan'); return true; }

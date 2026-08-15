@@ -115,6 +115,8 @@ export class CoupleDeckService {
       deckSize: MAX_DECK_SIZE,
       customDishIds
     });
+    // Shuffle only the recommendation tail. buildCustomFirstPairDeck applies
+    // the custom prefix afterwards and the combined order is persisted once.
     result.dishes = shuffleWithinScoreBands(result.dishes, crypto.randomUUID());
     const finalDishes = buildCustomFirstPairDeck(
       allDishes,
@@ -352,7 +354,7 @@ export class CoupleDeckService {
         { visibility: 'public', status: 'approved' },
         { isCustom: true, visibility: 'session', coupleId: session._id, status: 'approved' },
         ...(customFirstOwners.length > 0
-          ? [{ isCustom: true, createdBy: { $in: customFirstOwners }, status: 'approved' }]
+          ? [{ $and: [{ $or: [{ isCustom: true }, { sourceType: 'custom' }] }, { createdBy: { $in: customFirstOwners }, status: 'approved' }] }]
           : [])
       ]
     };
@@ -592,7 +594,7 @@ function buildCustomFirstPairDeck(
   if (!filters.includeCustomDishesFirst) return recommended;
   const selectedOwners = new Set(filters.customFirstUserIds);
   const byOwner = filters.customFirstUserIds.map((ownerId) => allDishes
-    .filter((dish) => dish.isCustom === true && dish.status === 'approved' && dish.createdBy?.toString() === ownerId)
+    .filter((dish) => isUsableOwnedCustomDish(dish, ownerId))
     .filter((dish) => !excludedDishIds.has(dish._id.toString()) && dishPassesPairHardFilters(dish, filters))
     .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()));
   const custom: DishDocument[] = [];
@@ -681,7 +683,15 @@ function seededShuffle<T>(items: T[], seed: string) {
 }
 
 function isSessionCustomDish(dish: DishDocument) {
-  return dish.isCustom === true && dish.visibility === 'session' && dish.status === 'approved' && Boolean(dish.coupleId);
+  return isCustomDish(dish) && dish.visibility === 'session' && dish.status === 'approved' && Boolean(dish.coupleId);
+}
+
+function isCustomDish(dish: DishDocument) {
+  return dish.isCustom === true || dish.sourceType === 'custom';
+}
+
+function isUsableOwnedCustomDish(dish: DishDocument, ownerId: string) {
+  return isCustomDish(dish) && dish.status === 'approved' && dish.createdBy?.toString() === ownerId;
 }
 
 function isSessionCustomDishForCouple(dish: DishDocument, coupleId: Types.ObjectId) {
@@ -690,6 +700,6 @@ function isSessionCustomDishForCouple(dish: DishDocument, coupleId: Types.Object
 
 function isDeckVisibleDish(dish: DishDocument, session: CoupleSessionDocument) {
   if (dish.visibility === 'public' && dish.status === 'approved') return true;
-  if (dish.isCustom && dish.status === 'approved' && session.members.some((member) => member.toString() === dish.createdBy?.toString())) return true;
+  if (isCustomDish(dish) && dish.status === 'approved' && session.members.some((member) => member.toString() === dish.createdBy?.toString())) return true;
   return isSessionCustomDishForCouple(dish, session._id as Types.ObjectId);
 }

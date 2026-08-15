@@ -25,6 +25,9 @@ assert(source.includes('buildPairSharedRecommendedDeck'), 'Pair v2 recommendatio
 assert(source.includes('customFirstUserIds: [...filters.customFirstUserIds].sort()'), 'Pair filtersHash should include the selected custom-first users.');
 assert(source.includes('buildCustomFirstPairDeck'), 'Backend should own canonical custom-first Pair ordering.');
 assert(source.includes('shuffleWithinScoreBands'), 'New Pair generations should vary within score bands before persisting canonical order.');
+assert(source.indexOf('shuffleWithinScoreBands(result.dishes') < source.indexOf('buildCustomFirstPairDeck('), 'Pair score-band shuffle must happen before the custom prefix is attached.');
+assert(source.includes('return [...customPrefix, ...tail]'), 'Pair final order must persist the custom prefix before the normal tail.');
+assert(source.includes("dish.sourceType === 'custom'"), 'Legacy sourceType custom dishes must remain eligible for custom-first ordering.');
 const swipeService = readFileSync('src/modules/swipes/services/swipeService.ts', 'utf8');
 assert(swipeService.includes('dishIsInPreparedDeck'), 'Pair custom dishes should be swipeable when present in the canonical prepared deck.');
 assert(source.includes('weighted_scoring_pair_shared_v2') || readFileSync('src/modules/recommendations/deckRecommendationService.ts', 'utf8').includes('weighted_scoring_pair_shared_v2'), 'Pair v2 algorithm label should remain available.');

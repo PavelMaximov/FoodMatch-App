@@ -37,9 +37,16 @@ assert(lastFilterService.includes('userId: new Types.ObjectId(userId), pairKey: 
 assert(!service.includes('userId: null'), 'Invitation flow must not use legacy userId:null paired presets.');
 assert(coupleProvider.includes('outgoingContinuationInvite?.isPending == true'), 'Client should reuse an in-flight local continuation request.');
 assert(coupleProvider.includes('hiddenInvitationIds.remove(acceptedInvite.id)'), 'Accepted continuation should clear a locally dismissed invite marker.');
-assert(coupleProvider.includes('accepted continuation converging to previous choices'), 'Accepted continuation should reopen the required previous-choice flow.');
-assert(swipesScreen.includes("child: const Text('Refresh')"), 'Continuation waiting state should provide Refresh recovery.');
-assert(swipesScreen.includes("child: const Text('Start new session')"), 'Continuation waiting state should provide Start new session recovery.');
+assert(service.includes('applyPreviousChoices(session, invite)'), 'Accept should apply both users previous choices to the continuation session.');
+assert(service.includes("status: 'ready'"), 'Accepted previous choices should make the Pair filter state ready.');
+assert(service.includes('clearPreparedDeck(session)'), 'Accept should invalidate the prior canonical deck before preparing previous choices.');
+assert(coupleProvider.includes('PairContinuationFlowOrigin.previousSessionInviteSender'), 'Sender continuation origin should be explicit.');
+assert(coupleProvider.includes('PairContinuationFlowOrigin.previousSessionInviteAccepter'), 'Accepter continuation origin should be explicit.');
+assert(coupleProvider.includes('accepted continuation converging to canonical deck'), 'Accepted continuation should converge directly to canonical deck acquisition.');
+assert(swipesScreen.includes('consumeContinuationDeckAcquisition'), 'Swipes should consume continuation convergence exactly once.');
+assert(swipesScreen.includes("'assets/media/Waiting_for_partner.png'"), 'Continuation waiting should reuse the standard Pair waiting image.');
+assert(swipesScreen.includes("'Your partner needs to confirm using the previous choices.'"), 'Continuation waiting should explain the previous-choice confirmation.');
+assert(swipesScreen.includes("child: const Text('Back to previous choice')"), 'Continuation waiting should provide the scoped Back action.');
 assert(resumeScreen.includes('_isContinuing'), 'Continue as before should disable repeated local taps while in flight.');
 
 console.log('[PairContinueInvitations] static assertions passed');
