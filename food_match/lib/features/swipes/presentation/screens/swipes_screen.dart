@@ -828,6 +828,34 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       return;
     }
     debugPrint('[ResumeChoice] start_new selected');
+    debugPrint('[ResumeChoice] abandoning active solo session');
+    try {
+      final Map<String, dynamic> result = await context
+          .read<PendingOverlayController>()
+          .run<Map<String, dynamic>>(
+            message: 'Starting a new session...',
+            operation: context
+                .read<SwipeProvider>()
+                .abandonActiveSoloSession,
+          );
+      debugPrint(
+        '[ResumeChoice] abandon solo result '
+        'abandoned=${result['abandoned'] == true} '
+        'session=${result['sessionId'] ?? 'none'}',
+      );
+    } catch (error) {
+      debugPrint('[ResumeChoice] abandon solo failed error=$error');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Could not start a new session. Please check your connection and try again.',
+          ),
+        ),
+      );
+      return;
+    }
+    if (!mounted) return;
     await _clearActiveSessionAndShowModeSelection();
   }
 
@@ -950,9 +978,8 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
 
   Future<void> _clearActiveSessionAndShowModeSelection() async {
     final SwipeProvider swipeProvider = context.read<SwipeProvider>();
-    // Starting a new local setup must not abandon a backend solo session or
-    // mutate the shared pair for the partner. The next explicit setup action
-    // owns any required backend transition.
+    // The active Solo lock was discarded above. Pair state remains untouched
+    // so this local choice cannot corrupt the partner's continuation flow.
     swipeProvider.resetToModeSelection();
     context.read<PreSwipeProvider>().clearDraft();
     _stopPairMatchPolling();

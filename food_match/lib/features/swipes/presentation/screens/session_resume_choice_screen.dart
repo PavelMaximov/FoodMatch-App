@@ -19,7 +19,7 @@ class SessionResumeChoiceScreen extends StatefulWidget {
   final bool isSoloMode;
   final Future<LastFilterPreset?> Function() onLoadPreviousSetup;
   final Future<void> Function(LastFilterPreset?) onUsePreviousFilter;
-  final VoidCallback onStartNew;
+  final Future<void> Function() onStartNew;
   final CoupleMemberProfile? partner;
 
   @override
@@ -31,6 +31,7 @@ class _SessionResumeChoiceScreenState extends State<SessionResumeChoiceScreen> {
   late Future<LastFilterPreset?> _presetFuture;
   LastFilterPreset? _preset;
   bool _isContinuing = false;
+  bool _isStartingNew = false;
 
   @override
   void initState() {
@@ -57,13 +58,23 @@ class _SessionResumeChoiceScreenState extends State<SessionResumeChoiceScreen> {
   }
 
   Future<void> _handleContinue() async {
-    if (_isContinuing) return;
+    if (_isContinuing || _isStartingNew) return;
     setState(() => _isContinuing = true);
     try {
       final LastFilterPreset? preset = _preset ?? await _presetFuture;
       await widget.onUsePreviousFilter(preset);
     } finally {
       if (mounted) setState(() => _isContinuing = false);
+    }
+  }
+
+  Future<void> _handleStartNew() async {
+    if (_isContinuing || _isStartingNew) return;
+    setState(() => _isStartingNew = true);
+    try {
+      await widget.onStartNew();
+    } finally {
+      if (mounted) setState(() => _isStartingNew = false);
     }
   }
 
@@ -108,7 +119,9 @@ class _SessionResumeChoiceScreenState extends State<SessionResumeChoiceScreen> {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton(
-              onPressed: _isContinuing ? null : _handleContinue,
+              onPressed: _isContinuing || _isStartingNew
+                  ? null
+                  : _handleContinue,
               style: OutlinedButton.styleFrom(
                 backgroundColor: colors.background,
                 foregroundColor: colors.primary,
@@ -129,7 +142,9 @@ class _SessionResumeChoiceScreenState extends State<SessionResumeChoiceScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: widget.onStartNew,
+              onPressed: _isContinuing || _isStartingNew
+                  ? null
+                  : _handleStartNew,
               style: ElevatedButton.styleFrom(
                 backgroundColor: colors.buttonPrimaryBackground,
                 foregroundColor: colors.buttonPrimaryText,
@@ -142,7 +157,9 @@ class _SessionResumeChoiceScreenState extends State<SessionResumeChoiceScreen> {
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              child: const Text('Start new session'),
+              child: Text(
+                _isStartingNew ? 'Starting…' : 'Start new session',
+              ),
             ),
           ),
           const SizedBox(height: 26),

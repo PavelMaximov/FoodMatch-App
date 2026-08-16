@@ -46,7 +46,19 @@ export class SoloSwipeService {
   await session.save();
   return this.toDeck(session, result.dishes, result.meta);
  }
- async abandonActive(userId:string){ const session = await SoloSwipeSessionModel.findOne({userId:new Types.ObjectId(userId),status:'active'}); if(!session) return { abandoned:false }; session.status='abandoned'; session.lastActivityAt=new Date(); await session.save(); return { abandoned:true, sessionId: session.id }; }
+ async abandonActive(userId:string){
+  console.info(`[SoloSession] abandon active requested user=${userId}`);
+  const session = await SoloSwipeSessionModel.findOne({userId:new Types.ObjectId(userId),status:'active'});
+  if(!session) {
+   console.info(`[SoloSession] no active session user=${userId}`);
+   return { ok:true, abandoned:false, sessionId:null };
+  }
+  session.status='abandoned';
+  session.lastActivityAt=new Date();
+  await session.save();
+  console.info(`[SoloSession] active abandoned session=${session.id}`);
+  return { ok:true, abandoned:true, sessionId:session.id };
+ }
  async swipe(userId:string, sessionId:string, dishId:string, direction:'like'|'dislike'){
   const session = await this.requireSession(userId, sessionId); const dish = await resolveDishByAnyId(dishId); if(!dish) throw new AppError('This dish is not available.',404);
   const currentId = session.deckDishIds[session.deckIndex]?.toString(); if(!currentId || currentId !== (dish._id as Types.ObjectId).toString()) throw new AppError('Dish is not current in this solo session.',409,'DISH_NOT_CURRENT');

@@ -424,17 +424,13 @@ class SwipeProvider extends ChangeNotifier {
     );
   }
 
-  Future<void> abandonActiveSoloSession() async {
-    if (activeSoloSessionId == null) {
-      clearPreparedDeck();
-      currentSwipeMode = 'paired';
-      _soloLikedCount = 0;
-      _soloRemainingCount = 0;
-      _soloSessionCompleted = false;
-      notifyListeners();
-      return;
-    }
-    await _swipeRepository.abandonActiveSoloSession();
+  Future<Map<String, dynamic>> abandonActiveSoloSession() async {
+    // Always call the idempotent backend endpoint. Local state may have been
+    // reset during startup even though the backend still owns an active lock.
+    final dynamic response = await _swipeRepository.abandonActiveSoloSession();
+    final Map<String, dynamic> result = response is Map
+        ? Map<String, dynamic>.from(response)
+        : <String, dynamic>{'ok': true, 'abandoned': false};
     clearPreparedDeck();
     currentSwipeMode = 'paired';
     activeSoloSessionId = null;
@@ -442,6 +438,7 @@ class SwipeProvider extends ChangeNotifier {
     _soloRemainingCount = 0;
     _soloSessionCompleted = false;
     notifyListeners();
+    return result;
   }
 
   void _applySoloSession(Map<String, dynamic> session) {
