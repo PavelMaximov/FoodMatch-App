@@ -14,6 +14,7 @@ Dish buildTestDish({
   List<DishSection> sections = const <DishSection>[],
   bool popular = false,
   num qualityScore = 0,
+  bool isCustom = false,
 }) {
   return Dish(
     id: id,
@@ -34,6 +35,7 @@ Dish buildTestDish({
     popular: popular,
     steps: const <RecipeStep>[],
     qualityScore: qualityScore,
+    isCustom: isCustom,
     tags: tags,
     sections: sections,
   );
