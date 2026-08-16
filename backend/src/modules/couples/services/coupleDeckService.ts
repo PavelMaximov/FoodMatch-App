@@ -20,6 +20,7 @@ export interface EffectiveDeckFilters {
   usedCuisineUnionFallback: boolean;
   usedPartnerChoices: boolean;
   bothConfirmed: boolean;
+  sessionMemberIds: string[];
 }
 
 interface DeckResponseMeta {
@@ -51,6 +52,7 @@ export class CoupleDeckService {
     const existingDeck = session.preparedDeck;
     if (this.isReusablePreparedDeck(existingDeck, filtersHash)) {
       console.log(`[PreparedDeck] reuse existing deck session=${session.id} filtersHash=${filtersHash}`);
+      console.log(`[DeckOrder] reusedPreparedDeck=true session=${session.id}`);
       const existingDishes = await this.loadPreparedDeckDishes(session);
       return this.toDeckResponse(session, existingDishes, filters, existingDeck?.recommendationMeta ?? undefined);
     }
@@ -115,13 +117,11 @@ export class CoupleDeckService {
       deckSize: MAX_DECK_SIZE,
       customDishIds
     });
-    // Shuffle only the recommendation tail. buildCustomFirstPairDeck applies
-    // the custom prefix afterwards and the combined order is persisted once.
-    result.dishes = shuffleWithinScoreBands(result.dishes, crypto.randomUUID());
     const finalDishes = buildCustomFirstPairDeck(
       allDishes,
       result.dishes,
       filters,
+      new Map(userContexts.map((context) => [context.userId, context.filters])),
       fullySwipedDishIds,
       MAX_DECK_SIZE
     );
@@ -137,6 +137,10 @@ export class CoupleDeckService {
     const candidateCount = recommendationMeta.candidateCount;
     const dishIds = finalDishes.map((dish) => dish._id as Types.ObjectId);
     const publicDishIds = finalDishes.map((dish) => toDishDto(dish)?.id ?? '').filter((id) => id.length > 0);
+    const customPrefixCount = countLeadingSelectedCustomDishes(finalDishes, filters.customFirstUserIds);
+    console.log(`[DeckOrder] mode=pair selectedCustomUsers=${filters.customFirstUserIds.join(',')} customPrefixCount=${customPrefixCount} tailCount=${finalDishes.length - customPrefixCount} finalCount=${finalDishes.length}`);
+    console.log(`[DeckOrder] firstIds=${finalDishes.slice(0, 8).map((dish) => dish._id.toString()).join(',')}`);
+    console.log('[DeckOrder] noRandomShuffle=true');
 
     session.preparedDeck = {
       status: 'ready',
@@ -541,7 +545,8 @@ export function buildEffectiveFilters(session: CoupleSessionDocument, userId?: s
     exclusions: normalizeKeys([...(mine?.exclusions ?? []), ...(partner?.exclusions ?? [])]),
     usedCuisineUnionFallback: cuisineResult.usedUnionFallback,
     usedPartnerChoices,
-    bothConfirmed
+    bothConfirmed,
+    sessionMemberIds: session.members.map((memberId) => memberId.toString()).sort()
   };
 }
 
@@ -555,7 +560,9 @@ export function createFiltersHash(filters: EffectiveDeckFilters) {
     diet: [...filters.diet].sort(),
     exclusions: [...filters.exclusions].sort(),
     usedPartnerChoices: filters.usedPartnerChoices,
-    bothConfirmed: filters.bothConfirmed
+    bothConfirmed: filters.bothConfirmed,
+    sessionMemberIds: [...filters.sessionMemberIds].sort(),
+    recommendationAlgorithm: 'weighted_scoring_pair_shared_v2_deterministic_order_v1'
   };
   return crypto.createHash('sha1').update(JSON.stringify(stable)).digest('hex');
 }
@@ -588,6 +595,7 @@ function buildCustomFirstPairDeck(
   allDishes: DishDocument[],
   recommended: DishDocument[],
   filters: EffectiveDeckFilters,
+  filtersByOwner: Map<string, DeckRecommendationFilters>,
   excludedDishIds: Set<string>,
   deckSize: number
 ) {
@@ -596,7 +604,7 @@ function buildCustomFirstPairDeck(
   const byOwner = filters.customFirstUserIds.map((ownerId) => allDishes
     .filter((dish) => isUsableOwnedCustomDish(dish, ownerId))
     .filter((dish) => !excludedDishIds.has(dish._id.toString()) && dishPassesPairHardFilters(dish, filters))
-    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()));
+    .sort((a, b) => compareCustomByPreferences(a, b, filtersByOwner.get(ownerId))));
   const custom: DishDocument[] = [];
   const seen = new Set<string>();
   const maxLength = Math.max(0, ...byOwner.map((items) => items.length));
@@ -610,10 +618,7 @@ function buildCustomFirstPairDeck(
     }
   }
   // Legacy session dishes without an owner stay in the recommendation tail.
-  const discoveryTarget = Math.max(1, Math.floor(deckSize * 0.2));
-  const customPrefix = custom.length >= deckSize - discoveryTarget
-    ? custom.slice(0, deckSize - discoveryTarget)
-    : custom;
+  const customPrefix = custom.slice(0, deckSize);
   const tailTarget = deckSize - customPrefix.length;
   const tail = recommended
     .filter((dish) => !seen.has(dish._id.toString()) && (!isSessionCustomDish(dish) || !selectedOwners.has(dish.createdBy?.toString() ?? '')))
@@ -665,21 +670,33 @@ function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function shuffleWithinScoreBands(dishes: DishDocument[], seed: string) {
-  return dishes.flatMap((_, start) => start % 4 === 0
-    ? seededShuffle(dishes.slice(start, start + 4), `${seed}:${start}`)
-    : []);
+function compareCustomByPreferences(a: DishDocument, b: DishDocument, filters?: DeckRecommendationFilters) {
+  const registers = normalizeList(filters?.dishRegisters);
+  const cuisines = normalizeList(filters?.cuisines);
+  const registerDelta = preferenceMatch(b.dishRegister ?? (b as any).dish_register, registers) - preferenceMatch(a.dishRegister ?? (a as any).dish_register, registers);
+  if (registerDelta !== 0) return registerDelta;
+  const cuisineDelta = preferenceMatch(b.cuisine, cuisines) - preferenceMatch(a.cuisine, cuisines);
+  if (cuisineDelta !== 0) return cuisineDelta;
+  const dateDelta = customTimestamp(b) - customTimestamp(a);
+  return dateDelta || a._id.toString().localeCompare(b._id.toString());
 }
 
-function seededShuffle<T>(items: T[], seed: string) {
-  const result = [...items];
-  let state = crypto.createHash('sha1').update(seed).digest().readUInt32BE(0);
-  for (let index = result.length - 1; index > 0; index -= 1) {
-    state = (state * 1664525 + 1013904223) >>> 0;
-    const target = state % (index + 1);
-    [result[index], result[target]] = [result[target], result[index]];
+function preferenceMatch(value: string | undefined, selected: string[]) {
+  return selected.includes(normalize(value)) ? 1 : 0;
+}
+
+function customTimestamp(dish: DishDocument) {
+  return ((dish as any).updatedAt ?? dish.createdAt)?.getTime?.() ?? 0;
+}
+
+function countLeadingSelectedCustomDishes(dishes: DishDocument[], ownerIds: string[]) {
+  const selectedOwners = new Set(ownerIds);
+  let count = 0;
+  for (const dish of dishes) {
+    if (!isCustomDish(dish) || !selectedOwners.has(dish.createdBy?.toString() ?? '')) break;
+    count += 1;
   }
-  return result;
+  return count;
 }
 
 function isSessionCustomDish(dish: DishDocument) {

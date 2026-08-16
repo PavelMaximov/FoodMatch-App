@@ -169,6 +169,10 @@ class SwipeProvider extends ChangeNotifier {
     debugPrint(
       '[PreparedDeck] loaded existing deck final=${preparedDeck.meta.finalCount}',
     );
+    debugPrint(
+      '[DeckApply] mode=pair source=preparedDeck firstIds='
+      '${preparedDeck.dishes.take(8).map((Dish dish) => dish.id).join(',')}',
+    );
     currentSwipeMode = 'paired';
     activeSoloSessionId = null;
     _soloLikedCount = 0;
@@ -453,6 +457,10 @@ class SwipeProvider extends ChangeNotifier {
         .whereType<Map>()
         .map((Map item) => Dish.fromJson(Map<String, dynamic>.from(item)))
         .toList();
+    debugPrint(
+      '[DeckApply] mode=solo source=backend firstIds='
+      '${sessionDeck.take(8).map((Dish dish) => dish.id).join(',')}',
+    );
     _soloRemainingCount = sessionDeck.length;
     applyPreparedDeck(
       sessionDeck,
