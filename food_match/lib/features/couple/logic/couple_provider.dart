@@ -65,6 +65,7 @@ class CoupleProvider extends ChangeNotifier {
   bool shouldOpenPreviousChoiceAfterInvite = false;
   bool previousChoiceAfterInviteWasUserAccepted = false;
   bool shouldAcquireDeckAfterContinuationInvite = false;
+  bool shouldReturnToResumeAfterContinuationDeclined = false;
   PairContinuationFlowOrigin continuationFlowOrigin =
       PairContinuationFlowOrigin.none;
   bool shouldOpenSessionResumeForResync = false;
@@ -73,6 +74,7 @@ class CoupleProvider extends ChangeNotifier {
   final Set<int> _handledLifecycleGenerations = <int>{};
   final Set<int> _handledFilterChangeGenerations = <int>{};
   final Set<String> _consumedAcceptedInviteIds = <String>{};
+  final Set<String> _consumedDeclinedInviteIds = <String>{};
   int _authBoundaryVersion = -1;
 
   bool get hasCouple {
@@ -146,9 +148,11 @@ class CoupleProvider extends ChangeNotifier {
       outgoingContinuationInvite = null;
       hiddenInvitationIds.clear();
       _consumedAcceptedInviteIds.clear();
+      _consumedDeclinedInviteIds.clear();
       shouldOpenPreviousChoiceAfterInvite = false;
       previousChoiceAfterInviteWasUserAccepted = false;
       shouldAcquireDeckAfterContinuationInvite = false;
+      shouldReturnToResumeAfterContinuationDeclined = false;
       continuationFlowOrigin = PairContinuationFlowOrigin.none;
       shouldOpenPairFilterChange = false;
       AppLogger.info(
@@ -675,9 +679,11 @@ class CoupleProvider extends ChangeNotifier {
     if (!_isAuthenticated || (_activeUserId?.isEmpty ?? true) || !_isAppActive)
       return;
     _invitationPollTimer?.cancel();
-    AppLogger.info('[InvitationSync] polling started reason=$reason');
+    AppLogger.info(
+      '[PairInvite] poll pending start interval=1500ms reason=$reason',
+    );
     _invitationPollTimer = Timer.periodic(
-      const Duration(seconds: 8),
+      const Duration(milliseconds: 1500),
       (_) => refreshInvitations(),
     );
     unawaited(refreshInvitations());
@@ -697,6 +703,7 @@ class CoupleProvider extends ChangeNotifier {
       pendingInvitations = await _repository.getPendingInvitations();
       CoupleInvitation? outgoingInvite;
       CoupleInvitation? acceptedInvite;
+      CoupleInvitation? declinedInvite;
       for (final CoupleInvitation invitation in pendingInvitations) {
         if (outgoingInvite == null &&
             invitation.isOutgoing &&
@@ -707,7 +714,15 @@ class CoupleProvider extends ChangeNotifier {
         if (acceptedInvite == null && invitation.status == 'accepted') {
           acceptedInvite = invitation;
         }
+        if (declinedInvite == null &&
+            invitation.isOutgoing &&
+            invitation.status == 'declined') {
+          declinedInvite = invitation;
+        }
       }
+      AppLogger.info(
+        '[PairInvite] pending fetched count=${pendingInvitations.length}',
+      );
       outgoingContinuationInvite = outgoingInvite;
       if (acceptedInvite != null &&
           _consumedAcceptedInviteIds.add(acceptedInvite.id)) {
@@ -722,8 +737,18 @@ class CoupleProvider extends ChangeNotifier {
             : PairContinuationFlowOrigin.previousSessionInviteSender;
         await loadCouple(force: true);
         AppLogger.info(
-          '[PairInvitation] accepted continuation converging to canonical deck '
+          '[PairInvite] sender observed accepted id=${acceptedInvite.id} '
           'origin=${continuationFlowOrigin.name}',
+        );
+      }
+      if (declinedInvite != null &&
+          _consumedDeclinedInviteIds.add(declinedInvite.id)) {
+        hiddenInvitationIds.add(declinedInvite.id);
+        outgoingContinuationInvite = null;
+        shouldReturnToResumeAfterContinuationDeclined = true;
+        shouldAcquireDeckAfterContinuationInvite = false;
+        AppLogger.info(
+          '[PairInvite] invitation declined id=${declinedInvite.id}',
         );
       }
       _safeNotify();
@@ -807,6 +832,7 @@ class CoupleProvider extends ChangeNotifier {
     continuationFlowOrigin =
         PairContinuationFlowOrigin.previousSessionInviteAccepter;
     _consumedAcceptedInviteIds.add(invitation.id);
+    AppLogger.info('[PairInvite] invitation accepted id=${invitation.id}');
     _safeNotify();
   }
 
@@ -816,7 +842,14 @@ class CoupleProvider extends ChangeNotifier {
     pendingInvitations = pendingInvitations
         .where((CoupleInvitation item) => item.id != invitation.id)
         .toList();
+    AppLogger.info('[PairInvite] invitation declined id=${invitation.id}');
     _safeNotify();
+  }
+
+  bool consumeReturnToResumeAfterContinuationDeclined() {
+    final bool shouldReturn = shouldReturnToResumeAfterContinuationDeclined;
+    shouldReturnToResumeAfterContinuationDeclined = false;
+    return shouldReturn;
   }
 
   void markPairNeedsResyncFromDeckError() {
@@ -847,6 +880,7 @@ class CoupleProvider extends ChangeNotifier {
     }
     final PairContinuationFlowOrigin origin = continuationFlowOrigin;
     shouldAcquireDeckAfterContinuationInvite = false;
+    shouldReturnToResumeAfterContinuationDeclined = false;
     continuationFlowOrigin = PairContinuationFlowOrigin.none;
     outgoingContinuationInvite = null;
     shouldOpenPreviousChoiceAfterInvite = false;
@@ -873,6 +907,9 @@ class CoupleProvider extends ChangeNotifier {
 
   void hideInvitationLocally(CoupleInvitation invitation) {
     hiddenInvitationIds.add(invitation.id);
+    if (outgoingContinuationInvite?.id == invitation.id) {
+      outgoingContinuationInvite = null;
+    }
     _safeNotify();
   }
 
@@ -1012,6 +1049,9 @@ class CoupleProvider extends ChangeNotifier {
     pendingInvitations = <CoupleInvitation>[];
     outgoingContinuationInvite = null;
     hiddenInvitationIds.clear();
+    _consumedAcceptedInviteIds.clear();
+    _consumedDeclinedInviteIds.clear();
+    shouldReturnToResumeAfterContinuationDeclined = false;
     shouldOpenSessionResumeForResync = false;
     pairNeedsResyncMessage = null;
     AppLogger.info('[CoupleProvider] session state cleared for logout');

@@ -622,10 +622,9 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     }
     setState(() => _pairFilterUpdateRequired = false);
     _suppressPreviousChoiceAutoOpen = false;
-    _pairDeckReadyAutoLoadEnabled = true;
     setState(() => _sessionResumeChoiceType = null);
     if (choiceType == _SessionResumeChoiceType.solo) {
-      debugPrint('[ResumeChoice] continue selected reason=${context.read<SwipeProvider>().hasActiveSoloSession ? 'solo_active' : 'solo_previous'}');
+      debugPrint('[ResumeChoice] continue selected mode=solo');
       if (context.read<SwipeProvider>().hasActiveSoloSession) {
         debugPrint('[ResumeChoice] route=swipes');
         setState(() {});
@@ -644,16 +643,10 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     final SwipeProvider swipeProvider = context.read<SwipeProvider>();
     final CoupleProvider coupleProvider = context.read<CoupleProvider>();
     swipeProvider.setPairedMode();
-    debugPrint('[ResumeChoice] continue selected reason=pair_previous');
-    final bool loaded = await swipeProvider.loadExistingPreparedDeck(force: true);
-    if (!mounted) return;
-    if (loaded && swipeProvider.deck.isNotEmpty) {
-      debugPrint('[ResumeChoice] route=swipes');
-      _startPairLifecyclePolling();
-      _startPairMatchPolling();
-      setState(() {});
-      return;
-    }
+    debugPrint('[ResumeChoice] continue selected mode=pair');
+    // A previous canonical deck is not sufficient authorization to resume a
+    // Pair session. The partner must accept this continuation first.
+    _pairDeckReadyAutoLoadEnabled = false;
     swipeProvider.clearPreparedDeck();
     context.read<MatchProvider>().setActiveCouple(
           coupleProvider.currentCouple?.id,
@@ -674,10 +667,18 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(coupleProvider.error ?? 'Could not invite your partner.')),
       );
+      _pairDeckReadyAutoLoadEnabled = false;
+      setState(() {
+        _sessionResumeChoiceType = _SessionResumeChoiceType.paired;
+      });
       return;
     }
     _suppressPreviousChoiceAutoOpen = false;
-    _pairDeckReadyAutoLoadEnabled = true;
+    _pairDeckReadyAutoLoadEnabled = false;
+    debugPrint(
+      '[ResumeChoice] pair continuation invite sent id=${invitation.id}',
+    );
+    debugPrint('[ResumeChoice] waiting_for_partner');
     coupleProvider.startInvitationPolling(reason: 'session_resume_continue_pair');
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Your invitation was sent.')),
@@ -714,7 +715,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 340),
                 child: Text(
-                  'Your partner needs to confirm using the previous choices.',
+                  'Your partner needs to confirm continuing the last session.',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.nunito(
                     fontSize: 16,
@@ -737,7 +738,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                     _pairDeckReadyAutoLoadEnabled = false;
                   });
                 },
-                child: const Text('Back to previous choice'),
+                child: const Text('Back'),
               ),
               const Spacer(flex: 2),
             ],
@@ -834,9 +835,22 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
           .read<PendingOverlayController>()
           .run<Map<String, dynamic>>(
             message: 'Starting a new session...',
-            operation: context
-                .read<SwipeProvider>()
-                .abandonActiveSoloSession,
+            operation: () async {
+              final Map<String, dynamic> abandonResult = await context
+                  .read<SwipeProvider>()
+                  .abandonActiveSoloSession();
+              if (choiceType == _SessionResumeChoiceType.paired) {
+                final CoupleProvider coupleProvider =
+                    context.read<CoupleProvider>();
+                if (coupleProvider.hasCouple) {
+                  await coupleProvider.leaveCouple();
+                  if (coupleProvider.error != null) {
+                    throw StateError(coupleProvider.error!);
+                  }
+                }
+              }
+              return abandonResult;
+            },
           );
       debugPrint(
         '[ResumeChoice] abandon solo result '
@@ -978,8 +992,8 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
 
   Future<void> _clearActiveSessionAndShowModeSelection() async {
     final SwipeProvider swipeProvider = context.read<SwipeProvider>();
-    // The active Solo lock was discarded above. Pair state remains untouched
-    // so this local choice cannot corrupt the partner's continuation flow.
+    // Backend blockers were resolved above; only transient local routing and
+    // deck state are cleared here before the explicit mode choice.
     swipeProvider.resetToModeSelection();
     context.read<PreSwipeProvider>().clearDraft();
     _stopPairMatchPolling();
@@ -989,6 +1003,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       _sessionResumeChoiceType = null;
       _showPairConnectionStep = false;
       _isOpeningPreSwipe = false;
+      _pairDeckReadyAutoLoadEnabled = false;
     });
     debugPrint('[ResumeChoice] route=mode_selection');
   }
@@ -1619,7 +1634,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                         final PairContinuationFlowOrigin origin =
                             coupleProvider.consumeContinuationDeckAcquisition();
                         if (origin == PairContinuationFlowOrigin.none) return;
-                        debugPrint('[PairInvitation] canonical convergence origin=${origin.name}');
+                        debugPrint('[PairDeck] continuation accepted; acquiring canonical deck');
                         _sessionResumeChoiceType = null;
                         _showPairConnectionStep = false;
                         _suppressPreviousChoiceAutoOpen = true;
@@ -1633,6 +1648,31 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                         );
                       });
                       return const ShimmerCard();
+                    }
+
+                    if (inviteCoupleProvider
+                        .shouldReturnToResumeAfterContinuationDeclined) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (!mounted) return;
+                        final CoupleProvider coupleProvider =
+                            context.read<CoupleProvider>();
+                        if (!coupleProvider
+                            .consumeReturnToResumeAfterContinuationDeclined()) {
+                          return;
+                        }
+                        _pairDeckReadyAutoLoadEnabled = false;
+                        setState(() {
+                          _sessionResumeChoiceType =
+                              _SessionResumeChoiceType.paired;
+                        });
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Your partner declined the invitation.',
+                            ),
+                          ),
+                        );
+                      });
                     }
 
                     if (_isLoadingInitialSession) {
@@ -1656,7 +1696,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                         hasCouple &&
                         hasPartner &&
                         bothConfirmed &&
-                        (_pairDeckReadyAutoLoadEnabled || _sessionResumeChoiceType == null) &&
+                        _pairDeckReadyAutoLoadEnabled &&
                         provider.deck.isEmpty &&
                         (_lastPairDeckReadyLoadAttemptAt == null ||
                             DateTime.now().difference(_lastPairDeckReadyLoadAttemptAt!) > const Duration(seconds: 2));
@@ -1696,7 +1736,9 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                         onPairUp: () {
                           _appFlow.logModeSelection(AppFlowMode.paired);
                           _suppressPreviousChoiceAutoOpen = false;
-                          _pairDeckReadyAutoLoadEnabled = true;
+                          // Pair setup must not acquire a deck until the user
+                          // explicitly creates or joins a session.
+                          _pairDeckReadyAutoLoadEnabled = false;
                           context.read<SwipeProvider>().setPairedMode();
                           context.read<MatchProvider>().clearMatches();
                           setState(() => _showPairConnectionStep = true);
