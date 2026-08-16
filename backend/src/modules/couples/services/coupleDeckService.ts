@@ -10,6 +10,9 @@ import { SwipeModel } from '../../swipes/models/Swipe';
 import { CoupleFilterUserChoice, CoupleSessionDocument, CoupleSessionModel } from '../models/CoupleSession';
 
 export interface EffectiveDeckFilters {
+  dishRegisters: string[];
+  includeCustomDishesFirst: boolean;
+  customFirstUserIds: string[];
   cuisines: string[];
   moods: string[];
   diet: string[];
@@ -112,8 +115,24 @@ export class CoupleDeckService {
       deckSize: MAX_DECK_SIZE,
       customDishIds
     });
-    const finalDishes = result.dishes;
-    const recommendationMeta = result.meta;
+    // Shuffle only the recommendation tail. buildCustomFirstPairDeck applies
+    // the custom prefix afterwards and the combined order is persisted once.
+    result.dishes = shuffleWithinScoreBands(result.dishes, crypto.randomUUID());
+    const finalDishes = buildCustomFirstPairDeck(
+      allDishes,
+      result.dishes,
+      filters,
+      fullySwipedDishIds,
+      MAX_DECK_SIZE
+    );
+    const customIncludedCount = finalDishes.filter((dish) =>
+      filters.customFirstUserIds.includes(dish.createdBy?.toString() ?? '')
+    ).length;
+    const recommendationMeta = {
+      ...result.meta,
+      finalCount: finalDishes.length,
+      customIncludedCount
+    };
     const fallbackReason: string | null = recommendationMeta.expansionReason ?? (filters.usedCuisineUnionFallback ? 'No common cuisine — scoring both preferences.' : null);
     const candidateCount = recommendationMeta.candidateCount;
     const dishIds = finalDishes.map((dish) => dish._id as Types.ObjectId);
@@ -327,10 +346,16 @@ export class CoupleDeckService {
   }
 
   private buildVisibilityFilter(session: CoupleSessionDocument): FilterQuery<DishDocument> {
+    const customFirstOwners = (session.filterState?.users ?? [])
+      .filter((choice) => choice.includeCustomDishesFirst)
+      .map((choice) => choice.userId);
     return {
       $or: [
         { visibility: 'public', status: 'approved' },
-        { isCustom: true, visibility: 'session', coupleId: session._id, status: 'approved' }
+        { isCustom: true, visibility: 'session', coupleId: session._id, status: 'approved' },
+        ...(customFirstOwners.length > 0
+          ? [{ $and: [{ $or: [{ isCustom: true }, { sourceType: 'custom' }] }, { createdBy: { $in: customFirstOwners }, status: 'approved' }] }]
+          : [])
       ]
     };
   }
@@ -504,9 +529,12 @@ export function buildEffectiveFilters(session: CoupleSessionDocument, userId?: s
   const partnerDiet = normalizeList(partner?.diet);
   const diet = resolveDiet(myDiet, partnerDiet);
   const bothConfirmed = Boolean(mine && partner && mine.confirmed && partner.confirmed);
-  const usedPartnerChoices = Boolean(partner && (partnerCuisines.length > 0 || normalizeList(partner.moods).length > 0 || partnerDiet.length > 0 || normalizeList(partner.exclusions).length > 0));
+  const usedPartnerChoices = Boolean(partner && (partner.includeCustomDishesFirst || partnerCuisines.length > 0 || normalizeList(partner.dishRegisters).length > 0 || normalizeList(partner.moods).length > 0 || partnerDiet.length > 0 || normalizeList(partner.exclusions).length > 0));
 
   return {
+    dishRegisters: resolvePairCuisines(normalizeList(mine?.dishRegisters), normalizeList(partner?.dishRegisters)).cuisines,
+    includeCustomDishesFirst: Boolean(mine?.includeCustomDishesFirst || partner?.includeCustomDishesFirst),
+    customFirstUserIds: users.filter((entry) => entry.includeCustomDishesFirst).map((entry) => entry.userId.toString()).sort(),
     cuisines: cuisineResult.cuisines,
     moods: normalizeList([...(mine?.moods ?? []), ...(partner?.moods ?? [])]),
     diet,
@@ -519,6 +547,9 @@ export function buildEffectiveFilters(session: CoupleSessionDocument, userId?: s
 
 export function createFiltersHash(filters: EffectiveDeckFilters) {
   const stable = {
+    dishRegisters: [...filters.dishRegisters].sort(),
+    includeCustomDishesFirst: filters.includeCustomDishesFirst,
+    customFirstUserIds: [...filters.customFirstUserIds].sort(),
     cuisines: [...filters.cuisines].sort(),
     moods: [...filters.moods].sort(),
     diet: [...filters.diet].sort(),
@@ -544,11 +575,50 @@ function matchesStrictPairDiet(dish: DishDocument, diet: string[]) {
 
 function filtersFromChoice(choice: CoupleFilterUserChoice): DeckRecommendationFilters {
   return {
+    dishRegisters: normalizeList(choice.dishRegisters),
+    includeCustomDishesFirst: choice.includeCustomDishesFirst === true,
     cuisines: normalizeList(choice.cuisines),
     moods: normalizeList(choice.moods),
     diet: normalizeList(choice.diet),
     exclusions: normalizeKeys(choice.exclusions)
   };
+}
+
+function buildCustomFirstPairDeck(
+  allDishes: DishDocument[],
+  recommended: DishDocument[],
+  filters: EffectiveDeckFilters,
+  excludedDishIds: Set<string>,
+  deckSize: number
+) {
+  if (!filters.includeCustomDishesFirst) return recommended;
+  const selectedOwners = new Set(filters.customFirstUserIds);
+  const byOwner = filters.customFirstUserIds.map((ownerId) => allDishes
+    .filter((dish) => isUsableOwnedCustomDish(dish, ownerId))
+    .filter((dish) => !excludedDishIds.has(dish._id.toString()) && dishPassesPairHardFilters(dish, filters))
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()));
+  const custom: DishDocument[] = [];
+  const seen = new Set<string>();
+  const maxLength = Math.max(0, ...byOwner.map((items) => items.length));
+  for (let index = 0; index < maxLength; index += 1) {
+    for (const items of byOwner) {
+      const dish = items[index];
+      if (dish && !seen.has(dish._id.toString())) {
+        seen.add(dish._id.toString());
+        custom.push(dish);
+      }
+    }
+  }
+  // Legacy session dishes without an owner stay in the recommendation tail.
+  const discoveryTarget = Math.max(1, Math.floor(deckSize * 0.2));
+  const customPrefix = custom.length >= deckSize - discoveryTarget
+    ? custom.slice(0, deckSize - discoveryTarget)
+    : custom;
+  const tailTarget = deckSize - customPrefix.length;
+  const tail = recommended
+    .filter((dish) => !seen.has(dish._id.toString()) && (!isSessionCustomDish(dish) || !selectedOwners.has(dish.createdBy?.toString() ?? '')))
+    .slice(0, Math.max(0, tailTarget));
+  return [...customPrefix, ...tail];
 }
 
 function buildPairRecencyScores(userSwipedDishIds: Set<string>, previousPreparedDeckIds: Set<string>) {
@@ -595,8 +665,33 @@ function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function shuffleWithinScoreBands(dishes: DishDocument[], seed: string) {
+  return dishes.flatMap((_, start) => start % 4 === 0
+    ? seededShuffle(dishes.slice(start, start + 4), `${seed}:${start}`)
+    : []);
+}
+
+function seededShuffle<T>(items: T[], seed: string) {
+  const result = [...items];
+  let state = crypto.createHash('sha1').update(seed).digest().readUInt32BE(0);
+  for (let index = result.length - 1; index > 0; index -= 1) {
+    state = (state * 1664525 + 1013904223) >>> 0;
+    const target = state % (index + 1);
+    [result[index], result[target]] = [result[target], result[index]];
+  }
+  return result;
+}
+
 function isSessionCustomDish(dish: DishDocument) {
-  return dish.isCustom === true && dish.visibility === 'session' && dish.status === 'approved' && Boolean(dish.coupleId);
+  return isCustomDish(dish) && dish.visibility === 'session' && dish.status === 'approved' && Boolean(dish.coupleId);
+}
+
+function isCustomDish(dish: DishDocument) {
+  return dish.isCustom === true || dish.sourceType === 'custom';
+}
+
+function isUsableOwnedCustomDish(dish: DishDocument, ownerId: string) {
+  return isCustomDish(dish) && dish.status === 'approved' && dish.createdBy?.toString() === ownerId;
 }
 
 function isSessionCustomDishForCouple(dish: DishDocument, coupleId: Types.ObjectId) {
@@ -605,5 +700,6 @@ function isSessionCustomDishForCouple(dish: DishDocument, coupleId: Types.Object
 
 function isDeckVisibleDish(dish: DishDocument, session: CoupleSessionDocument) {
   if (dish.visibility === 'public' && dish.status === 'approved') return true;
+  if (isCustomDish(dish) && dish.status === 'approved' && session.members.some((member) => member.toString() === dish.createdBy?.toString())) return true;
   return isSessionCustomDishForCouple(dish, session._id as Types.ObjectId);
 }

@@ -9,7 +9,11 @@ class SwipeRepository {
 
   final ApiService _apiService;
 
-  Future<dynamic> sendSwipe({required String dishId, required String direction, String? soloSessionId}) async {
+  Future<dynamic> sendSwipe({
+    required String dishId,
+    required String direction,
+    String? soloSessionId,
+  }) async {
     if (soloSessionId != null) {
       return _apiService.post(ApiConstants.soloSwipe(soloSessionId), {
         'dishId': dishId,
@@ -22,16 +26,22 @@ class SwipeRepository {
     });
   }
 
-  Future<dynamic> getActiveSoloSession() => _apiService.get(ApiConstants.soloSwipesActive);
+  Future<dynamic> getActiveSoloSession() =>
+      _apiService.get(ApiConstants.soloSwipesActive);
 
-  Future<dynamic> undoSoloSwipe(String sessionId) =>
-      _apiService.post(ApiConstants.soloSwipeUndo(sessionId), <String, dynamic>{});
+  Future<dynamic> undoSoloSwipe(String sessionId) => _apiService.post(
+    ApiConstants.soloSwipeUndo(sessionId),
+    <String, dynamic>{},
+  );
 
   Future<dynamic> createSoloSession({required Map<String, dynamic> filter}) =>
       _apiService.post(ApiConstants.soloSwipesSession, {'filter': filter});
 
-  Future<dynamic> updateActiveSoloFilter({required Map<String, dynamic> filter}) =>
-      _apiService.patch(ApiConstants.soloSwipesActiveFilter, {'filter': filter});
+  Future<dynamic> updateActiveSoloFilter({
+    required Map<String, dynamic> filter,
+  }) => _apiService.patch(ApiConstants.soloSwipesActiveFilter, {
+    'filter': filter,
+  });
 
   Future<dynamic> abandonActiveSoloSession() =>
       _apiService.post(ApiConstants.soloSwipesAbandon, <String, dynamic>{});
@@ -40,21 +50,24 @@ class SwipeRepository {
       _apiService.get('${ApiConstants.filtersLast}?mode=$mode');
 
   Future<dynamic> saveLastFilterPreset({
+    required List<String> dishRegisters,
+    required bool includeCustomDishesFirst,
     required String mode,
     required List<String> cuisines,
     required List<String> moods,
     required List<String> diet,
     required List<String> exclusions,
     required int matchedLastTime,
-  }) =>
-      _apiService.put(ApiConstants.filtersLast, <String, dynamic>{
-        'mode': mode,
-        'cuisines': cuisines,
-        'moods': moods,
-        'diet': diet,
-        'exclusions': exclusions,
-        'matchedLastTime': matchedLastTime,
-      });
+  }) => _apiService.put(ApiConstants.filtersLast, <String, dynamic>{
+    'mode': mode,
+    'dishRegisters': dishRegisters,
+    'includeCustomDishesFirst': includeCustomDishesFirst,
+    'cuisines': cuisines,
+    'moods': moods,
+    'diet': diet,
+    'exclusions': exclusions,
+    'matchedLastTime': matchedLastTime,
+  });
 
   Future<SwipeStats> getMyStats() async {
     final data = await _apiService.get(ApiConstants.swipeStats);
@@ -74,18 +87,25 @@ class SwipeRepository {
     if (soloSessionId != null && soloSessionId.isNotEmpty) {
       query.add('sessionId=$soloSessionId');
     }
-    final data = await _apiService.get('${ApiConstants.swipeMatches}?${query.join('&')}');
+    final data = await _apiService.get(
+      '${ApiConstants.swipeMatches}?${query.join('&')}',
+    );
     final List<dynamic> list = data is Map<String, dynamic>
         ? (data['matches'] as List<dynamic>? ?? <dynamic>[])
         : <dynamic>[];
 
     return list.map((dynamic item) {
-      final Map<String, dynamic> matchJson = Map<String, dynamic>.from(item as Map);
+      final Map<String, dynamic> matchJson = Map<String, dynamic>.from(
+        item as Map,
+      );
       return MatchItem.fromJson(matchJson);
     }).toList();
   }
 
-  Map<String, dynamic> _extractMap(dynamic data, {required String fallbackKey}) {
+  Map<String, dynamic> _extractMap(
+    dynamic data, {
+    required String fallbackKey,
+  }) {
     if (data is Map<String, dynamic>) {
       final raw = data[fallbackKey];
       if (raw is Map<String, dynamic>) {

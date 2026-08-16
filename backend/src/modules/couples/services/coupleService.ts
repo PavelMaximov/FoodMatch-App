@@ -9,24 +9,32 @@ import { clearPreparedDeck } from './coupleDeckService';
 
 
 export type CoupleFilterStatePayload = {
+  includeCustomDishesFirst?: boolean;
+  dishRegisters?: string[];
   cuisines?: string[];
   moods?: string[];
   diet?: string[];
   exclusions?: string[];
   choices?: {
-    cuisines?: string[];
+    includeCustomDishesFirst?: boolean;
+  dishRegisters?: string[];
+  cuisines?: string[];
     moods?: string[];
     diet?: string[];
     exclusions?: string[];
   };
   filter?: {
-    cuisines?: string[];
+    includeCustomDishesFirst?: boolean;
+  dishRegisters?: string[];
+  cuisines?: string[];
     moods?: string[];
     diet?: string[];
     exclusions?: string[];
   };
   filters?: {
-    cuisines?: string[];
+    includeCustomDishesFirst?: boolean;
+  dishRegisters?: string[];
+  cuisines?: string[];
     moods?: string[];
     diet?: string[];
     exclusions?: string[];
@@ -36,6 +44,8 @@ export type CoupleFilterStatePayload = {
 export function normalizeCoupleFilterStatePayload(payload: CoupleFilterStatePayload) {
   const source = payload.choices ?? payload.filter ?? payload.filters ?? payload;
   return {
+    includeCustomDishesFirst: source.includeCustomDishesFirst === true,
+    dishRegisters: normalizeFilterValues(source.dishRegisters),
     cuisines: normalizeFilterValues(source.cuisines),
     moods: normalizeFilterValues(source.moods),
     diet: normalizeFilterValues(source.diet),
@@ -237,6 +247,8 @@ export class CoupleService {
 
     entry.cuisines = choices.cuisines;
     entry.moods = choices.moods;
+    entry.dishRegisters = choices.dishRegisters;
+    entry.includeCustomDishesFirst = choices.includeCustomDishesFirst;
     entry.diet = choices.diet;
     entry.exclusions = choices.exclusions;
     console.log(
@@ -336,7 +348,7 @@ export class CoupleService {
     );
     let entry = session.filterState!.users.find((u) => this.idsEqual(u.userId, userId));
     if (!entry) {
-      entry = { userId: new Types.ObjectId(userId), cuisines: [], moods: [], diet: [], exclusions: [], confirmed: false, updatedAt: null };
+      entry = { userId: new Types.ObjectId(userId), dishRegisters: [], includeCustomDishesFirst: false, cuisines: [], moods: [], diet: [], exclusions: [], confirmed: false, updatedAt: null };
       session.filterState!.users.push(entry);
     }
     return entry;

@@ -39,13 +39,15 @@ export class IngredientService {
 
     const normalized = query.trim();
     if (!normalized) {
-      const topIngredients = await IngredientModel.find({}).sort({ name: 1 }).limit(12);
-      return topIngredients.map((ingredient) => ingredient.name);
+      const topIngredients = await IngredientModel.find({}).sort({ name: 1 }).limit(1000).lean();
+      return topIngredients.map(toIngredientDto);
     }
 
     const regex = new RegExp(this.escapeRegex(normalized), 'i');
-    const ingredients = await IngredientModel.find({ name: regex }).sort({ name: 1 }).limit(12);
-    return ingredients.map((ingredient) => ingredient.name);
+    const ingredients = await IngredientModel.find({
+      $or: [{ name: regex }, { normalizedName: regex }]
+    }).sort({ name: 1 }).limit(100).lean();
+    return ingredients.map(toIngredientDto);
   }
 
   private async ensureSeeded() {
@@ -65,4 +67,12 @@ export class IngredientService {
   private escapeRegex(value: string) {
     return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
+}
+
+function toIngredientDto(ingredient: { _id: unknown; name: string; normalizedName: string }) {
+  return {
+    id: String(ingredient._id),
+    name: ingredient.name,
+    normalizedName: ingredient.normalizedName
+  };
 }

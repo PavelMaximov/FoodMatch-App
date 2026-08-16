@@ -23,7 +23,8 @@ class SessionResumeChoiceScreen extends StatefulWidget {
   final CoupleMemberProfile? partner;
 
   @override
-  State<SessionResumeChoiceScreen> createState() => _SessionResumeChoiceScreenState();
+  State<SessionResumeChoiceScreen> createState() =>
+      _SessionResumeChoiceScreenState();
 }
 
 class _SessionResumeChoiceScreenState extends State<SessionResumeChoiceScreen> {
@@ -40,13 +41,16 @@ class _SessionResumeChoiceScreenState extends State<SessionResumeChoiceScreen> {
   @override
   void didUpdateWidget(covariant SessionResumeChoiceScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.isSoloMode != widget.isSoloMode || oldWidget.partner?.id != widget.partner?.id) {
+    if (oldWidget.isSoloMode != widget.isSoloMode ||
+        oldWidget.partner?.id != widget.partner?.id) {
       _loadPreset();
     }
   }
 
   void _loadPreset() {
-    _presetFuture = widget.onLoadPreviousSetup().then((LastFilterPreset? preset) {
+    _presetFuture = widget.onLoadPreviousSetup().then((
+      LastFilterPreset? preset,
+    ) {
       _preset = preset;
       return preset;
     });
@@ -110,8 +114,13 @@ class _SessionResumeChoiceScreenState extends State<SessionResumeChoiceScreen> {
                 foregroundColor: colors.primary,
                 side: BorderSide(color: colors.primary, width: 2),
                 padding: const EdgeInsets.symmetric(vertical: 15),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
-                textStyle: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.w800),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(36),
+                ),
+                textStyle: GoogleFonts.nunito(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
               child: Text(_isContinuing ? 'Continuing…' : 'Continue as before'),
             ),
@@ -125,8 +134,13 @@ class _SessionResumeChoiceScreenState extends State<SessionResumeChoiceScreen> {
                 backgroundColor: colors.buttonPrimaryBackground,
                 foregroundColor: colors.buttonPrimaryText,
                 padding: const EdgeInsets.symmetric(vertical: 15),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
-                textStyle: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.w800),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(36),
+                ),
+                textStyle: GoogleFonts.nunito(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
               child: const Text('Create a new session'),
             ),
@@ -140,25 +154,37 @@ class _SessionResumeChoiceScreenState extends State<SessionResumeChoiceScreen> {
                   widget.isSoloMode ? 'Solo' : 'With $partnerName',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w800, color: colors.textPrimary),
+                  style: GoogleFonts.nunito(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: colors.textPrimary,
+                  ),
                 ),
               ),
               if (!widget.isSoloMode) ...<Widget>[
                 const SizedBox(width: 8),
-                _PartnerAvatar(partner: widget.partner, partnerName: partnerName),
+                _PartnerAvatar(
+                  partner: widget.partner,
+                  partnerName: partnerName,
+                ),
               ],
             ],
           ),
           const SizedBox(height: 12),
           FutureBuilder<LastFilterPreset?>(
             future: _presetFuture,
-            builder: (BuildContext context, AsyncSnapshot<LastFilterPreset?> snapshot) {
-              final LastFilterPreset? preset = snapshot.data ?? _preset;
-              if (snapshot.connectionState == ConnectionState.waiting && preset == null) {
-                return _FilterSummaryCard.loading();
-              }
-              return _FilterSummaryCard.fromPreset(preset);
-            },
+            builder:
+                (
+                  BuildContext context,
+                  AsyncSnapshot<LastFilterPreset?> snapshot,
+                ) {
+                  final LastFilterPreset? preset = snapshot.data ?? _preset;
+                  if (snapshot.connectionState == ConnectionState.waiting &&
+                      preset == null) {
+                    return _FilterSummaryCard.loading();
+                  }
+                  return _FilterSummaryCard.fromPreset(preset);
+                },
           ),
         ],
       ),
@@ -184,7 +210,11 @@ class _PartnerAvatar extends StatelessWidget {
       backgroundColor: colors.primarySoft,
       child: Text(
         partnerName.isEmpty ? '?' : partnerName.substring(0, 1).toUpperCase(),
-        style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w900, color: colors.primary),
+        style: GoogleFonts.nunito(
+          fontSize: 12,
+          fontWeight: FontWeight.w900,
+          color: colors.primary,
+        ),
       ),
     );
   }
@@ -192,27 +222,30 @@ class _PartnerAvatar extends StatelessWidget {
 
 class _FilterSummaryCard extends StatelessWidget {
   const _FilterSummaryCard({
+    required this.dishRegisters,
     required this.cuisines,
-    required this.moods,
     required this.exclusions,
     this.isLoading = false,
   });
 
-  factory _FilterSummaryCard.fromPreset(LastFilterPreset? preset) => _FilterSummaryCard(
+  factory _FilterSummaryCard.fromPreset(LastFilterPreset? preset) =>
+      _FilterSummaryCard(
+        dishRegisters: preset?.includeCustomDishesFirst == true
+            ? const <String>['Your custom dishes']
+            : preset?.dishRegisters ?? const <String>[],
         cuisines: preset?.cuisines ?? const <String>[],
-        moods: preset?.moods ?? const <String>[],
         exclusions: preset?.exclusions ?? const <String>[],
       );
 
   factory _FilterSummaryCard.loading() => const _FilterSummaryCard(
-        cuisines: <String>[],
-        moods: <String>[],
-        exclusions: <String>[],
-        isLoading: true,
-      );
+    dishRegisters: <String>[],
+    cuisines: <String>[],
+    exclusions: <String>[],
+    isLoading: true,
+  );
 
+  final List<String> dishRegisters;
   final List<String> cuisines;
-  final List<String> moods;
   final List<String> exclusions;
   final bool isLoading;
 
@@ -227,11 +260,29 @@ class _FilterSummaryCard extends StatelessWidget {
       ),
       child: Column(
         children: <Widget>[
-          _FilterSection(icon: Icons.room_service_outlined, label: 'Cuisine:', values: cuisines, type: _FilterChipType.cuisine, isLoading: isLoading),
+          _FilterSection(
+            icon: Icons.restaurant_menu,
+            label: 'Meal format:',
+            values: dishRegisters,
+            type: _FilterChipType.cuisine,
+            isLoading: isLoading,
+          ),
           Divider(height: 1, color: colors.divider),
-          _FilterSection(icon: Icons.auto_awesome, label: 'Mood:', values: moods, type: _FilterChipType.mood, isLoading: isLoading),
+          _FilterSection(
+            icon: Icons.room_service_outlined,
+            label: 'Cuisine:',
+            values: cuisines,
+            type: _FilterChipType.cuisine,
+            isLoading: isLoading,
+          ),
           Divider(height: 1, color: colors.divider),
-          _FilterSection(icon: Icons.do_not_disturb_alt_outlined, label: 'Exceptions:', values: exclusions, type: _FilterChipType.exception, isLoading: isLoading),
+          _FilterSection(
+            icon: Icons.do_not_disturb_alt_outlined,
+            label: 'Exceptions:',
+            values: exclusions,
+            type: _FilterChipType.exception,
+            isLoading: isLoading,
+          ),
         ],
       ),
     );
@@ -239,7 +290,13 @@ class _FilterSummaryCard extends StatelessWidget {
 }
 
 class _FilterSection extends StatelessWidget {
-  const _FilterSection({required this.icon, required this.label, required this.values, required this.type, this.isLoading = false});
+  const _FilterSection({
+    required this.icon,
+    required this.label,
+    required this.values,
+    required this.type,
+    this.isLoading = false,
+  });
 
   final IconData icon;
   final String label;
@@ -250,8 +307,14 @@ class _FilterSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final FoodMatchThemeColors colors = context.fmColors;
-    final List<String> chips = isLoading ? <String>['Loading...'] : values.isEmpty ? <String>['None'] : values;
-    final _ChipColors chipColors = isLoading || values.isEmpty ? _emptyChipColors(colors) : _filterChipColors(context, type);
+    final List<String> chips = isLoading
+        ? <String>['Loading...']
+        : values.isEmpty
+        ? <String>['None']
+        : values;
+    final _ChipColors chipColors = isLoading || values.isEmpty
+        ? _emptyChipColors(colors)
+        : _filterChipColors(context, type);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
       child: Column(
@@ -263,7 +326,11 @@ class _FilterSection extends StatelessWidget {
               const SizedBox(width: 10),
               Text(
                 label,
-                style: GoogleFonts.nunito(fontSize: 15, color: colors.textMuted, fontWeight: FontWeight.w700),
+                style: GoogleFonts.nunito(
+                  fontSize: 15,
+                  color: colors.textMuted,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),
@@ -274,15 +341,24 @@ class _FilterSection extends StatelessWidget {
             children: chips
                 .map(
                   (String value) => Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: chipColors.background,
                       borderRadius: BorderRadius.circular(99),
                       border: Border.all(color: chipColors.border),
                     ),
                     child: Text(
-                      isLoading || values.isEmpty ? value : _formatOptionLabel(value),
-                      style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w800, color: chipColors.foreground),
+                      isLoading || values.isEmpty
+                          ? value
+                          : _formatOptionLabel(value),
+                      style: GoogleFonts.nunito(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: chipColors.foreground,
+                      ),
                     ),
                   ),
                 )
@@ -296,8 +372,15 @@ class _FilterSection extends StatelessWidget {
 
 String _partnerName(CoupleMemberProfile? partner) {
   final String? email = partner?.email;
-  final String? emailPrefix = email == null || !email.contains('@') ? email : email.split('@').first;
-  final List<String?> candidates = <String?>[partner?.displayName, partner?.name, partner?.username, emailPrefix];
+  final String? emailPrefix = email == null || !email.contains('@')
+      ? email
+      : email.split('@').first;
+  final List<String?> candidates = <String?>[
+    partner?.displayName,
+    partner?.name,
+    partner?.username,
+    emailPrefix,
+  ];
   for (final String? candidate in candidates) {
     final String value = candidate?.trim() ?? '';
     if (value.isNotEmpty) return value;
@@ -313,11 +396,14 @@ String _formatOptionLabel(String value) => value
     .map((String word) => word[0].toUpperCase() + word.substring(1))
     .join(' ');
 
-
 enum _FilterChipType { cuisine, mood, exception }
 
 class _ChipColors {
-  const _ChipColors({required this.background, required this.foreground, required this.border});
+  const _ChipColors({
+    required this.background,
+    required this.foreground,
+    required this.border,
+  });
 
   final Color background;
   final Color foreground;
@@ -325,29 +411,53 @@ class _ChipColors {
 }
 
 _ChipColors _emptyChipColors(FoodMatchThemeColors colors) => _ChipColors(
-      background: colors.chipBackground,
-      foreground: colors.textMuted,
-      border: colors.chipBorder,
-    );
+  background: colors.chipBackground,
+  foreground: colors.textMuted,
+  border: colors.chipBorder,
+);
 
 _ChipColors _filterChipColors(BuildContext context, _FilterChipType type) {
   final bool isDark = Theme.of(context).brightness == Brightness.dark;
   if (isDark) {
     switch (type) {
       case _FilterChipType.cuisine:
-        return const _ChipColors(background: Color(0xFF4A3218), foreground: Color(0xFFF0A03A), border: Color(0xFF5A3A1D));
+        return const _ChipColors(
+          background: Color(0xFF4A3218),
+          foreground: Color(0xFFF0A03A),
+          border: Color(0xFF5A3A1D),
+        );
       case _FilterChipType.mood:
-        return const _ChipColors(background: Color(0xFF4A462C), foreground: Color(0xFFE2C403), border: Color(0xFF5A552F));
+        return const _ChipColors(
+          background: Color(0xFF4A462C),
+          foreground: Color(0xFFE2C403),
+          border: Color(0xFF5A552F),
+        );
       case _FilterChipType.exception:
-        return const _ChipColors(background: Color(0xFF4A211B), foreground: Color(0xFFFF4E2F), border: Color(0xFF5A2A22));
+        return const _ChipColors(
+          background: Color(0xFF4A211B),
+          foreground: Color(0xFFFF4E2F),
+          border: Color(0xFF5A2A22),
+        );
     }
   }
   switch (type) {
     case _FilterChipType.cuisine:
-      return const _ChipColors(background: Color(0xFFFFEDDE), foreground: Color(0xFFEE8C04), border: Color(0xFFFFD7BB));
+      return const _ChipColors(
+        background: Color(0xFFFFEDDE),
+        foreground: Color(0xFFEE8C04),
+        border: Color(0xFFFFD7BB),
+      );
     case _FilterChipType.mood:
-      return const _ChipColors(background: Color(0xFFFFF8C7), foreground: Color(0xFFC39A00), border: Color(0xFFFFECB0));
+      return const _ChipColors(
+        background: Color(0xFFFFF8C7),
+        foreground: Color(0xFFC39A00),
+        border: Color(0xFFFFECB0),
+      );
     case _FilterChipType.exception:
-      return const _ChipColors(background: Color(0xFFFFE4DF), foreground: Color(0xFFFF4E2F), border: Color(0xFFFFC9C0));
+      return const _ChipColors(
+        background: Color(0xFFFFE4DF),
+        foreground: Color(0xFFFF4E2F),
+        border: Color(0xFFFFC9C0),
+      );
   }
 }

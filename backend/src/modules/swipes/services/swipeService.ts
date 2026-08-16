@@ -22,9 +22,12 @@ export class SwipeService {
     if (!dish) {
       throw new AppError('This dish is not available.', 404);
     }
+    const dishIsInPreparedDeck = session.preparedDeck?.dishIds.some(
+      (preparedDishId) => preparedDishId.toString() === dish._id.toString()
+    ) === true;
     if (dish.visibility === 'public' && dish.status === 'approved') {
       // Public approved dishes are swipeable.
-    } else if (!(dish.isCustom && dish.visibility === 'session' && dish.status === 'approved' && dish.coupleId?.toString() === session._id.toString())) {
+    } else if (!(dish.isCustom && dish.status === 'approved' && dishIsInPreparedDeck)) {
       throw new AppError('This dish is not available.', 404);
     }
 

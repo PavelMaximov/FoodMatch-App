@@ -24,6 +24,7 @@
     "test:pair-session-lifecycle": "ts-node src/scripts/testPairSessionLifecycle.ts",
     "fix:filter-preset-indexes": "ts-node src/scripts/fixFilterPresetIndexes.ts",
     "test:pair-deck-idempotency": "ts-node src/scripts/testPairDeckIdempotency.ts",
+    "test:custom-first-ordering": "ts-node src/scripts/testCustomFirstDeckOrdering.ts",
     "test:pair-join-replace": "ts-node src/scripts/testPairJoinReplace.ts",
     "test:pair-continue-invitations": "ts-node src/scripts/testPairContinueInvitations.ts",
     "test:pair-deck-restart": "ts-node src/scripts/testPairDeckRestart.ts",

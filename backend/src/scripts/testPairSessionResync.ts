@@ -41,15 +41,16 @@ assert(swipesScreen.includes('[PairLifecycle] poll -> needs_resync detected'), '
 assert(swipesScreen.includes('enum _PreSwipeFlowOrigin'), '_runPreSwipeFlow should require an explicit origin.');
 assert(swipesScreen.includes('required _PreSwipeFlowOrigin origin'), '_runPreSwipeFlow should not allow a default/null origin.');
 assert(swipesScreen.includes('[AppFlow] authBoundary -> blocked previous choice auto-open'), 'Auth-boundary startup should block previous-choice auto-open.');
-assert(swipesScreen.includes('authBoundaryVersion != versionAtSchedule'), 'Post-frame previous-choice callbacks should be auth-boundary version guarded.');
+assert(swipesScreen.includes('authBoundaryVersion') && swipesScreen.includes('versionAtSchedule'), 'Post-frame callbacks should be auth-boundary version guarded.');
 assert(coupleProvider.includes('previousChoiceAfterInviteWasUserAccepted'), 'Manual invitation accept should remain distinguishable from stale auto-restore.');
+assert(coupleProvider.includes('shouldAcquireDeckAfterContinuationInvite'), 'Accepted continuation should expose canonical deck convergence instead of reopening Step 1.');
 assert(swipesScreen.includes('[AppFlow] startup resolved -> SessionResumeChoiceScreen'), 'Startup newOld should render SessionResumeChoiceScreen.');
 assert(swipesScreen.includes('[AppFlow] startup resolved -> ModeSelection'), 'Startup modeSelection should render Mode Selection.');
 assert(swipesScreen.includes('_loadCanonicalPairDeckAndShowSwipe'), 'Pair deck ready should load the canonical backend deck.');
 assert(swipesScreen.includes('_clearStalePairDeckSetupState'), 'Pair deck ready should clear stale setup/session-resume state.');
 assert(swipesScreen.includes('both_confirmed_waiting_poll'), 'Waiting user should transition to swipe after both users confirm filters.');
 assert(!swipesScreen.includes('_pairContinuationFlowActive'), 'Canonical pair deck loading must not be scoped only to continuation flow.');
-assert(swipesScreen.includes('_pairDeckReadyAutoLoadEnabled || _sessionResumeChoiceType == null'), 'Canonical pair deck loading should apply to non-continuation pair flows too.');
+assert(swipesScreen.includes('_pairDeckReadyAutoLoadEnabled') && swipesScreen.includes('_sessionResumeChoiceType == null'), 'Canonical pair deck loading should apply to non-continuation pair flows too.');
 assert(swipesScreen.includes('provider.deck.isNotEmpty &&'), 'Deck end should only render for an actually loaded deck.');
 assert(swipesScreen.includes('[AppFlow] pair deck ready -> Swipe'), 'Pair deck ready should route/correct to Swipe.');
 assert(swipesScreen.includes('[DeckEnd] render check'), 'Deck-end render guard should log its decision.');

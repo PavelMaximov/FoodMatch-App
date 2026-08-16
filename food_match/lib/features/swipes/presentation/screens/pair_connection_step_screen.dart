@@ -26,7 +26,8 @@ class PairConnectionStepScreen extends StatefulWidget {
   final Future<void> Function() onPairConnected;
 
   @override
-  State<PairConnectionStepScreen> createState() => _PairConnectionStepScreenState();
+  State<PairConnectionStepScreen> createState() =>
+      _PairConnectionStepScreenState();
 }
 
 class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
@@ -39,6 +40,7 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
   void initState() {
     super.initState();
     _codeController.addListener(() => setState(() {}));
+    _codeFocusNode.addListener(() => setState(() {}));
   }
 
   @override
@@ -78,10 +80,7 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
       await context.read<PendingOverlayController>().run<void>(
         message: 'Joining session...',
         operation: () async {
-          await provider.joinCouple(
-            code,
-            replaceEmptyCurrentSession: true,
-          );
+          await provider.joinCouple(code, replaceEmptyCurrentSession: true);
         },
       );
       if (!mounted || provider.error != null) return;
@@ -112,7 +111,14 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
     final ClipboardData? data = await Clipboard.getData(Clipboard.kTextPlain);
     final String pasted = _sanitizeCode(data?.text ?? '');
     if (pasted.isEmpty) return;
-    _codeController.text = pasted.substring(0, pasted.length > 6 ? 6 : pasted.length);
+    final String code = pasted.substring(
+      0,
+      pasted.length > 6 ? 6 : pasted.length,
+    );
+    _codeController.value = TextEditingValue(
+      text: code,
+      selection: TextSelection.collapsed(offset: code.length),
+    );
   }
 
   Future<void> _resetSession(CoupleProvider provider) async {
@@ -131,24 +137,35 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
     context.read<MatchProvider>().clearMatches();
   }
 
-
   Future<void> _handleBack(CoupleProvider provider) async {
-    final bool hasSession = provider.currentCouple != null && provider.currentCouple!.inviteCode.trim().isNotEmpty;
+    final bool hasSession =
+        provider.currentCouple != null &&
+        provider.currentCouple!.inviteCode.trim().isNotEmpty;
     if (!hasSession) {
       widget.onBack();
       return;
     }
-    final bool leave = await showDialog<bool>(
+    final bool leave =
+        await showDialog<bool>(
           context: context,
           builder: (BuildContext dialogContext) => AlertDialog(
             backgroundColor: context.fmColors.modalBackground,
-            title: Text('Leave pair setup?', style: TextStyle(color: context.fmColors.textPrimary)),
-            content: Text('Your current invite code will be closed.', style: TextStyle(color: context.fmColors.textSecondary)),
+            title: Text(
+              'Leave pair setup?',
+              style: TextStyle(color: context.fmColors.textPrimary),
+            ),
+            content: Text(
+              'Your current invite code will be closed.',
+              style: TextStyle(color: context.fmColors.textSecondary),
+            ),
             actionsAlignment: MainAxisAlignment.center,
             actions: <Widget>[
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext, false),
-                child: Text('Cancel', style: TextStyle(color: context.fmColors.textSecondary)),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(color: context.fmColors.textSecondary),
+                ),
               ),
               ElevatedButton(
                 onPressed: () => Navigator.pop(dialogContext, true),
@@ -181,8 +198,11 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
       builder: (BuildContext context, CoupleProvider coupleProvider, _) {
         final FoodMatchThemeColors colors = context.fmColors;
         final Couple? couple = coupleProvider.currentCouple;
-        final bool hasSession = couple != null && couple.inviteCode.trim().isNotEmpty;
-        if (hasSession && coupleProvider.hasPartner && !_handledConnectedSession) {
+        final bool hasSession =
+            couple != null && couple.inviteCode.trim().isNotEmpty;
+        if (hasSession &&
+            coupleProvider.hasPartner &&
+            !_handledConnectedSession) {
           _handledConnectedSession = true;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
@@ -220,8 +240,12 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
                   inviteCode: couple.inviteCode,
                   partnerLabel: _partnerLabel(context, coupleProvider),
                   hasPartner: coupleProvider.hasPartner,
-                  onReset: coupleProvider.isLoading ? null : () => _resetSession(coupleProvider),
-                  onLeave: coupleProvider.isLoading ? null : () => _handleBack(coupleProvider),
+                  onReset: coupleProvider.isLoading
+                      ? null
+                      : () => _resetSession(coupleProvider),
+                  onLeave: coupleProvider.isLoading
+                      ? null
+                      : () => _handleBack(coupleProvider),
                 ),
                 const SizedBox(height: 26),
               ] else ...<Widget>[
@@ -233,7 +257,9 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
                 _OrangeButton(
                   label: '+ Create session',
                   isLoading: coupleProvider.isLoading,
-                  onPressed: coupleProvider.isLoading ? null : () => _createSession(coupleProvider),
+                  onPressed: coupleProvider.isLoading
+                      ? null
+                      : () => _createSession(coupleProvider),
                 ),
                 const SizedBox(height: 30),
               ],
@@ -241,26 +267,30 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
                 'Join an existing session',
                 style: _sectionTitleStyle(context),
               ),
-                const SizedBox(height: 14),
-                _CodeInput(
-                  code: _code,
-                  focusNode: _codeFocusNode,
-                  controller: _codeController,
-                  onPaste: _pasteCode,
-                ),
-                const SizedBox(height: 16),
-                _OrangeButton(
-                  label: 'Connect to session',
-                  isLoading: _isJoining || coupleProvider.isJoining,
-                  onPressed: _code.length == 6 ? () => _joinSession(coupleProvider) : null,
-                ),
+              const SizedBox(height: 14),
+              _CodeInput(
+                code: _code,
+                focusNode: _codeFocusNode,
+                controller: _codeController,
+                onPaste: _pasteCode,
+              ),
+              const SizedBox(height: 16),
+              _OrangeButton(
+                label: 'Connect to session',
+                isLoading: _isJoining || coupleProvider.isJoining,
+                onPressed: _code.length == 6
+                    ? () => _joinSession(coupleProvider)
+                    : null,
+              ),
               if (coupleProvider.error != null) ...<Widget>[
                 const SizedBox(height: 12),
                 Text(
                   coupleProvider.error!,
                   style: GoogleFonts.nunito(
                     fontSize: 13,
-                    color: coupleProvider.hasActiveSessionConflict ? colors.textSecondary : colors.error,
+                    color: coupleProvider.hasActiveSessionConflict
+                        ? colors.textSecondary
+                        : colors.error,
                   ),
                 ),
               ],
@@ -272,10 +302,10 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
   }
 
   TextStyle _sectionTitleStyle(BuildContext context) => GoogleFonts.nunito(
-        fontSize: 18,
-        fontWeight: FontWeight.w800,
-        color: context.fmColors.textPrimary,
-      );
+    fontSize: 18,
+    fontWeight: FontWeight.w800,
+    color: context.fmColors.textPrimary,
+  );
 }
 
 class _InviteCard extends StatelessWidget {
@@ -314,9 +344,23 @@ class _InviteCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Text('Invite code:', style: GoogleFonts.nunito(fontSize: 14, color: colors.textSecondary)),
+                    Text(
+                      'Invite code:',
+                      style: GoogleFonts.nunito(
+                        fontSize: 14,
+                        color: colors.textSecondary,
+                      ),
+                    ),
                     const SizedBox(height: 4),
-                    SelectableText(inviteCode, style: GoogleFonts.nunito(fontSize: 34, fontWeight: FontWeight.w800, color: colors.textPrimary, letterSpacing: 2)),
+                    SelectableText(
+                      inviteCode,
+                      style: GoogleFonts.nunito(
+                        fontSize: 34,
+                        fontWeight: FontWeight.w800,
+                        color: colors.textPrimary,
+                        letterSpacing: 2,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -337,14 +381,25 @@ class _InviteCard extends StatelessWidget {
           const SizedBox(height: 10),
           Row(
             children: <Widget>[
-              Text('Partner:', style: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+              Text(
+                'Partner:',
+                style: GoogleFonts.nunito(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: colors.textPrimary,
+                ),
+              ),
               const SizedBox(width: 4),
               if (hasPartner)
                 Flexible(
                   child: Text(
                     partnerLabel,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w700, color: colors.textPrimary),
+                    style: GoogleFonts.nunito(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: colors.textPrimary,
+                    ),
                   ),
                 )
               else
@@ -361,30 +416,34 @@ class _InviteCard extends StatelessWidget {
             const SizedBox(height: 16),
             Row(
               children: <Widget>[
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: onReset,
-                  style: OutlinedButton.styleFrom(
-                    backgroundColor: colors.buttonSecondaryBackground,
-                    foregroundColor: colors.buttonSecondaryText,
-                    side: BorderSide(color: colors.borderStrong),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: onReset,
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: colors.buttonSecondaryBackground,
+                      foregroundColor: colors.buttonSecondaryText,
+                      side: BorderSide(color: colors.borderStrong),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(36),
+                      ),
+                    ),
+                    child: const Text('Reset'),
                   ),
-                  child: const Text('Reset'),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: onLeave,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colors.buttonPrimaryBackground,
-                    foregroundColor: colors.buttonPrimaryText,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: onLeave,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: colors.buttonPrimaryBackground,
+                      foregroundColor: colors.buttonPrimaryText,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(36),
+                      ),
+                    ),
+                    child: const Text('Leave'),
                   ),
-                  child: const Text('Leave'),
                 ),
-              ),
               ],
             ),
           ],
@@ -410,6 +469,11 @@ class _CodeInput extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final FoodMatchThemeColors colors = context.fmColors;
+    final String code = controller.text;
+    final int rawOffset = controller.selection.baseOffset;
+    final int activeSlot = rawOffset < 0
+        ? (code.length >= 6 ? 5 : code.length)
+        : rawOffset.clamp(0, 5).toInt();
     return GestureDetector(
       onTap: focusNode.requestFocus,
       child: Stack(
@@ -421,8 +485,9 @@ class _CodeInput extends StatelessWidget {
               focusNode: focusNode,
               maxLength: 6,
               keyboardType: TextInputType.text,
+              textCapitalization: TextCapitalization.characters,
               inputFormatters: <TextInputFormatter>[
-                FilteringTextInputFormatter.allow(RegExp('[a-zA-Z0-9]')),
+                const _UppercaseInviteCodeFormatter(),
                 LengthLimitingTextInputFormatter(6),
               ],
             ),
@@ -431,20 +496,28 @@ class _CodeInput extends StatelessWidget {
             children: <Widget>[
               for (int i = 0; i < 6; i += 1) ...<Widget>[
                 Expanded(
-                  child: Container(
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 140),
                     height: 48,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: colors.inputBackground,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: colors.inputBorder),
+                      border: Border.all(
+                        color: focusNode.hasFocus && i == activeSlot
+                            ? colors.primary
+                            : colors.inputBorder,
+                        width: focusNode.hasFocus && i == activeSlot ? 2 : 1,
+                      ),
                     ),
                     child: Text(
                       i < code.length ? code[i] : '0',
                       style: GoogleFonts.nunito(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
-                        color: i < code.length ? colors.textPrimary : colors.textMuted,
+                        color: i < code.length
+                            ? colors.textPrimary
+                            : colors.textMuted,
                       ),
                     ),
                   ),
@@ -457,10 +530,9 @@ class _CodeInput extends StatelessWidget {
                 icon: const Icon(Icons.content_paste_rounded, size: 15),
                 label: const Text('paste'),
               ),
-              ],
-            ),
-          ],
-        
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -486,17 +558,57 @@ class _OrangeButton extends StatelessWidget {
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
           backgroundColor: context.fmColors.buttonPrimaryBackground,
-          disabledBackgroundColor: context.fmColors.buttonPrimaryBackground.withValues(alpha: 0.55),
+          disabledBackgroundColor: context.fmColors.buttonPrimaryBackground
+              .withValues(alpha: 0.55),
           foregroundColor: context.fmColors.buttonPrimaryText,
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(36),
+          ),
         ),
         child: isLoading
-            ? SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: context.fmColors.buttonPrimaryText))
-            : Text(label, style: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.w800)),
+            ? SizedBox(
+                height: 18,
+                width: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: context.fmColors.buttonPrimaryText,
+                ),
+              )
+            : Text(
+                label,
+                style: GoogleFonts.nunito(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
       ),
     );
   }
 }
 
-String _sanitizeCode(String value) => value.replaceAll(RegExp('[^a-zA-Z0-9]'), '').toUpperCase();
+String _sanitizeCode(String value) =>
+    value.replaceAll(RegExp('[^a-zA-Z0-9]'), '').toUpperCase();
+
+class _UppercaseInviteCodeFormatter extends TextInputFormatter {
+  const _UppercaseInviteCodeFormatter();
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final String sanitized = _sanitizeCode(newValue.text);
+    final int removedBeforeCursor = newValue.text
+        .substring(0, newValue.selection.end.clamp(0, newValue.text.length))
+        .replaceAll(RegExp('[a-zA-Z0-9]'), '')
+        .length;
+    final int cursor = (newValue.selection.end - removedBeforeCursor)
+        .clamp(0, sanitized.length)
+        .toInt();
+    return TextEditingValue(
+      text: sanitized,
+      selection: TextSelection.collapsed(offset: cursor),
+    );
+  }
+}

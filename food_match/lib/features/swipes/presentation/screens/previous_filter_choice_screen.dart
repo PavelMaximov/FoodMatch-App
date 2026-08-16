@@ -4,11 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../data/models/user_profile.dart';
 
-enum PreviousChoicePillType {
-  cuisine,
-  mood,
-  exception,
-}
+enum PreviousChoicePillType { cuisine, mood, exception }
 
 class PreviousFilterChoiceScreen extends StatelessWidget {
   const PreviousFilterChoiceScreen({
@@ -156,7 +152,6 @@ String lastUsedLabel(DateTime usedAt) {
   return 'Last used on ${months[usedAt.month - 1]} ${usedAt.day}';
 }
 
-
 class _PresetCard extends StatelessWidget {
   const _PresetCard({required this.preset});
 
@@ -174,16 +169,18 @@ class _PresetCard extends StatelessWidget {
       child: Column(
         children: <Widget>[
           _FilterSection(
-            icon: Icons.room_service_outlined,
-            label: 'Cuisine:',
-            values: preset.cuisines,
+            icon: Icons.restaurant_menu,
+            label: 'Meal format:',
+            values: preset.includeCustomDishesFirst
+                ? const <String>['Your custom dishes']
+                : preset.dishRegisters,
             type: PreviousChoicePillType.cuisine,
           ),
           Divider(height: 1, color: colors.divider),
           _FilterSection(
-            icon: Icons.auto_awesome,
-            label: 'Mood:',
-            values: preset.moods,
+            icon: Icons.room_service_outlined,
+            label: 'Cuisine:',
+            values: preset.cuisines,
             type: PreviousChoicePillType.mood,
           ),
           Divider(height: 1, color: colors.divider),
@@ -279,10 +276,7 @@ String _formatOptionLabel(String value) {
 }
 
 class _PresetChip extends StatelessWidget {
-  const _PresetChip({
-    required this.label,
-    required this.colors,
-  });
+  const _PresetChip({required this.label, required this.colors});
 
   final String label;
   final _PillColors colors;

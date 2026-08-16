@@ -65,7 +65,14 @@ const PHRASE_FALLBACKS: Array<{ tags: ExclusionTag[]; phrases: string[] }> = [
 ];
 
 export function dishMatchesExclusions(dish: unknown, exclusions: string[]): boolean {
-  return getMatchedExclusionReason(dish, exclusions).matched;
+  const normalizedExclusions = exclusions.map((value) => normalizeIngredientKey(value));
+  if (normalizedExclusions.includes('no_spicy')) {
+    const record = dish as Record<string, any>;
+    const spiceLevel = normalizeIngredientText(record?.spiceLevel ?? record?.spice_level ?? record?.rawSourceData?.spice_level ?? '');
+    if (spiceLevel && spiceLevel !== 'none') return true;
+  }
+  // spice_level is authoritative: ingredients must not independently reject it.
+  return getMatchedExclusionReason(dish, exclusions.filter((value) => normalizeIngredientKey(value) !== 'no_spicy')).matched;
 }
 
 export function ingredientMatchesExclusions(ingredientText: string, exclusions: string[]): boolean {

@@ -32,6 +32,10 @@ export interface DishDocument extends Document {
   cuisine: string;
   type: string;
   mood: string[];
+  dishRegister?: string;
+  dish_register?: string;
+  spiceLevel?: string;
+  spice_level?: string;
   diet: string[];
   ingredients: string[];
   cookTime: number;
@@ -84,6 +88,10 @@ const dishSchema = new Schema<DishDocument>(
     cuisine: { type: String, default: '' },
     type: { type: String, default: '' },
     mood: { type: [String], default: [] },
+    dishRegister: { type: String, default: '' },
+    dish_register: { type: String, default: '' },
+    spiceLevel: { type: String, default: '' },
+    spice_level: { type: String, default: '' },
     diet: { type: [String], default: [] },
     ingredients: { type: [String], default: [] },
     cookTime: { type: Number, default: 0 },

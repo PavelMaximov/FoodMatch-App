@@ -6,6 +6,8 @@ export const joinCoupleSchema = z.object({
 }).strict();
 
 const coupleFilterChoicesSchema = z.object({
+  includeCustomDishesFirst: z.boolean().optional(),
+  dishRegisters: z.array(z.string().trim().max(80)).max(4).optional(),
   cuisines: z.array(z.string().trim().max(80)).max(50).optional(),
   moods: z.array(z.string().trim().max(80)).max(50).optional(),
   diet: z.array(z.string().trim().max(80)).max(50).optional(),

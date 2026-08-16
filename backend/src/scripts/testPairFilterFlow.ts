@@ -8,6 +8,7 @@ function assert(condition: unknown, message: string) {
 }
 
 const direct = normalizeCoupleFilterStatePayload({
+  includeCustomDishesFirst: true,
   cuisines: ['American', ' eastern eu ', 'German', 'american'],
   moods: ['Comfort'],
   diet: [],
@@ -16,6 +17,8 @@ const direct = normalizeCoupleFilterStatePayload({
 assert(JSON.stringify(direct.cuisines) === JSON.stringify(['american', 'eastern eu', 'german']), 'Direct payload should preserve normalized cuisines.');
 assert(JSON.stringify(direct.moods) === JSON.stringify(['comfort']), 'Direct payload should preserve normalized moods.');
 assert(JSON.stringify(direct.exclusions) === JSON.stringify(['no_nuts']), 'Direct payload should preserve normalized exclusions.');
+assert(direct.includeCustomDishesFirst === true, 'Custom-first preference should be normalized separately from dishRegisters.');
+assert(updateCoupleFilterStateSchema.safeParse({ includeCustomDishesFirst: true, dishRegisters: [] }).success, 'Schema should accept custom-first without a fake custom_dishes register.');
 
 const nested = normalizeCoupleFilterStatePayload({
   choices: {
@@ -55,6 +58,8 @@ const swipesScreen = readFileSync('../food_match/lib/features/swipes/presentatio
 const swipeProvider = readFileSync('../food_match/lib/features/swipes/logic/swipe_provider.dart', 'utf8');
 assert(preSwipeProvider.includes('prepareCanonicalPairDeck'), 'Pair flow should use canonical-only backend deck preparation.');
 assert(preSwipeScreen.includes('Could not load the shared deck. Please try again.'), 'Pair prepare errors should show a safe retry/error state.');
+assert(preSwipeScreen.includes('_WaitingOrigin.previousChoice'), 'Waiting Back should preserve the PreviousFilterChoiceScreen origin.');
+assert(preSwipeScreen.includes("title: 'No custom dishes yet'"), 'Disabled custom dishes should explain why they are unavailable.');
 assert(!preSwipeScreen.includes('Could not prepare shared deck. Using local fallback for now.'), 'Pair screen must not expose local fallback copy.');
 assert(swipesScreen.includes('pair_deck_error_retry'), 'Pair deck error retry should use canonical Pair deck loading.');
 assert(swipesScreen.includes('canonical load retry attempt'), 'Pair deck loading should retry transient empty/not-ready states before showing final error.');

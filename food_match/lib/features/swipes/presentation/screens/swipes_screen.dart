@@ -7,7 +7,6 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../core/animations/app_motion.dart';
 import '../../../../core/navigation/app_flow_coordinator.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/theme/app_dimensions.dart';
@@ -331,7 +330,9 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     context.read<PreSwipeProvider>().clearDraft();
   }
 
-  Future<void> _loadCanonicalPairDeckAndShowSwipe({required String reason}) async {
+  Future<void> _loadCanonicalPairDeckAndShowSwipe({
+    required String reason,
+  }) async {
     if (_isPairDeckReadyLoading || !mounted) {
       return;
     }
@@ -339,12 +340,17 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     if (swipeProvider.isSoloMode) {
       return;
     }
+    if (reason == 'pair_deck_error_retry') {
+      _pairDeckReadyAutoLoadEnabled = true;
+    }
     _isPairDeckReadyLoading = true;
     _lastPairDeckReadyLoadAttemptAt = DateTime.now();
     swipeProvider.clearDeckError(notify: false);
     setState(() {});
     final CoupleProvider coupleProvider = context.read<CoupleProvider>();
-    debugPrint('[PairFlow] both filters confirmed session=${coupleProvider.currentCouple?.id ?? 'none'} generation=${coupleProvider.currentCouple?.lifecycleGeneration ?? 0}');
+    debugPrint(
+      '[PairFlow] both filters confirmed session=${coupleProvider.currentCouple?.id ?? 'none'} generation=${coupleProvider.currentCouple?.lifecycleGeneration ?? 0}',
+    );
     try {
       _clearStalePairDeckSetupState(reason: reason);
       swipeProvider.clearPreparedDeck();
@@ -353,41 +359,98 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
         Duration(milliseconds: 700),
         Duration(milliseconds: 1200),
         Duration(milliseconds: 2000),
+        Duration(milliseconds: 3000),
+        Duration(milliseconds: 4000),
+        Duration(milliseconds: 5000),
       ];
+      Object? lastError;
       for (int attempt = 0; attempt < retryDelays.length; attempt++) {
         if (retryDelays[attempt] > Duration.zero) {
-          debugPrint('[PairDeck] canonical load retry attempt=$attempt reason=$reason');
+          debugPrint(
+            '[PairDeck] canonical load retry attempt=$attempt reason=$reason',
+          );
           await Future<void>.delayed(retryDelays[attempt]);
         }
         if (!mounted) {
           return;
         }
-        final bool loaded = await swipeProvider.loadExistingPreparedDeck(force: true);
+        bool loaded = false;
+        try {
+          final PreparedPoolResult result = await context
+              .read<PreSwipeProvider>()
+              .prepareCanonicalPairDeck();
+          if (!mounted) return;
+          debugPrint(
+            '[PairDeck] POST prepare result attempt=${attempt + 1} '
+            'source=$reason dishes=${result.dishes.length}',
+          );
+          if (result.dishes.isNotEmpty) {
+            swipeProvider.applyPreparedDeck(
+              result.dishes,
+              preparedDeckMeta: result.preparedDeckMeta,
+            );
+            loaded = true;
+          } else {
+            debugPrint(
+              '[PairDeck] retry reason=prepare_not_ready attempt=${attempt + 1}',
+            );
+          }
+        } catch (error) {
+          lastError = error;
+          debugPrint(
+            '[PairDeck] prepare attempt=${attempt + 1} source=$reason '
+            'retryReason=$error',
+          );
+          // A competing client may hold the prepare lock. GET is diagnostic and
+          // can recover immediately if that client completed between calls.
+          loaded = await swipeProvider.loadExistingPreparedDeck(force: true);
+          debugPrint(
+            '[PairDeck] GET deck result attempt=${attempt + 1} '
+            'dishes=${swipeProvider.deck.length}',
+          );
+        }
         if (!mounted) {
           return;
         }
         if (loaded && swipeProvider.deck.isNotEmpty) {
           final PreparedDeckMeta? meta = swipeProvider.preparedDeckMeta;
-          final Object generation = meta?.filtersHash ?? coupleProvider.currentCouple?.lifecycleGeneration ?? 0;
-          debugPrint('[PairDeck] ready session=${coupleProvider.currentCouple?.id ?? 'none'} generation=$generation size=${swipeProvider.deck.length}');
-          debugPrint('[PairDeck] canonical deck loaded session=${coupleProvider.currentCouple?.id ?? 'none'} generation=$generation size=${swipeProvider.deck.length}');
+          final Object generation =
+              meta?.filtersHash ??
+              coupleProvider.currentCouple?.lifecycleGeneration ??
+              0;
+          debugPrint(
+            '[PairDeck] ready session=${coupleProvider.currentCouple?.id ?? 'none'} generation=$generation size=${swipeProvider.deck.length}',
+          );
+          debugPrint(
+            '[PairDeck] canonical deck loaded session=${coupleProvider.currentCouple?.id ?? 'none'} generation=$generation size=${swipeProvider.deck.length}',
+          );
           debugPrint('[AppFlow] pair deck ready -> Swipe');
           _resetSwipeStackController();
           _startPairLifecyclePolling();
           _startPairMatchPolling();
-          Navigator.of(context).popUntil((Route<dynamic> route) => route.isFirst);
+          Navigator.of(
+            context,
+          ).popUntil((Route<dynamic> route) => route.isFirst);
           setState(() {});
           return;
         }
       }
-      debugPrint('[PairDeck] canonical load exhausted retries reason=$reason');
-      swipeProvider.setDeckError('Could not load the shared deck. Please try again.');
+      debugPrint(
+        '[PairDeck] canonical acquisition terminal failure reason=$reason '
+        'lastError=$lastError',
+      );
+      _pairDeckReadyAutoLoadEnabled = false;
+      swipeProvider.setDeckError(
+        'Could not load the shared deck. Please try again.',
+      );
     } finally {
       _isPairDeckReadyLoading = false;
       if (mounted) {
         setState(() {});
         Future<void>.delayed(const Duration(seconds: 2), () {
-          if (mounted && _pairDeckReadyAutoLoadEnabled && context.read<SwipeProvider>().deck.isEmpty) {
+          if (mounted &&
+              _pairDeckReadyAutoLoadEnabled &&
+              context.read<SwipeProvider>().deck.isEmpty) {
             setState(() {});
           }
         });
@@ -602,6 +665,68 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       const SnackBar(content: Text('Your invitation was sent.')),
     );
     setState(() {});
+  }
+
+  Widget _buildContinuationInviteWaiting(CoupleProvider coupleProvider) {
+    return ColoredBox(
+      color: context.fmColors.background,
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+          child: Column(
+            children: <Widget>[
+              const Spacer(),
+              Image.asset(
+                'assets/media/Waiting_for_partner.png',
+                height: 240,
+                fit: BoxFit.contain,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Waiting for your partner',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.fredoka(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 34,
+                  color: context.fmColors.textPrimary,
+                  height: 1.12,
+                ),
+              ),
+              const SizedBox(height: 14),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 340),
+                child: Text(
+                  'Your partner needs to confirm using the previous choices.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.nunito(
+                    fontSize: 16,
+                    color: context.fmColors.textSecondary,
+                    height: 1.38,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const FoodMatchLoader(size: 144),
+              const SizedBox(height: 6),
+              TextButton(
+                onPressed: () {
+                  final invitation = coupleProvider.outgoingContinuationInvite;
+                  if (invitation != null) {
+                    coupleProvider.hideInvitationLocally(invitation);
+                  }
+                  setState(() {
+                    _sessionResumeChoiceType = _SessionResumeChoiceType.paired;
+                    _pairDeckReadyAutoLoadEnabled = false;
+                  });
+                },
+                child: const Text('Back to previous choice'),
+              ),
+              const Spacer(flex: 2),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _confirmPairFilterChange() async {
@@ -1470,6 +1595,34 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                       });
                     }
 
+                    if (inviteCoupleProvider.shouldAcquireDeckAfterContinuationInvite &&
+                        !_isOpeningPreSwipe &&
+                        !_isPairDeckReadyLoading) {
+                      final int versionAtSchedule = context.read<AuthProvider>().authBoundaryVersion;
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (!mounted || context.read<AuthProvider>().authBoundaryVersion != versionAtSchedule) {
+                          return;
+                        }
+                        final CoupleProvider coupleProvider = context.read<CoupleProvider>();
+                        final PairContinuationFlowOrigin origin =
+                            coupleProvider.consumeContinuationDeckAcquisition();
+                        if (origin == PairContinuationFlowOrigin.none) return;
+                        debugPrint('[PairInvitation] canonical convergence origin=${origin.name}');
+                        _sessionResumeChoiceType = null;
+                        _showPairConnectionStep = false;
+                        _suppressPreviousChoiceAutoOpen = true;
+                        _pairDeckReadyAutoLoadEnabled = true;
+                        provider.setPairedMode();
+                        setState(() {});
+                        unawaited(
+                          _loadCanonicalPairDeckAndShowSwipe(
+                            reason: 'continuation_invite_${origin.name}',
+                          ),
+                        );
+                      });
+                      return const ShimmerCard();
+                    }
+
                     if (_isLoadingInitialSession) {
                       return const ShimmerCard();
                     }
@@ -1479,6 +1632,11 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                         message: _initialSessionError!,
                         onRetry: _loadExistingBackendDeckOrStart,
                       );
+                    }
+
+                    final outgoingInvite = inviteCoupleProvider.outgoingContinuationInvite;
+                    if (outgoingInvite != null && outgoingInvite.isPending && !provider.isSoloMode) {
+                      return _buildContinuationInviteWaiting(inviteCoupleProvider);
                     }
 
                     final bool shouldLoadCanonicalPairDeck =
@@ -1587,47 +1745,6 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                             unawaited(_confirmPairFilterChange());
                           }
                         },
-                      );
-                    }
-
-                    final outgoingInvite = context.watch<CoupleProvider>().outgoingContinuationInvite;
-                    if (outgoingInvite != null && outgoingInvite.isPending && !provider.isSoloMode) {
-                      return Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(32),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: <Widget>[
-                              const Icon(Icons.hourglass_empty, size: 80),
-                              const SizedBox(height: 16),
-                              const Text('Waiting for partner', textAlign: TextAlign.center),
-                              const SizedBox(height: 8),
-                              const Text(
-                                'Your partner needs to choose their filters before the shared deck can be prepared.',
-                                textAlign: TextAlign.center,
-                              ),
-                              const SizedBox(height: 24),
-                              ElevatedButton(
-                                onPressed: () async {
-                                  final CoupleProvider coupleProvider = context.read<CoupleProvider>();
-                                  final SwipeProvider swipeProvider = context.read<SwipeProvider>();
-                                  await coupleProvider.loadCouple(force: true);
-                                  await coupleProvider.refreshInvitations();
-                                  if (!mounted) return;
-                                  if (!coupleProvider.hasCouple) {
-                                    swipeProvider.resetToModeSelection();
-                                  }
-                                  setState(() {});
-                                },
-                                child: const Text('Refresh'),
-                              ),
-                              TextButton(
-                                onPressed: () => _clearActiveSessionAndShowModeSelection(_SessionResumeChoiceType.paired),
-                                child: const Text('Start new session'),
-                              ),
-                            ],
-                          ),
-                        ),
                       );
                     }
 

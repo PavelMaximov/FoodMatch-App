@@ -11,6 +11,10 @@ export const DISH_DTO_SELECT = [
   'type',
   'tags',
   'mood',
+  'dishRegister',
+  'dish_register',
+  'spiceLevel',
+  'spice_level',
   'diet',
   'ingredients',
   'ingredientCount',
@@ -60,6 +64,8 @@ export interface DishDto {
   type: string;
   tags: string[];
   mood: string[];
+  dishRegister: string;
+  spiceLevel: string;
   diet: string[];
   ingredients: string[];
   ingredientCount: number;
@@ -75,6 +81,7 @@ export interface DishDto {
   popular: boolean;
   steps: Array<{ step: number; text: string }>;
   ingredientSections?: IngredientSectionDto[];
+  isCustom: boolean;
 }
 
 export interface IngredientSectionDto {
@@ -119,6 +126,8 @@ export function toDishDto(dish: any): DishDto | null {
     type: asString(raw.type),
     tags: readTags(raw.tags),
     mood: asStringList(raw.mood),
+    dishRegister: firstString(raw.dishRegister, raw.dish_register, raw.rawSourceData?.dish_register),
+    spiceLevel: firstString(raw.spiceLevel, raw.spice_level, raw.rawSourceData?.spice_level),
     diet: asStringList(raw.diet),
     ingredients,
     ingredientCount: firstNumber(raw.ingredientCount, ingredients.length),
@@ -133,7 +142,10 @@ export function toDishDto(dish: any): DishDto | null {
     season: asStringList(raw.season),
     popular: typeof raw.popular === 'boolean' ? raw.popular : false,
     steps: readSteps(raw),
-    ingredientSections: readIngredientSections(raw)
+    ingredientSections: readIngredientSections(raw),
+    // Older user-created records predate the isCustom flag but always carry
+    // sourceType=custom. Keep the API and custom-first eligibility aligned.
+    isCustom: raw.isCustom === true || raw.sourceType === 'custom'
   };
 }
 
