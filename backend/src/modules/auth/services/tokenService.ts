@@ -22,7 +22,7 @@ export function hashToken(rawToken: string): string {
 export class TokenService {
   signAccessToken(user: UserDocument): string {
     return jwt.sign({ userId: user.id, sub: user.id, email: user.email }, env.JWT_SECRET, {
-      expiresIn: (env.JWT_ACCESS_EXPIRES_IN || env.JWT_EXPIRES_IN || '15m') as any
+      expiresIn: (env.JWT_ACCESS_EXPIRES_IN || env.JWT_EXPIRES_IN || '30d') as any
     });
   }
 

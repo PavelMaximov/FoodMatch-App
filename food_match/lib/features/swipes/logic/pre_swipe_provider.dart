@@ -321,7 +321,6 @@ class PreSwipeProvider extends ChangeNotifier {
       config: config,
       profile: profile,
       now: DateTime.now(),
-      seed: _fallbackSeed(coupleProvider, config),
     );
     messages.addAll(attempt.messages);
 
@@ -613,7 +612,6 @@ class PreSwipeProvider extends ChangeNotifier {
     required FilterConfig config,
     required UserProfile profile,
     required DateTime now,
-    required String seed,
   }) {
     final List<String> messages = <String>[];
 
@@ -623,7 +621,6 @@ class PreSwipeProvider extends ChangeNotifier {
       config: config,
       profile: profile,
       now: now,
-      seed: '$seed:strict',
     );
     if (pool.length >= 5) {
       return _DeckAttempt(
@@ -645,7 +642,6 @@ class PreSwipeProvider extends ChangeNotifier {
       config: neutralMoodConfig,
       profile: profile,
       now: now,
-      seed: '$seed:neutralMood',
     );
     messages.add('Widened mood filter to find more options');
     if (pool.length >= 5) {
@@ -669,7 +665,6 @@ class PreSwipeProvider extends ChangeNotifier {
       config: noCuisineConfig,
       profile: profile,
       now: now,
-      seed: '$seed:noCuisine',
     );
     messages.add('Added dishes from other cuisines');
     if (pool.length >= 5) {
@@ -693,7 +688,6 @@ class PreSwipeProvider extends ChangeNotifier {
       config: dietOnlyConfig,
       profile: profile,
       now: now,
-      seed: '$seed:dietOnly',
     );
     messages.add('Removed some restrictions to fill your deck');
     if (pool.length >= 5) {
@@ -705,7 +699,7 @@ class PreSwipeProvider extends ChangeNotifier {
     }
 
     final List<Dish> popular = _scoringService.fallbackPopular(all);
-    final List<ScoredDish> popularPicked = _shuffleScoredByScoreBucket(
+    final List<ScoredDish> popularPicked = _sortScoredDeterministically(
       popular
           .map(
             (Dish dish) => ScoredDish(
@@ -720,7 +714,6 @@ class PreSwipeProvider extends ChangeNotifier {
             ),
           )
           .toList(),
-      '$seed:popular',
     );
     messages.add('Showing popular dishes — filters were too narrow');
     return _DeckAttempt(
@@ -735,7 +728,6 @@ class PreSwipeProvider extends ChangeNotifier {
     required FilterConfig config,
     required UserProfile profile,
     required DateTime now,
-    required String seed,
   }) {
     final List<ScoredDish> scored = _scoringService.scoreDishes(
       dishes: pool,
@@ -743,69 +735,17 @@ class PreSwipeProvider extends ChangeNotifier {
       profile: profile,
       now: now,
     );
-    return _shuffleScoredByScoreBucket(scored, seed).take(30).toList();
+    return _sortScoredDeterministically(scored).take(30).toList();
   }
 
-  String _fallbackSeed(CoupleProvider coupleProvider, FilterConfig config) {
-    final String coupleSeed =
-        coupleProvider.currentCouple?.id.trim().isNotEmpty == true
-        ? coupleProvider.currentCouple!.id.trim()
-        : 'solo';
-    return <String>[
-      coupleSeed,
-      _stableList(config.cuisines),
-      _stableList(config.moods),
-      _stableList(config.blocked),
-      _stableList(config.diet),
-    ].join('|');
-  }
-
-  String _stableList(List<String> values) {
-    final List<String> sorted =
-        values.map((String value) => value.trim().toLowerCase()).toList()
-          ..sort();
-    return sorted.join(',');
-  }
-
-  List<ScoredDish> _shuffleScoredByScoreBucket(
-    List<ScoredDish> scored,
-    String seed,
-  ) {
-    final Map<int, List<ScoredDish>> buckets = <int, List<ScoredDish>>{};
-    for (final ScoredDish item in scored) {
-      final int bucket = item.score.round();
-      buckets.putIfAbsent(bucket, () => <ScoredDish>[]).add(item);
-    }
-
-    final List<int> sortedBuckets = buckets.keys.toList()
-      ..sort((int a, int b) => b.compareTo(a));
-    return sortedBuckets.expand((int score) {
-      final List<ScoredDish> stableBucket = List<ScoredDish>.from(
-        buckets[score]!,
-      )..sort((ScoredDish a, ScoredDish b) => a.dish.id.compareTo(b.dish.id));
-      return _seededShuffle(stableBucket, '$seed:$score');
-    }).toList();
-  }
-
-  List<T> _seededShuffle<T>(List<T> items, String seedInput) {
-    final List<T> result = List<T>.from(items);
-    final _SeededRandom random = _SeededRandom(_hashStringToSeed(seedInput));
-    for (int i = result.length - 1; i > 0; i -= 1) {
-      final int j = (random.nextDouble() * (i + 1)).floor();
-      final T temp = result[i];
-      result[i] = result[j];
-      result[j] = temp;
-    }
-    return result;
-  }
-
-  int _hashStringToSeed(String input) {
-    int hash = 2166136261;
-    for (int i = 0; i < input.length; i += 1) {
-      hash ^= input.codeUnitAt(i);
-      hash = (hash * 16777619) & 0xFFFFFFFF;
-    }
-    return hash;
+  List<ScoredDish> _sortScoredDeterministically(List<ScoredDish> scored) {
+    return List<ScoredDish>.from(scored)
+      ..sort((ScoredDish a, ScoredDish b) {
+        final int scoreOrder = b.score.compareTo(a.score);
+        return scoreOrder != 0
+            ? scoreOrder
+            : a.dish.id.compareTo(b.dish.id);
+      });
   }
 
   String _normalizeCuisine(String value) {
@@ -832,22 +772,4 @@ class _DeckAttempt {
   final List<ScoredDish> picked;
   final List<String> messages;
   final bool usedPopularFallback;
-}
-
-class _SeededRandom {
-  _SeededRandom(this._seed);
-
-  int _seed;
-
-  double nextDouble() {
-    _seed = (_seed + 0x6D2B79F5) & 0xFFFFFFFF;
-    int t = _seed;
-    t = _imul(t ^ (t >> 15), t | 1);
-    t ^= t + _imul(t ^ (t >> 7), t | 61);
-    return ((t ^ (t >> 14)) & 0xFFFFFFFF) / 4294967296;
-  }
-
-  int _imul(int a, int b) {
-    return (a * b) & 0xFFFFFFFF;
-  }
 }

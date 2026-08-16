@@ -27,6 +27,22 @@ class SafeDishImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final Widget assetFallback = FoodMatchEmptyStateImage(
+      assetPath: emptyImageAsset ?? '',
+      width: width,
+      height: height,
+      fit: fit,
+      fallback: SafeNetworkImage(
+        imageUrl: null,
+        usage: usage,
+        fit: fit,
+        width: width,
+        height: height,
+        backgroundColor: context.fmColors.imageFallbackBackground,
+        placeholderIcon: Icons.restaurant_menu,
+        errorIcon: Icons.restaurant_menu,
+      ),
+    );
     final Widget networkImage = SafeNetworkImage(
       imageUrl: imageUrl,
       usage: usage,
@@ -37,16 +53,11 @@ class SafeDishImage extends StatelessWidget {
       backgroundColor: context.fmColors.imageFallbackBackground,
       placeholderIcon: Icons.restaurant_menu,
       errorIcon: Icons.restaurant_menu,
+      errorFallback: emptyImageAsset == null ? null : assetFallback,
     );
     if ((imageUrl?.trim().isNotEmpty ?? false) || emptyImageAsset == null) {
       return networkImage;
     }
-    return FoodMatchEmptyStateImage(
-      assetPath: emptyImageAsset!,
-      width: width,
-      height: height,
-      fit: fit,
-      fallback: networkImage,
-    );
+    return assetFallback;
   }
 }

@@ -6,6 +6,7 @@ import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
 import 'core/widgets/app_pending_overlay.dart';
+import 'core/utils/logger.dart';
 import 'features/auth/logic/auth_provider.dart';
 import 'features/couple/logic/couple_provider.dart';
 import 'features/onboarding/data/onboarding_storage.dart';
@@ -60,6 +61,12 @@ class _FoodMatchAppState extends State<FoodMatchApp>
 
       final auth = context.read<AuthProvider>();
       await auth.loadUser();
+      AppLogger.info(
+        '[Startup] authResolved user=${auth.currentUser?.id ?? 'none'}',
+      );
+      if (!auth.isAuthenticated) {
+        AppLogger.info('[Startup] outcome=login reason=not_authenticated');
+      }
       if (auth.isAuthenticated && mounted) {
         final CoupleProvider coupleProvider = context.read<CoupleProvider>();
         await coupleProvider.loadCouple();

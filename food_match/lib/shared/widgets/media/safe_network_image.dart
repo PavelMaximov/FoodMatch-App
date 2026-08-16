@@ -15,6 +15,7 @@ class SafeNetworkImage extends StatelessWidget {
     this.errorIcon = Icons.image_not_supported_outlined,
     this.backgroundColor,
     this.borderRadius,
+    this.errorFallback,
     super.key,
   });
 
@@ -27,15 +28,23 @@ class SafeNetworkImage extends StatelessWidget {
   final IconData errorIcon;
   final Color? backgroundColor;
   final BorderRadius? borderRadius;
+  final Widget? errorFallback;
 
   @override
   Widget build(BuildContext context) {
     final String optimizedUrl = ImageUtils.getImageUrl(imageUrl, usage: usage);
     final Uri? uri = Uri.tryParse(optimizedUrl);
-    final bool canLoadNetworkImage = uri != null && uri.hasScheme && uri.host.isNotEmpty;
+    final bool canLoadNetworkImage =
+        uri != null && uri.hasScheme && uri.host.isNotEmpty;
 
     final Widget image = optimizedUrl.isEmpty || !canLoadNetworkImage
-        ? _FallbackImage(width: width, height: height, icon: placeholderIcon, backgroundColor: backgroundColor)
+        ? errorFallback ??
+            _FallbackImage(
+              width: width,
+              height: height,
+              icon: placeholderIcon,
+              backgroundColor: backgroundColor,
+            )
         : CachedNetworkImage(
             imageUrl: optimizedUrl,
             fit: fit,
@@ -49,12 +58,14 @@ class SafeNetworkImage extends StatelessWidget {
               backgroundColor: backgroundColor,
               showLoader: true,
             ),
-            errorWidget: (_, __, ___) => _FallbackImage(
-              width: width,
-              height: height,
-              icon: errorIcon,
-              backgroundColor: backgroundColor,
-            ),
+            errorWidget: (_, __, ___) =>
+                errorFallback ??
+                _FallbackImage(
+                  width: width,
+                  height: height,
+                  icon: errorIcon,
+                  backgroundColor: backgroundColor,
+                ),
           );
 
     final BorderRadius? radius = borderRadius;
@@ -64,7 +75,13 @@ class SafeNetworkImage extends StatelessWidget {
 }
 
 class _FallbackImage extends StatelessWidget {
-  const _FallbackImage({required this.icon, this.width, this.height, this.backgroundColor, this.showLoader = false});
+  const _FallbackImage({
+    required this.icon,
+    this.width,
+    this.height,
+    this.backgroundColor,
+    this.showLoader = false,
+  });
 
   final double? width;
   final double? height;
@@ -83,7 +100,10 @@ class _FallbackImage extends StatelessWidget {
             ? SizedBox(
                 width: 22,
                 height: 22,
-                child: CircularProgressIndicator(strokeWidth: 2, color: context.fmColors.primary),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: context.fmColors.primary,
+                ),
               )
             : Icon(icon, color: context.fmColors.textMuted, size: 40),
       ),

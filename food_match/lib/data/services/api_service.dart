@@ -486,9 +486,15 @@ class ApiService {
       final response = await _client.post(uri, headers: _getHeaders(withAuth: false), body: jsonEncode({'refreshToken': refreshToken})).timeout(_timeout);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         AppLogger.info('[AuthRefresh] refresh failed status=${response.statusCode} message=${_extractErrorMessage(response)}');
-        await clearTokens();
-        _notifyUnauthorized();
-        return false;
+        if (response.statusCode == 401 || response.statusCode == 403) {
+          await clearTokens();
+          _notifyUnauthorized();
+          return false;
+        }
+        throw ApiException(
+          _extractErrorMessage(response),
+          statusCode: response.statusCode,
+        );
       }
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final accessToken = (data['accessToken'] ?? data['token']) as String?;
@@ -498,15 +504,12 @@ class ApiService {
       AppLogger.info('[AuthRefresh] refresh success');
       return true;
     } catch (e) {
-      AppLogger.info('[AuthRefresh] refresh failed: session expired');
-      await clearTokens();
-      _notifyUnauthorized();
-      return false;
+      AppLogger.info('[AuthRefresh] transient failure; tokens retained error=$e');
+      rethrow;
     }
   }
 
   void _notifyUnauthorized() {
-    unawaited(clearTokens());
     if (_handlingUnauthorized) return;
     final Future<void> Function()? handler = onUnauthorized;
     if (handler == null) return;

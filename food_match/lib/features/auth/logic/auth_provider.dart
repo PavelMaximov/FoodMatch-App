@@ -128,6 +128,10 @@ class AuthProvider extends ChangeNotifier {
     try {
       await _apiService.loadToken();
       final String? loadedToken = _apiService.token;
+      if (loadedToken != null && loadedToken.isNotEmpty) {
+        token = loadedToken;
+        AppLogger.info('[Auth] token present');
+      }
 
       if (loadedToken == null || loadedToken.isEmpty) {
         final bool refreshed = await _apiService.refreshTokens();
@@ -168,10 +172,14 @@ class AuthProvider extends ChangeNotifier {
         AppLogger.info('Token invalid (401), clearing session');
         await handleSessionExpired();
       } else {
+        AppLogger.info(
+          '[Auth] retained session reason=${e.statusCode != null && e.statusCode! >= 500 ? 'server_error' : 'request_error'}',
+        );
         error = _mapError(e);
       }
     } catch (e) {
       AppLogger.error('loadUser failed', e);
+      AppLogger.info('[Auth] retained session reason=network_error');
       error = _mapError(e);
     } finally {
       isLoading = false;
@@ -225,6 +233,7 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      AppLogger.info('[Auth] token clear reason=explicit_logout');
       await _notifyPairDisconnectBeforeLogout();
       final String? refreshToken = await _apiService.getRefreshToken();
       await _repository.logout(refreshToken: refreshToken);

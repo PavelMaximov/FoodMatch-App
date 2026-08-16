@@ -73,7 +73,12 @@ export class CoupleService {
   async createSession(userId: string) {
     const active = await this.getMyActiveSession(userId);
     const activeSolo = await SoloSwipeSessionModel.exists({ userId: new Types.ObjectId(userId), status: 'active' });
-    if (active || activeSolo) throw new AppError('You already have an active swipe session.', 409, 'ACTIVE_SESSION_EXISTS');
+    if (activeSolo) {
+      console.info(`[CoupleJoin] blocked reason=ACTIVE_SOLO_SESSION_EXISTS session=${activeSolo._id}`);
+      throw new AppError('Please finish or leave your solo session before starting a pair session.', 409, 'ACTIVE_SOLO_SESSION_EXISTS');
+    }
+    console.info(`[CoupleJoin] no active solo blocker user=${userId}`);
+    if (active) throw new AppError('You already have an active swipe session.', 409, 'ACTIVE_SESSION_EXISTS');
 
     const inviteCode = await this.generateUniqueInviteCode();
     await CoupleSessionModel.create({
@@ -103,8 +108,10 @@ export class CoupleService {
 
     const activeSolo = await SoloSwipeSessionModel.exists({ userId: new Types.ObjectId(userId), status: 'active' });
     if (activeSolo) {
+      console.info(`[CoupleJoin] blocked reason=ACTIVE_SOLO_SESSION_EXISTS session=${activeSolo._id}`);
       throw new AppError('Please finish or leave your solo session before joining a pair session.', 409, 'ACTIVE_SOLO_SESSION_EXISTS');
     }
+    console.info(`[CoupleJoin] no active solo blocker user=${userId}`);
 
     const active = await CoupleSessionModel.findOne({ members: new Types.ObjectId(userId), status: 'active' }).sort({ updatedAt: -1, createdAt: -1 });
     if (active) {

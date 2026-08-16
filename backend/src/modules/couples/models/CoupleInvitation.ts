@@ -36,5 +36,7 @@ const coupleInvitationSchema = new Schema<CoupleInvitationDocument>(
 );
 
 coupleInvitationSchema.index({ fromUserId: 1, toUserId: 1, pairKey: 1, status: 1 });
+coupleInvitationSchema.index({ toUserId: 1, status: 1, updatedAt: -1 });
+coupleInvitationSchema.index({ fromUserId: 1, status: 1, updatedAt: -1 });
 
 export const CoupleInvitationModel = model<CoupleInvitationDocument>('CoupleInvitation', coupleInvitationSchema);

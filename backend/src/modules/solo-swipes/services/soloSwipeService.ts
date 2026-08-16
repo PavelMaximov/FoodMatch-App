@@ -1,5 +1,4 @@
 import { FilterQuery, Types } from 'mongoose';
-import crypto from 'crypto';
 import { AppError } from '../../../core/errors/AppError';
 import { CoupleSessionModel } from '../../couples/models/CoupleSession';
 import { DishDocument, DishModel } from '../../dishes/models/Dish';
@@ -46,7 +45,19 @@ export class SoloSwipeService {
   await session.save();
   return this.toDeck(session, result.dishes, result.meta);
  }
- async abandonActive(userId:string){ const session = await SoloSwipeSessionModel.findOne({userId:new Types.ObjectId(userId),status:'active'}); if(!session) return { abandoned:false }; session.status='abandoned'; session.lastActivityAt=new Date(); await session.save(); return { abandoned:true, sessionId: session.id }; }
+ async abandonActive(userId:string){
+  console.info(`[SoloSession] abandon active requested user=${userId}`);
+  const session = await SoloSwipeSessionModel.findOne({userId:new Types.ObjectId(userId),status:'active'});
+  if(!session) {
+   console.info(`[SoloSession] no active session user=${userId}`);
+   return { ok:true, abandoned:false, sessionId:null };
+  }
+  session.status='abandoned';
+  session.lastActivityAt=new Date();
+  await session.save();
+  console.info(`[SoloSession] active abandoned session=${session.id}`);
+  return { ok:true, abandoned:true, sessionId:session.id };
+ }
  async swipe(userId:string, sessionId:string, dishId:string, direction:'like'|'dislike'){
   const session = await this.requireSession(userId, sessionId); const dish = await resolveDishByAnyId(dishId); if(!dish) throw new AppError('This dish is not available.',404);
   const currentId = session.deckDishIds[session.deckIndex]?.toString(); if(!currentId || currentId !== (dish._id as Types.ObjectId).toString()) throw new AppError('Dish is not current in this solo session.',409,'DISH_NOT_CURRENT');
@@ -84,16 +95,17 @@ export class SoloSwipeService {
   const query:FilterQuery<DishDocument>={$or:[{visibility:'public',status:'approved'},{$and:[{$or:[{isCustom:true},{sourceType:'custom'}]},{status:'approved',createdBy:new Types.ObjectId(userId)}]}]};
   const [all, history] = await Promise.all([DishModel.find(query).select(DISH_DTO_SELECT), this.loadUserHistory(userId)]);
   const result = buildRecommendedDeck({ userId, dishes: all, filters: filter, userHistory: history, recentlySeenDishIds, excludedDishIds: excludeDishIds, deckSize: MAX_DECK_SIZE, mode: 'solo' });
-  const shuffledTail = shuffleWithinScoreBands(result.dishes, crypto.randomUUID());
-  if (!filter.includeCustomDishesFirst) return { ...result, dishes: shuffledTail };
-  const custom = all.filter((dish) => isUsableOwnedCustomDish(dish, userId) && !excludeDishIds.has(dish._id.toString()) && !dishMatchesExclusions(dish, filter.exclusions) && matchesCustomDiet(dish, filter.diet)).sort((a,b) => b.createdAt.getTime() - a.createdAt.getTime());
+  const scoredTail = result.dishes;
+  if (!filter.includeCustomDishesFirst) {
+   logDeckOrder('solo', false, [], scoredTail);
+   return { ...result, dishes: scoredTail };
+  }
+  const custom = all.filter((dish) => isUsableOwnedCustomDish(dish, userId) && !excludeDishIds.has(dish._id.toString()) && !dishMatchesExclusions(dish, filter.exclusions) && matchesCustomDiet(dish, filter.diet)).sort((a,b) => compareCustomByPreferences(a, b, filter));
   const customIds = new Set(custom.map((dish) => dish._id.toString()));
-  const discoveryTarget = Math.max(1, Math.floor(MAX_DECK_SIZE * 0.2));
-  const customPrefix = custom.length >= MAX_DECK_SIZE - discoveryTarget ? custom.slice(0, MAX_DECK_SIZE - discoveryTarget) : custom;
+  const customPrefix = custom.slice(0, MAX_DECK_SIZE);
   const tailTarget = MAX_DECK_SIZE - customPrefix.length;
-  // Variation belongs exclusively to the recommendation tail. The persisted
-  // session order always starts with the custom prefix.
-  const tail = shuffledTail.filter((dish) => !customIds.has(dish._id.toString())).slice(0, Math.max(0, tailTarget));
+  const tail = scoredTail.filter((dish) => !customIds.has(dish._id.toString())).slice(0, Math.max(0, tailTarget));
+  logDeckOrder('solo', true, customPrefix, tail);
   return { ...result, dishes: [...customPrefix, ...tail], meta: { ...result.meta, finalCount: customPrefix.length + tail.length, customIncludedCount: customPrefix.length } };
  }
  private async loadUserHistory(userId:string): Promise<DeckRecommendationHistoryEntry[]> {
@@ -122,17 +134,20 @@ function isUsableOwnedCustomDish(dish: DishDocument, userId: string) {
 
 function matchesCustomDiet(dish: DishDocument, diet: string[]) { const values = new Set((dish.diet ?? []).map((value) => value.trim().toLowerCase())); if (diet.includes('vegan')) return values.has('vegan'); if (diet.includes('vegetarian')) return values.has('vegetarian') || values.has('vegan'); return true; }
 
-function shuffleWithinScoreBands(dishes: DishDocument[], seed: string) {
- return dishes.flatMap((_, start) => start % 4 === 0 ? seededShuffle(dishes.slice(start, start + 4), `${seed}:${start}`) : []);
+function compareCustomByPreferences(a: DishDocument, b: DishDocument, filters: NormalizedSoloFilter) {
+ const registerDelta = preferenceMatch(b.dishRegister ?? (b as any).dish_register, filters.dishRegisters) - preferenceMatch(a.dishRegister ?? (a as any).dish_register, filters.dishRegisters);
+ if (registerDelta !== 0) return registerDelta;
+ const cuisineDelta = preferenceMatch(b.cuisine, filters.cuisines) - preferenceMatch(a.cuisine, filters.cuisines);
+ if (cuisineDelta !== 0) return cuisineDelta;
+ const dateDelta = customTimestamp(b) - customTimestamp(a);
+ return dateDelta || a._id.toString().localeCompare(b._id.toString());
 }
 
-function seededShuffle<T>(items: T[], seed: string) {
- const result = [...items];
- let state = crypto.createHash('sha1').update(seed).digest().readUInt32BE(0);
- for (let index = result.length - 1; index > 0; index -= 1) {
-  state = (state * 1664525 + 1013904223) >>> 0;
-  const target = state % (index + 1);
-  [result[index], result[target]] = [result[target], result[index]];
- }
- return result;
+function preferenceMatch(value: string | undefined, selected: string[]) { return selected.includes((value ?? '').trim().toLowerCase().replace(/_/g, ' ')) ? 1 : 0; }
+function customTimestamp(dish: DishDocument) { return ((dish as any).updatedAt ?? dish.createdAt)?.getTime?.() ?? 0; }
+function logDeckOrder(mode: 'solo', customFirst: boolean, prefix: DishDocument[], tail: DishDocument[]) {
+ const final = [...prefix, ...tail];
+ console.log(`[DeckOrder] mode=${mode} customFirst=${customFirst} customPrefixCount=${prefix.length} tailCount=${tail.length} finalCount=${final.length}`);
+ console.log(`[DeckOrder] firstIds=${final.slice(0, 8).map((dish) => dish._id.toString()).join(',')}`);
+ console.log('[DeckOrder] noRandomShuffle=true');
 }

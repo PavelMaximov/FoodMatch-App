@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 
+import '../../../../core/assets/app_empty_state_assets.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/image_utils.dart';
 import '../../../../data/models/dish.dart';
@@ -15,20 +16,32 @@ class MatchOverlayScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String dishName = (dish?.name.trim().isNotEmpty ?? false) ? dish!.name.trim() : 'this dish';
-    final String? imageUrl = dish == null ? null : ImageUtils.getImageUrl(dish!.imageUrl, usage: ImageUsage.matchOverlay);
+    final String dishName = (dish?.name.trim().isNotEmpty ?? false)
+        ? dish!.name.trim()
+        : 'this dish';
+    final String? imageUrl = dish == null
+        ? null
+        : ImageUtils.getImageUrl(
+            dish!.imageUrl,
+            usage: ImageUsage.matchOverlay,
+          );
+    final bool useCustomPlaceholder = dish?.isCustom == true;
 
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         fit: StackFit.expand,
         children: <Widget>[
-          if (imageUrl != null && imageUrl.trim().isNotEmpty)
+          if (useCustomPlaceholder ||
+              (imageUrl != null && imageUrl.trim().isNotEmpty))
             SafeDishImage(
               imageUrl: imageUrl,
               width: double.infinity,
               height: double.infinity,
               fit: BoxFit.cover,
+              emptyImageAsset: useCustomPlaceholder
+                  ? AppEmptyStateAssets.customDishPlaceholder
+                  : null,
             )
           else
             const DecoratedBox(

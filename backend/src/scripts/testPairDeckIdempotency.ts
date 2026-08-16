@@ -24,8 +24,9 @@ assert(source.includes("status: 'failed'"), 'Failed generation should not leave 
 assert(source.includes('buildPairSharedRecommendedDeck'), 'Pair v2 recommendation builder should still be used.');
 assert(source.includes('customFirstUserIds: [...filters.customFirstUserIds].sort()'), 'Pair filtersHash should include the selected custom-first users.');
 assert(source.includes('buildCustomFirstPairDeck'), 'Backend should own canonical custom-first Pair ordering.');
-assert(source.includes('shuffleWithinScoreBands'), 'New Pair generations should vary within score bands before persisting canonical order.');
-assert(source.indexOf('shuffleWithinScoreBands(result.dishes') < source.indexOf('buildCustomFirstPairDeck('), 'Pair score-band shuffle must happen before the custom prefix is attached.');
+assert(!source.includes('shuffleWithinScoreBands'), 'Pair generation must not shuffle the score-sorted canonical order.');
+assert(source.includes("recommendationAlgorithm: 'weighted_scoring_pair_shared_v2_deterministic_order_v1'"), 'Pair filtersHash should version deterministic ordering changes.');
+assert(source.includes('sessionMemberIds: [...filters.sessionMemberIds].sort()'), 'Pair filtersHash should include canonical member identity.');
 assert(source.includes('return [...customPrefix, ...tail]'), 'Pair final order must persist the custom prefix before the normal tail.');
 assert(source.includes("dish.sourceType === 'custom'"), 'Legacy sourceType custom dishes must remain eligible for custom-first ordering.');
 const swipeService = readFileSync('src/modules/swipes/services/swipeService.ts', 'utf8');

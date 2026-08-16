@@ -81,8 +81,6 @@ const COLD_WEIGHTS = { country: 0.30, mood: 0.05, dishRegister: 0.30, history: 0
 const WARM_WEIGHTS = { country: 0.18, mood: 0.05, dishRegister: 0.20, history: 0.32, popularity: 0.15, recency: 0.10 };
 const LOW_CANDIDATE_THRESHOLD = 15;
 const CRITICAL_CANDIDATE_THRESHOLD = 5;
-const DEFAULT_EXPLORE_SHARE = 0.25;
-const EXPANDED_EXPLORE_SHARE = 0.5;
 export const PAIR_SCORE_FLOOR = 0.05;
 
 export function buildRecommendedDeck(input: BuildRecommendedDeckInput): BuildRecommendedDeckResult {
@@ -131,7 +129,7 @@ export function buildRecommendedDeck(input: BuildRecommendedDeckInput): BuildRec
     criticalCandidates: expansionReason === 'critical_candidates_after_exclusions'
   });
 
-  const selection = pickCoreAndExplore(scored, input.deckSize, expansionReason ? EXPANDED_EXPLORE_SHARE : DEFAULT_EXPLORE_SHARE);
+  const selection = pickHighestScored(scored, input.deckSize);
   const selected = selection.items.map((scoredDish) => scoredDish.dish);
 
   return {
@@ -222,7 +220,7 @@ export function buildPairSharedRecommendedDeck(input: BuildPairRecommendedDeckIn
     return { dish, score: pairScore + customBoost, components: userScores[0]?.components ?? neutralComponents() };
   }).sort((a, b) => b.score - a.score || getDishName(a.dish).localeCompare(getDishName(b.dish)) || getDishId(a.dish).localeCompare(getDishId(b.dish)));
 
-  const selection = pickCoreAndExplore(scored, input.deckSize, expansionReason ? EXPANDED_EXPLORE_SHARE : DEFAULT_EXPLORE_SHARE);
+  const selection = pickHighestScored(scored, input.deckSize);
   const selected = selection.items.map((scoredDish) => scoredDish.dish);
 
   return {
@@ -356,36 +354,9 @@ function interpolateWeights(warmth: number, criticalCandidates: boolean) {
   };
 }
 
-function pickCoreAndExplore(scored: ScoredDish[], deckSize: number, exploreShare: number): { items: ScoredDish[]; coreCount: number; exploreCount: number } {
-  if (scored.length <= deckSize) return { items: scored, coreCount: scored.length, exploreCount: 0 };
-
-  const exploreCount = Math.max(0, Math.min(deckSize, Math.floor(deckSize * exploreShare)));
-  const coreCount = deckSize - exploreCount;
-  const corePool = scored.slice(0, coreCount);
-  const coreIds = new Set(corePool.map((item) => getDishId(item.dish)));
-  const percentileStart = Math.floor(scored.length * 0.50);
-  const percentileEnd = Math.max(percentileStart + 1, Math.ceil(scored.length * 0.80));
-  const exploreCandidates = scored.slice(percentileStart, percentileEnd).filter((item) => !coreIds.has(getDishId(item.dish)));
-  const explorePool = weightedPick(exploreCandidates.length > 0 ? exploreCandidates : scored.slice(coreCount).filter((item) => !coreIds.has(getDishId(item.dish))), exploreCount);
-
-  const items = [...corePool, ...explorePool].slice(0, deckSize);
-  return { items, coreCount: Math.min(corePool.length, items.length), exploreCount: Math.max(0, items.length - corePool.length) };
-}
-
-function weightedPick(candidates: ScoredDish[], count: number): ScoredDish[] {
-  const remaining = [...candidates];
-  const picked: ScoredDish[] = [];
-  while (picked.length < count && remaining.length > 0) {
-    const totalWeight = remaining.reduce((sum, item) => sum + Math.max(item.score, 0.05), 0);
-    let cursor = seededRandom(remaining.map((item) => `${getDishId(item.dish)}:${item.score.toFixed(4)}`).join('|'), picked.length) * totalWeight;
-    let index = 0;
-    for (; index < remaining.length; index += 1) {
-      cursor -= Math.max(remaining[index].score, 0.05);
-      if (cursor <= 0) break;
-    }
-    picked.push(remaining.splice(Math.min(index, remaining.length - 1), 1)[0]);
-  }
-  return picked;
+function pickHighestScored(scored: ScoredDish[], deckSize: number): { items: ScoredDish[]; coreCount: number; exploreCount: number } {
+  const items = scored.slice(0, deckSize);
+  return { items, coreCount: items.length, exploreCount: 0 };
 }
 
 function countryScore(dish: DishDocument, cuisines: string[]) {
@@ -495,13 +466,4 @@ function getDishId(dish: DishDocument) {
 
 function getDishName(dish: DishDocument) {
   return (dish.name ?? '').trim().toLowerCase();
-}
-
-function seededRandom(seed: string, offset: number) {
-  let hash = 2166136261 + offset;
-  for (let i = 0; i < seed.length; i += 1) {
-    hash ^= seed.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return (hash >>> 0) / 4294967295;
 }

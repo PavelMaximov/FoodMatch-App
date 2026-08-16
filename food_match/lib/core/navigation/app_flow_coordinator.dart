@@ -6,7 +6,7 @@ import '../../features/swipes/logic/swipe_provider.dart';
 
 enum AppFlowMode { solo, paired }
 
-enum StartupRoute { modeSelection, newOld }
+enum StartupRoute { modeSelection, sessionResumeChoice }
 
 class StartupRouteDecision {
   const StartupRouteDecision({
@@ -25,7 +25,7 @@ class StartupRouteDecision {
   final bool hasPairHistory;
   final bool hasSoloSessionHistory;
 
-  bool get isReturningUser => route == StartupRoute.newOld;
+  bool get isReturningUser => route == StartupRoute.sessionResumeChoice;
 }
 
 class AppFlowCoordinator {
@@ -52,8 +52,8 @@ class AppFlowCoordinator {
   }
 
   void logSessionInvalid(StartupRoute route) => debugPrint(
-        route == StartupRoute.newOld
-            ? '[AppFlow] resume: sessionInvalid -> newOld'
+        route == StartupRoute.sessionResumeChoice
+            ? '[AppFlow] resume: sessionInvalid -> sessionResumeChoice'
             : '[AppFlow] resume: sessionInvalid -> modeSelection',
       );
 
@@ -65,6 +65,7 @@ class AppFlowCoordinator {
     bool hasSoloPreset = false;
     bool hasPairedPreset = false;
     bool hasSoloSessionHistory = false;
+    bool hasPairPreparedDeck = false;
 
     try {
       final dynamic solo = await swipeRepository.getLastFilterPreset('solo');
@@ -86,22 +87,48 @@ class AppFlowCoordinator {
       debugPrint('[AppFlow] startup: solo session check failed $e');
     }
 
-    final bool hasPairHistory = coupleProvider.hasCouple || coupleProvider.currentCouple != null;
-    final AppFlowMode? previousMode = hasPairedPreset || hasPairHistory
+    if (coupleProvider.hasCouple) {
+      try {
+        hasPairPreparedDeck = await swipeProvider.loadExistingPreparedDeck();
+      } catch (e) {
+        debugPrint('[Startup] pair prepared deck check failed error=$e');
+      }
+    }
+
+    final bool hasPairHistory = hasPairPreparedDeck ||
+        hasPairedPreset ||
+        coupleProvider.needsPairResync ||
+        coupleProvider.hasPendingContinuation;
+    final AppFlowMode? previousMode = hasPairHistory
         ? AppFlowMode.paired
         : hasSoloPreset || hasSoloSessionHistory
             ? AppFlowMode.solo
             : null;
     final bool returning = hasSoloPreset || hasPairedPreset || hasPairHistory || hasSoloSessionHistory;
 
-    debugPrint(
-      returning
-          ? '[AppFlow] startup: returningUser -> newOld'
-          : '[AppFlow] startup: newUser -> modeSelection',
-    );
+    debugPrint('[Startup] previousSessionCheck solo=$hasSoloSessionHistory '
+        'pair=$hasPairHistory previousFilters=${hasSoloPreset || hasPairedPreset}');
+    final String reason = hasPairPreparedDeck
+        ? 'pair_active'
+        : coupleProvider.needsPairResync
+            ? 'pair_resync'
+            : coupleProvider.hasPendingContinuation
+                ? 'pair_waiting'
+                : hasPairedPreset
+                    ? 'previous_filters_available'
+                    : hasSoloSessionHistory
+                        ? 'solo_active'
+                        : hasSoloPreset
+                            ? 'previous_filters_available'
+                            : 'no_previous_session';
+    debugPrint(returning
+        ? '[Startup] outcome=session_resume_choice reason=$reason'
+        : '[Startup] outcome=mode_selection reason=no_previous_session');
 
     return StartupRouteDecision(
-      route: returning ? StartupRoute.newOld : StartupRoute.modeSelection,
+      route: returning
+          ? StartupRoute.sessionResumeChoice
+          : StartupRoute.modeSelection,
       previousMode: previousMode,
       hasSoloPreset: hasSoloPreset,
       hasPairedPreset: hasPairedPreset,
@@ -132,6 +159,24 @@ class AppFlowCoordinator {
 
   bool _hasPreset(dynamic data) {
     if (data is! Map<String, dynamic>) return false;
-    return data['preset'] is Map || data['deckEnded'] == true || data['hasHistory'] == true;
+    final dynamic rawPreset = data['preset'];
+    if (rawPreset is Map) {
+      final Map<dynamic, dynamic> preset = rawPreset;
+      const List<String> listKeys = <String>[
+        'dishRegisters',
+        'cuisines',
+        'moods',
+        'diet',
+        'exclusions',
+      ];
+      if (listKeys.any(
+        (String key) =>
+            preset[key] is List && (preset[key] as List).isNotEmpty,
+      )) {
+        return true;
+      }
+      if (preset['includeCustomDishesFirst'] == true) return true;
+    }
+    return data['deckEnded'] == true || data['hasHistory'] == true;
   }
 }
