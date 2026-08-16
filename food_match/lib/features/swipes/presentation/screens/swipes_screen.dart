@@ -584,7 +584,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
         _pairRestartError = null;
       });
 
-      if (decision.route == StartupRoute.newOld) {
+      if (decision.route == StartupRoute.sessionResumeChoice) {
         debugPrint('[AppFlow] startup resolved -> SessionResumeChoiceScreen');
         setState(() {
           _sessionResumeChoiceType = decision.previousMode == AppFlowMode.paired
@@ -625,8 +625,15 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     _pairDeckReadyAutoLoadEnabled = true;
     setState(() => _sessionResumeChoiceType = null);
     if (choiceType == _SessionResumeChoiceType.solo) {
+      debugPrint('[ResumeChoice] continue selected reason=${context.read<SwipeProvider>().hasActiveSoloSession ? 'solo_active' : 'solo_previous'}');
+      if (context.read<SwipeProvider>().hasActiveSoloSession) {
+        debugPrint('[ResumeChoice] route=swipes');
+        setState(() {});
+        return;
+      }
       _appFlow.logPreviousChoiceContinue(AppFlowMode.solo);
       debugPrint('[AppFlow] previousChoice open requested: origin=sessionResumeContinue');
+      debugPrint('[ResumeChoice] route=previous_session_flow');
       await _runSoloPreSwipeFlow();
       return;
     }
@@ -637,6 +644,16 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     final SwipeProvider swipeProvider = context.read<SwipeProvider>();
     final CoupleProvider coupleProvider = context.read<CoupleProvider>();
     swipeProvider.setPairedMode();
+    debugPrint('[ResumeChoice] continue selected reason=pair_previous');
+    final bool loaded = await swipeProvider.loadExistingPreparedDeck(force: true);
+    if (!mounted) return;
+    if (loaded && swipeProvider.deck.isNotEmpty) {
+      debugPrint('[ResumeChoice] route=swipes');
+      _startPairLifecyclePolling();
+      _startPairMatchPolling();
+      setState(() {});
+      return;
+    }
     swipeProvider.clearPreparedDeck();
     context.read<MatchProvider>().setActiveCouple(
           coupleProvider.currentCouple?.id,
@@ -644,6 +661,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
         );
     _startPairLifecyclePolling();
     _startPairMatchPolling();
+    debugPrint('[ResumeChoice] route=pair_continuation');
     await _sendPairContinuationInvite(coupleProvider);
   }
 
@@ -809,11 +827,8 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     if (choiceType == null) {
       return;
     }
-    final bool confirmed = await _confirmStartNew(choiceType);
-    if (!confirmed || !mounted) {
-      return;
-    }
-    await _clearActiveSessionAndShowModeSelection(choiceType);
+    debugPrint('[ResumeChoice] start_new selected');
+    await _clearActiveSessionAndShowModeSelection();
   }
 
   Future<LastFilterPreset?> _loadDeckEndPreset(bool isSoloMode) async {
@@ -933,42 +948,11 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     _pairRestartPollingTimer = null;
   }
 
-  Future<bool> _confirmStartNew(_SessionResumeChoiceType choiceType) async {
-    return await showDialog<bool>(
-          context: context,
-          builder: (BuildContext dialogContext) => AlertDialog(
-            title: const Text('Start new session?'),
-            content: Text(
-              choiceType == _SessionResumeChoiceType.solo
-                  ? 'This will close your current solo session and clear the current swipe progress.'
-                  : 'This will leave your current pair session and close the current invite/deck progress.',
-            ),
-            actions: <Widget>[
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext, false),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(dialogContext, true),
-                child: const Text('Start new'),
-              ),
-            ],
-          ),
-        ) ??
-        false;
-  }
-
-  Future<void> _clearActiveSessionAndShowModeSelection(_SessionResumeChoiceType choiceType) async {
+  Future<void> _clearActiveSessionAndShowModeSelection() async {
     final SwipeProvider swipeProvider = context.read<SwipeProvider>();
-    final CoupleProvider coupleProvider = context.read<CoupleProvider>();
-    if (choiceType == _SessionResumeChoiceType.solo) {
-      await swipeProvider.abandonActiveSoloSession();
-    } else if (coupleProvider.hasCouple) {
-      await coupleProvider.leaveCouple();
-    }
-    if (!mounted) {
-      return;
-    }
+    // Starting a new local setup must not abandon a backend solo session or
+    // mutate the shared pair for the partner. The next explicit setup action
+    // owns any required backend transition.
     swipeProvider.resetToModeSelection();
     context.read<PreSwipeProvider>().clearDraft();
     _stopPairMatchPolling();
@@ -979,6 +963,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       _showPairConnectionStep = false;
       _isOpeningPreSwipe = false;
     });
+    debugPrint('[ResumeChoice] route=mode_selection');
   }
 
   Future<void> _runSoloPreSwipeFlow({PreSwipeFilterIntent intent = PreSwipeFilterIntent.createNewSession}) async {

@@ -96,6 +96,8 @@ class CoupleProvider extends ChangeNotifier {
   bool get hasActiveSessionConflict => error == activeSessionMessage;
   bool get needsPairResync => shouldOpenSessionResumeForResync;
   bool get needsPairFilterChange => shouldOpenPairFilterChange;
+  bool get hasPendingContinuation =>
+      nextIncomingInvitation != null || outgoingContinuationInvite != null;
 
   CoupleInvitation? get nextIncomingInvitation {
     for (final CoupleInvitation invitation in pendingInvitations) {
