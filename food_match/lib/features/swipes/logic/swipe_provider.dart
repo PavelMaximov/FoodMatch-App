@@ -231,6 +231,20 @@ class SwipeProvider extends ChangeNotifier {
     return false;
   }
 
+  Future<bool> loadResumableSoloSession() async {
+    try {
+      final dynamic data = await _swipeRepository.getResumableSoloSession();
+      final dynamic session = data is Map<String, dynamic> ? data['session'] : null;
+      if (session is Map<String, dynamic>) {
+        _applySoloSession(session);
+        return true;
+      }
+    } catch (e) {
+      debugPrint('[SoloSwipe] resumable load failed $e');
+    }
+    return false;
+  }
+
   Future<bool> createSoloSession({
     required List<String> dishRegisters,
     required bool includeCustomDishesFirst,
@@ -470,6 +484,8 @@ class SwipeProvider extends ChangeNotifier {
         ),
       ),
     );
+    _soloSessionCompleted = session['status'] == 'completed';
+    notifyListeners();
   }
 
   int _readInt(dynamic value) {

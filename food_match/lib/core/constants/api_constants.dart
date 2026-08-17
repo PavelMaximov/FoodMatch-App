@@ -62,6 +62,7 @@ class ApiConstants {
   static const String coupleFilterChangeStart = '/api/couples/current/filter-change/start';
   static const String coupleFilterChangeCommit = '/api/couples/current/filter-change/commit';
   static const String coupleInvitationsPending = '/api/couples/invitations/pending';
+  static String coupleInvitation(String id) => '/api/couples/invitations/$id';
   static String coupleInvitationAccept(String id) => '/api/couples/invitations/$id/accept';
   static String coupleInvitationDecline(String id) => '/api/couples/invitations/$id/decline';
   static const String coupleFilterState = '/api/couples/filter-state';
@@ -79,6 +80,7 @@ class ApiConstants {
   static const String dishesMy = '/api/dishes/my';
   static const String swipes = '/api/swipes';
   static const String soloSwipesActive = '/api/solo-swipes/active';
+  static const String soloSwipesResumable = '/api/solo-swipes/resumable';
   static const String soloSwipesSession = '/api/solo-swipes/session';
   static const String soloSwipesAbandon = '/api/solo-swipes/active/abandon';
   static const String soloSwipesActiveFilter = '/api/solo-swipes/active/filter';

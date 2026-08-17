@@ -29,6 +29,9 @@ class SwipeRepository {
   Future<dynamic> getActiveSoloSession() =>
       _apiService.get(ApiConstants.soloSwipesActive);
 
+  Future<dynamic> getResumableSoloSession() =>
+      _apiService.get(ApiConstants.soloSwipesResumable);
+
   Future<dynamic> undoSoloSwipe(String sessionId) => _apiService.post(
     ApiConstants.soloSwipeUndo(sessionId),
     <String, dynamic>{},

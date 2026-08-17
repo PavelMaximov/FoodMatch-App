@@ -30,7 +30,8 @@
     "test:pair-deck-restart": "ts-node src/scripts/testPairDeckRestart.ts",
     "test:pair-session-resync": "ts-node src/scripts/testPairSessionResync.ts",
     "test:pair-filter-change": "ts-node src/scripts/testPairFilterChange.ts",
-    "test:solo-abandon": "ts-node src/scripts/testSoloAbandon.ts"
+    "test:solo-abandon": "ts-node src/scripts/testSoloAbandon.ts",
+    "test:solo-resume-isolation": "ts-node src/scripts/testSoloResumeIsolation.ts"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

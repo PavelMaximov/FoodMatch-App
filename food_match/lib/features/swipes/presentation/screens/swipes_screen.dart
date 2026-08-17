@@ -21,6 +21,7 @@ import '../../../../data/models/match_item.dart';
 import '../../../../data/models/prepared_deck.dart';
 import '../../../../data/models/user_profile.dart';
 import '../../../../data/repositories/swipe_repository.dart';
+import '../../../../data/services/api_service.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
@@ -337,7 +338,10 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       return;
     }
     final SwipeProvider swipeProvider = context.read<SwipeProvider>();
-    if (swipeProvider.isSoloMode) {
+    final CoupleProvider isolationProvider = context.read<CoupleProvider>();
+    if (swipeProvider.isSoloMode ||
+        isolationProvider.continuationSuppressedForSoloResume) {
+      debugPrint('[PairDeck] prepare skipped reason=current_resume_mode_solo');
       return;
     }
     if (reason == 'pair_deck_error_retry') {
@@ -397,6 +401,13 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
           }
         } catch (error) {
           lastError = error;
+          if (error is ApiException && error.code == 'PAIR_SESSION_INACTIVE') {
+            debugPrint('[PairDeck] terminal stale session reason=PAIR_SESSION_INACTIVE');
+            coupleProvider.clearStaleContinuation(reason: 'PAIR_SESSION_INACTIVE');
+            coupleProvider.markPairNeedsResyncFromDeckError();
+            _pairDeckReadyAutoLoadEnabled = false;
+            break;
+          }
           debugPrint(
             '[PairDeck] prepare attempt=${attempt + 1} source=$reason '
             'retryReason=$error',
@@ -625,15 +636,20 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     setState(() => _sessionResumeChoiceType = null);
     if (choiceType == _SessionResumeChoiceType.solo) {
       debugPrint('[ResumeChoice] continue selected mode=solo');
-      if (context.read<SwipeProvider>().hasActiveSoloSession) {
-        debugPrint('[ResumeChoice] route=swipes');
+      final CoupleProvider coupleProvider = context.read<CoupleProvider>();
+      coupleProvider.beginSoloResumeIsolation();
+      final SwipeProvider swipeProvider = context.read<SwipeProvider>();
+      debugPrint('[ResumeChoice] solo resume started session=${swipeProvider.activeSoloSessionId ?? 'backend_active'}');
+      final bool loaded = await swipeProvider.loadResumableSoloSession();
+      if (!mounted) return;
+      if (loaded) {
+        debugPrint('[ResumeChoice] solo resume loaded deckSize=${swipeProvider.deck.length} index=${swipeProvider.currentIndex} exhausted=${swipeProvider.isSoloSessionCompleted}');
+        debugPrint('[ResumeChoice] route=swipes mode=solo');
         setState(() {});
         return;
       }
-      _appFlow.logPreviousChoiceContinue(AppFlowMode.solo);
-      debugPrint('[AppFlow] previousChoice open requested: origin=sessionResumeContinue');
-      debugPrint('[ResumeChoice] route=previous_session_flow');
-      await _runSoloPreSwipeFlow();
+      setState(() => _initialSessionError = 'Could not restore your solo session. Please try again.');
+      debugPrint('[ResumeChoice] solo resume failed');
       return;
     }
     await _continuePairedSession();
@@ -642,6 +658,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
   Future<void> _continuePairedSession() async {
     final SwipeProvider swipeProvider = context.read<SwipeProvider>();
     final CoupleProvider coupleProvider = context.read<CoupleProvider>();
+    coupleProvider.endSoloResumeIsolation();
     swipeProvider.setPairedMode();
     debugPrint('[ResumeChoice] continue selected mode=pair');
     // A previous canonical deck is not sufficient authorization to resume a
@@ -1623,6 +1640,8 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                     }
 
                     if (inviteCoupleProvider.shouldAcquireDeckAfterContinuationInvite &&
+                        !inviteCoupleProvider.continuationSuppressedForSoloResume &&
+                        !provider.isSoloMode &&
                         !_isOpeningPreSwipe &&
                         !_isPairDeckReadyLoading) {
                       final int versionAtSchedule = context.read<AuthProvider>().authBoundaryVersion;
@@ -1728,12 +1747,14 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                     if (showModeSelection) {
                       return SwipeModeSelectionScreen(
                         onSolo: () {
+                          context.read<CoupleProvider>().beginSoloResumeIsolation();
                           _appFlow.logModeSelection(AppFlowMode.solo);
                           _suppressPreviousChoiceAutoOpen = false;
                           setState(() => _showPairConnectionStep = false);
                           _runSoloPreSwipeFlow();
                         },
                         onPairUp: () {
+                          context.read<CoupleProvider>().endSoloResumeIsolation();
                           _appFlow.logModeSelection(AppFlowMode.paired);
                           _suppressPreviousChoiceAutoOpen = false;
                           // Pair setup must not acquire a deck until the user

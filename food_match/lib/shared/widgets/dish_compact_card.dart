@@ -73,7 +73,9 @@ class DishCompactCard extends StatelessWidget {
                       children: <Widget>[
                         _MetaItem(
                           icon: Icons.access_time,
-                          text: '${dish.cookTime <= 0 ? 0 : dish.cookTime} min.',
+                          text: dish.totalTimeDisplay.isEmpty
+                              ? '—'
+                              : dish.totalTimeDisplay,
                         ),
                         _MetaItem(
                           icon: Icons.people_outline,

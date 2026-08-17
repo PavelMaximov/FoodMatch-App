@@ -86,7 +86,7 @@ class DishGridCard extends StatelessWidget {
                             onTap: onFavoriteTap,
                           ),
                         ),
-                        if (dish.cookTime > 0)
+                        if (dish.totalTimeDisplay.isNotEmpty)
                           Positioned(
                             left: _DishGridCardTokens.overlayInset,
                             bottom: _DishGridCardTokens.overlayInset,
@@ -100,7 +100,7 @@ class DishGridCard extends StatelessWidget {
                                     BlendMode.srcIn,
                                   ),
                                 ),
-                              label: '${dish.cookTime} m.',
+                              label: dish.totalTimeDisplay,
                             ),
                           ),
                         if (_difficultyLabel(dish.effort) != null)
