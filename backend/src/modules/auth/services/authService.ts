@@ -53,6 +53,16 @@ export class AuthService {
     return { user: publicUser, requireEmailVerification: env.REQUIRE_EMAIL_VERIFICATION && !publicUser.emailVerified };
   }
 
+  async updatePreferences(userId: string, measurementSystemPreference: 'auto' | 'metric' | 'imperial') {
+    const user = await UserModel.findByIdAndUpdate(
+      userId,
+      { $set: { measurementSystemPreference } },
+      { new: true, runValidators: true }
+    );
+    if (!user) throw new AppError('User not found', 404);
+    return { user: this.toPublicUser(user) };
+  }
+
   async resendVerification(userId: string) {
     const user = await UserModel.findById(userId);
     if (!user) throw new AppError('User not found', 404);
@@ -87,6 +97,6 @@ export class AuthService {
   }
 
   private toPublicUser(user: UserDocument) {
-    return { id: user.id, email: user.email, displayName: user.displayName, avatarUrl: user.avatarUrl ?? null, avatarPublicId: user.avatarPublicId ?? null, isActive: user.isActive, emailVerified: user.emailVerified === undefined ? true : user.emailVerified, emailVerifiedAt: user.emailVerifiedAt ?? null, createdAt: user.createdAt };
+    return { id: user.id, email: user.email, displayName: user.displayName, avatarUrl: user.avatarUrl ?? null, avatarPublicId: user.avatarPublicId ?? null, isActive: user.isActive, emailVerified: user.emailVerified === undefined ? true : user.emailVerified, emailVerifiedAt: user.emailVerifiedAt ?? null, measurementSystemPreference: user.measurementSystemPreference ?? 'auto', createdAt: user.createdAt };
   }
 }

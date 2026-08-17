@@ -47,6 +47,7 @@ class ApiConstants {
   static const String register = '/api/auth/register';
   static const String login = '/api/auth/login';
   static const String me = '/api/auth/me';
+  static const String preferences = '/api/auth/me/preferences';
   static const String refresh = '/api/auth/refresh';
   static const String logout = '/api/auth/logout';
   static const String resendVerification = '/api/auth/resend-verification';

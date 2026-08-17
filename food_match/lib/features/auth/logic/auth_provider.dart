@@ -7,6 +7,7 @@ import '../../../core/utils/logger.dart';
 import '../../../data/local/cache_policy.dart';
 import '../../../data/local/cache_service.dart';
 import '../../../data/models/user.dart';
+import '../../../data/models/measurement_system.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../data/services/api_service.dart';
 
@@ -37,6 +38,21 @@ class AuthProvider extends ChangeNotifier {
 
   bool get isAuthenticated => token != null;
   bool get needsEmailVerification => requireEmailVerification && currentUser?.emailVerified == false;
+  MeasurementSystemPreference get measurementSystemPreference =>
+      currentUser?.measurementSystemPreference ?? MeasurementSystemPreference.auto;
+
+  Future<bool> updateMeasurementSystemPreference(MeasurementSystemPreference preference) async {
+    try {
+      currentUser = await _repository.updateMeasurementSystemPreference(preference);
+      _currentUserLoadedAt = DateTime.now();
+      await _cacheUserDataIfAvailable();
+      notifyListeners();
+      return true;
+    } catch (exception) {
+      AppLogger.error('Measurement preference update failed', exception);
+      return false;
+    }
+  }
 
   bool get _hasFreshCurrentUser {
     final DateTime? loadedAt = _currentUserLoadedAt;

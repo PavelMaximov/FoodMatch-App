@@ -72,11 +72,16 @@ DishIngredientMeasurement _$DishIngredientMeasurementFromJson(
 ) => DishIngredientMeasurement(
   quantity: _readMeasurementValue(json['quantity']),
   unit: _readMeasurementUnit(json['unit']),
+  system: json['system'] as String?,
 );
 
 Map<String, dynamic> _$DishIngredientMeasurementToJson(
   DishIngredientMeasurement instance,
-) => <String, dynamic>{'quantity': instance.quantity, 'unit': instance.unit};
+) => <String, dynamic>{
+  'quantity': instance.quantity,
+  'unit': instance.unit,
+  'system': instance.system,
+};
 
 DishNutrition _$DishNutritionFromJson(Map<String, dynamic> json) =>
     DishNutrition(calories: _readOptionalInt(json['calories']));

@@ -93,7 +93,7 @@ export interface IngredientSectionDto {
     displayName: string;
     rawText: string | null;
     extraComment: string | null;
-    measurements: Array<{ quantity: string | number | null; unit: string | null }>;
+    measurements: Array<{ quantity: string | number | null; unit: string | null; system: 'metric' | 'imperial' | 'universal' }>;
   }>;
 }
 
@@ -220,6 +220,7 @@ function readIngredientSections(rawDish: any): IngredientSectionDto[] | undefine
               ? component.measurements.map((measurement: any) => ({
                   quantity: readMeasurementQuantity(measurement?.quantity),
                   unit: nullableString(readMeasurementUnit(measurement?.unit)),
+                  system: readMeasurementSystem(measurement?.system),
                 }))
               : [],
           };
@@ -233,6 +234,12 @@ function readIngredientSections(rawDish: any): IngredientSectionDto[] | undefine
 function readMeasurementQuantity(value: any): string | number | null {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   return nullableString(value);
+}
+
+function readMeasurementSystem(value: any): 'metric' | 'imperial' | 'universal' {
+  return value === 'metric' || value === 'imperial' || value === 'universal'
+    ? value
+    : 'universal';
 }
 
 function readMeasurementUnit(value: any): string {

@@ -85,10 +85,11 @@ class DishSection {
 
 @JsonSerializable()
 class DishIngredientMeasurement {
-  const DishIngredientMeasurement({this.quantity, this.unit});
+  const DishIngredientMeasurement({this.quantity, this.unit, this.system});
 
   final String? quantity;
   final String? unit;
+  final String? system;
 
   factory DishIngredientMeasurement.fromJson(Map<String, dynamic> json) =>
       _$DishIngredientMeasurementFromJson(json);

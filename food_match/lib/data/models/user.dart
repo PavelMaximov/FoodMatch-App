@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+import 'measurement_system.dart';
 
 part 'user.g.dart';
 
@@ -12,6 +13,7 @@ class User {
     this.avatarUrl,
     this.avatarPublicId,
     this.emailVerified = true,
+    this.measurementSystemPreference = MeasurementSystemPreference.auto,
   });
 
   @JsonKey(name: '_id', readValue: _readId)
@@ -23,6 +25,7 @@ class User {
   final String? avatarUrl;
   final String? avatarPublicId;
   final bool emailVerified;
+  final MeasurementSystemPreference measurementSystemPreference;
 
   static Object? _readId(Map<dynamic, dynamic> json, String _) {
     return json['_id'] ?? json['id'];
@@ -40,6 +43,7 @@ class User {
     String? avatarUrl,
     String? avatarPublicId,
     bool? emailVerified,
+    MeasurementSystemPreference? measurementSystemPreference,
     bool clearAvatar = false,
   }) {
     return User(
@@ -50,6 +54,7 @@ class User {
       avatarUrl: clearAvatar ? null : avatarUrl ?? this.avatarUrl,
       avatarPublicId: clearAvatar ? null : avatarPublicId ?? this.avatarPublicId,
       emailVerified: emailVerified ?? this.emailVerified,
+      measurementSystemPreference: measurementSystemPreference ?? this.measurementSystemPreference,
     );
   }
 }

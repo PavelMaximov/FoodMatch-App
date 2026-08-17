@@ -11,3 +11,7 @@ export const loginSchema = z.object({
   email: z.string().trim().email().transform(normalizeEmail),
   password: z.string().min(1)
 });
+
+export const measurementPreferenceSchema = z.object({
+  measurementSystemPreference: z.enum(['auto', 'metric', 'imperial'])
+});
