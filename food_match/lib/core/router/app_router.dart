@@ -72,6 +72,7 @@ class AppRouter {
                 child: RecipeDetailScreen(
                   dishId: state.pathParameters['dishId'] ?? 'unknown',
                   dish: state.extra is Dish ? state.extra! as Dish : null,
+                  source: state.uri.queryParameters['source'],
                 ),
               ),
             ),

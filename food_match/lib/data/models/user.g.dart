@@ -10,6 +10,7 @@ User _$UserFromJson(Map<String, dynamic> json) => User(
       avatarUrl: json['avatarUrl'] as String?,
       avatarPublicId: json['avatarPublicId'] as String?,
       emailVerified: json['emailVerified'] as bool? ?? true,
+      measurementSystemPreference: MeasurementSystemPreferenceValue.parse(json['measurementSystemPreference']),
     );
 
 Map<String, dynamic> _$UserToJson(User instance) => <String, dynamic>{
@@ -20,4 +21,5 @@ Map<String, dynamic> _$UserToJson(User instance) => <String, dynamic>{
       'avatarUrl': instance.avatarUrl,
       'avatarPublicId': instance.avatarPublicId,
       'emailVerified': instance.emailVerified,
+      'measurementSystemPreference': instance.measurementSystemPreference.value,
     };

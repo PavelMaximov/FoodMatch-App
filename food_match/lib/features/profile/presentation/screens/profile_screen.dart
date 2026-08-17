@@ -19,6 +19,7 @@ import '../../../../core/utils/food_match_notifications.dart';
 import '../../../../core/widgets/food_match_ripple.dart';
 import '../../../../data/models/couple.dart';
 import '../../../../data/models/user.dart';
+import '../../../../data/models/measurement_system.dart';
 import '../../../../data/repositories/upload_repository.dart';
 import '../../../../data/services/api_service.dart';
 import '../../../auth/logic/auth_provider.dart';
@@ -300,6 +301,60 @@ class _ProfileScreenState extends State<ProfileScreen> {
 class ProfileSettingsScreen extends StatelessWidget {
   const ProfileSettingsScreen({super.key});
 
+  Future<void> _showMeasurementSystemSheet(BuildContext context) async {
+    final AuthProvider auth = context.read<AuthProvider>();
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: context.fmColors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (BuildContext sheetContext) {
+        final selected = sheetContext.watch<AuthProvider>().measurementSystemPreference;
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text('Measurement system', style: GoogleFonts.nunito(
+                  fontSize: 18, fontWeight: FontWeight.w800,
+                  color: sheetContext.fmColors.textPrimary,
+                )),
+                const SizedBox(height: 8),
+                for (final option in MeasurementSystemPreference.values)
+                  RadioListTile<MeasurementSystemPreference>(
+                    value: option,
+                    groupValue: selected,
+                    activeColor: sheetContext.fmColors.primary,
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(option.label),
+                    subtitle: Text(switch (option) {
+                      MeasurementSystemPreference.auto => 'Use your region',
+                      MeasurementSystemPreference.metric => 'Grams, milliliters, Celsius',
+                      MeasurementSystemPreference.imperial => 'Ounces, fluid ounces, Fahrenheit',
+                    }),
+                    onChanged: (value) async {
+                      if (value == null || value == selected) return;
+                      final success = await auth.updateMeasurementSystemPreference(value);
+                      if (!sheetContext.mounted) return;
+                      Navigator.of(sheetContext).pop();
+                      FoodMatchNotifications.show(context,
+                        type: success ? FoodMatchNotificationType.success : FoodMatchNotificationType.error,
+                        title: success ? 'Measurement system updated' : 'Could not update measurement system',
+                      );
+                    },
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _showColorThemeSheet(BuildContext context) async {
     final ThemeController controller = context.read<ThemeController>();
     final FoodMatchThemeColors colors = context.fmColors;
@@ -421,6 +476,26 @@ class ProfileSettingsScreen extends StatelessWidget {
                   ),
                 ],
               ),
+            ),
+            const SizedBox(height: 14),
+            _ProfileSurface(
+              padding: EdgeInsets.zero,
+              child: Column(children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
+                  child: Align(alignment: Alignment.centerLeft, child: Text(
+                    'Preferences',
+                    style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w800,
+                      letterSpacing: 0.4, color: colors.textMuted),
+                  )),
+                ),
+                _SettingsRow(
+                  icon: Icons.straighten_outlined,
+                  label: 'Measurement system',
+                  value: context.watch<AuthProvider>().measurementSystemPreference.label,
+                  onTap: () => _showMeasurementSystemSheet(context),
+                ),
+              ]),
             ),
           ],
         ),

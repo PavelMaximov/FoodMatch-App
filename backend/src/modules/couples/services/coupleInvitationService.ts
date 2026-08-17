@@ -74,14 +74,34 @@ export class CoupleInvitationService {
     await this.expireOldInvites();
     const objectId = new Types.ObjectId(userId);
     const invites = await CoupleInvitationModel.find({
-      $or: [
-        { toUserId: objectId, status: 'pending', expiresAt: { $gt: new Date() } },
-        { fromUserId: objectId, status: { $in: ['pending', 'accepted', 'declined', 'expired'] } }
-      ]
+      toUserId: objectId,
+      status: 'pending',
+      mode: 'paired',
+      expiresAt: { $gt: new Date() }
     })
       .sort({ updatedAt: -1 })
       .limit(20);
-    return Promise.all(invites.map((invite) => this.toDto(invite, userId)));
+    const sessions = await CoupleSessionModel.find({
+      _id: { $in: invites.map((invite) => invite.newCoupleSessionId).filter(Boolean) },
+      status: 'active'
+    }).select('_id').lean();
+    const activeSessionIds = new Set(sessions.map((session) => session._id.toString()));
+    const actionable = invites.filter((invite) =>
+      invite.newCoupleSessionId && activeSessionIds.has(invite.newCoupleSessionId.toString())
+    );
+    console.info(`[PairInvite] pending query user=${userId} actionableCount=${actionable.length}`);
+    return Promise.all(actionable.map((invite) => this.toDto(invite, userId)));
+  }
+
+  async getInvitationStatus(userId: string, inviteId: string) {
+    if (!Types.ObjectId.isValid(inviteId)) throw new AppError('Invitation not found.', 404, 'INVITATION_NOT_FOUND');
+    const objectId = new Types.ObjectId(userId);
+    const invite = await CoupleInvitationModel.findOne({
+      _id: inviteId,
+      $or: [{ fromUserId: objectId }, { toUserId: objectId }]
+    });
+    if (!invite) throw new AppError('Invitation not found.', 404, 'INVITATION_NOT_FOUND');
+    return this.toDto(invite, userId);
   }
 
   async accept(userId: string, inviteId: string) {
@@ -190,6 +210,9 @@ export class CoupleInvitationService {
   private async toDto(invite: CoupleInvitationDocument, viewerUserId: string) {
     const from = await UserModel.findById(invite.fromUserId).select('displayName email avatarUrl').lean();
     const to = await UserModel.findById(invite.toUserId).select('displayName email avatarUrl').lean();
+    const session = invite.newCoupleSessionId
+      ? await CoupleSessionModel.findById(invite.newCoupleSessionId).select('status').lean()
+      : null;
     return {
       id: invite.id,
       fromUserId: invite.fromUserId.toString(),
@@ -205,6 +228,7 @@ export class CoupleInvitationService {
       previousFilterPresetId: invite.previousFilterPresetId?.toString() ?? null,
       createdAt: invite.createdAt,
       expiresAt: invite.expiresAt,
+      sessionActive: session?.status === 'active',
       fromUser: this.userDto(from, invite.fromUserId.toString()),
       toUser: this.userDto(to, invite.toUserId.toString())
     };

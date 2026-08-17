@@ -19,6 +19,7 @@ type DeckBuildResult = { dishes: DishDocument[]; meta: RecommendedDeckMeta };
 
 export class SoloSwipeService {
  async getActive(userId:string){ const session = await SoloSwipeSessionModel.findOne({userId:new Types.ObjectId(userId),status:'active'}); if(session){ session.lastActivityAt=new Date(); await session.save(); } return session ? this.toDeck(session) : null; }
+ async getResumable(userId:string){ const session = await SoloSwipeSessionModel.findOne({userId:new Types.ObjectId(userId),status:{$in:['active','completed']}}).sort({lastActivityAt:-1,updatedAt:-1}); return session ? this.toDeck(session) : null; }
  async createSession(userId:string, filter:SoloFilterInput){
   await this.assertNoActiveSession(userId);
   const normalized = this.normalizeFilter(filter);

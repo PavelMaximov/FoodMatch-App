@@ -11,6 +11,7 @@ export interface UserDocument extends Document {
   isActive: boolean;
   emailVerified?: boolean;
   emailVerifiedAt?: Date;
+  measurementSystemPreference: 'auto' | 'metric' | 'imperial';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -30,7 +31,8 @@ const userSchema = new Schema<UserDocument>(
     savedDishes: { type: [{ type: Schema.Types.ObjectId, ref: 'Dish' }], default: [] },
     isActive: { type: Boolean, default: true },
     emailVerified: { type: Boolean, default: false },
-    emailVerifiedAt: { type: Date }
+    emailVerifiedAt: { type: Date },
+    measurementSystemPreference: { type: String, enum: ['auto', 'metric', 'imperial'], default: 'auto' }
   },
   { timestamps: true }
 );

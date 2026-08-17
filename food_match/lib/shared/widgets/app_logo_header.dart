@@ -12,13 +12,18 @@ class AppLogoHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final String logoAsset = isDark
+        ? 'assets/logos/logo_fm_white.svg'
+        : 'assets/logos/foodmatch_logo.svg';
+
     return Column(
       children: <Widget>[
         LayoutBuilder(
           builder: (BuildContext context, BoxConstraints constraints) {
             final double width = constraints.maxWidth > 0 ? constraints.maxWidth : 230;
             return SvgPicture.asset(
-              'assets/logos/foodmatch_logo.svg',
+              logoAsset,
               width: width,
               height: width * 0.22,
               fit: BoxFit.contain,

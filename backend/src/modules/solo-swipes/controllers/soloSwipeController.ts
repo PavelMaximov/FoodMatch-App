@@ -4,6 +4,7 @@ import { SoloSwipeService } from '../services/soloSwipeService';
 const service = new SoloSwipeService();
 export class SoloSwipeController {
   async active(req: AuthRequest, res: Response) { res.json({ session: await service.getActive(req.userId!) }); }
+  async resumable(req: AuthRequest, res: Response) { res.json({ session: await service.getResumable(req.userId!) }); }
   async create(req: AuthRequest, res: Response) { res.status(201).json({ session: await service.createSession(req.userId!, req.body?.filter ?? req.body ?? {}) }); }
   async updateFilter(req: AuthRequest, res: Response) { res.json({ session: await service.updateActiveFilter(req.userId!, req.body?.filter ?? req.body ?? {}) }); }
   async abandon(req: AuthRequest, res: Response) { res.json(await service.abandonActive(req.userId!)); }

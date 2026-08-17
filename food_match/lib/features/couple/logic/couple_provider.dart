@@ -54,6 +54,7 @@ class CoupleProvider extends ChangeNotifier {
   DateTime? _currentCoupleLoadedAt;
   bool _isAuthenticated = false;
   String? _activeUserId;
+  bool _suppressContinuationForSoloResume = false;
 
   bool isLoading = false;
   String? error;
@@ -100,6 +101,32 @@ class CoupleProvider extends ChangeNotifier {
   bool get needsPairFilterChange => shouldOpenPairFilterChange;
   bool get hasPendingContinuation =>
       nextIncomingInvitation != null || outgoingContinuationInvite != null;
+
+  bool get continuationSuppressedForSoloResume =>
+      _suppressContinuationForSoloResume;
+
+  void beginSoloResumeIsolation() {
+    _suppressContinuationForSoloResume = true;
+    outgoingContinuationInvite = null;
+    shouldAcquireDeckAfterContinuationInvite = false;
+    shouldReturnToResumeAfterContinuationDeclined = false;
+    continuationFlowOrigin = PairContinuationFlowOrigin.none;
+    AppLogger.info('[PairInvite] cleared stale active marker reason=solo_resume');
+    _safeNotify();
+  }
+
+  void endSoloResumeIsolation() {
+    _suppressContinuationForSoloResume = false;
+  }
+
+  void clearStaleContinuation({required String reason}) {
+    outgoingContinuationInvite = null;
+    shouldAcquireDeckAfterContinuationInvite = false;
+    shouldReturnToResumeAfterContinuationDeclined = false;
+    continuationFlowOrigin = PairContinuationFlowOrigin.none;
+    AppLogger.info('[PairInvite] cleared stale active marker reason=$reason');
+    _safeNotify();
+  }
 
   CoupleInvitation? get nextIncomingInvitation {
     for (final CoupleInvitation invitation in pendingInvitations) {
@@ -701,29 +728,35 @@ class CoupleProvider extends ChangeNotifier {
     if (!_isAuthenticated || (_activeUserId?.isEmpty ?? true)) return;
     try {
       pendingInvitations = await _repository.getPendingInvitations();
-      CoupleInvitation? outgoingInvite;
+      AppLogger.info(
+        '[PairInvite] pending fetched actionableCount=${pendingInvitations.length}',
+      );
+      if (_suppressContinuationForSoloResume) {
+        AppLogger.info('[PairInvite] ignored during solo resume');
+        _safeNotify();
+        return;
+      }
       CoupleInvitation? acceptedInvite;
       CoupleInvitation? declinedInvite;
-      for (final CoupleInvitation invitation in pendingInvitations) {
-        if (outgoingInvite == null &&
-            invitation.isOutgoing &&
-            invitation.isPending &&
-            !hiddenInvitationIds.contains(invitation.id)) {
-          outgoingInvite = invitation;
-        }
-        if (acceptedInvite == null && invitation.status == 'accepted') {
-          acceptedInvite = invitation;
-        }
-        if (declinedInvite == null &&
-            invitation.isOutgoing &&
-            invitation.status == 'declined') {
-          declinedInvite = invitation;
+      final CoupleInvitation? activeOutgoing = outgoingContinuationInvite;
+      if (activeOutgoing != null) {
+        try {
+          final CoupleInvitation status = await _repository.getInvitation(activeOutgoing.id);
+          AppLogger.info('[PairInvite] active outgoing status id=${status.id} status=${status.status}');
+          final bool unexpired = status.expiresAt == null || status.expiresAt!.isAfter(DateTime.now());
+          if (status.status == 'accepted' && status.sessionActive && unexpired) {
+            acceptedInvite = status;
+          } else if (status.status == 'accepted') {
+            outgoingContinuationInvite = null;
+            AppLogger.info('[PairInvite] ignored stale invite id=${status.id} status=${status.status} direction=${status.direction}');
+          }
+          if (status.status == 'declined' || status.status == 'expired' || status.status == 'cancelled') declinedInvite = status;
+          if (status.isPending) outgoingContinuationInvite = status;
+        } catch (_) {
+          outgoingContinuationInvite = null;
+          AppLogger.info('[PairInvite] cleared stale active marker reason=status_unavailable');
         }
       }
-      AppLogger.info(
-        '[PairInvite] pending fetched count=${pendingInvitations.length}',
-      );
-      outgoingContinuationInvite = outgoingInvite;
       if (acceptedInvite != null &&
           _consumedAcceptedInviteIds.add(acceptedInvite.id)) {
         // A sheet dismissal is local only. An accepted continuation always wins.
@@ -758,6 +791,7 @@ class CoupleProvider extends ChangeNotifier {
   }
 
   Future<CoupleInvitation?> createContinueAsBeforeInvite() async {
+    _suppressContinuationForSoloResume = false;
     if (outgoingContinuationInvite?.isPending == true) {
       return outgoingContinuationInvite;
     }

@@ -4,6 +4,7 @@ import '../../../core/errors/error_messages.dart';
 import '../../../data/models/dish.dart';
 import '../../../data/repositories/dish_repository.dart';
 import '../../../data/services/api_service.dart';
+import '../../../core/utils/logger.dart';
 
 class RecipeProvider extends ChangeNotifier {
   RecipeProvider({required DishRepository repository}) : _repository = repository;
@@ -20,22 +21,27 @@ class RecipeProvider extends ChangeNotifier {
       error = null;
       isLoading = false;
       notifyListeners();
-      return;
+      if (!_needsHydration(dish)) return;
+    } else { currentDish = null;
     }
 
-    isLoading = true;
+    final hasInitialDish = currentDish != null;
+    isLoading = !hasInitialDish;
     error = null;
     notifyListeners();
 
     try {
+      AppLogger.info('[RecipeDetail] hydrate full dish id=$dishId');
       currentDish = await _repository.getDishById(dishId);
+      AppLogger.info('[RecipeDetail] hydrated hasTime=${currentDish!.hasTime} totalTime=${currentDish!.resolvedTotalTimeMinutes}');
     } catch (e) {
-      error = _mapError(e);
+      if (!hasInitialDish) error = _mapError(e);
     } finally {
       isLoading = false;
       notifyListeners();
     }
   }
+  bool _needsHydration(Dish dish) => !dish.hasTime || dish.sections.isEmpty || dish.steps.isEmpty || !dish.sections.expand((s) => s.components).any((c) => c.measurements.isNotEmpty);
 
   void clearRecipe() {
     currentDish = null;

@@ -28,6 +28,7 @@ export class CoupleController {
   async getDeckRestartStatus(req: AuthRequest, res: Response) { res.json(await coupleDeckService.getDeckRestartStatus(req.userId!)); }
   async continueAsBefore(req: AuthRequest, res: Response) { res.status(201).json({ invite: await coupleInvitationService.createContinueAsBeforeInvite(req.userId!) }); }
   async pendingInvitations(req: AuthRequest, res: Response) { res.json({ invitations: await coupleInvitationService.getPending(req.userId!) }); }
+  async invitationStatus(req: AuthRequest, res: Response) { res.json({ invite: await coupleInvitationService.getInvitationStatus(req.userId!, req.params.id as string) }); }
   async acceptInvitation(req: AuthRequest, res: Response) { res.json(await coupleInvitationService.accept(req.userId!, req.params.id as string)); }
   async declineInvitation(req: AuthRequest, res: Response) { res.json({ invite: await coupleInvitationService.decline(req.userId!, req.params.id as string) }); }
 }

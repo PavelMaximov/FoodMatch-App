@@ -2,6 +2,7 @@ import '../../core/constants/api_constants.dart';
 import '../../core/utils/logger.dart';
 import '../models/auth_response.dart';
 import '../models/user.dart';
+import '../models/measurement_system.dart';
 import '../services/api_service.dart';
 
 class AuthRepository {
@@ -33,6 +34,16 @@ class AuthRepository {
   Future<User> getMe() async {
     final result = await getMeWithVerificationRequirement();
     return result.user;
+  }
+
+  Future<User> updateMeasurementSystemPreference(MeasurementSystemPreference preference) async {
+    final data = await _apiService.patch(ApiConstants.preferences, {
+      'measurementSystemPreference': preference.value,
+    });
+    if (data is Map<String, dynamic> && data['user'] is Map) {
+      return User.fromJson(Map<String, dynamic>.from(data['user'] as Map));
+    }
+    throw const FormatException('Unexpected preferences response format.');
   }
 
   Future<({User user, bool requireEmailVerification})> getMeWithVerificationRequirement() async {

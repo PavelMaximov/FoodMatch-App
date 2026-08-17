@@ -6,6 +6,7 @@ import { swipeRateLimiter } from '../../../core/middleware/rateLimiters';
 import { soloSwipeController } from '../controllers/soloSwipeController';
 const router = Router();
 router.get('/active', authMiddleware, noStore, asyncHandler(soloSwipeController.active.bind(soloSwipeController)));
+router.get('/resumable', authMiddleware, noStore, asyncHandler(soloSwipeController.resumable.bind(soloSwipeController)));
 router.post('/session', authMiddleware, swipeRateLimiter, asyncHandler(soloSwipeController.create.bind(soloSwipeController)));
 router.post('/active/abandon', authMiddleware, swipeRateLimiter, asyncHandler(soloSwipeController.abandon.bind(soloSwipeController)));
 router.patch('/active/filter', authMiddleware, swipeRateLimiter, asyncHandler(soloSwipeController.updateFilter.bind(soloSwipeController)));

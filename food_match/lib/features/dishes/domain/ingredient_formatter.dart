@@ -1,4 +1,24 @@
 import '../../../data/models/dish.dart';
+import '../../../data/models/measurement_system.dart';
+
+DishIngredientMeasurement? selectIngredientMeasurement(
+  List<DishIngredientMeasurement> measurements,
+  MeasurementSystem system,
+) {
+  final candidates = measurements.where((value) =>
+      (value.quantity?.trim().isNotEmpty ?? false) ||
+      (value.unit?.trim().isNotEmpty ?? false)).toList();
+  if (candidates.isEmpty) return null;
+  for (final target in <String>[system.name, 'universal']) {
+    for (final measurement in candidates) {
+      final recordSystem = measurement.system?.trim().toLowerCase() ?? '';
+      if (recordSystem == target || (target == 'universal' && recordSystem.isEmpty)) {
+        return measurement;
+      }
+    }
+  }
+  return candidates.first;
+}
 
 String formatIngredientQuantity(String? quantity) {
   final String value = quantity?.trim() ?? '';
@@ -16,10 +36,11 @@ String formatIngredientMeasurement(DishIngredientMeasurement? measurement) {
       .join(' ');
 }
 
-String formatIngredientLine(DishComponent component) {
+String formatIngredientLine(DishComponent component,
+    {MeasurementSystem system = MeasurementSystem.metric}) {
   final String name = component.resolvedName;
   final DishIngredientMeasurement? measurement =
-      component.measurements.isEmpty ? null : component.measurements.first;
+      selectIngredientMeasurement(component.measurements, system);
   final String measurementText = formatIngredientMeasurement(measurement);
   return <String>[measurementText, name]
       .where((String part) => part.isNotEmpty)

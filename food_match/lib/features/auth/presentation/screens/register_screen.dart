@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -77,12 +78,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Row(
       children: <Widget>[
         _buildSocialIcon(
-          child: Text(
-            'G',
-            style: GoogleFonts.nunito(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: context.fmColors.textPrimary,
+          child: SvgPicture.asset(
+            'assets/icons/google.svg',
+            width: 18,
+            height: 18,
+            fit: BoxFit.contain,
+            colorFilter: ColorFilter.mode(
+              context.fmColors.textPrimary,
+              BlendMode.srcIn,
             ),
           ),
           onTap: () => FoodMatchNotifications.show(

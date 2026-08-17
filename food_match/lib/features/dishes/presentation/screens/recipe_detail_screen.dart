@@ -11,21 +11,25 @@ import '../../../../core/assets/app_empty_state_assets.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/utils/dish_image_placeholders.dart';
 import '../../../../core/utils/image_utils.dart';
+import '../../../../core/utils/logger.dart';
 import '../../../../data/models/dish.dart';
+import '../../../../data/models/measurement_system.dart';
 import '../../../../data/models/recipe_step.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/media/safe_dish_image.dart';
 import '../../../../shared/widgets/shimmer_card.dart';
 import '../../../favorites/logic/favorites_provider.dart';
+import '../../../auth/logic/auth_provider.dart';
 import '../../../shopping_list/logic/shopping_list_provider.dart';
 import '../../domain/ingredient_formatter.dart';
 import '../../logic/recipe_provider.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
-  const RecipeDetailScreen({required this.dishId, this.dish, super.key});
+  const RecipeDetailScreen({required this.dishId, this.dish, this.source, super.key});
 
   final String dishId;
   final Dish? dish;
+  final String? source;
 
   @override
   State<RecipeDetailScreen> createState() => _RecipeDetailScreenState();
@@ -37,12 +41,14 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   bool _isScrolled = false;
   bool _isAddingIngredientsToShoppingList = false;
   bool _hasScheduledShoppingListNavigation = false;
+  String? _lastDiagnosticSignature;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_handleScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      AppLogger.info('[RecipeDetail] open source=${widget.source ?? 'other'} dish=${widget.dishId} initialHasTime=${widget.dish?.hasTime ?? false}');
       context.read<RecipeProvider>().loadRecipeForDish(
             dishId: widget.dishId,
             dish: widget.dish,
@@ -72,6 +78,20 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     final bool isLoading = context.select<RecipeProvider, bool>((RecipeProvider p) => p.isLoading);
     final String? error = context.select<RecipeProvider, String?>((RecipeProvider p) => p.error);
     final FoodMatchThemeColors colors = context.fmColors;
+    final preference = context.watch<AuthProvider>().measurementSystemPreference;
+    final deviceLocale = WidgetsBinding.instance.platformDispatcher.locale;
+    final MeasurementSystem measurementSystem = resolveMeasurementSystem(
+      preference: preference, deviceLocale: deviceLocale,
+      fallbackLocale: Localizations.maybeLocaleOf(context),
+    );
+    final diagnostic = '${preference.name}|$deviceLocale|${measurementSystem.name}|${dish?.totalTimeDisplay}';
+    if (_lastDiagnosticSignature != diagnostic) {
+      _lastDiagnosticSignature = diagnostic;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        AppLogger.info('[Measurement] preference=${preference.name} locale=$deviceLocale country=${deviceLocale.countryCode ?? 'none'} resolved=${measurementSystem.name}');
+        if (dish != null) AppLogger.info('[RecipeDetail] render time=${dish.totalTimeDisplay.isEmpty ? 'none' : dish.totalTimeDisplay} source=${dish.totalTimeMinutes > 0 ? 'totalTimeMinutes' : dish.cookTime > 0 ? 'legacyCookTime' : 'componentOrTier'}');
+      });
+    }
 
     if (isLoading) {
       return Scaffold(
@@ -153,6 +173,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                   isAddingIngredients: _isAddingIngredientsToShoppingList ||
                       _hasScheduledShoppingListNavigation,
                   onAddIngredients: _handleAddIngredientsToShoppingList,
+                  measurementSystem: measurementSystem,
                 ),
               ),
             ],
@@ -342,6 +363,7 @@ class _RecipeContent extends StatelessWidget {
     required this.onTabChanged,
     required this.isAddingIngredients,
     required this.onAddIngredients,
+    required this.measurementSystem,
   });
 
   final Dish dish;
@@ -349,6 +371,7 @@ class _RecipeContent extends StatelessWidget {
   final _RecipeDetailTab activeTab;
   final ValueChanged<_RecipeDetailTab> onTabChanged;
   final bool isAddingIngredients;
+  final MeasurementSystem measurementSystem;
   final Future<void> Function(
     Dish dish,
     List<ShoppingListIngredientInput> ingredients,
@@ -358,9 +381,9 @@ class _RecipeContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final FoodMatchThemeColors colors = context.fmColors;
     final EdgeInsets safePadding = MediaQuery.paddingOf(context);
-    final List<_IngredientDisplayRow> ingredientRows = _buildIngredientRows(dish);
+    final List<_IngredientDisplayRow> ingredientRows = _buildIngredientRows(dish, measurementSystem);
     final List<ShoppingListIngredientInput> shoppingIngredients =
-        _buildShoppingIngredients(dish);
+        _buildShoppingIngredients(dish, measurementSystem);
 
     return ColoredBox(
       color: colors.background,
@@ -438,12 +461,12 @@ class _RecipeContent extends StatelessWidget {
     );
   }
 
-  List<_IngredientDisplayRow> _buildIngredientRows(Dish dish) {
+  List<_IngredientDisplayRow> _buildIngredientRows(Dish dish, MeasurementSystem system) {
     final List<_IngredientDisplayRow> structuredRows = dish.sections
         .expand((DishSection section) => section.components)
         .map((DishComponent component) {
           final DishIngredientMeasurement? measurement =
-              component.measurements.isEmpty ? null : component.measurements.first;
+              selectIngredientMeasurement(component.measurements, system);
           return _IngredientDisplayRow(
             name: component.resolvedName,
             measurement: formatIngredientMeasurement(measurement),
@@ -462,13 +485,13 @@ class _RecipeContent extends StatelessWidget {
         .toList();
   }
 
-  List<ShoppingListIngredientInput> _buildShoppingIngredients(Dish dish) {
+  List<ShoppingListIngredientInput> _buildShoppingIngredients(Dish dish, MeasurementSystem system) {
     final List<ShoppingListIngredientInput> richIngredients = dish.sections
         .expand((DishSection section) => section.components)
         .where((DishComponent component) => component.resolvedName.isNotEmpty)
         .map((DishComponent component) {
           final DishIngredientMeasurement? measurement =
-              component.measurements.isEmpty ? null : component.measurements.first;
+              selectIngredientMeasurement(component.measurements, system);
           return ShoppingListIngredientInput(
             name: component.resolvedName,
             quantity: formatIngredientQuantity(measurement?.quantity),
@@ -561,7 +584,7 @@ class _StatsRow extends StatelessWidget {
       ),
       child: Row(
         children: <Widget>[
-          Expanded(child: _StatItem(icon: Icons.schedule, label: _formatCookTime(dish.cookTime))),
+          Expanded(child: _StatItem(icon: Icons.schedule, label: dish.totalTimeDisplay.isEmpty ? '— min' : dish.totalTimeDisplay)),
           _VerticalDivider(color: colors.chipBorder),
           Expanded(child: _StatItem(icon: Icons.groups_outlined, label: _formatServings(dish.servings))),
           _VerticalDivider(color: colors.chipBorder),
@@ -574,11 +597,6 @@ class _StatsRow extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  String _formatCookTime(int cookTime) {
-    if (cookTime <= 0) return '— min';
-    return '$cookTime min';
   }
 
   String _formatServings(String servings) {

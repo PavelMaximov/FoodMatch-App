@@ -85,10 +85,11 @@ class DishSection {
 
 @JsonSerializable()
 class DishIngredientMeasurement {
-  const DishIngredientMeasurement({this.quantity, this.unit});
+  const DishIngredientMeasurement({this.quantity, this.unit, this.system});
 
   final String? quantity;
   final String? unit;
+  final String? system;
 
   factory DishIngredientMeasurement.fromJson(Map<String, dynamic> json) =>
       _$DishIngredientMeasurementFromJson(json);
@@ -125,6 +126,7 @@ class Dish {
     required this.diet,
     required this.ingredients,
     required this.cookTime,
+    this.prepTimeMinutes = 0, this.cookTimeMinutes = 0, this.totalTimeMinutes = 0, this.totalTimeTier = '',
     required this.calories,
     required this.effort,
     required this.source,
@@ -165,6 +167,16 @@ class Dish {
   final List<String> ingredients;
   @JsonKey(defaultValue: 0)
   final int cookTime;
+  final int prepTimeMinutes, cookTimeMinutes, totalTimeMinutes;
+  final String totalTimeTier;
+  int get resolvedTotalTimeMinutes => totalTimeMinutes > 0 ? totalTimeMinutes : cookTime > 0 ? cookTime : prepTimeMinutes + cookTimeMinutes;
+  bool get hasTime => resolvedTotalTimeMinutes > 0 || totalTimeTier.isNotEmpty;
+  String get totalTimeDisplay {
+    final minutes = resolvedTotalTimeMinutes;
+    if (minutes <= 0) return totalTimeTier;
+    final hours = minutes ~/ 60, remainder = minutes % 60;
+    return hours == 0 ? '$minutes min' : remainder == 0 ? '$hours hr' : '$hours hr $remainder min';
+  }
   @JsonKey(defaultValue: '')
   final String calories;
   @JsonKey(defaultValue: '')

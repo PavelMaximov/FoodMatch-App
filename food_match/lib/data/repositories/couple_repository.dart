@@ -49,6 +49,11 @@ class CoupleRepository {
     return raw.whereType<Map>().map((Map item) => CoupleInvitation.fromJson(Map<String, dynamic>.from(item))).toList();
   }
 
+  Future<CoupleInvitation> getInvitation(String id) async {
+    final data = await _apiService.get(ApiConstants.coupleInvitation(id));
+    return CoupleInvitation.fromJson(Map<String, dynamic>.from((data as Map<String, dynamic>)['invite'] as Map));
+  }
+
   Future<Couple?> acceptInvitation(String id) async {
     final data = await _apiService.post(ApiConstants.coupleInvitationAccept(id), <String, dynamic>{});
     if (data is Map<String, dynamic> && data['session'] is Map<String, dynamic>) {
