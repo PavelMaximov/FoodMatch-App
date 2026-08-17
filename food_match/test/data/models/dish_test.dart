@@ -47,6 +47,12 @@ void main() {
     expect(dish.steps, isEmpty);
     expect(dish.popular, isFalse);
   });
+  test('normalizes time fields and display fallbacks', () {
+    expect(Dish.fromJson({'total_time_minutes': 90, 'cookTime': 25}).totalTimeDisplay, '1 hr 30 min');
+    expect(Dish.fromJson({'cookTime': 25}).totalTimeDisplay, '25 min');
+    expect(Dish.fromJson({'prep_time_minutes': 10, 'cook_time_minutes': 50}).totalTimeDisplay, '1 hr');
+    expect(Dish.fromJson({'total_time_tier': {'display_tier': 'Under 30 min'}}).totalTimeDisplay, 'Under 30 min');
+  });
 
   test('Dish.fromJson parses normalized rich ingredient sections', () {
     final Dish dish = Dish.fromJson(<String, dynamic>{

@@ -70,7 +70,11 @@ export interface DishDto {
   ingredients: string[];
   ingredientCount: number;
   cookTime: number;
+  prepTimeMinutes: number;
+  cookTimeMinutes: number;
   totalTime: number;
+  totalTimeMinutes: number;
+  totalTimeTier: { displayTier: string } | null;
   servings: string;
   qualityScore: number;
   calories: string;
@@ -109,6 +113,8 @@ export function toDishDto(dish: any): DishDto | null {
 
   const ingredients = readIngredients(raw);
   const cookTime = firstNumber(raw.cookTime, raw.cook_time_minutes, raw.total_time_minutes);
+  const prepTimeMinutes = firstNumber(raw.prepTimeMinutes, raw.prep_time_minutes);
+  const cookTimeMinutes = firstNumber(raw.cookTimeMinutes, raw.cook_time_minutes);
   const totalTime = firstNumber(
     raw.totalTime,
     raw.total_time_minutes,
@@ -132,7 +138,11 @@ export function toDishDto(dish: any): DishDto | null {
     ingredients,
     ingredientCount: firstNumber(raw.ingredientCount, ingredients.length),
     cookTime,
+    prepTimeMinutes,
+    cookTimeMinutes,
     totalTime,
+    totalTimeMinutes: totalTime,
+    totalTimeTier: readTotalTimeTier(raw.totalTimeTier ?? raw.total_time_tier),
     servings: firstString(raw.num_servings, raw.servings, raw.yields),
     qualityScore: firstNumber(raw.quality_score, raw.qualityScore),
     calories: firstString(raw.calories_level, raw.calories),
@@ -240,6 +250,11 @@ function readMeasurementSystem(value: any): 'metric' | 'imperial' | 'universal' 
   return value === 'metric' || value === 'imperial' || value === 'universal'
     ? value
     : 'universal';
+}
+
+function readTotalTimeTier(value: any): { displayTier: string } | null {
+  const displayTier = firstString(value?.displayTier, value?.display_tier, value);
+  return displayTier ? { displayTier } : null;
 }
 
 function readMeasurementUnit(value: any): string {

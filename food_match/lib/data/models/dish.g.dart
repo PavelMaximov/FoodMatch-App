@@ -113,7 +113,11 @@ Dish _$DishFromJson(Map<String, dynamic> json) => Dish(
           ?.map((e) => e as String)
           .toList() ??
       <String>[],
-  cookTime: (json['cookTime'] as num?)?.toInt() ?? 0,
+  cookTime: _readTimeMinutes(json['cookTime']),
+  prepTimeMinutes: _readTimeMinutes(json['prepTimeMinutes'] ?? json['prep_time_minutes']),
+  cookTimeMinutes: _readTimeMinutes(json['cookTimeMinutes'] ?? json['cook_time_minutes']),
+  totalTimeMinutes: _readTimeMinutes(json['totalTimeMinutes'] ?? json['total_time_minutes'] ?? json['totalTime']),
+  totalTimeTier: _readTimeTier(json['totalTimeTier'] ?? json['total_time_tier']),
   calories: json['calories'] as String? ?? '',
   effort: json['effort'] as String? ?? '',
   source:
@@ -152,6 +156,10 @@ Map<String, dynamic> _$DishToJson(Dish instance) => <String, dynamic>{
   'diet': instance.diet,
   'ingredients': instance.ingredients,
   'cookTime': instance.cookTime,
+  'prepTimeMinutes': instance.prepTimeMinutes,
+  'cookTimeMinutes': instance.cookTimeMinutes,
+  'totalTimeMinutes': instance.totalTimeMinutes,
+  'totalTimeTier': instance.totalTimeTier,
   'calories': instance.calories,
   'effort': instance.effort,
   'source': instance.source,
@@ -252,3 +260,5 @@ int? _readOptionalInt(dynamic value) {
   }
   return null;
 }
+int _readTimeMinutes(dynamic value) => _readOptionalInt(value) ?? 0;
+String _readTimeTier(dynamic value) { if (value is Map) value = value['displayTier'] ?? value['display_tier']; return value is String ? value.trim() : ''; }

@@ -9,13 +9,22 @@ void main() {
         MeasurementSystemPreference.auto);
     expect(MeasurementSystemPreferenceValue.parse('unsupported'), MeasurementSystemPreference.auto);
   });
+  test('serializes only the explicitly selected preference', () {
+    for (final preference in MeasurementSystemPreference.values) {
+      final user = User(id: '1', email: 'a@b.com', displayName: 'A', measurementSystemPreference: preference);
+      expect(user.toJson()['measurementSystemPreference'], preference.name);
+    }
+  });
 
-  test('auto uses imperial countries and metric otherwise', () {
-    expect(resolveMeasurementSystem(MeasurementSystemPreference.auto, locale: const Locale('en', 'US')),
-        MeasurementSystem.imperial);
-    expect(resolveMeasurementSystem(MeasurementSystemPreference.auto, locale: const Locale('de', 'DE')),
-        MeasurementSystem.metric);
-    expect(resolveMeasurementSystem(MeasurementSystemPreference.metric, locale: const Locale('en', 'US')),
-        MeasurementSystem.metric);
+  test('auto uses only region and defaults to metric', () {
+    for (final locale in const [Locale('de', 'DE'), Locale('en', 'DE'), Locale('uk', 'DE'), Locale('en', 'GB'), Locale('en', 'CA'), Locale('en')]) {
+      expect(resolveMeasurementSystem(preference: MeasurementSystemPreference.auto, deviceLocale: locale), MeasurementSystem.metric);
+    }
+    for (final locale in const [Locale('en', 'US'), Locale('de', 'US')]) {
+      expect(resolveMeasurementSystem(preference: MeasurementSystemPreference.auto, deviceLocale: locale), MeasurementSystem.imperial);
+    }
+    expect(resolveMeasurementSystem(preference: MeasurementSystemPreference.auto, deviceLocale: null), MeasurementSystem.metric);
+    expect(resolveMeasurementSystem(preference: MeasurementSystemPreference.metric, deviceLocale: const Locale('en', 'US')), MeasurementSystem.metric);
+    expect(resolveMeasurementSystem(preference: MeasurementSystemPreference.imperial, deviceLocale: const Locale('de', 'DE')), MeasurementSystem.imperial);
   });
 }

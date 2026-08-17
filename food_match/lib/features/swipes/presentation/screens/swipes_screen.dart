@@ -1896,7 +1896,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                           onBack: provider.canUndo && !provider.isSendingSwipe && !_isCardActionInProgress
                               ? () => _handleBack(provider)
                               : null,
-                          onInfoTap: () => context.push('/recipe-detail/${dish.id}', extra: dish),
+                          onInfoTap: () => context.push('/recipe-detail/${dish.id}?source=swipes', extra: dish),
                           showSeenBadge: provider.isSeenDish(dish.id),
                         );
                       },

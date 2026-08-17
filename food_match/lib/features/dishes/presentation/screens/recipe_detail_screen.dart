@@ -11,6 +11,7 @@ import '../../../../core/assets/app_empty_state_assets.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/utils/dish_image_placeholders.dart';
 import '../../../../core/utils/image_utils.dart';
+import '../../../../core/utils/logger.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../data/models/measurement_system.dart';
 import '../../../../data/models/recipe_step.dart';
@@ -24,10 +25,11 @@ import '../../domain/ingredient_formatter.dart';
 import '../../logic/recipe_provider.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
-  const RecipeDetailScreen({required this.dishId, this.dish, super.key});
+  const RecipeDetailScreen({required this.dishId, this.dish, this.source, super.key});
 
   final String dishId;
   final Dish? dish;
+  final String? source;
 
   @override
   State<RecipeDetailScreen> createState() => _RecipeDetailScreenState();
@@ -39,12 +41,14 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   bool _isScrolled = false;
   bool _isAddingIngredientsToShoppingList = false;
   bool _hasScheduledShoppingListNavigation = false;
+  String? _lastDiagnosticSignature;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_handleScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      AppLogger.info('[RecipeDetail] open source=${widget.source ?? 'other'} dish=${widget.dishId} initialHasTime=${widget.dish?.hasTime ?? false}');
       context.read<RecipeProvider>().loadRecipeForDish(
             dishId: widget.dishId,
             dish: widget.dish,
@@ -74,10 +78,20 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     final bool isLoading = context.select<RecipeProvider, bool>((RecipeProvider p) => p.isLoading);
     final String? error = context.select<RecipeProvider, String?>((RecipeProvider p) => p.error);
     final FoodMatchThemeColors colors = context.fmColors;
+    final preference = context.watch<AuthProvider>().measurementSystemPreference;
+    final deviceLocale = WidgetsBinding.instance.platformDispatcher.locale;
     final MeasurementSystem measurementSystem = resolveMeasurementSystem(
-      context.watch<AuthProvider>().measurementSystemPreference,
-      locale: Localizations.maybeLocaleOf(context),
+      preference: preference, deviceLocale: deviceLocale,
+      fallbackLocale: Localizations.maybeLocaleOf(context),
     );
+    final diagnostic = '${preference.name}|$deviceLocale|${measurementSystem.name}|${dish?.totalTimeDisplay}';
+    if (_lastDiagnosticSignature != diagnostic) {
+      _lastDiagnosticSignature = diagnostic;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        AppLogger.info('[Measurement] preference=${preference.name} locale=$deviceLocale country=${deviceLocale.countryCode ?? 'none'} resolved=${measurementSystem.name}');
+        if (dish != null) AppLogger.info('[RecipeDetail] render time=${dish.totalTimeDisplay.isEmpty ? 'none' : dish.totalTimeDisplay} source=${dish.totalTimeMinutes > 0 ? 'totalTimeMinutes' : dish.cookTime > 0 ? 'legacyCookTime' : 'componentOrTier'}');
+      });
+    }
 
     if (isLoading) {
       return Scaffold(
@@ -570,7 +584,7 @@ class _StatsRow extends StatelessWidget {
       ),
       child: Row(
         children: <Widget>[
-          Expanded(child: _StatItem(icon: Icons.schedule, label: _formatCookTime(dish.cookTime))),
+          Expanded(child: _StatItem(icon: Icons.schedule, label: dish.totalTimeDisplay.isEmpty ? '— min' : dish.totalTimeDisplay)),
           _VerticalDivider(color: colors.chipBorder),
           Expanded(child: _StatItem(icon: Icons.groups_outlined, label: _formatServings(dish.servings))),
           _VerticalDivider(color: colors.chipBorder),
@@ -583,11 +597,6 @@ class _StatsRow extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  String _formatCookTime(int cookTime) {
-    if (cookTime <= 0) return '— min';
-    return '$cookTime min';
   }
 
   String _formatServings(String servings) {

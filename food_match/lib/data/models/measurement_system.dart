@@ -14,13 +14,14 @@ extension MeasurementSystemPreferenceValue on MeasurementSystemPreference {
       );
 }
 
-MeasurementSystem resolveMeasurementSystem(
-  MeasurementSystemPreference preference, {
-  Locale? locale,
+MeasurementSystem resolveMeasurementSystem({
+  required MeasurementSystemPreference preference,
+  required Locale? deviceLocale,
+  Locale? fallbackLocale,
 }) {
   if (preference == MeasurementSystemPreference.metric) return MeasurementSystem.metric;
   if (preference == MeasurementSystemPreference.imperial) return MeasurementSystem.imperial;
-  final country = (locale?.countryCode ?? '').toUpperCase();
+  final country = (deviceLocale?.countryCode ?? fallbackLocale?.countryCode ?? '').toUpperCase();
   return const {'US', 'LR', 'MM'}.contains(country)
       ? MeasurementSystem.imperial
       : MeasurementSystem.metric;
