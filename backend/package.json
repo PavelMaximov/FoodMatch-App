@@ -8,6 +8,16 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "lint": "tsc --noEmit",
+    "supabase:start": "supabase start --workdir ..",
+    "supabase:stop": "supabase stop --workdir ..",
+    "supabase:db:reset": "supabase db reset --workdir ..",
+    "supabase:migration:new": "supabase migration new --workdir ..",
+    "supabase:db:push": "supabase db push --workdir ..",
+    "supabase:schema:check": "ts-node scripts/checkSupabaseSchema.ts",
+    "supabase:export:mongo": "ts-node scripts/exportMongoForSupabase.ts",
+    "supabase:import:dishes": "ts-node scripts/importDishesToSupabase.ts",
+    "supabase:import:ingredients": "ts-node scripts/importIngredientsToSupabase.ts",
+    "supabase:import:validate": "ts-node scripts/validateSupabaseImport.ts",
     "cleanup:mealdb": "ts-node src/scripts/cleanupMealDbDishes.ts",
     "fix:sourceType": "ts-node src/scripts/fixMissingSourceType.ts",
     "migrate:swipe-indexes": "ts-node src/scripts/migrateSwipeIndexes.ts",
@@ -34,6 +44,7 @@
     "test:solo-resume-isolation": "ts-node src/scripts/testSoloResumeIsolation.ts"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.109.0",
     "bcryptjs": "^2.4.3",
     "cloudinary": "^2.10.0",
     "compression": "^1.8.1",
@@ -46,6 +57,7 @@
     "mongoose": "^8.11.0",
     "morgan": "^1.10.0",
     "multer": "^2.1.1",
+    "pg": "^8.23.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {
@@ -57,6 +69,7 @@
     "@types/morgan": "^1.9.9",
     "@types/multer": "^2.1.0",
     "@types/node": "^22.13.10",
+    "@types/pg": "^8.21.0",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.8.2"
