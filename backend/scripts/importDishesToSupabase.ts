@@ -1,12 +1,12 @@
 import 'dotenv/config';
-import { arg, connect, JsonRecord, records, stableUuid, value } from './supabaseImportUtils';
+import { connect, inputFile, JsonRecord, records, stableUuid, value } from './supabaseImportUtils';
 
 const array = (v: unknown): unknown[] => Array.isArray(v) ? v : [];
 const textArray = (v: unknown): string[] => array(v).map(String);
 const numberOrNull = (v: unknown): number | null => v === '' || v == null || Number.isNaN(Number(v)) ? null : Number(v);
 
 async function main(): Promise<void> {
-  const rows = records(arg('file'));
+  const rows = records(inputFile());
   const db = await connect();
   const counts = { dishes: 0, sections: 0, components: 0, measurements: 0, instructions: 0, tags: 0, unresolvedOwners: 0 };
   try {

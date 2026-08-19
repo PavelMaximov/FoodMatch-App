@@ -10,9 +10,10 @@ Install the Supabase CLI and Docker, then run from `backend/`:
 npm run supabase:start
 npm run supabase:db:reset
 npm run supabase:schema:check
+npm run supabase:test:db
 ```
 
-`db:reset` applies every file in `supabase/migrations`, then `seed.sql`. The schema check uses `SUPABASE_DB_URL` (the example points at local Supabase). Use `supabase test db --workdir ..` to execute the pgTAP test. Hosted deployment is optional; `supabase:db:push` is intended only after linking a project.
+`db:reset` applies every file in `supabase/migrations`, then `seed.sql`. The schema check uses `SUPABASE_DB_URL` (the example points at local Supabase). The npm test wrapper executes pgTAP without requiring `supabase` on the global Windows `PATH`. Hosted deployment is optional; `supabase:db:push` is intended only after linking a project.
 
 ## Data transfer
 
@@ -20,6 +21,14 @@ npm run supabase:schema:check
 2. Set `SUPABASE_DB_URL`, then run `npm run supabase:import:dishes -- --file tmp/supabase-export/dishes.json`.
 3. Run `npm run supabase:import:ingredients -- --file tmp/supabase-export/ingredients.json`.
 4. Run `npm run supabase:import:validate -- --dir tmp/supabase-export`.
+
+The import commands also accept a first positional path, which can be more convenient in PowerShell:
+
+```sh
+npm run supabase:import:dishes -- tmp/supabase-export/dishes.json
+npm run supabase:import:ingredients -- tmp/supabase-export/ingredients.json
+npm run supabase:import:validate -- tmp/supabase-export
+```
 
 Imports are transactional and repeatable. Stable UUIDs are derived from Mongo IDs, while the original value remains in `legacy_mongo_id`. Dish sections, components, all metric/imperial/universal measurements, instructions, tags, nutrition, register, spice level, and owner linkage are mapped. Owner UUIDs must already correspond to `profiles.id`; unresolved owners are reported and left null.
 

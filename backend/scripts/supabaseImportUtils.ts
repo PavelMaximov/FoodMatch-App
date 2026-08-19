@@ -3,12 +3,32 @@ import { readFileSync } from 'fs';
 import { Client } from 'pg';
 
 export type JsonRecord = Record<string, any>;
-export function arg(name: string, fallback?: string): string {
-  const index = process.argv.indexOf(`--${name}`);
-  const value = index >= 0 ? process.argv[index + 1] : fallback;
-  if (!value) throw new Error(`Missing --${name}`);
+export function arg(name: string, fallback?: string, missingMessage = `Missing --${name}`): string {
+  const args = process.argv.slice(2);
+  const namedIndex = args.indexOf(`--${name}`);
+  if (namedIndex >= 0) {
+    const namedValue = args[namedIndex + 1];
+    if (namedValue && !namedValue.startsWith('--')) return namedValue;
+    throw new Error(missingMessage);
+  }
+
+  const positionalValue = args.find((value) => !value.startsWith('-'));
+  const value = positionalValue || fallback;
+  if (!value) throw new Error(missingMessage);
   return value;
 }
+
+export const inputFile = (): string => arg(
+  'file',
+  undefined,
+  'Missing input file. Use --file <path> or pass the file path as the first argument.',
+);
+
+export const inputDirectory = (): string => arg(
+  'dir',
+  undefined,
+  'Missing input directory. Use --dir <path> or pass the directory path as the first argument.',
+);
 export function records(file: string): JsonRecord[] {
   const parsed: unknown = JSON.parse(readFileSync(file, 'utf8'));
   if (!Array.isArray(parsed)) throw new Error(`${file} must contain a JSON array`);
