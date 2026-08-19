@@ -1,0 +1,5 @@
+import 'dotenv/config';
+import { connect, inputFile, records, stableUuid, value } from './supabaseImportUtils';
+const normalize = (name: string): string => name.trim().toLocaleLowerCase('en').replace(/\s+/g, ' ');
+async function main(): Promise<void> { const rows=records(inputFile()); const db=await connect(); let imported=0; try { await db.query('begin'); for(const row of rows){ const name=String(value(row,'name','ingredient_name','ingredientName')??'').trim(); if(!name)continue; const normalized=String(value(row,'normalized_name','normalizedName')??normalize(name)); await db.query(`insert into ingredients(id,name,normalized_name) values($1,$2,$3) on conflict(normalized_name) do update set name=excluded.name,updated_at=now()`,[stableUuid(`ingredient:${normalized}`),name,normalized]); imported++; } await db.query('commit'); console.log(JSON.stringify({source:rows.length,imported},null,2)); } catch(error){await db.query('rollback');throw error;} finally{await db.end();} }
+main().catch(error=>{console.error(error);process.exitCode=1;});

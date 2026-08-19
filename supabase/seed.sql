@@ -1,0 +1,2 @@
+-- Intentionally empty. Catalog data is loaded with backend import scripts so
+-- production-shaped Mongo exports are explicit and validated.
