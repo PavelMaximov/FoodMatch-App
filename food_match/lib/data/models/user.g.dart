@@ -5,12 +5,12 @@ part of 'user.dart';
 User _$UserFromJson(Map<String, dynamic> json) => User(
       id: User._readId(json, '_id') as String,
       email: json['email'] as String,
-      displayName: json['displayName'] as String,
+      displayName: User._readCamelOrSnake(json, 'displayName') as String,
       coupleId: json['coupleId'] as String?,
-      avatarUrl: json['avatarUrl'] as String?,
-      avatarPublicId: json['avatarPublicId'] as String?,
-      emailVerified: json['emailVerified'] as bool? ?? true,
-      measurementSystemPreference: MeasurementSystemPreferenceValue.parse(json['measurementSystemPreference']),
+      avatarUrl: User._readCamelOrSnake(json, 'avatarUrl') as String?,
+      avatarPublicId: User._readCamelOrSnake(json, 'avatarPublicId') as String?,
+      emailVerified: User._readCamelOrSnake(json, 'emailVerified') as bool? ?? true,
+      measurementSystemPreference: MeasurementSystemPreferenceValue.parse(User._readCamelOrSnake(json, 'measurementSystemPreference')),
     );
 
 Map<String, dynamic> _$UserToJson(User instance) => <String, dynamic>{

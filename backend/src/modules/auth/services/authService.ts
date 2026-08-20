@@ -7,6 +7,8 @@ import { normalizeEmail } from '../utils/normalizeEmail';
 import { EmailVerificationTokenModel } from '../models/EmailVerificationToken';
 import { emailService } from './emailService';
 import { hashToken, tokenService, TokenMetadata } from './tokenService';
+import { AuthRequest } from '../../../core/middleware/authMiddleware';
+import { MeasurementPreference, supabaseProfileService } from './supabaseProfileService';
 
 function parseDuration(value: string): number {
   const match = /^(\d+)([smhd])$/.exec(value);
@@ -16,6 +18,23 @@ function parseDuration(value: string): number {
 }
 
 export class AuthService {
+  async supabaseMe(req: AuthRequest) {
+    if (!req.authUser || !req.profile || !req.userId) throw new AppError('Unauthorized', 401);
+    const runtimeUser = await UserModel.findById(req.userId);
+    if (!runtimeUser) throw new AppError('User not found', 404);
+    return {
+      user: supabaseProfileService.toUserDto(req.profile, req.authUser, runtimeUser),
+      requireEmailVerification: env.REQUIRE_EMAIL_VERIFICATION && !req.authUser.email_confirmed_at,
+    };
+  }
+
+  async updateSupabasePreferences(req: AuthRequest, preference: MeasurementPreference) {
+    if (!req.authUser || !req.userId) throw new AppError('Unauthorized', 401);
+    const profile = await supabaseProfileService.updatePreference(req.authUser, preference);
+    const runtimeUser = await UserModel.findByIdAndUpdate(req.userId, { $set: { measurementSystemPreference: preference } }, { new: true });
+    if (!runtimeUser) throw new AppError('User not found', 404);
+    return { user: supabaseProfileService.toUserDto(profile, req.authUser, runtimeUser) };
+  }
   async register(email: string, password: string, displayName: string, metadata: TokenMetadata = {}) {
     const normalizedEmail = normalizeEmail(email);
     if (await UserModel.findOne({ email: normalizedEmail })) throw new AppError('Email already in use', 409);
