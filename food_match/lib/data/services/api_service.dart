@@ -8,6 +8,7 @@ import 'package:http_parser/http_parser.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/constants/api_constants.dart';
+import '../../core/config/backend_api_config.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/security/certificate_pinning_http_client.dart';
 import '../../core/utils/logger.dart';
@@ -93,10 +94,8 @@ class ApiService {
   }
 
   Future<dynamic> get(String endpoint) async {
-    final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint');
+    final uri = _backendUri('GET', endpoint);
     try {
-      _logApiConfigOnce();
-      _logApiConfigOnce();
       await _throttle();
       AppLogger.api('GET', uri.toString());
       final stopwatch = Stopwatch()..start();
@@ -130,7 +129,7 @@ class ApiService {
   }
 
   Future<dynamic> post(String endpoint, Map<String, dynamic> body) async {
-    final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint');
+    final uri = _backendUri('POST', endpoint);
     try {
       await _throttle();
       AppLogger.api('POST', uri.toString());
@@ -174,7 +173,7 @@ class ApiService {
   }
 
   Future<dynamic> put(String endpoint, Map<String, dynamic> body) async {
-    final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint');
+    final uri = _backendUri('PUT', endpoint);
     try {
       await _throttle();
       AppLogger.api('PUT', uri.toString());
@@ -209,7 +208,7 @@ class ApiService {
   }
 
   Future<dynamic> patch(String endpoint, Map<String, dynamic> body) async {
-    final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint');
+    final uri = _backendUri('PATCH', endpoint);
     try {
       await _throttle();
       AppLogger.api('PATCH', uri.toString());
@@ -246,7 +245,7 @@ class ApiService {
   }
 
   Future<dynamic> delete(String endpoint) async {
-    final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint');
+    final uri = _backendUri('DELETE', endpoint);
     try {
       await _throttle();
       AppLogger.api('DELETE', uri.toString());
@@ -286,7 +285,7 @@ class ApiService {
     String fieldName = 'file',
     Map<String, String>? fields,
   }) async {
-    final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint');
+    final uri = _backendUri('POST', endpoint);
     try {
       await _throttle();
       AppLogger.api('POST-MULTIPART', uri.toString());
@@ -378,6 +377,20 @@ class ApiService {
       AppLogger.info('[ApiClient] attached Supabase bearer token=true');
     }
     return headers;
+  }
+
+  Uri _backendUri(String method, String endpoint) {
+    final Uri uri = Uri.parse('${ApiConstants.baseUrl}$endpoint');
+    if (BackendApiConfig.looksLikeSupabase(uri) &&
+        endpoint.startsWith('/api')) {
+      throw StateError(
+        'Backend API misconfigured: /api requests are being sent to Supabase. '
+        'Set API_BASE_URL to the FoodMatch backend URL.',
+      );
+    }
+    _logApiConfigOnce();
+    AppLogger.info('[ApiClient] request method=$method path=${uri.path}');
+    return uri;
   }
 
   String? get _currentAccessToken =>

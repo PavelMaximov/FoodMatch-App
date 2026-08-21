@@ -49,7 +49,7 @@ Flutter:
 ```sh
 cd food_match
 flutter pub get
-dart format .
+dart format lib test
 flutter analyze
 flutter run \
   --dart-define=SUPABASE_URL=<your-url> \
@@ -62,12 +62,39 @@ Windows PowerShell single-line form:
 flutter run --dart-define=SUPABASE_URL=<your-url> --dart-define=SUPABASE_ANON_KEY=<your-anon-key>
 ```
 
+Physical Android example:
+
+```powershell
+flutter run --dart-define=SUPABASE_URL=https://<project-ref>.supabase.co --dart-define=SUPABASE_ANON_KEY=<anon-key> --dart-define=API_BASE_URL=http://192.168.0.39:4000
+```
+
+`SUPABASE_URL` must be the project root. Do not append `/rest/v1`, `/auth/v1`,
+`/api`, or any other path. `API_BASE_URL` is a separate URL for the FoodMatch
+Node/Express backend: it must not point to Supabase and must not include `/api`
+because `ApiService` already uses `/api/...` endpoint paths. On a physical
+Android device, `localhost` is the phone rather than the development PC, so use
+the PC's LAN IP. The Android emulator reaches the host through `10.0.2.2`.
+
+Use `dart format lib test` instead of `dart format .` on Windows. Formatting the
+repository root can traverse generated `build/` paths and fail with a
+`PathNotFoundException`.
+
 The app fails at startup with a clear configuration message when either Flutter
 dart-define is missing. Supabase Flutter owns persisted access/refresh sessions;
 FoodMatch no longer writes a separate custom JWT pair. The API client reads the
 current access token for every protected request and asks Supabase to refresh
 once after a 401 before reporting an invalid session. Timeouts, offline errors,
 cancelled calls, and backend 5xx responses retain the session.
+
+### Registration URL troubleshooting
+
+An `invalid path specified in request URL` response normally means that a base
+URL includes a service path or the two base URLs were swapped. Startup now
+validates both roots and logs only safe URL diagnostics (host/path, never keys).
+Registration logs distinguish the Supabase signup stage from the backend
+`/api/auth/me` profile-resolution stage. If signup succeeds but profile setup
+fails, the account remains created and the app asks the user to try logging in
+again.
 
 ## Mongo user compatibility
 

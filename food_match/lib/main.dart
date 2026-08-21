@@ -7,6 +7,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app.dart';
 import 'core/theme/theme_controller.dart';
 import 'core/config/supabase_config.dart';
+import 'core/config/backend_api_config.dart';
+import 'core/constants/api_constants.dart';
 import 'core/utils/logger.dart';
 import 'core/widgets/app_pending_overlay.dart';
 import 'data/local/cache_service.dart';
@@ -31,6 +33,19 @@ import 'shell/logic/nav_badge_animation_controller.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SupabaseConfig.validate();
+  final Uri supabaseUri = Uri.parse(SupabaseConfig.url);
+  final Uri apiUri = Uri.parse(ApiConstants.baseUrl);
+  AppLogger.info('[Config] supabaseUrlHost=${supabaseUri.host}');
+  AppLogger.info(
+    '[Config] supabaseUrlPath=${supabaseUri.path.isEmpty ? '/' : supabaseUri.path}',
+  );
+  AppLogger.info('[Config] apiBaseUrl=${ApiConstants.baseUrl}');
+  AppLogger.info(
+    '[Config] apiBaseUrlLooksLikeSupabase=${BackendApiConfig.looksLikeSupabase(apiUri)}',
+  );
+  AppLogger.info(
+    '[Config] apiBaseUrlHasApiPath=${BackendApiConfig.hasApiPath(apiUri)}',
+  );
   await Supabase.initialize(
     url: SupabaseConfig.url,
     publishableKey: SupabaseConfig.anonKey,

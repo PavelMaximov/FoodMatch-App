@@ -9,9 +9,20 @@ import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 
 void main() {
   late AuthRepository repository;
+  late bool failSignup;
+  late bool failProfile;
 
   setUp(() {
+    failSignup = false;
+    failProfile = false;
     final MockClient authHttp = MockClient((http.Request request) async {
+      if (failSignup && request.url.path.endsWith('/signup')) {
+        return http.Response(
+          '{"code":"bad_request","msg":"invalid path specified in request URL"}',
+          400,
+          headers: <String, String>{'content-type': 'application/json'},
+        );
+      }
       final Map<String, dynamic> user = <String, dynamic>{
         'id': 'supabase-user-id',
         'aud': 'authenticated',
@@ -44,19 +55,25 @@ void main() {
     );
     final ApiService apiService = ApiService(
       client: MockClient(
-        (http.Request request) async => http.Response(
-          jsonEncode(<String, dynamic>{
-            'user': <String, dynamic>{
-              'id': 'mongo-runtime-id',
-              'email': 'qa@example.com',
-              'displayName': 'QA User',
-              'avatarUrl': null,
-              'measurementSystemPreference': 'auto',
-            },
-          }),
-          200,
-          headers: <String, String>{'content-type': 'application/json'},
-        ),
+        (http.Request request) async => failProfile
+            ? http.Response(
+                '{"message":"Profile unavailable"}',
+                500,
+                headers: <String, String>{'content-type': 'application/json'},
+              )
+            : http.Response(
+                jsonEncode(<String, dynamic>{
+                  'user': <String, dynamic>{
+                    'id': 'mongo-runtime-id',
+                    'email': 'qa@example.com',
+                    'displayName': 'QA User',
+                    'avatarUrl': null,
+                    'measurementSystemPreference': 'auto',
+                  },
+                }),
+                200,
+                headers: <String, String>{'content-type': 'application/json'},
+              ),
       ),
       accessTokenProvider: () =>
           supabaseClient.auth.currentSession?.accessToken,
@@ -80,8 +97,50 @@ void main() {
       'QA User',
     );
 
-    expect(response.user?.id, 'supabase-user-id');
+    expect(response.user?.id, 'mongo-runtime-id');
     expect(response.user?.displayName, 'QA User');
     expect(response.effectiveAccessToken, 'supabase-access-token');
+  });
+
+  test('labels Supabase signup failures', () async {
+    failSignup = true;
+
+    await expectLater(
+      repository.register('qa@example.com', 'password123', 'QA User'),
+      throwsA(
+        isA<RegistrationException>()
+            .having(
+              (RegistrationException error) => error.stage,
+              'stage',
+              RegistrationFailureStage.supabaseSignup,
+            )
+            .having(
+              (RegistrationException error) => error.userMessage,
+              'message',
+              contains('Supabase authentication is misconfigured'),
+            ),
+      ),
+    );
+  });
+
+  test('labels backend profile resolution failures', () async {
+    failProfile = true;
+
+    await expectLater(
+      repository.register('qa@example.com', 'password123', 'QA User'),
+      throwsA(
+        isA<RegistrationException>()
+            .having(
+              (RegistrationException error) => error.stage,
+              'stage',
+              RegistrationFailureStage.backendProfileResolution,
+            )
+            .having(
+              (RegistrationException error) => error.userMessage,
+              'message',
+              'Account was created, but profile setup failed. Please try logging in again.',
+            ),
+      ),
+    );
   });
 }

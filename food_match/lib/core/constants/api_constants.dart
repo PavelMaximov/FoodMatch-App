@@ -1,37 +1,56 @@
 import 'package:flutter/foundation.dart';
+import '../config/backend_api_config.dart';
 
 class ApiConstants {
   ApiConstants._();
 
   static const int _defaultPort = 4000;
   static const String _androidEmulatorBaseUrl = 'http://10.0.2.2:4000';
-  static const String _physicalAndroidFallbackBaseUrl = 'http://192.168.0.39:4000';
+  static const String _physicalAndroidFallbackBaseUrl =
+      'http://192.168.0.39:4000';
   static const String _desktopBaseUrl = 'http://localhost:4000';
-  static const bool _forceAndroidEmulator = bool.fromEnvironment('ANDROID_EMULATOR', defaultValue: false);
-  static const bool _hasEnvBaseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: '').length > 0;
+  static const bool _forceAndroidEmulator = bool.fromEnvironment(
+    'ANDROID_EMULATOR',
+    defaultValue: false,
+  );
+  static const bool _hasEnvBaseUrl =
+      String.fromEnvironment('API_BASE_URL', defaultValue: '').length > 0;
 
   static String get baseUrl {
-    const String envBaseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: '');
+    const String envBaseUrl = String.fromEnvironment(
+      'API_BASE_URL',
+      defaultValue: '',
+    );
     if (envBaseUrl.trim().isNotEmpty) {
-      return _trimTrailingSlash(envBaseUrl.trim());
+      return BackendApiConfig.normalizeBaseUrl(envBaseUrl);
     }
 
     if (kIsWeb) {
       final String host = Uri.base.host;
       final String resolvedHost = host.isEmpty ? 'localhost' : host;
-      return 'http://$resolvedHost:$_defaultPort';
+      return BackendApiConfig.normalizeBaseUrl(
+        'http://$resolvedHost:$_defaultPort',
+      );
     }
 
     if (defaultTargetPlatform == TargetPlatform.android) {
-      return _forceAndroidEmulator ? _androidEmulatorBaseUrl : _physicalAndroidFallbackBaseUrl;
+      return BackendApiConfig.normalizeBaseUrl(
+        _forceAndroidEmulator
+            ? _androidEmulatorBaseUrl
+            : _physicalAndroidFallbackBaseUrl,
+      );
     }
 
-    return _desktopBaseUrl;
+    return BackendApiConfig.normalizeBaseUrl(_desktopBaseUrl);
   }
 
-  static bool get isPhysicalAndroid => !kIsWeb && defaultTargetPlatform == TargetPlatform.android && !_forceAndroidEmulator;
+  static bool get isPhysicalAndroid =>
+      !kIsWeb &&
+      defaultTargetPlatform == TargetPlatform.android &&
+      !_forceAndroidEmulator;
 
-  static bool get requiresPhysicalAndroidBaseUrl => isPhysicalAndroid && !_hasEnvBaseUrl;
+  static bool get requiresPhysicalAndroidBaseUrl =>
+      isPhysicalAndroid && !_hasEnvBaseUrl;
 
   static String get platformLabel {
     if (kIsWeb) return 'web';
@@ -40,8 +59,6 @@ class ApiConstants {
     }
     return defaultTargetPlatform.name;
   }
-
-  static String _trimTrailingSlash(String value) => value.endsWith('/') ? value.substring(0, value.length - 1) : value;
 
   static const String health = '/health';
   static const String register = '/api/auth/register';
@@ -57,23 +74,34 @@ class ApiConstants {
   static const String coupleMe = '/api/couples/me';
   static const String coupleReset = '/api/couples/reset';
   static const String coupleLeave = '/api/couples/leave';
-  static const String coupleContinueAsBefore = '/api/couples/continue-as-before';
-  static const String couplePartnerDisconnect = '/api/couples/current/partner-disconnect';
-  static const String coupleFilterChangeStart = '/api/couples/current/filter-change/start';
-  static const String coupleFilterChangeCommit = '/api/couples/current/filter-change/commit';
-  static const String coupleInvitationsPending = '/api/couples/invitations/pending';
+  static const String coupleContinueAsBefore =
+      '/api/couples/continue-as-before';
+  static const String couplePartnerDisconnect =
+      '/api/couples/current/partner-disconnect';
+  static const String coupleFilterChangeStart =
+      '/api/couples/current/filter-change/start';
+  static const String coupleFilterChangeCommit =
+      '/api/couples/current/filter-change/commit';
+  static const String coupleInvitationsPending =
+      '/api/couples/invitations/pending';
   static String coupleInvitation(String id) => '/api/couples/invitations/$id';
-  static String coupleInvitationAccept(String id) => '/api/couples/invitations/$id/accept';
-  static String coupleInvitationDecline(String id) => '/api/couples/invitations/$id/decline';
+  static String coupleInvitationAccept(String id) =>
+      '/api/couples/invitations/$id/accept';
+  static String coupleInvitationDecline(String id) =>
+      '/api/couples/invitations/$id/decline';
   static const String coupleFilterState = '/api/couples/filter-state';
   static const String coupleFilterStateMe = '/api/couples/filter-state/me';
-  static const String coupleFilterStateConfirm = '/api/couples/filter-state/confirm';
-  static const String coupleFilterStateReset = '/api/couples/filter-state/reset';
+  static const String coupleFilterStateConfirm =
+      '/api/couples/filter-state/confirm';
+  static const String coupleFilterStateReset =
+      '/api/couples/filter-state/reset';
   static const String coupleDeckPrepare = '/api/couples/deck/prepare';
   static const String coupleDeck = '/api/couples/deck';
   static const String coupleDeckReset = '/api/couples/deck/reset';
-  static const String coupleDeckRestartRequest = '/api/couples/deck/restart-request';
-  static const String coupleDeckRestartStatus = '/api/couples/deck/restart-status';
+  static const String coupleDeckRestartRequest =
+      '/api/couples/deck/restart-request';
+  static const String coupleDeckRestartStatus =
+      '/api/couples/deck/restart-status';
   static const String dishes = '/api/dishes';
   static const String dishesCatalog = '/api/dishes?limit=all';
   static const String dishesCustom = '/api/dishes/custom';
@@ -84,9 +112,12 @@ class ApiConstants {
   static const String soloSwipesSession = '/api/solo-swipes/session';
   static const String soloSwipesAbandon = '/api/solo-swipes/active/abandon';
   static const String soloSwipesActiveFilter = '/api/solo-swipes/active/filter';
-  static String soloSwipeDeck(String sessionId) => '/api/solo-swipes/$sessionId/deck';
-  static String soloSwipe(String sessionId) => '/api/solo-swipes/$sessionId/swipe';
-  static String soloSwipeUndo(String sessionId) => '/api/solo-swipes/$sessionId/undo';
+  static String soloSwipeDeck(String sessionId) =>
+      '/api/solo-swipes/$sessionId/deck';
+  static String soloSwipe(String sessionId) =>
+      '/api/solo-swipes/$sessionId/swipe';
+  static String soloSwipeUndo(String sessionId) =>
+      '/api/solo-swipes/$sessionId/undo';
   static const String filtersLast = '/api/filters/last';
   static const String swipeStats = '/api/swipes/me/stats';
   static const String swipeMatches = '/api/swipes/matches';

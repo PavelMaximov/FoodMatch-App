@@ -92,9 +92,6 @@ class AuthProvider extends ChangeNotifier {
       _apiService.setToken(token);
       requireEmailVerification = response.requireEmailVerification;
       currentUser = response.user;
-      if (token != null) {
-        currentUser = await _repository.getMe();
-      }
       _markAuthBoundaryChanged(reason: 'register');
       _currentUserLoadedAt = DateTime.now();
       await _cacheUserDataIfAvailable();
@@ -349,6 +346,9 @@ class AuthProvider extends ChangeNotifier {
   }
 
   String _mapError(Object e) {
+    if (e is RegistrationException) {
+      return e.userMessage;
+    }
     if (e is supabase.AuthException) {
       final String message = e.message.toLowerCase();
       if (message.contains('invalid login credentials')) {
