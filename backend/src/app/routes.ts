@@ -10,12 +10,17 @@ import uploadRoutes from '../modules/uploads/uploadRoutes';
 import soloSwipeRoutes from '../modules/solo-swipes/routes/soloSwipeRoutes';
 import recommendationRoutes from '../modules/recommendations/routes/recommendationRoutes';
 import filterRoutes from '../modules/filters/routes/lastFilterPresetRoutes';
+import { env } from '../config/env';
+import { getConfigHealthResponse, isConfigHealthEnabled } from '../modules/dev/configHealth';
 
 const router = Router();
 
 router.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
+if (isConfigHealthEnabled(env.NODE_ENV)) {
+  router.get('/dev/config-health', (_req, res) => res.json(getConfigHealthResponse()));
+}
 
 router.use('/auth', authRoutes);
 router.use('/couples', coupleRoutes);

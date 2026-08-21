@@ -11,10 +11,12 @@ void main() {
   late AuthRepository repository;
   late bool failSignup;
   late bool failProfile;
+  late bool rejectSupabaseToken;
 
   setUp(() {
     failSignup = false;
     failProfile = false;
+    rejectSupabaseToken = false;
     final MockClient authHttp = MockClient((http.Request request) async {
       if (failSignup && request.url.path.endsWith('/signup')) {
         return http.Response(
@@ -55,7 +57,13 @@ void main() {
     );
     final ApiService apiService = ApiService(
       client: MockClient(
-        (http.Request request) async => failProfile
+        (http.Request request) async => rejectSupabaseToken
+            ? http.Response(
+                '{"error":"Invalid token","message":"Invalid token","code":"SUPABASE_TOKEN_INVALID"}',
+                401,
+                headers: <String, String>{'content-type': 'application/json'},
+              )
+            : failProfile
             ? http.Response(
                 '{"message":"Profile unavailable"}',
                 500,
@@ -139,6 +147,27 @@ void main() {
               (RegistrationException error) => error.userMessage,
               'message',
               'Account was created, but profile setup failed. Please try logging in again.',
+            ),
+      ),
+    );
+  });
+
+  test('maps an invalid Supabase token to a project mismatch error', () async {
+    rejectSupabaseToken = true;
+
+    await expectLater(
+      repository.register('qa@example.com', 'password123', 'QA User'),
+      throwsA(
+        isA<RegistrationException>()
+            .having(
+              (RegistrationException error) => error.code,
+              'code',
+              'SUPABASE_TOKEN_INVALID',
+            )
+            .having(
+              (RegistrationException error) => error.userMessage,
+              'message',
+              contains('app and backend use the same Supabase project'),
             ),
       ),
     );

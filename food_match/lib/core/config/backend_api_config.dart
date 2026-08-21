@@ -19,6 +19,12 @@ class BackendApiConfig {
         'backend, not Supabase.',
       );
     }
+    if (uri.host == '0.0.0.0' || uri.host == '::') {
+      throw StateError(
+        'Invalid API_BASE_URL. 0.0.0.0 is a backend bind address, not a client URL. '
+        'Use the backend host or PC LAN IP.',
+      );
+    }
     if ((uri.path.isNotEmpty && uri.path != '/') ||
         uri.hasQuery ||
         uri.hasFragment ||

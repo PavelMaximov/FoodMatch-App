@@ -96,6 +96,37 @@ Registration logs distinguish the Supabase signup stage from the backend
 fails, the account remains created and the app asks the user to try logging in
 again.
 
+### Invalid token after successful Supabase signup
+
+If Supabase signup succeeds but backend `/api/auth/me` returns `401` with code
+`SUPABASE_TOKEN_INVALID`, the app and backend are almost certainly using
+different Supabase projects or environments. Compare Flutter's
+`flutterSupabaseHost` startup log with backend `SupabaseConfig.urlHost`, or call
+the development-only `GET /api/dev/config-health` endpoint.
+
+Correct hosted configuration uses credentials from one project:
+
+```text
+Flutter:
+SUPABASE_URL=https://<project-ref>.supabase.co
+SUPABASE_ANON_KEY=<hosted anon key>
+
+Backend:
+SUPABASE_URL=https://<same-project-ref>.supabase.co
+SUPABASE_ANON_KEY=<same hosted anon key>
+SUPABASE_SERVICE_ROLE_KEY=<same hosted service role key>
+```
+
+Do not mix Flutter hosted Supabase with backend local Supabase, Flutter local
+with backend hosted, an anon key from project A with a service-role key from
+project B, or a root URL containing `/auth/v1` or `/rest/v1`. The config-health
+endpoint returns only booleans, hosts, and connection status; it never returns
+keys.
+
+For physical Android, use the PC LAN backend URL such as
+`http://192.168.0.39:4000`. `0.0.0.0` is the server bind address, not a client
+URL, and `localhost` on the phone refers to the phone itself.
+
 ## Mongo user compatibility
 
 Mongo password hashes cannot be reversed or reused as Supabase passwords.

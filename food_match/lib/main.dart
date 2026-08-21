@@ -35,9 +35,9 @@ Future<void> main() async {
   SupabaseConfig.validate();
   final Uri supabaseUri = Uri.parse(SupabaseConfig.url);
   final Uri apiUri = Uri.parse(ApiConstants.baseUrl);
-  AppLogger.info('[Config] supabaseUrlHost=${supabaseUri.host}');
+  AppLogger.info('[Config] flutterSupabaseHost=${supabaseUri.host}');
   AppLogger.info(
-    '[Config] supabaseUrlPath=${supabaseUri.path.isEmpty ? '/' : supabaseUri.path}',
+    '[Config] flutterSupabasePath=${supabaseUri.path.isEmpty ? '/' : supabaseUri.path}',
   );
   AppLogger.info('[Config] apiBaseUrl=${ApiConstants.baseUrl}');
   AppLogger.info(

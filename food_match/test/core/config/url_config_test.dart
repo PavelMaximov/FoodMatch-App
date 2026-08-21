@@ -60,5 +60,18 @@ void main() {
         ),
       );
     });
+
+    test('rejects the backend bind address', () {
+      expect(
+        () => BackendApiConfig.normalizeBaseUrl('http://0.0.0.0:4000'),
+        throwsA(
+          isA<StateError>().having(
+            (StateError error) => error.message,
+            'message',
+            contains('backend bind address'),
+          ),
+        ),
+      );
+    });
   });
 }

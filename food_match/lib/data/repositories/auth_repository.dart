@@ -85,10 +85,14 @@ class AuthRepository {
           '[Auth] register failed stage=backend_profile_resolution '
           'code=${error.code ?? error.statusCode ?? 'unknown'} message=${error.message}',
         );
+        if (error.code == 'SUPABASE_TOKEN_INVALID') {
+          AppLogger.info('[Auth] hint=supabase_project_mismatch');
+        }
         throw RegistrationException(
           stage: RegistrationFailureStage.backendProfileResolution,
-          userMessage:
-              'Account was created, but profile setup failed. Please try logging in again.',
+          userMessage: error.code == 'SUPABASE_TOKEN_INVALID'
+              ? 'Account was created, but the backend rejected the Supabase session. Check that the app and backend use the same Supabase project.'
+              : 'Account was created, but profile setup failed. Please try logging in again.',
           code: error.code ?? error.statusCode?.toString(),
         );
       } catch (error) {
