@@ -9,7 +9,7 @@ const coupleService = new CoupleService();
 
 export class MatchController {
   async list(req: AuthRequest, res: Response) {
-    const session = await coupleService.getMyActiveSession(req.userId!);
+    const session = await coupleService.getMyActiveSession(req.user!.id);
     if (!session) {
       throw new AppError('No active session found', 404);
     }

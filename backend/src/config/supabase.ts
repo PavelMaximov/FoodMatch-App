@@ -27,6 +27,9 @@ export const supabaseConfig = {
 export function getSupabaseConfigHealth() {
   const url = new URL(supabaseConfig.url);
   const localHosts = new Set(['localhost', '127.0.0.1', '::1']);
+  const databaseUrl = supabaseConfig.databaseUrl ? new URL(supabaseConfig.databaseUrl) : undefined;
+  const authLooksHosted = !localHosts.has(url.hostname);
+  const dbLooksLocal = databaseUrl ? localHosts.has(databaseUrl.hostname) : false;
   return {
     supabaseHost: url.host,
     supabaseUrlPath: url.pathname || '/',
@@ -34,6 +37,11 @@ export function getSupabaseConfigHealth() {
     hasAnonKey: Boolean(supabaseConfig.anonKey),
     hasServiceRoleKey: Boolean(supabaseConfig.serviceRoleKey),
     hasDbUrl: Boolean(supabaseConfig.databaseUrl),
+    authHost: url.host,
+    dbHost: databaseUrl?.host ?? 'not-configured',
+    authLooksHosted,
+    dbLooksLocal,
+    possibleEnvMismatch: Boolean(databaseUrl && authLooksHosted !== !dbLooksLocal),
   };
 }
 
@@ -45,6 +53,14 @@ export function logSupabaseConfigDiagnostics(): void {
   console.info(`[SupabaseConfig] hasAnonKey=${health.hasAnonKey}`);
   console.info(`[SupabaseConfig] hasServiceRoleKey=${health.hasServiceRoleKey}`);
   console.info(`[SupabaseConfig] hasDbUrl=${health.hasDbUrl}`);
+  console.info(`[SupabaseConfig] authHost=${health.authHost}`);
+  console.info(`[SupabaseConfig] dbHost=${health.dbHost}`);
+  console.info(`[SupabaseConfig] authLooksHosted=${health.authLooksHosted}`);
+  console.info(`[SupabaseConfig] dbLooksLocal=${health.dbLooksLocal}`);
+  console.info(`[SupabaseConfig] possibleEnvMismatch=${health.possibleEnvMismatch}`);
+  if (health.possibleEnvMismatch) {
+    console.warn('SUPABASE_URL and SUPABASE_DB_URL appear to target different environments. Auth users may not exist in the profile database.');
+  }
 }
 
 export function requireSupabaseDatabaseUrl(): string {

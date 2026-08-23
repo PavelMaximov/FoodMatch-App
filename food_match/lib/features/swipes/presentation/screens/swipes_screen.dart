@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/navigation/app_flow_coordinator.dart';
+import '../../../../core/errors/error_messages.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/utils/cloudinary_image_url.dart';
@@ -207,6 +208,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     if (!mounted) {
       return;
     }
+    if (!context.read<AuthProvider>().profileSetupReady) return;
     final CoupleProvider coupleProvider = context.read<CoupleProvider>();
     await coupleProvider.handleAppResumed();
     if (!mounted) {
@@ -527,6 +529,13 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
   }
 
   Future<void> _loadExistingBackendDeckOrStart() async {
+    final AuthProvider authProvider = context.read<AuthProvider>();
+    if (!authProvider.profileSetupReady) {
+      if (mounted) {
+        setState(() => _initialSessionError = ErrorMessages.profileNotReady);
+      }
+      return;
+    }
     if (_isLoadingInitialSession) {
       return;
     }

@@ -1,0 +1,2 @@
+import { InvitationRecord } from './types';
+export interface CoupleInvitationRepository { createOrRefresh(input:Omit<InvitationRecord,'id'|'createdAt'|'updatedAt'>):Promise<InvitationRecord>; findForParticipant(id:string,userId:string):Promise<InvitationRecord|null>; listPendingIncoming(userId:string,now?:Date):Promise<InvitationRecord[]>; setStatus(id:string,status:InvitationRecord['status']):Promise<InvitationRecord|null>; expirePending(now?:Date):Promise<number>; }

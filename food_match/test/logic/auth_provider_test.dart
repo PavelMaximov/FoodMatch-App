@@ -105,6 +105,34 @@ void main() {
       expect(provider.currentUser?.id, 'runtime-user');
     },
   );
+
+  test('profile setup failure retains session and suppresses domain startup', () async {
+    fakeRepo.session = supabase.Session(
+      accessToken: 'current-access-token',
+      refreshToken: 'current-refresh-token',
+      tokenType: 'bearer',
+      user: const supabase.User(
+        id: 'supabase-user',
+        appMetadata: <String, dynamic>{},
+        userMetadata: <String, dynamic>{},
+        aud: 'authenticated',
+        email: 'test@test.com',
+        createdAt: '2026-08-20T00:00:00Z',
+      ),
+    );
+    fakeRepo.meError = const ApiException(
+      'User profile is not ready',
+      statusCode: 500,
+      code: 'SUPABASE_PROFILE_MISSING',
+    );
+    provider.token = 'current-access-token';
+
+    await provider.loadUser(force: true);
+
+    expect(provider.isAuthenticated, isTrue);
+    expect(provider.profileSetupReady, isFalse);
+    expect(provider.error, 'Your profile is not ready yet. Please try again.');
+  });
 }
 
 class _FakeAuthRepository extends AuthRepository {
