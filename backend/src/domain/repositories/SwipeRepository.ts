@@ -1,0 +1,2 @@
+import { Mode, SwipeDirection, SwipeRecord } from './types';
+export interface SwipeRepository { createOnce(input:{userId:string;dishId:string;mode:Mode;direction:SwipeDirection;soloSessionId?:string;coupleSessionId?:string}):Promise<{swipe:SwipeRecord;created:boolean}>; listForUserSession(userId:string,sessionId:string,mode:Mode):Promise<SwipeRecord[]>; countLikes(sessionId:string,dishId:string,mode:Mode):Promise<number>; deleteForSession(sessionId:string,mode:Mode):Promise<void>; }
