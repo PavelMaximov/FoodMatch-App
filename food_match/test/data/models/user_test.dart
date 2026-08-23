@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:food_match/data/models/user.dart';
+import 'package:food_match/data/models/measurement_system.dart';
 
 void main() {
   test('User.fromJson parses _id', () {
@@ -23,5 +24,23 @@ void main() {
 
     expect(user.id, 'u2');
     expect(user.coupleId, isNull);
+  });
+
+  test('User.fromJson accepts Supabase snake_case profile fields', () {
+    final User user = User.fromJson(<String, dynamic>{
+      'id': 'runtime-id',
+      'email': 'qa@example.com',
+      'display_name': 'QA User',
+      'avatar_url': 'https://example.com/avatar.jpg',
+      'email_verified': true,
+      'measurement_system_preference': 'metric',
+    });
+
+    expect(user.displayName, 'QA User');
+    expect(user.avatarUrl, 'https://example.com/avatar.jpg');
+    expect(
+      user.measurementSystemPreference,
+      MeasurementSystemPreference.metric,
+    );
   });
 }

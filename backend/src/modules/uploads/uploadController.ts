@@ -9,6 +9,7 @@ import {
   uploadImage
 } from './services/cloudinaryService';
 import { requireUploadedImage } from './middleware/uploadMiddleware';
+import { supabaseProfileService } from '../auth/services/supabaseProfileService';
 
 export class UploadController {
   async uploadAvatar(req: AuthRequest, res: Response) {
@@ -39,6 +40,7 @@ export class UploadController {
     user.avatarUrl = result.secureUrl;
     user.avatarPublicId = result.publicId;
     await user.save();
+    if (req.authUser) await supabaseProfileService.updateAvatar(req.authUser.id, result.secureUrl);
 
     res.json({ avatarUrl: result.secureUrl, avatarPublicId: result.publicId });
   }
@@ -53,6 +55,7 @@ export class UploadController {
     if (!user.avatarPublicId) {
       user.avatarUrl = undefined;
       await user.save();
+      if (req.authUser) await supabaseProfileService.updateAvatar(req.authUser.id, null);
       res.json({ message: 'No avatar to delete' });
       return;
     }
@@ -67,6 +70,7 @@ export class UploadController {
     user.avatarUrl = undefined;
     user.avatarPublicId = undefined;
     await user.save();
+    if (req.authUser) await supabaseProfileService.updateAvatar(req.authUser.id, null);
 
     res.json({ message: 'Avatar deleted' });
   }

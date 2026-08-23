@@ -2,9 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app.dart';
 import 'core/theme/theme_controller.dart';
+import 'core/config/supabase_config.dart';
+import 'core/config/backend_api_config.dart';
+import 'core/constants/api_constants.dart';
+import 'core/utils/logger.dart';
 import 'core/widgets/app_pending_overlay.dart';
 import 'data/local/cache_service.dart';
 import 'data/local/user_profile_hive_service.dart';
@@ -27,11 +32,37 @@ import 'shell/logic/nav_badge_animation_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  SupabaseConfig.validate();
+  final Uri supabaseUri = Uri.parse(SupabaseConfig.url);
+  final Uri apiUri = Uri.parse(ApiConstants.baseUrl);
+  AppLogger.info('[Config] flutterSupabaseHost=${supabaseUri.host}');
+  AppLogger.info(
+    '[Config] flutterSupabasePath=${supabaseUri.path.isEmpty ? '/' : supabaseUri.path}',
+  );
+  AppLogger.info('[Config] apiBaseUrl=${ApiConstants.baseUrl}');
+  AppLogger.info(
+    '[Config] apiBaseUrlLooksLikeSupabase=${BackendApiConfig.looksLikeSupabase(apiUri)}',
+  );
+  AppLogger.info(
+    '[Config] apiBaseUrlHasApiPath=${BackendApiConfig.hasApiPath(apiUri)}',
+  );
+  await Supabase.initialize(
+    url: SupabaseConfig.url,
+    publishableKey: SupabaseConfig.anonKey,
+  );
+  AppLogger.info('[Auth] Supabase initialized');
   await Hive.initFlutter();
   const FlutterSecureStorage secureStorage = FlutterSecureStorage();
-  final ApiService apiService = ApiService(secureStorage: secureStorage);
+  final SupabaseClient supabase = Supabase.instance.client;
+  final ApiService apiService = ApiService(
+    secureStorage: secureStorage,
+    supabaseClient: supabase,
+  );
 
-  final AuthRepository authRepo = AuthRepository(apiService);
+  final AuthRepository authRepo = AuthRepository(
+    apiService,
+    supabaseClient: supabase,
+  );
   final CoupleRepository coupleRepo = CoupleRepository(apiService);
   final DishRepository dishRepo = DishRepository(apiService);
   final SwipeRepository swipeRepo = SwipeRepository(apiService);
@@ -57,7 +88,9 @@ Future<void> main() async {
         ChangeNotifierProvider<PendingOverlayController>(
           create: (_) => PendingOverlayController(),
         ),
-        Provider<FilterScoringService>.value(value: const FilterScoringService()),
+        Provider<FilterScoringService>.value(
+          value: const FilterScoringService(),
+        ),
         ChangeNotifierProvider<AuthProvider>(
           create: (_) => AuthProvider(
             repository: authRepo,
@@ -67,15 +100,17 @@ Future<void> main() async {
         ),
         ChangeNotifierProxyProvider<AuthProvider, CoupleProvider>(
           create: (_) => CoupleProvider(repository: coupleRepo),
-          update: (_, AuthProvider authProvider, CoupleProvider? coupleProvider) {
-            final CoupleProvider provider = coupleProvider ?? CoupleProvider(repository: coupleRepo);
-            provider.handleAuthBoundary(authProvider.authBoundaryVersion);
-            provider.setAuthenticatedUser(
-              authProvider.currentUser?.id,
-              isAuthenticated: authProvider.isAuthenticated,
-            );
-            return provider;
-          },
+          update:
+              (_, AuthProvider authProvider, CoupleProvider? coupleProvider) {
+                final CoupleProvider provider =
+                    coupleProvider ?? CoupleProvider(repository: coupleRepo);
+                provider.handleAuthBoundary(authProvider.authBoundaryVersion);
+                provider.setAuthenticatedUser(
+                  authProvider.currentUser?.id,
+                  isAuthenticated: authProvider.isAuthenticated,
+                );
+                return provider;
+              },
         ),
         ChangeNotifierProxyProvider<AuthProvider, PreSwipeProvider>(
           create: (BuildContext context) => PreSwipeProvider(
@@ -84,20 +119,26 @@ Future<void> main() async {
             profileService: userProfileService,
             scoringService: context.read<FilterScoringService>(),
           ),
-          update: (BuildContext context, AuthProvider authProvider, PreSwipeProvider? preSwipeProvider) {
-            final PreSwipeProvider provider = preSwipeProvider ??
-                PreSwipeProvider(
-                  dishRepository: dishRepo,
-                  coupleRepository: coupleRepo,
-                  profileService: userProfileService,
-                  scoringService: context.read<FilterScoringService>(),
-                );
-            provider.handleAuthBoundary(authProvider.authBoundaryVersion);
-            if (!authProvider.isAuthenticated) {
-              provider.clearForLogout(notify: false);
-            }
-            return provider;
-          },
+          update:
+              (
+                BuildContext context,
+                AuthProvider authProvider,
+                PreSwipeProvider? preSwipeProvider,
+              ) {
+                final PreSwipeProvider provider =
+                    preSwipeProvider ??
+                    PreSwipeProvider(
+                      dishRepository: dishRepo,
+                      coupleRepository: coupleRepo,
+                      profileService: userProfileService,
+                      scoringService: context.read<FilterScoringService>(),
+                    );
+                provider.handleAuthBoundary(authProvider.authBoundaryVersion);
+                if (!authProvider.isAuthenticated) {
+                  provider.clearForLogout(notify: false);
+                }
+                return provider;
+              },
         ),
         ChangeNotifierProxyProvider<AuthProvider, SwipeProvider>(
           create: (_) => SwipeProvider(
@@ -108,7 +149,8 @@ Future<void> main() async {
             userProfileService: userProfileService,
           ),
           update: (_, AuthProvider authProvider, SwipeProvider? swipeProvider) {
-            final SwipeProvider provider = swipeProvider ??
+            final SwipeProvider provider =
+                swipeProvider ??
                 SwipeProvider(
                   dishRepository: dishRepo,
                   swipeRepository: swipeRepo,
@@ -123,35 +165,52 @@ Future<void> main() async {
         ),
         ChangeNotifierProxyProvider<AuthProvider, FavoritesProvider>(
           create: (_) => FavoritesProvider(repository: dishRepo),
-          update: (_, AuthProvider authProvider, FavoritesProvider? favoritesProvider) {
-            final FavoritesProvider provider =
-                favoritesProvider ?? FavoritesProvider(repository: dishRepo);
-            provider.setActiveUser(authProvider.currentUser?.id);
-            return provider;
-          },
+          update:
+              (
+                _,
+                AuthProvider authProvider,
+                FavoritesProvider? favoritesProvider,
+              ) {
+                final FavoritesProvider provider =
+                    favoritesProvider ??
+                    FavoritesProvider(repository: dishRepo);
+                provider.setActiveUser(authProvider.currentUser?.id);
+                return provider;
+              },
         ),
-        ChangeNotifierProxyProvider2<AuthProvider, CoupleProvider, MatchProvider>(
+        ChangeNotifierProxyProvider2<
+          AuthProvider,
+          CoupleProvider,
+          MatchProvider
+        >(
           create: (_) => MatchProvider(
             swipeRepository: swipeRepo,
             cacheService: cacheService,
           ),
-          update: (_, AuthProvider authProvider, CoupleProvider coupleProvider, MatchProvider? matchProvider) {
-            final MatchProvider provider = matchProvider ??
-                MatchProvider(
-                  swipeRepository: swipeRepo,
-                  cacheService: cacheService,
+          update:
+              (
+                _,
+                AuthProvider authProvider,
+                CoupleProvider coupleProvider,
+                MatchProvider? matchProvider,
+              ) {
+                final MatchProvider provider =
+                    matchProvider ??
+                    MatchProvider(
+                      swipeRepository: swipeRepo,
+                      cacheService: cacheService,
+                    );
+                provider.handleAuthBoundary(authProvider.authBoundaryVersion);
+                if (!authProvider.isAuthenticated) {
+                  provider.clearForLogout(notify: false);
+                  return provider;
+                }
+                provider.setActiveCouple(
+                  coupleProvider.currentCouple?.id,
+                  sessionStateVersion: coupleProvider.sessionStateVersion,
                 );
-            provider.handleAuthBoundary(authProvider.authBoundaryVersion);
-            if (!authProvider.isAuthenticated) {
-              provider.clearForLogout(notify: false);
-              return provider;
-            }
-            provider.setActiveCouple(
-              coupleProvider.currentCouple?.id,
-              sessionStateVersion: coupleProvider.sessionStateVersion,
-            );
-            return provider;
-          },
+                return provider;
+              },
         ),
         ChangeNotifierProvider<RecipeProvider>(
           create: (_) => RecipeProvider(repository: dishRepo),

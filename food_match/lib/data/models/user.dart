@@ -19,16 +19,29 @@ class User {
   @JsonKey(name: '_id', readValue: _readId)
   final String id;
   final String email;
+  @JsonKey(readValue: _readCamelOrSnake)
   final String displayName;
   @JsonKey(name: 'coupleId')
   final String? coupleId;
+  @JsonKey(readValue: _readCamelOrSnake)
   final String? avatarUrl;
+  @JsonKey(readValue: _readCamelOrSnake)
   final String? avatarPublicId;
+  @JsonKey(readValue: _readCamelOrSnake)
   final bool emailVerified;
+  @JsonKey(readValue: _readCamelOrSnake)
   final MeasurementSystemPreference measurementSystemPreference;
 
   static Object? _readId(Map<dynamic, dynamic> json, String _) {
     return json['_id'] ?? json['id'];
+  }
+
+  static Object? _readCamelOrSnake(Map<dynamic, dynamic> json, String key) {
+    final String snake = key.replaceAllMapped(
+      RegExp(r'[A-Z]'),
+      (Match match) => '_${match.group(0)!.toLowerCase()}',
+    );
+    return json[key] ?? json[snake];
   }
 
   factory User.fromJson(Map<String, dynamic> json) => _$UserFromJson(json);
@@ -52,9 +65,12 @@ class User {
       displayName: displayName ?? this.displayName,
       coupleId: coupleId ?? this.coupleId,
       avatarUrl: clearAvatar ? null : avatarUrl ?? this.avatarUrl,
-      avatarPublicId: clearAvatar ? null : avatarPublicId ?? this.avatarPublicId,
+      avatarPublicId: clearAvatar
+          ? null
+          : avatarPublicId ?? this.avatarPublicId,
       emailVerified: emailVerified ?? this.emailVerified,
-      measurementSystemPreference: measurementSystemPreference ?? this.measurementSystemPreference,
+      measurementSystemPreference:
+          measurementSystemPreference ?? this.measurementSystemPreference,
     );
   }
 }

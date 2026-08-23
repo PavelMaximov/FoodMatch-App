@@ -1,8 +1,10 @@
 import { createApp } from './app/createApp';
 import { connectDatabase } from './config/database';
 import { env } from './config/env';
+import { logSupabaseConfigDiagnostics } from './config/supabase';
 
 async function bootstrap() {
+  logSupabaseConfigDiagnostics();
   await connectDatabase();
 
   const app = createApp();

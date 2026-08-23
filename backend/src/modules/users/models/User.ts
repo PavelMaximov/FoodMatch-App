@@ -6,7 +6,8 @@ export interface UserDocument extends Document {
   displayName: string;
   avatarUrl?: string;
   avatarPublicId?: string;
-  authProvider?: 'local';
+  authProvider?: 'local' | 'supabase';
+  supabaseAuthId?: string;
   savedDishes: Types.ObjectId[];
   isActive: boolean;
   emailVerified?: boolean;
@@ -27,7 +28,8 @@ const userSchema = new Schema<UserDocument>(
     displayName: { type: String, required: true, trim: true },
     avatarUrl: { type: String },
     avatarPublicId: { type: String },
-    authProvider: { type: String, default: 'local' },
+    authProvider: { type: String, enum: ['local', 'supabase'], default: 'local' },
+    supabaseAuthId: { type: String, unique: true, sparse: true, index: true },
     savedDishes: { type: [{ type: Schema.Types.ObjectId, ref: 'Dish' }], default: [] },
     isActive: { type: Boolean, default: true },
     emailVerified: { type: Boolean, default: false },

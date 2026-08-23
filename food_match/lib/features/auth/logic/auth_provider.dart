@@ -1,4 +1,4 @@
-import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import '../../../core/constants/api_constants.dart';
@@ -10,40 +10,52 @@ import '../../../data/models/user.dart';
 import '../../../data/models/measurement_system.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../data/services/api_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 
 class AuthProvider extends ChangeNotifier {
   AuthProvider({
     required AuthRepository repository,
     required ApiService apiService,
     CacheService? cacheService,
-  })  : _repository = repository,
-        _apiService = apiService,
-        _cacheService = cacheService ?? CacheService() {
+  }) : _repository = repository,
+       _apiService = apiService,
+       _cacheService = cacheService ?? CacheService() {
     _apiService.onUnauthorized = handleSessionExpired;
+    _authSubscription = _repository.onAuthStateChange.listen(
+      _handleAuthStateChange,
+    );
   }
 
   final AuthRepository _repository;
   final ApiService _apiService;
   final CacheService _cacheService;
+  StreamSubscription<supabase.AuthState>? _authSubscription;
 
   User? currentUser;
   String? token;
   DateTime? _currentUserLoadedAt;
   Future<void>? _loadUserFuture;
+  bool _isClearingAuth = false;
   bool isLoading = false;
   String? error;
   int authBoundaryVersion = 0;
 
   bool requireEmailVerification = false;
 
-  bool get isAuthenticated => token != null;
-  bool get needsEmailVerification => requireEmailVerification && currentUser?.emailVerified == false;
+  bool get isAuthenticated => token != null || needsEmailVerification;
+  bool get needsEmailVerification =>
+      requireEmailVerification && currentUser?.emailVerified == false;
   MeasurementSystemPreference get measurementSystemPreference =>
-      currentUser?.measurementSystemPreference ?? MeasurementSystemPreference.auto;
+      currentUser?.measurementSystemPreference ??
+      MeasurementSystemPreference.auto;
 
-  Future<bool> updateMeasurementSystemPreference(MeasurementSystemPreference preference) async {
+  Future<bool> updateMeasurementSystemPreference(
+    MeasurementSystemPreference preference,
+  ) async {
     try {
-      currentUser = await _repository.updateMeasurementSystemPreference(preference);
+      currentUser = await _repository.updateMeasurementSystemPreference(
+        preference,
+      );
       _currentUserLoadedAt = DateTime.now();
       await _cacheUserDataIfAvailable();
       notifyListeners();
@@ -61,24 +73,25 @@ class AuthProvider extends ChangeNotifier {
         DateTime.now().difference(loadedAt) < CachePolicy.authUserTtl;
   }
 
-  Future<void> register(String email, String password, String displayName) async {
+  Future<void> register(
+    String email,
+    String password,
+    String displayName,
+  ) async {
     isLoading = true;
     error = null;
     notifyListeners();
 
     try {
       final response = await _repository.register(email, password, displayName);
-      final String? refreshToken = response.refreshToken;
-      if (refreshToken == null || refreshToken.isEmpty) {
-        throw const FormatException('Missing refresh token');
-      }
-      await _apiService.saveTokenPair(
-        accessToken: response.effectiveAccessToken,
-        refreshToken: refreshToken,
-      );
-      token = response.effectiveAccessToken;
+      token =
+          _repository.currentSession?.accessToken ??
+          (response.effectiveAccessToken.isEmpty
+              ? null
+              : response.effectiveAccessToken);
+      _apiService.setToken(token);
       requireEmailVerification = response.requireEmailVerification;
-      currentUser = response.user ?? await _repository.getMe();
+      currentUser = response.user;
       _markAuthBoundaryChanged(reason: 'register');
       _currentUserLoadedAt = DateTime.now();
       await _cacheUserDataIfAvailable();
@@ -97,15 +110,11 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       final response = await _repository.login(email, password);
-      final String? refreshToken = response.refreshToken;
-      if (refreshToken == null || refreshToken.isEmpty) {
-        throw const FormatException('Missing refresh token');
-      }
-      await _apiService.saveTokenPair(
-        accessToken: response.effectiveAccessToken,
-        refreshToken: refreshToken,
-      );
-      token = response.effectiveAccessToken;
+      token =
+          _repository.currentSession?.accessToken ??
+          response.accessToken ??
+          response.effectiveAccessToken;
+      _apiService.setToken(token);
       requireEmailVerification = response.requireEmailVerification;
       currentUser = response.user ?? await _repository.getMe();
       _markAuthBoundaryChanged(reason: 'login');
@@ -121,13 +130,17 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> loadUser({bool force = false}) {
     if (!force && _hasFreshCurrentUser) {
-      final int age = DateTime.now().difference(_currentUserLoadedAt!).inSeconds;
+      final int age = DateTime.now()
+          .difference(_currentUserLoadedAt!)
+          .inSeconds;
       AppLogger.info('[Cache] auth user hit age=${age}s');
       return Future<void>.value();
     }
     final Future<void>? inFlight = _loadUserFuture;
     if (inFlight != null) {
-      AppLogger.info('[RequestDedup] auth user refresh skipped: already in flight');
+      AppLogger.info(
+        '[RequestDedup] auth user refresh skipped: already in flight',
+      );
       return inFlight;
     }
 
@@ -136,44 +149,22 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> _loadUserFromApi({required bool force}) async {
-    AppLogger.info(force ? '[Cache] auth user force refresh' : '[Cache] auth user miss');
+    AppLogger.info(
+      force ? '[Cache] auth user force refresh' : '[Cache] auth user miss',
+    );
     isLoading = true;
     error = null;
     notifyListeners();
 
     try {
-      await _apiService.loadToken();
-      final String? loadedToken = _apiService.token;
-      if (loadedToken != null && loadedToken.isNotEmpty) {
-        token = loadedToken;
-        AppLogger.info('[Auth] token present');
-      }
-
-      if (loadedToken == null || loadedToken.isEmpty) {
-        final bool refreshed = await _apiService.refreshTokens();
-        if (!refreshed) {
-          token = null;
-          currentUser = null;
-          _currentUserLoadedAt = null;
-          return;
-        }
-      }
-
-      final String? currentAccessToken = await _apiService.getAccessToken();
-      if (currentAccessToken == null || currentAccessToken.isEmpty) {
-        await handleSessionExpired();
+      final supabase.Session? session = _repository.currentSession;
+      AppLogger.info('[Auth] restore session found=${session != null}');
+      if (session == null) {
+        if (currentUser != null || token != null) await _clearAuthState();
         return;
       }
-
-      if (_isTokenExpired(currentAccessToken)) {
-        final bool refreshed = await _apiService.refreshTokens();
-        if (!refreshed) {
-          await handleSessionExpired();
-          return;
-        }
-      }
-
-      token = await _apiService.getAccessToken();
+      token = session.accessToken;
+      _apiService.setToken(token);
       final String? previousUserId = currentUser?.id;
       final me = await _repository.getMeWithVerificationRequirement();
       currentUser = me.user;
@@ -204,37 +195,6 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  bool _isTokenExpired(String token) {
-    try {
-      final List<String> parts = token.split('.');
-      if (parts.length != 3) return true;
-
-      String payload = parts[1];
-      switch (payload.length % 4) {
-        case 2:
-          payload += '==';
-          break;
-        case 3:
-          payload += '=';
-          break;
-      }
-
-      final String decoded = utf8.decode(base64Url.decode(payload));
-      final Map<String, dynamic> map = jsonDecode(decoded) as Map<String, dynamic>;
-      final int? exp = map['exp'] as int?;
-
-      if (exp == null) return true;
-
-      final DateTime expDate = DateTime.fromMillisecondsSinceEpoch(exp * 1000);
-      return DateTime.now().isAfter(expDate.subtract(const Duration(minutes: 5)));
-    } catch (_) {
-      return true;
-    }
-  }
-
-  @visibleForTesting
-  bool isTokenExpiredForTest(String inputToken) => _isTokenExpired(inputToken);
-
   Future<void> handleSessionExpired() async {
     if (!isAuthenticated && currentUser == null) return;
     AppLogger.info('[Auth] session expired cleanup started');
@@ -251,10 +211,9 @@ class AuthProvider extends ChangeNotifier {
     try {
       AppLogger.info('[Auth] token clear reason=explicit_logout');
       await _notifyPairDisconnectBeforeLogout();
-      final String? refreshToken = await _apiService.getRefreshToken();
-      await _repository.logout(refreshToken: refreshToken);
+      await _repository.logout();
       await _clearAuthState();
-      AppLogger.info('[Auth] logout cleanup complete');
+      AppLogger.info('[Auth] logout explicit');
     } catch (e) {
       error = _mapError(e);
     } finally {
@@ -263,11 +222,13 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-
   Future<void> _notifyPairDisconnectBeforeLogout() async {
     try {
       AppLogger.info('[PairLifecycle] logout -> partner-disconnect requested');
-      await _apiService.post(ApiConstants.couplePartnerDisconnect, <String, dynamic>{});
+      await _apiService.post(
+        ApiConstants.couplePartnerDisconnect,
+        <String, dynamic>{},
+      );
       AppLogger.info('[PairLifecycle] logout -> partner-disconnect success');
     } catch (e) {
       AppLogger.info('[PairLifecycle] logout -> partner-disconnect failed');
@@ -276,20 +237,54 @@ class AuthProvider extends ChangeNotifier {
 
   void _markAuthBoundaryChanged({required String reason}) {
     authBoundaryVersion++;
-    AppLogger.info('[Auth] boundary changed reason=$reason version=$authBoundaryVersion');
+    AppLogger.info(
+      '[Auth] boundary changed reason=$reason version=$authBoundaryVersion',
+    );
   }
 
   Future<void> _clearAuthState() async {
-    await _apiService.clearTokens();
-    token = null;
-    currentUser = null;
-    _currentUserLoadedAt = null;
-    _loadUserFuture = null;
-    _apiService.setToken(null);
-    _apiService.setRefreshToken(null);
-    requireEmailVerification = false;
-    _markAuthBoundaryChanged(reason: 'clearAuthState');
-    await _cacheService.clearAuthBoundaryTransient();
+    if (_isClearingAuth) return;
+    _isClearingAuth = true;
+    try {
+      await _apiService.clearTokens();
+      token = null;
+      currentUser = null;
+      _currentUserLoadedAt = null;
+      _loadUserFuture = null;
+      _apiService.setToken(null);
+      requireEmailVerification = false;
+      _markAuthBoundaryChanged(reason: 'clearAuthState');
+      await _cacheService.clearAuthBoundaryTransient();
+    } finally {
+      _isClearingAuth = false;
+    }
+  }
+
+  void _handleAuthStateChange(supabase.AuthState state) {
+    switch (state.event) {
+      case supabase.AuthChangeEvent.tokenRefreshed:
+        token = state.session?.accessToken;
+        _apiService.setToken(token);
+        AppLogger.info('[Auth] token refreshed');
+        notifyListeners();
+      case supabase.AuthChangeEvent.signedOut:
+        if (token != null || currentUser != null) {
+          unawaited(_clearAuthState().then((_) => notifyListeners()));
+        }
+      case supabase.AuthChangeEvent.userUpdated:
+        if (state.session != null) unawaited(loadUser(force: true));
+      case supabase.AuthChangeEvent.signedIn:
+        token = state.session?.accessToken;
+        _apiService.setToken(token);
+      default:
+        break;
+    }
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> updateCurrentUserAvatar({
@@ -351,6 +346,20 @@ class AuthProvider extends ChangeNotifier {
   }
 
   String _mapError(Object e) {
+    if (e is RegistrationException) {
+      return e.userMessage;
+    }
+    if (e is supabase.AuthException) {
+      final String message = e.message.toLowerCase();
+      if (message.contains('invalid login credentials')) {
+        return ErrorMessages.invalidCredentials;
+      }
+      if (message.contains('already registered') ||
+          message.contains('already exists')) {
+        return ErrorMessages.emailAlreadyRegistered;
+      }
+      return e.message;
+    }
     if (e is ApiException) {
       return ErrorMessages.fromApiException(e);
     }

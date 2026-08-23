@@ -16,6 +16,7 @@
     "supabase:test:db": "supabase test db --workdir ..",
     "supabase:schema:check": "ts-node scripts/checkSupabaseSchema.ts",
     "supabase:test:args": "ts-node scripts/testSupabaseImportArgs.ts",
+    "test:supabase-auth": "ts-node src/scripts/testSupabaseAuthBoundary.ts",
     "supabase:export:mongo": "ts-node scripts/exportMongoForSupabase.ts",
     "supabase:import:dishes": "ts-node scripts/importDishesToSupabase.ts",
     "supabase:import:ingredients": "ts-node scripts/importIngredientsToSupabase.ts",
