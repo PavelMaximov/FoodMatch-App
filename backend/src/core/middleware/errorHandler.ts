@@ -48,6 +48,18 @@ export function errorHandler(err: Error, _req: Request, res: Response, _next: Ne
     return;
   }
 
+  if (isMissingSupabaseProfileError(err)) {
+    const userId = profileUserId(err) ?? 'unknown';
+    console.error(`[AuthProfile] missing profile before domain write user=${userId}`);
+    console.error('[AuthProfile] hint=Run repair:supabase-profiles or verify profile upsert uses the same DB as domain repositories.');
+    res.status(500).json({
+      error: 'User profile is not ready',
+      message: 'User profile is not ready',
+      code: 'SUPABASE_PROFILE_MISSING'
+    });
+    return;
+  }
+
   if (err.message === 'CORS origin not allowed') {
     res.status(403).json({ error: 'You do not have permission to do this.', message: 'You do not have permission to do this.', code: 'CORS_ORIGIN_DENIED' });
     return;
@@ -59,6 +71,22 @@ export function errorHandler(err: Error, _req: Request, res: Response, _next: Ne
     message: 'Server is not available right now. Please try again later.',
     code: 'INTERNAL_SERVER_ERROR'
   });
+}
+
+function isMissingSupabaseProfileError(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false;
+  const postgres = error as { code?: string; constraint?: string; detail?: string };
+  return postgres.code === '23503' && Boolean(
+    postgres.constraint?.includes('user_id_fkey') ||
+    postgres.constraint?.includes('created_by_fkey') ||
+    postgres.detail?.includes('is not present in table "profiles"')
+  );
+}
+
+function profileUserId(error: unknown): string | null {
+  const detail = typeof error === 'object' && error !== null && 'detail' in error
+    ? String((error as { detail?: unknown }).detail ?? '') : '';
+  return detail.match(/Key \([^)]*\)=\(([^)]+)\)/)?.[1] ?? null;
 }
 
 function isDuplicateKeyError(error: unknown): boolean {

@@ -16,6 +16,7 @@ class ErrorMessages {
   static const String emailAlreadyRegistered = 'This email is already registered.';
   static const String invalidVerificationLink = 'Verification link is invalid or expired.';
   static const String tooManyAttempts = 'Too many attempts. Please wait a bit and try again.';
+  static const String profileNotReady = 'Your profile is not ready yet. Please try again.';
 
   static String fromException(Object error, {String? fallback}) {
     if (error is ApiException) {
@@ -25,6 +26,7 @@ class ErrorMessages {
   }
 
   static String fromApiException(ApiException error, {String? fallback}) {
+    if (error.code == 'SUPABASE_PROFILE_MISSING') return profileNotReady;
     final String raw = error.message.trim();
     final String lower = raw.toLowerCase();
 

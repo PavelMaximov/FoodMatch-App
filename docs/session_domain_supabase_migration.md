@@ -37,6 +37,25 @@ The scripts are additive and report read/written/skipped totals. A skipped row i
 usually a missing profile or dish mapping and must be resolved before cutover.
 Resume writes only after validation passes. Keep Mongo intact for rollback and PR4.
 
+## Foreign key violation: `solo_swipe_sessions_user_id_fkey`
+
+This error means Supabase Auth accepted the user, but `public.profiles` does not
+contain the same UUID in the database selected by `SUPABASE_DB_URL`. Users created
+before the profile trigger migration may require a one-time repair.
+
+1. Check Auth: `select id,email from auth.users where id='<uuid>';`
+2. Check the profile: `select id,email from public.profiles where id='<uuid>';`
+3. From `backend`, run `npm run repair:supabase-profiles`.
+4. Verify `SUPABASE_URL` and `SUPABASE_DB_URL` target the same Supabase project.
+5. Restart the backend and confirm `possibleEnvMismatch=false` in startup logs.
+6. Retry the Solo session.
+
+A local database reset does not repair a hosted database. Hosted Auth with local
+Postgres is invalid for phone QA unless the Auth users are intentionally mirrored
+into that local instance. The backend now upserts the verified profile through the
+same PostgreSQL pool used by domain repositories, rather than relying only on the
+new-user trigger.
+
 ## Ordering and invitation safety
 
 Deck UUID arrays preserve their input order. In particular,

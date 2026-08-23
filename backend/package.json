@@ -52,7 +52,8 @@
     "migrate:pg:filter-presets": "ts-node src/scripts/migrateFilterPresetsMongoToPostgres.ts",
     "migrate:pg:validate-sessions": "ts-node src/scripts/validateSessionMigration.ts",
     "test:supabase-domain": "ts-node src/scripts/testSupabaseDomainRuntime.ts",
-    "audit:supabase-domain-runtime": "ts-node src/scripts/auditSupabaseDomainRuntime.ts"
+    "audit:supabase-domain-runtime": "ts-node src/scripts/auditSupabaseDomainRuntime.ts",
+    "repair:supabase-profiles": "ts-node src/scripts/repairSupabaseProfiles.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.109.0",

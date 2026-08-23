@@ -14,6 +14,11 @@ export function getConfigHealthResponse() {
     hasAnonKey: health.hasAnonKey,
     hasServiceRoleKey: health.hasServiceRoleKey,
     hasDbUrl: health.hasDbUrl,
+    authHost: health.authHost,
+    dbHost: health.dbHost,
+    authLooksHosted: health.authLooksHosted,
+    dbLooksLocal: health.dbLooksLocal,
+    possibleEnvMismatch: health.possibleEnvMismatch,
     mongoConnected: mongoose.connection.readyState === 1,
   };
 }

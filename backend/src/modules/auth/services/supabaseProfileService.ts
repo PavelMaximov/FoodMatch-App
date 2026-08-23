@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { User } from '@supabase/supabase-js';
 import { AppError } from '../../../core/errors/AppError';
+import { queryPostgres } from '../../../shared/db/postgresClient';
 import { getSupabaseAdminClient } from '../../../shared/db/supabaseAdminClient';
 import { UserDocument, UserModel } from '../../users/models/User';
 
@@ -22,6 +23,8 @@ function metadataString(user: User, key: string): string | undefined {
 }
 
 export class SupabaseProfileService {
+  constructor(private readonly databaseQuery: typeof queryPostgres = queryPostgres) {}
+
   async verifyAccessToken(token: string): Promise<User> {
     const { data, error } = await getSupabaseAdminClient().auth.getUser(token);
     if (error || !data.user) throw new AppError('Invalid token', 401);
@@ -34,42 +37,48 @@ export class SupabaseProfileService {
     const displayName = metadataString(user, 'display_name') ??
       metadataString(user, 'displayName') ?? email.split('@')[0];
     const avatarUrl = metadataString(user, 'avatar_url') ?? null;
-    const client = getSupabaseAdminClient();
-    const existing = await client
-      .from('profiles')
-      .select('id,email,display_name,avatar_url,measurement_system_preference,created_at,updated_at')
-      .eq('id', user.id)
-      .maybeSingle();
-    if (existing.error) throw new AppError('Unable to load user profile', 500);
-    if (existing.data) {
-      console.info(`[Auth] profile loaded user=${user.id}`);
-      return this.mapProfile(existing.data, email, displayName);
+    try {
+      // Use the exact pool used by domain repositories. This prevents a hosted
+      // Auth/local database split from appearing to repair the wrong project.
+      const result = await this.databaseQuery<Record<string, unknown>>(
+        `insert into public.profiles
+           (id,email,display_name,avatar_url,measurement_system_preference)
+         values ($1,$2,$3,$4,'auto')
+         on conflict (id) do update set
+           email=excluded.email,
+           display_name=coalesce(nullif(public.profiles.display_name,''),excluded.display_name),
+           avatar_url=coalesce(excluded.avatar_url,public.profiles.avatar_url)
+         returning id,email,display_name,avatar_url,measurement_system_preference,created_at,updated_at`,
+        [user.id, email, displayName, avatarUrl]
+      );
+      console.info(`[AuthProfile] ensured user=${user.id} source=domain-db`);
+      return this.mapProfile(result.rows[0], email, displayName);
+    } catch (error) {
+      console.error(`[AuthProfile] ensure failed user=${user.id}`, error);
+      console.error(`[AuthProfile] missing profile before domain write user=${user.id}`);
+      console.error('[AuthProfile] hint=Run repair:supabase-profiles or verify profile upsert uses the same DB as domain repositories.');
+      throw new AppError('User profile is not ready', 500, 'SUPABASE_PROFILE_MISSING');
     }
-    const { data, error } = await client
-      .from('profiles')
-      .upsert({ id: user.id, email, display_name: displayName, avatar_url: avatarUrl }, { onConflict: 'id' })
-      .select('id,email,display_name,avatar_url,measurement_system_preference,created_at,updated_at')
-      .single();
-    if (error || !data) throw new AppError('Unable to load user profile', 500);
-    console.info(`[Auth] profile upserted user=${user.id}`);
-    return this.mapProfile(data, email, displayName);
   }
 
   async updatePreference(user: User, preference: MeasurementPreference): Promise<SupabaseProfile> {
     await this.ensureProfile(user);
-    const { data, error } = await getSupabaseAdminClient()
-      .from('profiles')
-      .update({ measurement_system_preference: preference })
-      .eq('id', user.id)
-      .select('id,email,display_name,avatar_url,measurement_system_preference,created_at,updated_at')
-      .single();
-    if (error || !data) throw new AppError('Unable to update user profile', 500);
-    return this.mapProfile(data, user.email ?? '', metadataString(user, 'display_name') ?? 'FoodMatch user');
+    const result = await this.databaseQuery<Record<string, unknown>>(
+      `update public.profiles set measurement_system_preference=$2,updated_at=now()
+       where id=$1 returning id,email,display_name,avatar_url,
+       measurement_system_preference,created_at,updated_at`,
+      [user.id, preference]
+    );
+    if (!result.rows[0]) throw new AppError('User profile is not ready', 500, 'SUPABASE_PROFILE_MISSING');
+    return this.mapProfile(result.rows[0], user.email ?? '', metadataString(user, 'display_name') ?? 'FoodMatch user');
   }
 
   async updateAvatar(supabaseUserId: string, avatarUrl: string | null): Promise<void> {
-    const { error } = await getSupabaseAdminClient().from('profiles').update({ avatar_url: avatarUrl }).eq('id', supabaseUserId);
-    if (error) throw new AppError('Unable to update user profile', 500);
+    const result = await this.databaseQuery(
+      'update public.profiles set avatar_url=$2,updated_at=now() where id=$1',
+      [supabaseUserId, avatarUrl]
+    );
+    if (!result.rowCount) throw new AppError('User profile is not ready', 500, 'SUPABASE_PROFILE_MISSING');
   }
 
   /**

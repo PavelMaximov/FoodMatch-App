@@ -37,6 +37,7 @@ class AuthProvider extends ChangeNotifier {
   Future<void>? _loadUserFuture;
   bool _isClearingAuth = false;
   bool isLoading = false;
+  bool profileSetupReady = true;
   String? error;
   int authBoundaryVersion = 0;
 
@@ -168,6 +169,7 @@ class AuthProvider extends ChangeNotifier {
       final String? previousUserId = currentUser?.id;
       final me = await _repository.getMeWithVerificationRequirement();
       currentUser = me.user;
+      profileSetupReady = true;
       requireEmailVerification = me.requireEmailVerification;
       if (previousUserId != currentUser?.id) {
         _markAuthBoundaryChanged(reason: 'loadUser');
@@ -175,6 +177,9 @@ class AuthProvider extends ChangeNotifier {
       _currentUserLoadedAt = DateTime.now();
       await _cacheUserDataIfAvailable();
     } on ApiException catch (e) {
+      if (e.code == 'SUPABASE_PROFILE_MISSING') {
+        profileSetupReady = false;
+      }
       if (e.statusCode == 401) {
         AppLogger.info('Token invalid (401), clearing session');
         await handleSessionExpired();
