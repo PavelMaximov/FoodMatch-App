@@ -44,13 +44,15 @@
     "test:pair-session-resync": "ts-node src/scripts/testPairSessionResync.ts",
     "test:pair-filter-change": "ts-node src/scripts/testPairFilterChange.ts",
     "test:solo-abandon": "ts-node src/scripts/testSoloAbandon.ts",
-    "test:solo-resume-isolation": "ts-node src/scripts/testSoloResumeIsolation.ts"
-    ,"migrate:pg:sessions": "ts-node src/scripts/migrateSessionsMongoToPostgres.ts"
-    ,"migrate:pg:swipes": "ts-node src/scripts/migrateSwipesMongoToPostgres.ts"
-    ,"migrate:pg:matches": "ts-node src/scripts/migrateMatchesMongoToPostgres.ts"
-    ,"migrate:pg:invitations": "ts-node src/scripts/migratePairInvitationsMongoToPostgres.ts"
-    ,"migrate:pg:filter-presets": "ts-node src/scripts/migrateFilterPresetsMongoToPostgres.ts"
-    ,"migrate:pg:validate-sessions": "ts-node src/scripts/validateSessionMigration.ts"
+    "test:solo-resume-isolation": "ts-node src/scripts/testSoloResumeIsolation.ts",
+    "migrate:pg:sessions": "ts-node src/scripts/migrateSessionsMongoToPostgres.ts",
+    "migrate:pg:swipes": "ts-node src/scripts/migrateSwipesMongoToPostgres.ts",
+    "migrate:pg:matches": "ts-node src/scripts/migrateMatchesMongoToPostgres.ts",
+    "migrate:pg:invitations": "ts-node src/scripts/migratePairInvitationsMongoToPostgres.ts",
+    "migrate:pg:filter-presets": "ts-node src/scripts/migrateFilterPresetsMongoToPostgres.ts",
+    "migrate:pg:validate-sessions": "ts-node src/scripts/validateSessionMigration.ts",
+    "test:supabase-domain": "ts-node src/scripts/testSupabaseDomainRuntime.ts",
+    "audit:supabase-domain-runtime": "ts-node src/scripts/auditSupabaseDomainRuntime.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.109.0",

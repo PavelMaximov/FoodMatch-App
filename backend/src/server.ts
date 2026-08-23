@@ -5,6 +5,7 @@ import { logSupabaseConfigDiagnostics } from './config/supabase';
 
 async function bootstrap() {
   logSupabaseConfigDiagnostics();
+  console.info(`[DomainStore] active=${env.DATA_STORE}`);
   await connectDatabase();
 
   const app = createApp();

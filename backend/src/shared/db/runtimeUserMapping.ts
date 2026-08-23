@@ -1,0 +1,3 @@
+import { UserModel } from '../../modules/users/models/User';
+export async function mongoRuntimeUserId(supabaseUserId:string):Promise<string>{const user=await UserModel.findOne({supabaseAuthId:supabaseUserId}).select('_id').lean();if(!user)throw new Error(`Mongo runtime user missing for Supabase profile ${supabaseUserId}`);return user._id.toString();}
+export async function mongoRuntimeUserIds(ids:string[]):Promise<Map<string,string>>{const users=await UserModel.find({supabaseAuthId:{$in:ids}}).select('_id supabaseAuthId').lean();return new Map(users.map(u=>[u.supabaseAuthId!,u._id.toString()]));}

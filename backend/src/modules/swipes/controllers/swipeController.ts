@@ -15,7 +15,7 @@ export class SwipeController {
       );
     }
     const { dishId, direction } = req.body;
-    const swipe = await swipeService.createSwipe(req.userId!, dishId, direction);
+    const swipe = await swipeService.createSwipe(req.user!.id, dishId, direction);
     res.status(201).json({ swipe });
   }
 
@@ -24,12 +24,12 @@ export class SwipeController {
     const mode = rawMode === 'solo' || rawMode === 'paired' || rawMode === 'all' ? rawMode : 'all';
     const scope = req.query.scope === 'current' ? 'current' : 'all';
     const sessionId = typeof req.query.sessionId === 'string' ? req.query.sessionId : undefined;
-    const matches = await swipeService.getMyMatches(req.userId!, mode, { scope, sessionId });
+    const matches = await swipeService.getMyMatches(req.user!.id, mode, { scope, sessionId });
     res.json({ matches });
   }
 
   async history(req: AuthRequest, res: Response) {
-    const history = await swipeService.getMySwipeHistory(req.userId!);
+    const history = await swipeService.getMySwipeHistory(req.user!.id);
     res.json({ history });
   }
 }

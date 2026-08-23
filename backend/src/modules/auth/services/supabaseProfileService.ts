@@ -100,8 +100,9 @@ export class SupabaseProfileService {
 
   toUserDto(profile: SupabaseProfile, authUser: User, runtimeUser: UserDocument) {
     return {
-      // Keep the Mongo runtime id until PR3 so Pair/Solo DTO comparisons remain stable.
-      id: runtimeUser.id,
+      // PR3 domain APIs and Pair/Solo DTOs use the Supabase profile UUID.
+      id: profile.id,
+      runtimeUserId: runtimeUser.id,
       supabaseUserId: profile.id,
       email: profile.email,
       displayName: profile.displayName,

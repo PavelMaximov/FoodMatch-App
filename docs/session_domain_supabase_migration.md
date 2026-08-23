@@ -26,6 +26,13 @@ npm run migrate:pg:invitations
 npm run migrate:pg:validate-sessions
 ```
 
+Runtime verification uses `DATA_STORE=supabase npm run test:supabase-domain` on
+POSIX shells. In PowerShell use:
+
+```powershell
+$env:DATA_STORE="supabase"; npm run test:supabase-domain
+```
+
 The scripts are additive and report read/written/skipped totals. A skipped row is
 usually a missing profile or dish mapping and must be resolved before cutover.
 Resume writes only after validation passes. Keep Mongo intact for rollback and PR4.
