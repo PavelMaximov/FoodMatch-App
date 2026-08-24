@@ -14,6 +14,12 @@ PR4 moves dishes, custom dishes, ingredients, saved dishes, and recommendation c
 6. Run `npm run validate:full-mongo-to-postgres` and compare reported counts to the Mongo backup.
 7. Unset `MONGODB_URI`, start the backend, and complete the QA checklist below.
 
+After applying the PR4 regression fix, re-run `npm run supabase:import:dishes`
+with the original dish export. The importer is idempotent and repairs component
+names that older imports omitted when the name was nested under `ingredient`.
+Then run `npm run validate:full-mongo-to-postgres`; a migrated catalog with no
+ingredients or ordered instructions now fails validation.
+
 Migration commands are idempotent and report skipped records. Never place a Mongo ObjectId in a UUID column; it belongs only in a `legacy_mongo_id` text column. For rollback, stop writes, restore the pre-migration release and backups, and do not attempt dual writes.
 
 ## Final runtime environment

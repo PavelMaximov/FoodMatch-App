@@ -49,7 +49,12 @@ async function main(): Promise<void> {
         for (const [componentPosition, rawComponent] of array(section.components).entries()) {
           const component: JsonRecord = typeof rawComponent === 'object' && rawComponent ? rawComponent as JsonRecord : { name: String(rawComponent) };
           const componentId = stableUuid(`component:${legacyId}:${sectionPosition}:${componentPosition}`);
-          await db.query(`insert into dish_components(id,section_id,dish_id,position,raw_text,extra_comment,ingredient_name,display_singular,display_plural) values($1,$2,$3,$4,$5,$6,$7,$8,$9)`, [componentId,sectionId,id,componentPosition,value(component,'raw_text','rawText') ?? null,value(component,'extra_comment','extraComment') ?? null,value(component,'ingredient_name','ingredientName','name') ?? '',value(component,'display_singular','displaySingular') ?? null,value(component,'display_plural','displayPlural') ?? null]); counts.components++;
+          const nestedIngredient = typeof component.ingredient === 'object' && component.ingredient
+            ? component.ingredient as JsonRecord : {};
+          const ingredientName = value(component,'ingredient_name','ingredientName','name') ??
+            value(nestedIngredient,'name','display_singular','display_plural') ??
+            value(component,'raw_text','rawText') ?? '';
+          await db.query(`insert into dish_components(id,section_id,dish_id,position,raw_text,extra_comment,ingredient_name,display_singular,display_plural) values($1,$2,$3,$4,$5,$6,$7,$8,$9)`, [componentId,sectionId,id,componentPosition,value(component,'raw_text','rawText') ?? null,value(component,'extra_comment','extraComment') ?? null,ingredientName,value(component,'display_singular','displaySingular') ?? value(nestedIngredient,'display_singular') ?? null,value(component,'display_plural','displayPlural') ?? value(nestedIngredient,'display_plural') ?? null]); counts.components++;
           const measurements = array(component.measurements).length ? array(component.measurements) : (component.quantity || component.unit ? [{ quantity: component.quantity, unit: component.unit, system: 'universal' }] : []);
           for (const [measurementPosition, rawMeasurement] of measurements.entries()) {
             const measurement = rawMeasurement as JsonRecord;

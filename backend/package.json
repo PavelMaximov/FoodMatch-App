@@ -60,7 +60,8 @@
     "migrate:custom-dishes:mongo-to-postgres": "ts-node src/scripts/migrateCustomDishesMongoToPostgres.ts",
     "migrate:saved-dishes:mongo-to-postgres": "ts-node src/scripts/migrateSavedDishesMongoToPostgres.ts",
     "validate:full-mongo-to-postgres": "ts-node src/scripts/validateFullMongoToPostgresMigration.ts",
-    "test:postgres-runtime": "npm run test:supabase-auth && npm run test:supabase-domain && npm run audit:no-mongo-runtime"
+    "test:postgres-runtime": "npm run test:catalog-regressions && npm run test:supabase-auth && npm run test:supabase-domain && npm run audit:no-mongo-runtime",
+    "test:catalog-regressions": "SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_SERVICE_ROLE_KEY=test-only npm_config_loglevel=silent ts-node src/scripts/testPostgresCatalogRegressions.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.109.0",
