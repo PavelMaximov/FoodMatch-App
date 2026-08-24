@@ -29,3 +29,12 @@ Migration commands are idempotent and report skipped records. Never place a Mong
 ## Manual QA
 
 With MongoDB stopped: start the backend; register/login; call `/api/auth/me`; load recipes and recipe detail; list/add/edit/delete owned custom dishes; run Solo and verify swipes/matches; create/join a Pair, confirm filters, load the deterministic deck and create a mutual match; load matches and saved dishes; log out/in; verify PostgreSQL rows and confirm no Mongo connection log appears.
+
+### Ingredient display repair
+
+Apply `20260824000100_ingredient_display_preservation.sql` before deploying this
+runtime. Then rerun either `npm run supabase:import:dishes` from the preserved
+export or `npm run migrate:dishes:mongo-to-postgres`. Both import paths replace
+sections/components idempotently and preserve original text, fraction tokens,
+units, and component order. Validate the repaired catalog with
+`npm run validate:full-mongo-to-postgres`.

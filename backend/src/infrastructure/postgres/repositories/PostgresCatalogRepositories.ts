@@ -12,21 +12,28 @@ type DatabaseQuery = typeof queryPostgres;
 const CATALOG_SELECT = `
   select d.*,
     coalesce((
-      select array_agg(component.display_name order by component.section_position, component.position)
-      from (
-        select s.position as section_position, c.position,
-          coalesce(
-            nullif(btrim(c.ingredient_name), ''),
-            nullif(btrim(c.display_singular), ''),
-            nullif(btrim(c.display_plural), ''),
-            nullif(btrim(c.raw_text), '')
-          ) as display_name
-        from dish_sections s
-        join dish_components c on c.section_id = s.id
-        where s.dish_id = d.id
-      ) component
-      where component.display_name is not null
-    ), array[]::text[]) as ingredients,
+      select jsonb_agg(
+        jsonb_build_object(
+          'id', c.id,
+          'rawText', coalesce(c.original_text, c.raw_text),
+          'ingredientName', c.ingredient_name,
+          'displaySingular', c.display_singular,
+          'displayPlural', c.display_plural,
+          'quantity', coalesce(measurement.quantity_text, measurement.quantity::text),
+          'unit', measurement.unit
+        ) order by s.position, c.position
+      )
+      from dish_sections s
+      join dish_components c on c.section_id = s.id
+      left join lateral (
+        select m.quantity, m.quantity_text, m.unit
+        from dish_component_measurements m
+        where m.component_id = c.id
+        order by case m.system when 'universal' then 0 when 'metric' then 1 else 2 end, m.position
+        limit 1
+      ) measurement on true
+      where s.dish_id = d.id
+    ), '[]'::jsonb) as ingredient_components,
     coalesce((
       select jsonb_agg(
         jsonb_build_object('step', instruction.position + 1, 'text', instruction.display_text)
@@ -40,9 +47,11 @@ const CATALOG_SELECT = `
 
 export function mapCatalogDish(row: Record<string, unknown>): CatalogDish {
   const id = String(row.id);
-  const ingredients = normalizeStringArray(row.ingredients);
+  const ingredients = Array.isArray(row.ingredient_components)
+    ? buildIngredientDisplayStrings(id, row.ingredient_components)
+    : normalizeStringArray(row.ingredients);
   const steps = normalizeSteps(row.steps);
-  console.info(`[DishCatalog] loaded ingredients count=${ingredients.length} dish=${id}`);
+  console.info(`[DishCatalog] ingredient display built dish=${id} count=${ingredients.length}`);
   if (ingredients.length === 0) {
     console.warn(`[DishCatalog] dto ingredients empty dish=${id} reason=no_relational_components`);
   }
@@ -176,12 +185,23 @@ export class PostgresDishRepository {
     );
     for (const [position, ingredient] of ingredients.entries()) {
       const name = String(ingredient.name).trim();
-      await this.databaseQuery(
+      const quantity = cleanText(ingredient.quantity);
+      const unit = cleanText(ingredient.unit);
+      const rawText = [quantity, unit, name].filter(Boolean).join(' ');
+      const component = await this.databaseQuery<{ id: string }>(
         `insert into dish_components
           (section_id,dish_id,position,ingredient_name,raw_text)
-         values($1,$2,$3,$4,$5)`,
-        [section.rows[0].id, id, position, name, name],
+         values($1,$2,$3,$4,$5) returning id`,
+        [section.rows[0].id, id, position, name, rawText],
       );
+      if (quantity || unit) {
+        await this.databaseQuery(
+          `insert into dish_component_measurements
+            (component_id,quantity,quantity_text,unit,system,position)
+           values($1,$2,$3,$4,'universal',0)`,
+          [component.rows[0].id, decimalOrNull(quantity), quantity || null, unit || null],
+        );
+      }
     }
   }
 }
@@ -206,6 +226,75 @@ export class PostgresIngredientRepository {
 function normalizeStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.map(String).map((item) => item.trim()).filter(Boolean);
+}
+
+interface IngredientDisplayComponent {
+  id?: unknown;
+  rawText?: unknown;
+  originalText?: unknown;
+  quantity?: unknown;
+  amount?: unknown;
+  unit?: unknown;
+  ingredientName?: unknown;
+  displaySingular?: unknown;
+  displayPlural?: unknown;
+}
+
+export function buildIngredientDisplayStrings(
+  dishId: string,
+  components: unknown[],
+): string[] {
+  const displays: string[] = [];
+  for (const [index, value] of components.entries()) {
+    const component = typeof value === 'object' && value !== null
+      ? value as IngredientDisplayComponent : {};
+    const componentId = cleanText(component.id) || String(index);
+    const rawText = cleanText(component.rawText ?? component.originalText);
+    const amount = cleanText(component.quantity ?? component.amount);
+    const unit = cleanText(component.unit);
+    const ingredientName = cleanText(component.ingredientName);
+    if (rawText && isCompleteRawText(rawText, amount, unit)) {
+      displays.push(rawText);
+      continue;
+    }
+    const measuredDisplay = [amount, unit, ingredientName].filter(Boolean).join(' ');
+    if (measuredDisplay && (amount || unit)) {
+      displays.push(measuredDisplay);
+      continue;
+    }
+    const displayName = cleanText(component.displaySingular) || cleanText(component.displayPlural);
+    if (displayName) {
+      displays.push(displayName);
+      continue;
+    }
+    if (ingredientName) {
+      console.info(`[DishCatalog] ingredient display fallback=ingredient_name dish=${dishId} component=${componentId}`);
+      displays.push(ingredientName);
+      continue;
+    }
+    console.warn(`[DishCatalog] ingredient display missing dish=${dishId} component=${componentId}`);
+  }
+  return displays;
+}
+
+function cleanText(value: unknown): string {
+  if (value == null) return '';
+  const text = String(value).replace(/\s+/g, ' ').trim();
+  return text === 'null' || text === 'undefined' ? '' : text;
+}
+
+function isCompleteRawText(rawText: string, amount: string, unit: string): boolean {
+  if (!amount && !unit) return true;
+  const normalized = rawText.toLocaleLowerCase();
+  return Boolean(
+    (amount && normalized.includes(amount.toLocaleLowerCase())) ||
+    (unit && new RegExp(`(^|\\s)${escapeRegex(unit.toLocaleLowerCase())}(\\s|$)`).test(normalized)) ||
+    /\b(to taste|as needed|as required|for serving|for garnish)\b/i.test(rawText)
+  );
+}
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function normalizeSteps(value: unknown): Array<{ step: number; text: string }> {
@@ -238,6 +327,10 @@ function stringOrEmpty(value: unknown): string {
 function numberOrZero(value: unknown): number {
   const result = Number(value);
   return Number.isFinite(result) ? result : 0;
+}
+
+function decimalOrNull(value: string): number | null {
+  return /^[-+]?\d+(?:\.\d+)?$/.test(value) ? Number(value) : null;
 }
 
 export const postgresDishes = new PostgresDishRepository();

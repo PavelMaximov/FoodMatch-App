@@ -4,6 +4,17 @@ import { connect, inputFile, JsonRecord, records, stableUuid, value } from './su
 const array = (v: unknown): unknown[] => Array.isArray(v) ? v : [];
 const textArray = (v: unknown): string[] => array(v).map(String);
 const numberOrNull = (v: unknown): number | null => v === '' || v == null || Number.isNaN(Number(v)) ? null : Number(v);
+const cleanText = (v: unknown): string | null => {
+  if (v == null) return null;
+  const result = String(v).replace(/\s+/g, ' ').trim();
+  return result && result !== 'null' && result !== 'undefined' ? result : null;
+};
+const unitText = (v: unknown): string | null => {
+  if (typeof v === 'object' && v) {
+    return cleanText(value(v as JsonRecord, 'abbreviation', 'name', 'display_singular', 'display_plural'));
+  }
+  return cleanText(v);
+};
 
 async function main(): Promise<void> {
   const rows = records(inputFile());
@@ -47,18 +58,30 @@ async function main(): Promise<void> {
         const section = rawSection as JsonRecord; const sectionId = stableUuid(`section:${legacyId}:${sectionPosition}`);
         await db.query('insert into dish_sections(id,dish_id,name,position) values($1,$2,$3,$4)', [sectionId,id,section.name ?? null,sectionPosition]); counts.sections++;
         for (const [componentPosition, rawComponent] of array(section.components).entries()) {
-          const component: JsonRecord = typeof rawComponent === 'object' && rawComponent ? rawComponent as JsonRecord : { name: String(rawComponent) };
+          const component: JsonRecord = typeof rawComponent === 'object' && rawComponent
+            ? rawComponent as JsonRecord : { name: String(rawComponent), raw_text: String(rawComponent) };
           const componentId = stableUuid(`component:${legacyId}:${sectionPosition}:${componentPosition}`);
           const nestedIngredient = typeof component.ingredient === 'object' && component.ingredient
             ? component.ingredient as JsonRecord : {};
           const ingredientName = value(component,'ingredient_name','ingredientName','name') ??
             value(nestedIngredient,'name','display_singular','display_plural') ??
             value(component,'raw_text','rawText') ?? '';
-          await db.query(`insert into dish_components(id,section_id,dish_id,position,raw_text,extra_comment,ingredient_name,display_singular,display_plural) values($1,$2,$3,$4,$5,$6,$7,$8,$9)`, [componentId,sectionId,id,componentPosition,value(component,'raw_text','rawText') ?? null,value(component,'extra_comment','extraComment') ?? null,ingredientName,value(component,'display_singular','displaySingular') ?? value(nestedIngredient,'display_singular') ?? null,value(component,'display_plural','displayPlural') ?? value(nestedIngredient,'display_plural') ?? null]); counts.components++;
-          const measurements = array(component.measurements).length ? array(component.measurements) : (component.quantity || component.unit ? [{ quantity: component.quantity, unit: component.unit, system: 'universal' }] : []);
+          const originalText = cleanText(value(component,'original_text','originalText','raw_text','rawText','display_text','displayText'));
+          await db.query(`insert into dish_components(id,section_id,dish_id,position,raw_text,original_text,extra_comment,ingredient_name,display_singular,display_plural) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`, [componentId,sectionId,id,componentPosition,cleanText(value(component,'raw_text','rawText')),originalText,value(component,'extra_comment','extraComment') ?? null,ingredientName,value(component,'display_singular','displaySingular') ?? value(nestedIngredient,'display_singular') ?? null,value(component,'display_plural','displayPlural') ?? value(nestedIngredient,'display_plural') ?? null]); counts.components++;
+          const singularMeasurement = typeof component.measurement === 'object' && component.measurement
+            ? [component.measurement] : [];
+          const measurements = array(component.measurements).length
+            ? array(component.measurements)
+            : singularMeasurement.length
+              ? singularMeasurement
+              : (component.quantity || component.amount || component.unit || component.measure
+                ? [{ quantity: component.quantity ?? component.amount, unit: component.unit ?? component.measure, system: 'universal' }]
+                : []);
           for (const [measurementPosition, rawMeasurement] of measurements.entries()) {
             const measurement = rawMeasurement as JsonRecord;
-            await db.query('insert into dish_component_measurements(component_id,quantity,unit,system,position) values($1,$2,$3,$4,$5)', [componentId,numberOrNull(measurement.quantity),measurement.unit ?? null,measurement.system ?? 'universal',measurementPosition]); counts.measurements++;
+            const quantity = cleanText(value(measurement,'quantity','amount','value'));
+            const unit = unitText(value(measurement,'unit','measure'));
+            await db.query('insert into dish_component_measurements(component_id,quantity,quantity_text,unit,system,position) values($1,$2,$3,$4,$5,$6)', [componentId,numberOrNull(quantity),quantity,unit,measurement.system ?? 'universal',measurementPosition]); counts.measurements++;
           }
         }
       }
