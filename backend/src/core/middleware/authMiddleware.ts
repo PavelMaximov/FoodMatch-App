@@ -11,7 +11,7 @@ export interface AuthRequest extends Request {
   profile?: SupabaseProfile;
   user?: {
     id: string; email: string; displayName: string; avatarUrl: string | null;
-    authProvider: 'supabase'; runtimeUserId: string;
+    authProvider: 'supabase'; runtimeUserId: string | null;
   };
 }
 
@@ -32,8 +32,7 @@ export async function authMiddleware(req: AuthRequest, _res: Response, next: Nex
     const authUser = await supabaseProfileService.verifyAccessToken(token);
     console.info(`[Auth] Supabase token verified user=${authUser.id}`);
     const profile = await supabaseProfileService.ensureProfile(authUser);
-    const runtimeUser = await supabaseProfileService.ensureMongoRuntimeUser(authUser, profile);
-    req.userId = runtimeUser.id;
+    req.userId = profile.id;
     req.authUser = authUser;
     req.profile = profile;
     req.user = {
@@ -42,7 +41,7 @@ export async function authMiddleware(req: AuthRequest, _res: Response, next: Nex
       displayName: profile.displayName,
       avatarUrl: profile.avatarUrl,
       authProvider: 'supabase',
-      runtimeUserId: runtimeUser.id,
+      runtimeUserId: null,
     };
     next();
   } catch (error) {

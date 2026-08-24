@@ -1,9 +1,7 @@
-import crypto from 'crypto';
 import { User } from '@supabase/supabase-js';
 import { AppError } from '../../../core/errors/AppError';
 import { queryPostgres } from '../../../shared/db/postgresClient';
 import { getSupabaseAdminClient } from '../../../shared/db/supabaseAdminClient';
-import { UserDocument, UserModel } from '../../users/models/User';
 
 export type MeasurementPreference = 'auto' | 'metric' | 'imperial';
 
@@ -81,49 +79,8 @@ export class SupabaseProfileService {
     if (!result.rowCount) throw new AppError('User profile is not ready', 500, 'SUPABASE_PROFILE_MISSING');
   }
 
-  /**
-   * PR2 bridge: Mongo remains the domain store and its models use ObjectId user
-   * references. This shadow record contains no usable password and is not an
-   * authentication source. It can be removed when those references move in PR3.
-   */
-  async ensureMongoRuntimeUser(user: User, profile: SupabaseProfile): Promise<UserDocument> {
-    const passwordHash = `supabase-disabled:${crypto.randomBytes(32).toString('hex')}`;
-    const runtimeUser = await UserModel.findOneAndUpdate(
-      { $or: [{ supabaseAuthId: user.id }, { email: profile.email }] },
-      {
-        $set: {
-          supabaseAuthId: user.id,
-          email: profile.email,
-          displayName: profile.displayName,
-          avatarUrl: profile.avatarUrl ?? undefined,
-          authProvider: 'supabase',
-          emailVerified: Boolean(user.email_confirmed_at),
-          measurementSystemPreference: profile.measurementSystemPreference,
-        },
-        $setOnInsert: { passwordHash, savedDishes: [], isActive: true },
-      },
-      { new: true, upsert: true, runValidators: true }
-    );
-    return runtimeUser;
-  }
-
-  toUserDto(profile: SupabaseProfile, authUser: User, runtimeUser: UserDocument) {
-    return {
-      // PR3 domain APIs and Pair/Solo DTOs use the Supabase profile UUID.
-      id: profile.id,
-      runtimeUserId: runtimeUser.id,
-      supabaseUserId: profile.id,
-      email: profile.email,
-      displayName: profile.displayName,
-      avatarUrl: profile.avatarUrl,
-      avatarPublicId: runtimeUser.avatarPublicId ?? null,
-      authProvider: 'supabase',
-      isActive: runtimeUser.isActive,
-      emailVerified: Boolean(authUser.email_confirmed_at),
-      emailVerifiedAt: authUser.email_confirmed_at ?? null,
-      measurementSystemPreference: profile.measurementSystemPreference,
-      createdAt: profile.createdAt,
-    };
+  toUserDto(profile: SupabaseProfile, authUser: User) {
+    return { id: profile.id, runtimeUserId: null, supabaseUserId: profile.id, email: profile.email, displayName: profile.displayName, avatarUrl: profile.avatarUrl, avatarPublicId: null, authProvider: 'supabase', isActive: true, emailVerified: Boolean(authUser.email_confirmed_at), emailVerifiedAt: authUser.email_confirmed_at ?? null, measurementSystemPreference: profile.measurementSystemPreference, createdAt: profile.createdAt };
   }
 
   private mapProfile(row: Record<string, unknown>, fallbackEmail: string, fallbackName: string): SupabaseProfile {

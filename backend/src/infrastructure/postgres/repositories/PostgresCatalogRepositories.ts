@@ -1,0 +1,22 @@
+import { queryPostgres } from '../../../shared/db/postgresClient';
+
+export type CatalogDish = Record<string, any> & { _id: any; id?: string; name: string; ownerId?: string|null };
+
+const SELECT = `select d.*,
+ coalesce((select array_agg(c.ingredient_name order by c.position) from dish_components c where c.dish_id=d.id),'{}') ingredients,
+ coalesce((select jsonb_agg(jsonb_build_object('step',i.position,'text',i.display_text) order by i.position) from dish_instructions i where i.dish_id=d.id),'[]') steps
+ from dishes d`;
+function map(r:any):CatalogDish { return {...r,_id:r.id,id:r.id,sourceId:r.legacy_mongo_id,imageUrl:r.image_url,cookTime:r.cook_time_minutes??r.total_time_minutes??0,calories:r.calories_level??'',dishRegister:r.dish_register,spiceLevel:r.spice_level,servings:r.yields??String(r.num_servings??''),createdBy:r.owner_id,ownerId:r.owner_id,isCustom:r.is_custom,sourceType:r.is_custom?'custom':'catalog',createdAt:new Date(r.created_at),updatedAt:new Date(r.updated_at)}; }
+
+export class PostgresDishRepository {
+ async list(ownerId?:string){const q=await queryPostgres<any>(`${SELECT} where d.status in ('approved','active') and (d.visibility='public' or d.owner_id=$1) order by d.updated_at desc`,[ownerId??null]);return q.rows.map(map);}
+ async getByPublicId(id:string){const q=await queryPostgres<any>(`${SELECT} where d.id::text=$1 or d.legacy_mongo_id=$1 or d.slug=$1 limit 1`,[id]);return q.rows[0]?map(q.rows[0]):null;}
+ async listMyCustomDishes(userId:string){const q=await queryPostgres<any>(`${SELECT} where d.owner_id=$1 and d.is_custom order by d.created_at desc`,[userId]);return q.rows.map(map);}
+ async createCustomDish(userId:string,input:any){const q=await queryPostgres<any>(`insert into dishes(name,description,image_url,cuisine,type,mood,dish_register,diet,cook_time_minutes,source,season,popular,yields,owner_id,is_custom,visibility,status) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,false,$12,$13,true,'private','approved') returning *`,[input.name,input.description??'',input.imageUrl??'',input.cuisine,input.type??'',input.mood,input.dishRegister,input.diet??[],input.cookTime,input.source??['user'],input.season??[],input.servings,userId]);await this.replaceChildren(q.rows[0].id,input);return (await this.getByPublicId(q.rows[0].id))!;}
+ async updateCustomDish(userId:string,id:string,input:any){const existing=await this.getByPublicId(id);if(!existing||!existing.isCustom)return null;if(existing.ownerId!==userId)return 'forbidden' as const;await queryPostgres(`update dishes set name=$1,description=$2,image_url=$3,cuisine=$4,type=$5,mood=$6,dish_register=$7,diet=$8,cook_time_minutes=$9,source=$10,season=$11,yields=$12 where id=$13`,[input.name,input.description??'',input.imageUrl??existing.imageUrl,input.cuisine,input.type??'',input.mood,input.dishRegister,input.diet??[],input.cookTime,input.source??['user'],input.season??[],input.servings,existing.id]);await this.replaceChildren(existing.id!,input);return this.getByPublicId(existing.id!);}
+ async deleteCustomDish(userId:string,id:string){const d=await this.getByPublicId(id);if(!d||!d.isCustom)return 'missing';if(d.ownerId!==userId)return 'forbidden';await queryPostgres('delete from dishes where id=$1',[d.id]);return 'deleted';}
+ private async replaceChildren(id:string,input:any){await queryPostgres('delete from dish_instructions where dish_id=$1',[id]);await queryPostgres('delete from dish_sections where dish_id=$1',[id]);for(const s of input.steps??[])await queryPostgres('insert into dish_instructions(dish_id,position,display_text) values($1,$2,$3)',[id,s.step,s.text]);if((input.ingredients??[]).length){const sec=await queryPostgres<any>("insert into dish_sections(dish_id,name,position) values($1,'',0) returning id",[id]);let p=0;for(const i of input.ingredients)await queryPostgres('insert into dish_components(section_id,dish_id,position,ingredient_name,raw_text) values($1,$2,$3,$4,$5)',[sec.rows[0].id,id,p++,typeof i==='string'?i:i.name,typeof i==='string'?i:i.name]);}}
+}
+
+export class PostgresIngredientRepository { async search(term:string){const q=await queryPostgres<any>('select id,name,normalized_name from ingredients where $1=\'\' or name ilike $2 or normalized_name ilike $2 order by name limit $3',[term,`%${term}%`,term?100:1000]);return q.rows.map(r=>({id:r.id,name:r.name,normalizedName:r.normalized_name}));} }
+export const postgresDishes=new PostgresDishRepository();

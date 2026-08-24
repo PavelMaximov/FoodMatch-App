@@ -53,7 +53,14 @@
     "migrate:pg:validate-sessions": "ts-node src/scripts/validateSessionMigration.ts",
     "test:supabase-domain": "ts-node src/scripts/testSupabaseDomainRuntime.ts",
     "audit:supabase-domain-runtime": "ts-node src/scripts/auditSupabaseDomainRuntime.ts",
-    "repair:supabase-profiles": "ts-node src/scripts/repairSupabaseProfiles.ts"
+    "repair:supabase-profiles": "ts-node src/scripts/repairSupabaseProfiles.ts",
+    "audit:no-mongo-runtime": "ts-node src/scripts/auditNoMongoRuntime.ts",
+    "migrate:dishes:mongo-to-postgres": "ts-node src/scripts/migrateDishesMongoToPostgres.ts",
+    "migrate:ingredients:mongo-to-postgres": "ts-node src/scripts/migrateIngredientsMongoToPostgres.ts",
+    "migrate:custom-dishes:mongo-to-postgres": "ts-node src/scripts/migrateCustomDishesMongoToPostgres.ts",
+    "migrate:saved-dishes:mongo-to-postgres": "ts-node src/scripts/migrateSavedDishesMongoToPostgres.ts",
+    "validate:full-mongo-to-postgres": "ts-node src/scripts/validateFullMongoToPostgresMigration.ts",
+    "test:postgres-runtime": "npm run test:supabase-auth && npm run test:supabase-domain && npm run audit:no-mongo-runtime"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.109.0",
@@ -66,7 +73,6 @@
     "express-rate-limit": "^8.5.2",
     "helmet": "^8.2.0",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.11.0",
     "morgan": "^1.10.0",
     "multer": "^2.1.1",
     "pg": "^8.23.0",
@@ -82,6 +88,7 @@
     "@types/multer": "^2.1.0",
     "@types/node": "^22.13.10",
     "@types/pg": "^8.21.0",
+    "mongoose": "^8.24.4",
     "supabase": "^2.114.0",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",

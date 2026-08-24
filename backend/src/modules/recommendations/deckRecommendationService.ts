@@ -1,5 +1,4 @@
-import { Types } from 'mongoose';
-import { DishDocument } from '../dishes/models/Dish';
+import { CatalogDish as DishDocument } from '../../infrastructure/postgres/repositories/PostgresCatalogRepositories';
 import { dishMatchesExclusions } from '../../shared/ingredients/exclusionMatcher';
 import { buildRecommendationDiagnostics, RecommendationAlgorithm, RecommendationMeta } from './recommendationTypes';
 
@@ -91,7 +90,7 @@ export function buildRecommendedDeck(input: BuildRecommendedDeckInput): BuildRec
 
   let excludedByExclusionsCount = 0;
   const afterExplicitExcludes = input.dishes.filter((dish) => {
-    const dishId = dish._id instanceof Types.ObjectId ? dish._id.toString() : String(dish._id ?? '');
+    const dishId = String(dish._id ?? dish.id ?? '');
     return !excludedDishIds.has(dishId);
   });
   const afterExclusions = afterExplicitExcludes.filter((dish) => {
@@ -461,7 +460,7 @@ function clamp(value: number, min: number, max: number) {
 }
 
 function getDishId(dish: DishDocument) {
-  return dish._id instanceof Types.ObjectId ? dish._id.toString() : String(dish._id ?? '');
+  return String(dish._id ?? dish.id ?? '');
 }
 
 function getDishName(dish: DishDocument) {
