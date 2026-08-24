@@ -1,5 +1,4 @@
 import { NextFunction, Request, Response } from 'express';
-import mongoose from 'mongoose';
 import { ZodError } from 'zod';
 import { AppError } from '../errors/AppError';
 
@@ -29,14 +28,6 @@ export function errorHandler(err: Error, _req: Request, res: Response, _next: Ne
     return;
   }
 
-  if (err instanceof mongoose.Error.ValidationError) {
-    res.status(400).json({
-      error: 'Validation failed',
-      message: 'Validation failed',
-      code: 'VALIDATION_ERROR'
-    });
-    return;
-  }
 
   if (isDuplicateKeyError(err)) {
     console.warn('[ErrorHandler] duplicate key conflict', err);

@@ -12,7 +12,8 @@ const args = parseArgs(process.argv.slice(2));
 async function main() {
   if (!args.mode || !['solo', 'pair'].includes(args.mode)) throw new Error('Usage: npm run inspect:recommendations -- --mode solo|pair --session <sessionId>');
   if (!args.session || !Types.ObjectId.isValid(args.session)) throw new Error('A valid --session <sessionId> is required.');
-  await mongoose.connect(env.MONGODB_URI);
+  if (!process.env.MONGODB_URI) throw new Error('MONGODB_URI is required for this legacy inspection command.');
+  await mongoose.connect(process.env.MONGODB_URI);
   try {
     if (args.mode === 'solo') await inspectSolo(args.session);
     else await inspectPair(args.session);

@@ -1,4 +1,3 @@
-import mongoose from 'mongoose';
 import { getSupabaseConfigHealth } from '../../config/supabase';
 
 export function isConfigHealthEnabled(nodeEnv: string): boolean {
@@ -19,6 +18,6 @@ export function getConfigHealthResponse() {
     authLooksHosted: health.authLooksHosted,
     dbLooksLocal: health.dbLooksLocal,
     possibleEnvMismatch: health.possibleEnvMismatch,
-    mongoConnected: mongoose.connection.readyState === 1,
+    mongoRuntime: 'disabled',
   };
 }

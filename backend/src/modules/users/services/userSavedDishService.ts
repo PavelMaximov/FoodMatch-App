@@ -1,70 +1,97 @@
-import { Types } from 'mongoose';
 import { AppError } from '../../../core/errors/AppError';
-import { DISH_DTO_SELECT, toDishDto, type DishDto } from '../../dishes/dto/dishDto';
-import { DishDocument, DishModel } from '../../dishes/models/Dish';
-import { resolveDishByAnyId } from '../../dishes/utils/resolveDishByAnyId';
-import { CoupleSessionModel } from '../../couples/models/CoupleSession';
-import { UserModel } from '../models/User';
+import { UserSavedDishRepository } from '../../../domain/repositories/UserSavedDishRepository';
+import {
+  CatalogDish,
+  postgresDishes,
+} from '../../../infrastructure/postgres/repositories/PostgresCatalogRepositories';
+import { PostgresUserSavedDishRepository } from '../../../infrastructure/postgres/repositories/PostgresUserSavedDishRepository';
+import { DishDto, toDishDto } from '../../dishes/dto/dishDto';
+
+interface DishLookupRepository {
+  getByPublicId(id: string): Promise<CatalogDish | null>;
+  getByIds(ids: string[]): Promise<CatalogDish[]>;
+}
 
 export class UserSavedDishService {
-  async addSavedDish(userId: string, dishId: string): Promise<void> {
-    const dish = await this.findVisibleDish(userId, dishId);
-    if (!dish) {
-      throw new AppError('Dish not found', 404);
-    }
+  constructor(
+    private readonly savedDishes: UserSavedDishRepository = new PostgresUserSavedDishRepository(),
+    private readonly dishes: DishLookupRepository = postgresDishes,
+  ) {}
 
-    await UserModel.updateOne(
-      { _id: new Types.ObjectId(userId) },
-      { $addToSet: { savedDishes: dish._id } }
-    );
+  async addSavedDish(userId: string, publicDishId: string): Promise<void> {
+    console.info(`[SavedDishes] save start user=${userId} dish=${publicDishId}`);
+    try {
+      const dish = await this.resolveDish(publicDishId);
+      const dishId = String(dish.id);
+      console.info(`[SavedDishes] resolved dish uuid=${dishId}`);
+      await this.savedDishes.save(userId, dishId);
+      console.info('[SavedDishes] save success');
+    } catch (error) {
+      throw this.safeError(error);
+    }
   }
 
-  async removeSavedDish(userId: string, dishId: string): Promise<void> {
-    const dish = await this.findVisibleDish(userId, dishId);
-    if (!dish) {
-      throw new AppError('Dish not found', 404);
+  async removeSavedDish(userId: string, publicDishId: string): Promise<void> {
+    console.info(`[SavedDishes] unsave start user=${userId} dish=${publicDishId}`);
+    try {
+      const dish = await this.resolveDish(publicDishId);
+      const dishId = String(dish.id);
+      console.info(`[SavedDishes] resolved dish uuid=${dishId}`);
+      // Removing an already-removed favorite is intentionally idempotent.
+      await this.savedDishes.remove(userId, dishId);
+      console.info('[SavedDishes] unsave success');
+    } catch (error) {
+      throw this.safeError(error);
     }
-
-    await UserModel.updateOne(
-      { _id: new Types.ObjectId(userId) },
-      { $pull: { savedDishes: dish._id } }
-    );
   }
 
   async listSavedDishes(userId: string): Promise<DishDto[]> {
-    const user = await UserModel.findById(userId)
-      .select('savedDishes')
-      .lean()
-      .orFail(() => new AppError('User not found', 404));
-
-    const dishes = await DishModel.find({ _id: { $in: user.savedDishes } })
-      .select(DISH_DTO_SELECT)
-      .lean();
-    const visibleDishes = dishes.filter((dish) => this.isVisibleDishStatus(dish.status));
-
-    return visibleDishes
-      .map((dish) => toDishDto(dish))
-      .filter((dish): dish is DishDto => Boolean(dish));
+    console.info(`[SavedDishes] list start user=${userId}`);
+    try {
+      const dishIds = await this.savedDishes.listDishIds(userId);
+      const dishes = await this.dishes.getByIds(dishIds);
+      return dishes.map(toDishDto).filter((dish): dish is DishDto => Boolean(dish));
+    } catch (error) {
+      throw this.safeError(error);
+    }
   }
 
-  private async findVisibleDish(userId: string, dishId: string): Promise<DishDocument | null> {
-    const dish = await resolveDishByAnyId(dishId.trim());
-    if (!dish || !this.isVisibleDishStatus(dish.status)) {
-      return null;
+  async isDishSaved(userId: string, publicDishId: string): Promise<boolean> {
+    try {
+      const dish = await this.resolveDish(publicDishId);
+      return this.savedDishes.isSaved(userId, String(dish.id));
+    } catch (error) {
+      throw this.safeError(error);
     }
+  }
 
-    if (dish.sourceType === 'custom') {
-      const activeSession = await CoupleSessionModel.findOne({ members: new Types.ObjectId(userId), status: 'active' });
-      if (!activeSession || !dish.coupleId || dish.coupleId.toString() !== activeSession._id.toString()) {
-        return null;
-      }
+  private async resolveDish(publicDishId: string): Promise<CatalogDish> {
+    const dish = await this.dishes.getByPublicId(publicDishId.trim());
+    if (!dish) {
+      throw new AppError('The dish to save was not found.', 404, 'SAVED_DISH_DISH_NOT_FOUND');
     }
-
     return dish;
   }
 
-  private isVisibleDishStatus(status: DishDocument['status']): boolean {
-    return status === 'approved' || status === 'active';
+  private safeError(error: unknown): AppError {
+    if (error instanceof AppError) {
+      console.warn(`[SavedDishes] failed code=${error.code ?? 'UNKNOWN'} message=${error.message}`);
+      return error;
+    }
+    const postgresCode = typeof error === 'object' && error !== null && 'code' in error
+      ? String((error as { code?: unknown }).code ?? '')
+      : '';
+    if (postgresCode === '42P01' || postgresCode === '42703') {
+      const safe = new AppError(
+        'Saved dishes are not ready. Please try again later.',
+        503,
+        'POSTGRES_SAVED_DISHES_NOT_READY',
+      );
+      console.warn(`[SavedDishes] failed code=${safe.code} message=${safe.message}`);
+      return safe;
+    }
+    console.error('[SavedDishes] failed code=SAVED_DISH_OPERATION_FAILED message=database operation failed');
+    return new AppError('Saved dishes are unavailable. Please try again later.', 503, 'SAVED_DISH_OPERATION_FAILED');
   }
 }
 
