@@ -5,6 +5,7 @@ import { logSupabaseConfigDiagnostics } from './config/supabase';
 async function bootstrap() {
   logSupabaseConfigDiagnostics();
   console.info(`[DomainStore] active=${env.DATA_STORE}`);
+  console.info(`[Runtime] nodeEnv=${env.NODE_ENV}`);
   await import('./shared/db/postgresClient').then(({ queryPostgres }) => queryPostgres('select 1'));
   console.info('[Database] postgres connected');
   console.info('[MongoDB] runtime disabled');
