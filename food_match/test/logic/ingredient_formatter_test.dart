@@ -1,9 +1,46 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:food_match/data/models/dish.dart';
-import 'package:food_match/features/dishes/domain/ingredient_formatter.dart';
 import 'package:food_match/data/models/measurement_system.dart';
+import 'package:food_match/features/dishes/domain/ingredient_display_parser.dart';
+import 'package:food_match/features/dishes/domain/ingredient_formatter.dart';
 
 void main() {
+  group('ingredient display splitting', () {
+    for (final (String input, String measurement, String name) in <(String, String, String)>[
+      ('500 g chicken breast', '500 g', 'chicken breast'),
+      ('1 cup rice', '1 cup', 'rice'),
+      ('2 tbsp olive oil', '2 tbsp', 'olive oil'),
+      ('1/2 tsp salt', '1/2 tsp', 'salt'),
+      ('½ tsp salt', '½ tsp', 'salt'),
+      ('1 1/2 cups flour', '1 1/2 cups', 'flour'),
+      ('1–2 cloves garlic', '1–2 cloves', 'garlic'),
+      ('about 2 slices bread', 'about 2 slices', 'bread'),
+      ('approx. 0.5 kg potatoes', 'approx. 0.5 kg', 'potatoes'),
+    ]) {
+      test('keeps measurement and name for $input', () {
+        final IngredientDisplayParts parts = splitIngredientDisplay(input);
+        expect(parts.measurement, measurement);
+        expect(parts.name, name);
+        expect('${parts.measurement} ${parts.name}'.trim(), input);
+      });
+    }
+
+    for (final String input in <String>['Salt, to taste', 'Parsley']) {
+      test('keeps unmeasured ingredient intact: $input', () {
+        final IngredientDisplayParts parts = splitIngredientDisplay(input);
+        expect(parts.measurement, isEmpty);
+        expect(parts.name, input);
+      });
+    }
+
+    test('keeps a quantity-only value visible', () {
+      final IngredientDisplayParts parts = splitIngredientDisplay('500 g');
+      expect(parts.hasQuantityPrefix, isTrue);
+      expect(parts.name, isEmpty);
+      expect(parts.original, '500 g');
+    });
+  });
+
   test('formats quantity, unit, and ingredient without trailing decimals', () {
     const DishComponent component = DishComponent(
       ingredient: DishIngredient(name: 'eggs'),
