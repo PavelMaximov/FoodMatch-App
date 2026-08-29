@@ -21,6 +21,7 @@ import '../../../../shared/widgets/shimmer_card.dart';
 import '../../../favorites/logic/favorites_provider.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../shopping_list/logic/shopping_list_provider.dart';
+import '../../domain/ingredient_display_parser.dart';
 import '../../domain/ingredient_formatter.dart';
 import '../../logic/recipe_provider.dart';
 
@@ -462,6 +463,14 @@ class _RecipeContent extends StatelessWidget {
   }
 
   List<_IngredientDisplayRow> _buildIngredientRows(Dish dish, MeasurementSystem system) {
+    final List<_IngredientDisplayRow> displayRows = dish.ingredients
+        .map(_IngredientDisplayRow.fromDisplayText)
+        .where((_IngredientDisplayRow row) => row.name.isNotEmpty)
+        .toList();
+    if (displayRows.isNotEmpty) {
+      return displayRows;
+    }
+
     final List<_IngredientDisplayRow> structuredRows = dish.sections
         .expand((DishSection section) => section.components)
         .map((DishComponent component) {
@@ -475,14 +484,7 @@ class _RecipeContent extends StatelessWidget {
         .where((_IngredientDisplayRow row) => row.name.isNotEmpty)
         .toList();
 
-    if (structuredRows.isNotEmpty) {
-      return structuredRows;
-    }
-
-    return dish.ingredients
-        .map((String ingredient) => _IngredientDisplayRow(name: ingredient.trim()))
-        .where((_IngredientDisplayRow row) => row.name.isNotEmpty)
-        .toList();
+    return structuredRows;
   }
 
   List<ShoppingListIngredientInput> _buildShoppingIngredients(Dish dish, MeasurementSystem system) {
@@ -758,6 +760,20 @@ class _TabPanel extends StatelessWidget {
 
 class _IngredientDisplayRow {
   const _IngredientDisplayRow({required this.name, this.measurement = ''});
+
+  factory _IngredientDisplayRow.fromDisplayText(String text) {
+    final IngredientDisplayParts parts = splitIngredientDisplay(text);
+    if (parts.hasQuantityPrefix && parts.name.isEmpty) {
+      AppLogger.info(
+        '[IngredientsUI] ingredient name missing text="${parts.original}"',
+      );
+      return _IngredientDisplayRow(name: parts.original);
+    }
+    return _IngredientDisplayRow(
+      name: parts.name,
+      measurement: parts.measurement,
+    );
+  }
 
   final String name;
   final String measurement;

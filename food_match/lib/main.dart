@@ -32,7 +32,17 @@ import 'shell/logic/nav_badge_animation_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  SupabaseConfig.validate();
+  try {
+    const String configuredApiUrl = String.fromEnvironment('API_BASE_URL');
+    if (configuredApiUrl.trim().isEmpty) {
+      throw StateError('Missing API_BASE_URL');
+    }
+    SupabaseConfig.validate();
+    BackendApiConfig.normalizeBaseUrl(configuredApiUrl);
+  } catch (_) {
+    runApp(const _MissingConfigurationApp());
+    return;
+  }
   final Uri supabaseUri = Uri.parse(SupabaseConfig.url);
   final Uri apiUri = Uri.parse(ApiConstants.baseUrl);
   AppLogger.info('[Config] flutterSupabaseHost=${supabaseUri.host}');
@@ -220,6 +230,33 @@ Future<void> main() async {
         ),
       ],
       child: const FoodMatchApp(),
+    ),
+  );
+}
+
+class _MissingConfigurationApp extends StatelessWidget {
+  const _MissingConfigurationApp();
+
+  @override
+  Widget build(BuildContext context) => const MaterialApp(
+    home: Scaffold(
+      body: SafeArea(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Text('Missing app configuration', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                SizedBox(height: 16),
+                Text('Run the app with SUPABASE_URL, SUPABASE_ANON_KEY and API_BASE_URL.', textAlign: TextAlign.center),
+                SizedBox(height: 16),
+                SelectableText('flutter run --dart-define=SUPABASE_URL=https://<project-ref>.supabase.co --dart-define=SUPABASE_ANON_KEY=<anon-key> --dart-define=API_BASE_URL=http://<backend-host>:4000', textAlign: TextAlign.center),
+              ],
+            ),
+          ),
+        ),
+      ),
     ),
   );
 }

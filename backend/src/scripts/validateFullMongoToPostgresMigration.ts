@@ -1,3 +1,4 @@
+/** Migration-only script. Not imported by runtime app code. Read-only historical migration validation. */
 import { closePostgresPool, queryPostgres } from '../shared/db/postgresClient';
 
 async function count(table: string): Promise<number> {
@@ -35,3 +36,4 @@ async function run() {
 }
 
 run().catch((error) => { console.error(error); process.exitCode = 1; }).finally(closePostgresPool);
+/** Migration-only script. Not imported by runtime app code. Read-only validation for historical/data-repair runs. */

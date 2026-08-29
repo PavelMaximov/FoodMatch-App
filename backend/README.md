@@ -77,3 +77,6 @@ flutter run -d emulator-5554 --dart-define=ANDROID_EMULATOR=true --dart-define=A
 # Physical Android/iOS device on the same Wi-Fi (replace with your LAN IP)
 flutter run -d <deviceId> --dart-define=API_BASE_URL=http://192.168.0.39:4000
 ```
+
+## Production readiness (post Mongo migration)
+MongoDB is migration-tooling-only and absent from the server import graph. See [`../docs/production_readiness.md`](../docs/production_readiness.md) for architecture, configuration, run commands, common errors, and rollback. Follow [`../docs/deploy_checklist.md`](../docs/deploy_checklist.md) for every deployment.
