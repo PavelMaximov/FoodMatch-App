@@ -5,6 +5,7 @@ import { matchController } from '../controllers/matchController';
 
 const router = Router();
 
+router.get('/history', authMiddleware, asyncHandler(matchController.history.bind(matchController)));
 router.get('/', authMiddleware, asyncHandler(matchController.list.bind(matchController)));
 
 export default router;

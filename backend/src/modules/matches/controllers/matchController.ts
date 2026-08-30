@@ -8,6 +8,10 @@ const matchService = new MatchService();
 const coupleService = new CoupleService();
 
 export class MatchController {
+  async history(req: AuthRequest, res: Response) {
+    res.json(await matchService.historyForUser(req.user!.id));
+  }
+
   async list(req: AuthRequest, res: Response) {
     const session = await coupleService.getMyActiveSession(req.user!.id);
     if (!session) {

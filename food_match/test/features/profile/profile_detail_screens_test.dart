@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:food_match/features/profile/presentation/screens/profile_detail_screens.dart';
+import 'package:food_match/features/profile/logic/match_history_provider.dart';
+import 'package:food_match/data/models/match_history.dart';
+import 'package:food_match/data/models/dish.dart';
+import 'package:food_match/core/widgets/food_match_empty_state_image.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../helpers/dish_test_data.dart';
 
 void main() {
   Widget testApp(Widget screen) {
@@ -33,5 +39,57 @@ void main() {
     expect(find.text('Contact Us'), findsOneWidget);
     expect(find.text('Rate Us'), findsOneWidget);
     expect(find.text('Share App'), findsOneWidget);
+  });
+
+  testWidgets('Match History has an image-based empty state',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      testApp(
+        MatchHistoryScreen(
+          provider: MatchHistoryProvider.seeded(
+            const MatchHistory(solo: <MatchHistorySession>[], pair: <MatchHistorySession>[]),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('No matches yet'), findsOneWidget);
+    expect(find.text('Your matched dishes will appear here.'), findsOneWidget);
+    final FoodMatchEmptyStateImage image = tester.widget<FoodMatchEmptyStateImage>(
+      find.byType(FoodMatchEmptyStateImage).first,
+    );
+    expect(
+      image.assetPath,
+      'assets/empty_states/empty_match_history.png',
+    );
+  });
+
+  testWidgets('Match History renders Solo and Pair session sections',
+      (WidgetTester tester) async {
+    final now = DateTime(2026, 8, 30, 12);
+    MatchHistorySession session(MatchHistoryMode mode, String id) =>
+        MatchHistorySession(
+          sessionId: id,
+          mode: mode,
+          startedAt: now,
+          completedAt: now,
+          partnerName: mode == MatchHistoryMode.pair ? 'Sam' : null,
+          dishCount: 1,
+          previewDishes: <Dish>[buildTestDish(name: 'Pasta')],
+          dishes: <Dish>[buildTestDish(name: 'Pasta')],
+        );
+    final provider = MatchHistoryProvider.seeded(
+      MatchHistory(
+        solo: <MatchHistorySession>[session(MatchHistoryMode.solo, 'solo-1')],
+        pair: <MatchHistorySession>[session(MatchHistoryMode.pair, 'pair-1')],
+      ),
+    );
+
+    await tester.pumpWidget(testApp(MatchHistoryScreen(provider: provider)));
+
+    expect(find.text('Solo'), findsOneWidget);
+    expect(find.text('Pair'), findsOneWidget);
+    expect(find.text('Solo session'), findsOneWidget);
+    expect(find.text('Sam'), findsOneWidget);
   });
 }

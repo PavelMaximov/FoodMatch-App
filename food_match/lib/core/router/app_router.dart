@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../animations/app_motion.dart';
 import 'app_route_transitions.dart';
 import '../../data/models/dish.dart';
+import '../../data/models/match_history.dart';
 import '../../features/auth/logic/auth_provider.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
@@ -157,6 +158,16 @@ class AppRouter {
                         GoRoute(path: 'edit', builder: (_, __) => const EditProfileScreen()),
                         GoRoute(path: 'settings', builder: (_, __) => const ProfileSettingsScreen()),
                         GoRoute(path: 'match-history', builder: (_, __) => const MatchHistoryScreen()),
+                        GoRoute(
+                          path: 'match-history/session',
+                          builder: (_, GoRouterState state) =>
+                              state.extra is MatchHistorySession
+                                  ? MatchHistorySessionScreen(
+                                      session:
+                                          state.extra! as MatchHistorySession,
+                                    )
+                                  : const MatchHistoryScreen(),
+                        ),
                         GoRoute(path: 'about', builder: (_, __) => const AboutFoodMatchScreen()),
                         GoRoute(path: 'help', builder: (_, __) => const HelpScreen()),
                       ],

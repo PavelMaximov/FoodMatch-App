@@ -7,9 +7,15 @@ import '../../../../core/theme/theme_controller.dart';
 import '../../../../core/theme/notification_theme.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/utils/food_match_notifications.dart';
+import '../../../../core/assets/app_empty_state_assets.dart';
+import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/widgets/food_match_empty_state_image.dart';
+import '../../../../data/models/match_history.dart';
 import '../../../../data/models/measurement_system.dart';
+import '../../../../data/repositories/match_history_repository.dart';
+import '../../../../shared/widgets/media/safe_dish_image.dart';
 import '../../../auth/logic/auth_provider.dart';
-import '../../../matches/logic/match_provider.dart';
+import '../../logic/match_history_provider.dart';
 
 class EditProfileScreen extends StatelessWidget {
   const EditProfileScreen({super.key});
@@ -27,30 +33,229 @@ class EditProfileScreen extends StatelessWidget {
   }
 }
 
-class MatchHistoryScreen extends StatelessWidget {
-  const MatchHistoryScreen({super.key});
+class MatchHistoryScreen extends StatefulWidget {
+  const MatchHistoryScreen({this.provider, super.key});
+  final MatchHistoryProvider? provider;
+
+  @override
+  State<MatchHistoryScreen> createState() => _MatchHistoryScreenState();
+}
+
+class _MatchHistoryScreenState extends State<MatchHistoryScreen> {
+  late final MatchHistoryProvider _provider;
+
+  @override
+  void initState() {
+    super.initState();
+    _provider = widget.provider ??
+        (MatchHistoryProvider(
+          repository: context.read<MatchHistoryRepository>(),
+        )..load());
+  }
+
+  @override
+  void dispose() {
+    _provider.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final matches = context.watch<MatchProvider>().matches;
-    return _DetailScaffold(
-      title: 'Match History',
-      children: matches.isEmpty
-          ? <Widget>[
-              const SizedBox(height: 100),
-              Icon(Icons.history_rounded, size: 64, color: context.fmColors.textMuted),
-              const SizedBox(height: 16),
-              Center(child: Text('No matches yet', style: GoogleFonts.nunito(fontSize: 20, fontWeight: FontWeight.w800))),
-              const SizedBox(height: 6),
-              Center(child: Text('Your matched dishes will appear here.', style: TextStyle(color: context.fmColors.textMuted))),
-            ]
-          : <Widget>[
-              _ActionCard(children: <Widget>[
-                for (final match in matches)
-                  ListTile(leading: const Icon(Icons.restaurant_rounded), title: Text(match.dish.name), subtitle: const Text('Matched dish')),
-              ]),
-            ],
+    return ChangeNotifierProvider<MatchHistoryProvider>.value(
+      value: _provider,
+      child: const _MatchHistoryBody(),
     );
   }
+}
+
+class _MatchHistoryBody extends StatelessWidget {
+  const _MatchHistoryBody();
+
+  @override
+  Widget build(BuildContext context) {
+    final MatchHistoryProvider provider = context.watch<MatchHistoryProvider>();
+    if (provider.isLoading) {
+      return const _DetailScaffold(
+        title: 'Match History',
+        children: <Widget>[Center(child: CircularProgressIndicator())],
+      );
+    }
+    if (provider.error != null) {
+      return _DetailScaffold(title: 'Match History', children: <Widget>[
+        const SizedBox(height: 80),
+        Center(child: Text(provider.error!)),
+        Center(
+          child: TextButton(
+            onPressed: provider.load,
+            child: const Text('Try Again'),
+          ),
+        ),
+      ]);
+    }
+    final MatchHistory history = provider.history;
+    if (history.solo.isEmpty && history.pair.isEmpty) {
+      return const _DetailScaffold(
+        title: 'Match History',
+        children: <Widget>[_MatchHistoryEmptyState()],
+      );
+    }
+    return _DetailScaffold(title: 'Match History', children: <Widget>[
+      const _Header('Solo'),
+      if (history.solo.isEmpty)
+        const _EmptyModeCard('No solo matches yet')
+      else
+        for (final MatchHistorySession session in history.solo)
+          _HistorySessionCard(session: session),
+      const _Header('Pair'),
+      if (history.pair.isEmpty)
+        const _EmptyModeCard('No pair matches yet')
+      else
+        for (final MatchHistorySession session in history.pair)
+          _HistorySessionCard(session: session),
+    ]);
+  }
+}
+
+class MatchHistorySessionScreen extends StatelessWidget {
+  const MatchHistorySessionScreen({required this.session, super.key});
+  final MatchHistorySession session;
+
+  @override
+  Widget build(BuildContext context) => _DetailScaffold(
+    title: session.mode == MatchHistoryMode.solo ? 'Solo Session' : 'Pair Session',
+    children: <Widget>[
+      _ActionCard(children: <Widget>[
+        for (final dish in session.dishes)
+          ListTile(
+            leading: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: SafeDishImage(
+                imageUrl: dish.imageUrl,
+                fit: BoxFit.cover,
+                width: 52,
+                height: 52,
+              ),
+            ),
+            title: Text(dish.name),
+            subtitle: Text(
+              session.mode == MatchHistoryMode.solo
+                  ? 'Liked dish'
+                  : 'Mutual match',
+            ),
+          ),
+      ]),
+    ],
+  );
+}
+
+class _MatchHistoryEmptyState extends StatelessWidget {
+  const _MatchHistoryEmptyState();
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: 72),
+    child: Column(children: <Widget>[
+      FoodMatchEmptyStateImage(
+        assetPath: AppEmptyStateAssets.emptyMatchHistory,
+        size: 180,
+        fallback: FoodMatchEmptyStateImage(
+          assetPath: AppEmptyStateAssets.emptyMatches,
+          size: 180,
+        ),
+      ),
+      const SizedBox(height: 16),
+      Text(
+        'No matches yet',
+        style: GoogleFonts.nunito(fontSize: 20, fontWeight: FontWeight.w800),
+      ),
+      const SizedBox(height: 6),
+      Text(
+        'Your matched dishes will appear here.',
+        style: TextStyle(color: context.fmColors.textMuted),
+      ),
+    ]),
+  );
+}
+
+class _EmptyModeCard extends StatelessWidget {
+  const _EmptyModeCard(this.message);
+  final String message;
+  @override
+  Widget build(BuildContext context) => _ActionCard(
+    children: <Widget>[
+      ListTile(
+        leading: const Icon(Icons.history_rounded),
+        title: Text(message),
+      ),
+    ],
+  );
+}
+
+class _HistorySessionCard extends StatelessWidget {
+  const _HistorySessionCard({required this.session});
+  final MatchHistorySession session;
+
+  @override
+  Widget build(BuildContext context) {
+    final String names = session.previewDishes
+        .take(3)
+        .map((dish) => dish.name)
+        .join(', ');
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: _ActionCard(children: <Widget>[
+        ListTile(
+          title: Text(
+            session.mode == MatchHistoryMode.pair
+                ? (session.partnerName?.trim().isNotEmpty == true
+                      ? session.partnerName!
+                      : 'Pair session')
+                : 'Solo session',
+          ),
+          subtitle: Text(
+            '${_formatDate(session.startedAt)} • ${session.dishCount} ${session.mode == MatchHistoryMode.solo ? 'liked' : 'matches'}${names.isEmpty ? '' : '\n$names'}',
+          ),
+          isThreeLine: names.isNotEmpty,
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: () => context.push(
+            '/profile/match-history/session',
+            extra: session,
+          ),
+        ),
+        if (session.previewDishes.isNotEmpty)
+          InkWell(
+            onTap: () => context.push(
+              '/profile/match-history/session',
+              extra: session,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+              child: Row(
+                children: <Widget>[
+                  for (final dish in session.previewDishes.take(3)) ...<Widget>[
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: SafeDishImage(
+                        imageUrl: dish.imageUrl,
+                        fit: BoxFit.cover,
+                        width: 48,
+                        height: 48,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                ],
+              ),
+            ),
+          ),
+      ]),
+    );
+  }
+}
+
+String _formatDate(DateTime value) {
+  final DateTime local = value.toLocal();
+  String two(int number) => number.toString().padLeft(2, '0');
+  return '${local.year}-${two(local.month)}-${two(local.day)} ${two(local.hour)}:${two(local.minute)}';
 }
 
 class ProfileSettingsScreen extends StatelessWidget {
@@ -151,7 +356,7 @@ class _DetailScaffold extends StatelessWidget {
   final String title;
   final List<Widget> children;
   @override
-  Widget build(BuildContext context) => Scaffold(backgroundColor: context.fmColors.background, appBar: AppBar(backgroundColor: context.fmColors.background, title: Text(title), leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop())), body: ListView(padding: const EdgeInsets.fromLTRB(16, 12, 16, 32), children: children));
+  Widget build(BuildContext context) => Scaffold(backgroundColor: context.fmColors.background, appBar: AppBar(backgroundColor: context.fmColors.background, title: Text(title, style: AppTextStyles.pageTitle.copyWith(fontSize: 30, color: context.fmColors.textPrimary)), leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop())), body: ListView(padding: const EdgeInsets.fromLTRB(16, 12, 16, 32), children: children));
 }
 
 class _Header extends StatelessWidget {
