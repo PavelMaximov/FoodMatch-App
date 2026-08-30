@@ -153,7 +153,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               localAvatarPreview: _localAvatarPreview,
               isUploadingAvatar: _isUploadingAvatar,
               onAvatarTap: _pickAndUploadAvatar,
-              onEdit: () => context.push('/profile/edit'),
+              onEdit: () => context.push('/profile/edit-profile'),
             ),
             const SizedBox(height: 16),
             ProfilePremiumBanner(

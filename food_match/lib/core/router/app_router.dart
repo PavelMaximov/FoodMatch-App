@@ -155,7 +155,10 @@ class AppRouter {
                       path: '/profile',
                       builder: (_, __) => const ProfileScreen(),
                       routes: <RouteBase>[
-                        GoRoute(path: 'edit', builder: (_, __) => const EditProfileScreen()),
+                        GoRoute(
+                          path: 'edit-profile',
+                          builder: (_, __) => const EditProfileScreen(),
+                        ),
                         GoRoute(path: 'settings', builder: (_, __) => const ProfileSettingsScreen()),
                         GoRoute(path: 'match-history', builder: (_, __) => const MatchHistoryScreen()),
                         GoRoute(
