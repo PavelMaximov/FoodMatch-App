@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/theme/notification_theme.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/utils/food_match_notifications.dart';
 import '../../../../data/models/user.dart';

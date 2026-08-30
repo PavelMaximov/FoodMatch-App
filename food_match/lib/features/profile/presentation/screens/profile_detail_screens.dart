@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/theme/theme_controller.dart';
+import '../../../../core/theme/notification_theme.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/utils/food_match_notifications.dart';
 import '../../../../data/models/measurement_system.dart';
