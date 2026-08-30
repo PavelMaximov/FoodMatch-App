@@ -16,6 +16,7 @@ import '../../features/matches/presentation/screens/match_overlay_screen.dart';
 import '../../features/matches/presentation/screens/matches_screen.dart';
 import '../../features/favorites/presentation/screens/favorites_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
+import '../../features/profile/presentation/screens/profile_detail_screens.dart';
 import '../../features/recipes/presentation/screens/recipes_screen.dart';
 import '../../features/shopping_list/presentation/screens/shopping_list_screen.dart';
 import '../../features/swipes/presentation/screens/swipes_screen.dart';
@@ -153,7 +154,11 @@ class AppRouter {
                       path: '/profile',
                       builder: (_, __) => const ProfileScreen(),
                       routes: <RouteBase>[
+                        GoRoute(path: 'edit', builder: (_, __) => const EditProfileScreen()),
                         GoRoute(path: 'settings', builder: (_, __) => const ProfileSettingsScreen()),
+                        GoRoute(path: 'match-history', builder: (_, __) => const MatchHistoryScreen()),
+                        GoRoute(path: 'about', builder: (_, __) => const AboutFoodMatchScreen()),
+                        GoRoute(path: 'help', builder: (_, __) => const HelpScreen()),
                       ],
                     ),
                   ],
