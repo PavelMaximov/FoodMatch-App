@@ -6,6 +6,7 @@ import 'package:food_match/data/models/match_history.dart';
 import 'package:food_match/data/models/dish.dart';
 import 'package:food_match/core/widgets/food_match_empty_state_image.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
 import '../../helpers/dish_test_data.dart';
 
@@ -20,6 +21,13 @@ void main() {
     );
     return MaterialApp.router(routerConfig: router);
   }
+
+  Widget historyApp(MatchHistoryProvider provider) => testApp(
+        ChangeNotifierProvider<MatchHistoryProvider>.value(
+          value: provider,
+          child: const MatchHistoryContent(),
+        ),
+      );
 
   testWidgets('About FoodMatch groups product and legal information',
       (WidgetTester tester) async {
@@ -44,10 +52,11 @@ void main() {
   testWidgets('Match History has an image-based empty state',
       (WidgetTester tester) async {
     await tester.pumpWidget(
-      testApp(
-        MatchHistoryScreen(
-          provider: MatchHistoryProvider.seeded(
-            const MatchHistory(solo: <MatchHistorySession>[], pair: <MatchHistorySession>[]),
+      historyApp(
+        MatchHistoryProvider.seeded(
+          const MatchHistory(
+            solo: <MatchHistorySession>[],
+            pair: <MatchHistorySession>[],
           ),
         ),
       ),
@@ -85,7 +94,7 @@ void main() {
       ),
     );
 
-    await tester.pumpWidget(testApp(MatchHistoryScreen(provider: provider)));
+    await tester.pumpWidget(historyApp(provider));
 
     expect(find.text('Solo'), findsOneWidget);
     expect(find.text('Pair'), findsOneWidget);

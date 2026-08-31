@@ -160,16 +160,21 @@ class AppRouter {
                           builder: (_, __) => const EditProfileScreen(),
                         ),
                         GoRoute(path: 'settings', builder: (_, __) => const ProfileSettingsScreen()),
-                        GoRoute(path: 'match-history', builder: (_, __) => const MatchHistoryScreen()),
                         GoRoute(
-                          path: 'match-history/session',
-                          builder: (_, GoRouterState state) =>
-                              state.extra is MatchHistorySession
-                                  ? MatchHistorySessionScreen(
-                                      session:
-                                          state.extra! as MatchHistorySession,
-                                    )
-                                  : const MatchHistoryScreen(),
+                          path: 'match-history',
+                          builder: (_, __) => const MatchHistoryScreen(),
+                          routes: <RouteBase>[
+                            GoRoute(
+                              path: 'session',
+                              builder: (_, GoRouterState state) =>
+                                  state.extra is MatchHistorySession
+                                      ? MatchHistorySessionScreen(
+                                          session: state.extra!
+                                              as MatchHistorySession,
+                                        )
+                                      : const MatchHistoryScreen(),
+                            ),
+                          ],
                         ),
                         GoRoute(path: 'about', builder: (_, __) => const AboutFoodMatchScreen()),
                         GoRoute(path: 'help', builder: (_, __) => const HelpScreen()),

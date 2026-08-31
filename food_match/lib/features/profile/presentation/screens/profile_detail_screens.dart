@@ -33,43 +33,24 @@ class EditProfileScreen extends StatelessWidget {
   }
 }
 
-class MatchHistoryScreen extends StatefulWidget {
-  const MatchHistoryScreen({this.provider, super.key});
-  final MatchHistoryProvider? provider;
-
-  @override
-  State<MatchHistoryScreen> createState() => _MatchHistoryScreenState();
-}
-
-class _MatchHistoryScreenState extends State<MatchHistoryScreen> {
-  late final MatchHistoryProvider _provider;
-
-  @override
-  void initState() {
-    super.initState();
-    _provider = widget.provider ??
-        (MatchHistoryProvider(
-          repository: context.read<MatchHistoryRepository>(),
-        )..load());
-  }
-
-  @override
-  void dispose() {
-    _provider.dispose();
-    super.dispose();
-  }
+class MatchHistoryScreen extends StatelessWidget {
+  const MatchHistoryScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider<MatchHistoryProvider>.value(
-      value: _provider,
-      child: const _MatchHistoryBody(),
+    return ChangeNotifierProvider<MatchHistoryProvider>(
+      create: (_) => MatchHistoryProvider(
+        repository: context.read<MatchHistoryRepository>(),
+      )..load(),
+      child: const MatchHistoryContent(),
     );
   }
 }
 
-class _MatchHistoryBody extends StatelessWidget {
-  const _MatchHistoryBody();
+/// Presentational match-history content separated from repository loading so
+/// it can be hosted with an existing provider in focused widget tests.
+class MatchHistoryContent extends StatelessWidget {
+  const MatchHistoryContent({super.key});
 
   @override
   Widget build(BuildContext context) {
