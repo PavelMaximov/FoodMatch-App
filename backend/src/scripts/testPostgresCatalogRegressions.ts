@@ -18,6 +18,8 @@ const ingredientComponents = [
   { id: 'salt-measured', quantity: '0.5', unit: 'tsp', ingredientName: 'salt' },
   { id: 'parsley', ingredientName: 'Parsley' },
   { id: 'oil-display', rawText: '2 tbsp', quantity: '2', unit: 'tbsp', displaySingular: 'olive oil' },
+  { id: 'oil-complete', rawText: '2 tbsp olive oil', quantity: '2', unit: 'tbsp', displaySingular: 'olive oil' },
+  { id: 'parsley-display', displaySingular: 'Parsley' },
 ];
 const expectedIngredients = [
   '500 g chicken breast',
@@ -26,6 +28,8 @@ const expectedIngredients = [
   '0.5 tsp salt',
   'Parsley',
   '2 tbsp olive oil',
+  '2 tbsp olive oil',
+  'Parsley',
 ];
 
 assert.deepEqual(
@@ -33,7 +37,12 @@ assert.deepEqual(
   expectedIngredients,
   'ingredient display must prefer raw text, then measurements, then ingredient name, in input order',
 );
-assert(!expectedIngredients.includes('2 tbsp'), 'measurement-only output must not replace an available display name');
+for (const measurementOnly of ['500 g', '1 cup', '2 tbsp']) {
+  assert(
+    !buildIngredientDisplayStrings('fixture', ingredientComponents).includes(measurementOnly),
+    `measurement-only output must be rejected when a name exists: ${measurementOnly}`,
+  );
+}
 
 const dish = mapCatalogDish({
   id: '11111111-1111-4111-8111-111111111111', legacy_mongo_id: 'legacy-dish',
@@ -65,7 +74,11 @@ async function run() {
   await service.addSavedDish(user, 'legacy-dish');
   assert.equal(saved.rows.size, 1, 'saving twice must be idempotent');
   const favorites = await service.listSavedDishes(user);
-  assert.deepEqual(favorites[0].ingredients, expectedIngredients, 'saved dishes must return full ingredient displays');
+  assert.deepEqual(
+    favorites[0].ingredients,
+    [...new Set(expectedIngredients)],
+    'saved dishes must return full unique ingredient displays',
+  );
   assert.deepEqual(favorites[0].steps.map((step) => step.step), [1, 2]);
   await service.removeSavedDish(user, String(dish.id));
   assert.equal((await service.listSavedDishes(user)).length, 0);

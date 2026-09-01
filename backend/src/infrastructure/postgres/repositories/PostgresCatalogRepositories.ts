@@ -19,8 +19,12 @@ const CATALOG_SELECT = `
           'ingredientName', c.ingredient_name,
           'displaySingular', c.display_singular,
           'displayPlural', c.display_plural,
+          'normalizedName', ingredient.normalized_name,
+          'joinedIngredientName', ingredient.name,
+          'joinedNormalizedName', ingredient.normalized_name,
           'quantity', coalesce(measurement.quantity_text, measurement.quantity::text),
-          'unit', measurement.unit
+          'unit', measurement.unit,
+          'unitName', measurement.unit
         ) order by s.position, c.position
       )
       from dish_sections s
@@ -32,6 +36,26 @@ const CATALOG_SELECT = `
         order by case m.system when 'universal' then 0 when 'metric' then 1 else 2 end, m.position
         limit 1
       ) measurement on true
+      left join lateral (
+        select i.name, i.normalized_name
+        from ingredients i
+        where lower(i.name) in (
+                lower(c.ingredient_name),
+                lower(coalesce(c.display_singular, '')),
+                lower(coalesce(c.display_plural, ''))
+              )
+           or lower(i.normalized_name) in (
+                lower(c.ingredient_name),
+                lower(coalesce(c.display_singular, '')),
+                lower(coalesce(c.display_plural, ''))
+              )
+        order by case
+          when lower(i.name) = lower(c.ingredient_name) then 0
+          when lower(i.normalized_name) = lower(c.ingredient_name) then 1
+          else 2
+        end
+        limit 1
+      ) ingredient on true
       where s.dish_id = d.id
     ), '[]'::jsonb) as ingredient_components,
     coalesce((
@@ -235,9 +259,13 @@ interface IngredientDisplayComponent {
   quantity?: unknown;
   amount?: unknown;
   unit?: unknown;
+  unitName?: unknown;
   ingredientName?: unknown;
   displaySingular?: unknown;
   displayPlural?: unknown;
+  normalizedName?: unknown;
+  joinedIngredientName?: unknown;
+  joinedNormalizedName?: unknown;
 }
 
 export function buildIngredientDisplayStrings(
@@ -251,9 +279,8 @@ export function buildIngredientDisplayStrings(
     const componentId = cleanText(component.id) || String(index);
     const rawText = cleanText(component.rawText ?? component.originalText);
     const amount = cleanText(component.quantity ?? component.amount);
-    const unit = cleanText(component.unit);
-    const ingredientName = cleanText(component.ingredientName);
-    const displayName = ingredientName || cleanText(component.displaySingular) || cleanText(component.displayPlural);
+    const unit = cleanText(component.unit ?? component.unitName);
+    const displayName = resolveIngredientName(component, amount, unit);
     if (rawText && isCompleteRawText(rawText, amount, unit, displayName)) {
       displays.push(rawText);
       continue;
@@ -267,14 +294,39 @@ export function buildIngredientDisplayStrings(
       displays.push(displayName);
       continue;
     }
-    if (ingredientName) {
-      console.info(`[DishCatalog] ingredient display fallback=ingredient_name dish=${dishId} component=${componentId}`);
-      displays.push(ingredientName);
-      continue;
-    }
     console.warn(`[DishCatalog] ingredient display missing dish=${dishId} component=${componentId}`);
   }
   return displays;
+}
+
+function resolveIngredientName(
+  component: IngredientDisplayComponent,
+  amount: string,
+  unit: string,
+): string {
+  const candidates = [
+    component.ingredientName,
+    component.displaySingular,
+    component.displayPlural,
+    component.normalizedName,
+    component.joinedIngredientName,
+    component.joinedNormalizedName,
+  ];
+  for (const candidate of candidates) {
+    const name = cleanText(candidate);
+    if (name && !isMeasurementOnly(name, amount, unit)) return name;
+  }
+  return '';
+}
+
+function isMeasurementOnly(value: string, amount: string, unit: string): boolean {
+  const normalized = cleanText(value).toLocaleLowerCase();
+  const measurement = [amount, unit].filter(Boolean).join(' ').toLocaleLowerCase();
+  if (measurement && normalized === measurement) return true;
+  return Boolean(
+    normalized &&
+    /^(?:about\s+|approx\.?\s+)?(?:\d+(?:[./-]\d+)?|[¼½¾])(?:\s+[a-z.]+)?$/i.test(normalized),
+  );
 }
 
 function cleanText(value: unknown): string {
@@ -284,9 +336,9 @@ function cleanText(value: unknown): string {
 }
 
 function isCompleteRawText(rawText: string, amount: string, unit: string, displayName: string): boolean {
-  if (!amount && !unit) return true;
   const normalized = rawText.toLocaleLowerCase();
   if (displayName && !normalized.includes(displayName.toLocaleLowerCase())) return false;
+  if (!amount && !unit) return true;
   return Boolean(
     (amount && normalized.includes(amount.toLocaleLowerCase())) ||
     (unit && new RegExp(`(^|\\s)${escapeRegex(unit.toLocaleLowerCase())}(\\s|$)`).test(normalized)) ||
