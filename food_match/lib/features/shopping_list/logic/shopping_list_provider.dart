@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../data/shopping_list_storage.dart';
 import '../domain/shopping_list_item.dart';
+import '../../dishes/domain/ingredient_display_parser.dart';
 
 class ShoppingListIngredientInput {
   const ShoppingListIngredientInput({
@@ -12,6 +13,23 @@ class ShoppingListIngredientInput {
 
   factory ShoppingListIngredientInput.fromName(String name) =>
       ShoppingListIngredientInput(name: name);
+
+  factory ShoppingListIngredientInput.fromDisplayText(String displayText) {
+    final IngredientDisplayParts parts = splitIngredientDisplay(displayText);
+    if (!parts.hasQuantityPrefix || parts.name.isEmpty) {
+      return ShoppingListIngredientInput(name: parts.original);
+    }
+    final List<String> measurementParts = parts.measurement.split(' ');
+    final bool hasUnit = measurementParts.length > 1 &&
+        RegExp(r'^[A-Za-z]+\.?$').hasMatch(measurementParts.last);
+    return ShoppingListIngredientInput(
+      name: parts.name,
+      quantity: hasUnit
+          ? measurementParts.take(measurementParts.length - 1).join(' ')
+          : parts.measurement,
+      measure: hasUnit ? measurementParts.last : null,
+    );
+  }
 
   final String name;
   final String? quantity;

@@ -27,6 +27,7 @@
     "audit:user-emails": "ts-node src/scripts/auditUserEmails.ts",
     "migrate:mark-existing-users-verified": "ts-node src/scripts/migrateMarkExistingUsersVerified.ts",
     "audit:ingredients": "ts-node src/scripts/auditIngredients.ts --source mongo",
+    "debug:ingredient-dto": "ts-node src/scripts/debugIngredientDto.ts",
     "test:exclusions": "ts-node src/scripts/testExclusionMatcher.ts",
     "audit:ingredients:files": "ts-node src/scripts/auditIngredients.ts --source files",
     "import:ingredients": "ts-node src/scripts/importIngredients.ts",

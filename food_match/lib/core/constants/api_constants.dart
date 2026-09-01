@@ -121,6 +121,7 @@ class ApiConstants {
   static const String filtersLast = '/api/filters/last';
   static const String swipeStats = '/api/swipes/me/stats';
   static const String swipeMatches = '/api/swipes/matches';
+  static const String matchHistory = '/api/matches/history';
   static const String recipes = '/api/recipes';
   static const String uploads = '/api/uploads';
   static const String uploadAvatar = '/api/uploads/avatar';

@@ -465,7 +465,7 @@ class _RecipeContent extends StatelessWidget {
   List<_IngredientDisplayRow> _buildIngredientRows(Dish dish, MeasurementSystem system) {
     final List<_IngredientDisplayRow> displayRows = dish.ingredients
         .map(_IngredientDisplayRow.fromDisplayText)
-        .where((_IngredientDisplayRow row) => row.name.isNotEmpty)
+        .where((_IngredientDisplayRow row) => row.displayText.isNotEmpty)
         .toList();
     if (displayRows.isNotEmpty) {
       return displayRows;
@@ -474,20 +474,24 @@ class _RecipeContent extends StatelessWidget {
     final List<_IngredientDisplayRow> structuredRows = dish.sections
         .expand((DishSection section) => section.components)
         .map((DishComponent component) {
-          final DishIngredientMeasurement? measurement =
-              selectIngredientMeasurement(component.measurements, system);
           return _IngredientDisplayRow(
-            name: component.resolvedName,
-            measurement: formatIngredientMeasurement(measurement),
+            displayText: formatIngredientLine(component, system: system),
           );
         })
-        .where((_IngredientDisplayRow row) => row.name.isNotEmpty)
+        .where((_IngredientDisplayRow row) => row.displayText.isNotEmpty)
         .toList();
 
     return structuredRows;
   }
 
   List<ShoppingListIngredientInput> _buildShoppingIngredients(Dish dish, MeasurementSystem system) {
+    final List<ShoppingListIngredientInput> displayIngredients = dish.ingredients
+        .map(ShoppingListIngredientInput.fromDisplayText)
+        .where((ShoppingListIngredientInput ingredient) =>
+            ingredient.name.trim().isNotEmpty)
+        .toList();
+    if (displayIngredients.isNotEmpty) return displayIngredients;
+
     final List<ShoppingListIngredientInput> richIngredients = dish.sections
         .expand((DishSection section) => section.components)
         .where((DishComponent component) => component.resolvedName.isNotEmpty)
@@ -759,7 +763,7 @@ class _TabPanel extends StatelessWidget {
 }
 
 class _IngredientDisplayRow {
-  const _IngredientDisplayRow({required this.name, this.measurement = ''});
+  const _IngredientDisplayRow({required this.displayText});
 
   factory _IngredientDisplayRow.fromDisplayText(String text) {
     final IngredientDisplayParts parts = splitIngredientDisplay(text);
@@ -767,16 +771,12 @@ class _IngredientDisplayRow {
       AppLogger.info(
         '[IngredientsUI] ingredient name missing text="${parts.original}"',
       );
-      return _IngredientDisplayRow(name: parts.original);
+      return _IngredientDisplayRow(displayText: parts.original);
     }
-    return _IngredientDisplayRow(
-      name: parts.name,
-      measurement: parts.measurement,
-    );
+    return _IngredientDisplayRow(displayText: parts.original);
   }
 
-  final String name;
-  final String measurement;
+  final String displayText;
 }
 
 class _IngredientsContent extends StatelessWidget {
@@ -822,18 +822,27 @@ class _IngredientText extends StatelessWidget {
       height: 1.35,
       color: colors.textPrimary,
     );
+    final IngredientDisplayParts parts = splitIngredientDisplay(
+      row.displayText,
+    );
     return Text.rich(
       TextSpan(
         children: <InlineSpan>[
-          if (row.measurement.isNotEmpty)
+          if (parts.hasQuantityPrefix && parts.measurement.isNotEmpty)
             TextSpan(
-              text: '${row.measurement} ',
+              text: parts.measurement,
               style: baseStyle.copyWith(fontWeight: FontWeight.w700),
             ),
-          TextSpan(
-            text: row.name,
-            style: baseStyle.copyWith(fontWeight: FontWeight.w400),
-          ),
+          if (parts.hasQuantityPrefix && parts.name.isNotEmpty)
+            TextSpan(
+              text: ' ${parts.name}',
+              style: baseStyle.copyWith(fontWeight: FontWeight.w400),
+            ),
+          if (!parts.hasQuantityPrefix)
+            TextSpan(
+              text: parts.original,
+              style: baseStyle.copyWith(fontWeight: FontWeight.w400),
+            ),
         ],
       ),
       textAlign: TextAlign.start,

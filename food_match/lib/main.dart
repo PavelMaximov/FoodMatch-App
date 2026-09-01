@@ -16,6 +16,7 @@ import 'data/local/user_profile_hive_service.dart';
 import 'data/repositories/auth_repository.dart';
 import 'data/repositories/couple_repository.dart';
 import 'data/repositories/dish_repository.dart';
+import 'data/repositories/match_history_repository.dart';
 import 'data/repositories/swipe_repository.dart';
 import 'data/repositories/upload_repository.dart';
 import 'data/services/api_service.dart';
@@ -76,6 +77,9 @@ Future<void> main() async {
   final CoupleRepository coupleRepo = CoupleRepository(apiService);
   final DishRepository dishRepo = DishRepository(apiService);
   final SwipeRepository swipeRepo = SwipeRepository(apiService);
+  final MatchHistoryRepository matchHistoryRepo = MatchHistoryRepository(
+    apiService,
+  );
   final UploadRepository uploadRepo = UploadRepository(apiService);
   final CacheService cacheService = CacheService();
   final UserProfileHiveService userProfileService = UserProfileHiveService();
@@ -89,6 +93,7 @@ Future<void> main() async {
         Provider<DishRepository>.value(value: dishRepo),
         Provider<CoupleRepository>.value(value: coupleRepo),
         Provider<SwipeRepository>.value(value: swipeRepo),
+        Provider<MatchHistoryRepository>.value(value: matchHistoryRepo),
         Provider<UploadRepository>.value(value: uploadRepo),
         Provider<UserProfileHiveService>.value(value: userProfileService),
         ChangeNotifierProvider<ThemeController>.value(value: themeController),
