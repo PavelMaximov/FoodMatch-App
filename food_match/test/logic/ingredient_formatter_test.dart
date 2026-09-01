@@ -10,6 +10,8 @@ void main() {
       ('500 g chicken breast', '500 g', 'chicken breast'),
       ('1 cup rice', '1 cup', 'rice'),
       ('2 tbsp olive oil', '2 tbsp', 'olive oil'),
+      ('4 piece eggs', '4 piece', 'eggs'),
+      ('250 g chicken breast', '250 g', 'chicken breast'),
       ('1/2 tsp salt', '1/2 tsp', 'salt'),
       ('½ tsp salt', '½ tsp', 'salt'),
       ('1 1/2 cups flour', '1 1/2 cups', 'flour'),

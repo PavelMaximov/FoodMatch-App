@@ -822,9 +822,29 @@ class _IngredientText extends StatelessWidget {
       height: 1.35,
       color: colors.textPrimary,
     );
-    return Text(
+    final IngredientDisplayParts parts = splitIngredientDisplay(
       row.displayText,
-      style: baseStyle.copyWith(fontWeight: FontWeight.w700),
+    );
+    return Text.rich(
+      TextSpan(
+        children: <InlineSpan>[
+          if (parts.hasQuantityPrefix && parts.measurement.isNotEmpty)
+            TextSpan(
+              text: parts.measurement,
+              style: baseStyle.copyWith(fontWeight: FontWeight.w700),
+            ),
+          if (parts.hasQuantityPrefix && parts.name.isNotEmpty)
+            TextSpan(
+              text: ' ${parts.name}',
+              style: baseStyle.copyWith(fontWeight: FontWeight.w400),
+            ),
+          if (!parts.hasQuantityPrefix)
+            TextSpan(
+              text: parts.original,
+              style: baseStyle.copyWith(fontWeight: FontWeight.w400),
+            ),
+        ],
+      ),
       textAlign: TextAlign.start,
     );
   }

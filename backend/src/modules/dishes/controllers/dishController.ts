@@ -86,7 +86,9 @@ export class DishController {
         queryToString((req.query.search ?? req.query.q) as string | string[] | undefined),
         true
       );
-      console.info(`[API] GET /api/dishes?limit=all total ms=${Date.now() - startedAt}`);
+      if (process.env.NODE_ENV !== 'production') {
+        console.info(`[API] GET /api/dishes?limit=all total ms=${Date.now() - startedAt}`);
+      }
       res.json({ dishes });
       return;
     }

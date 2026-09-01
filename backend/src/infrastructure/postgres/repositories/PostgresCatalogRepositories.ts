@@ -71,14 +71,19 @@ const CATALOG_SELECT = `
     ), '[]'::jsonb) as steps
   from dishes d`;
 
-export function mapCatalogDish(row: Record<string, unknown>): CatalogDish {
+export function mapCatalogDish(
+  row: Record<string, unknown>,
+  options: { logIngredients?: boolean } = {},
+): CatalogDish {
   const id = String(row.id);
   const ingredients = Array.isArray(row.ingredient_components)
     ? buildIngredientDisplayStrings(id, row.ingredient_components)
     : normalizeStringArray(row.ingredients);
   const steps = normalizeSteps(row.steps);
-  console.info(`[DishCatalog] ingredient display built dish=${id} count=${ingredients.length}`);
-  if (ingredients.length === 0) {
+  if (options.logIngredients !== false) {
+    console.info(`[DishCatalog] ingredient display built dish=${id} count=${ingredients.length}`);
+  }
+  if (options.logIngredients !== false && ingredients.length === 0) {
     console.warn(`[DishCatalog] dto ingredients empty dish=${id} reason=no_relational_components`);
   }
   return {
@@ -119,10 +124,39 @@ export class PostgresDishRepository {
     const queryFinishedAt = Date.now();
     const hydratedRows = await this.hydrateListRows(result.rows);
     const hydrationFinishedAt = Date.now();
-    const mapped = hydratedRows.map(mapCatalogDish);
-    console.info(`[DishCatalog] list query ms=${queryFinishedAt - startedAt}`);
-    console.info(`[DishCatalog] ingredient hydration ms=${hydrationFinishedAt - queryFinishedAt}`);
-    console.info(`[DishCatalog] dto mapping ms=${Date.now() - hydrationFinishedAt}`);
+    const mapped = hydratedRows.map((row) => mapCatalogDish(row));
+    if (process.env.NODE_ENV !== 'production') {
+      console.info(`[DishCatalog] list base query ms=${queryFinishedAt - startedAt}`);
+      console.info('[DishCatalog] list tags ms=0');
+      console.info(`[DishCatalog] list ingredients ms=${hydrationFinishedAt - queryFinishedAt}`);
+      console.info(`[DishCatalog] list dto mapping ms=${Date.now() - hydrationFinishedAt}`);
+      console.info(`[DishCatalog] list total ms=${Date.now() - startedAt} count=${mapped.length}`);
+    }
+    return mapped;
+  }
+
+  async listLightweight(ownerId?: string): Promise<CatalogDish[]> {
+    const startedAt = Date.now();
+    const result = await this.databaseQuery<Record<string, unknown>>(
+      `select d.* from dishes d
+       where d.status in ('approved', 'active')
+         and (d.visibility = 'public' or d.owner_id = $1)
+       order by d.updated_at desc`,
+      [ownerId ?? null],
+    );
+    const queryFinishedAt = Date.now();
+    const mapped = result.rows.map((row) => mapCatalogDish({
+      ...row,
+      ingredient_components: [],
+      steps: [],
+    }, { logIngredients: false }));
+    if (process.env.NODE_ENV !== 'production') {
+      console.info(`[DishCatalog] list base query ms=${queryFinishedAt - startedAt}`);
+      console.info('[DishCatalog] list tags ms=0');
+      console.info('[DishCatalog] list ingredients ms=0');
+      console.info(`[DishCatalog] list dto mapping ms=${Date.now() - queryFinishedAt}`);
+      console.info(`[DishCatalog] list total ms=${Date.now() - startedAt} count=${mapped.length}`);
+    }
     return mapped;
   }
 
@@ -153,7 +187,7 @@ export class PostgresDishRepository {
        order by d.created_at desc`,
       [userId],
     );
-    return result.rows.map(mapCatalogDish);
+    return result.rows.map((row) => mapCatalogDish(row));
   }
 
   async createCustomDish(userId: string, input: Record<string, unknown>): Promise<CatalogDish> {

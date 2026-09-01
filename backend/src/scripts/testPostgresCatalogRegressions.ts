@@ -84,6 +84,12 @@ async function run() {
   }) as any);
   assert.equal((await listRepository.list()).length, 1, 'batched catalog list must map base rows');
   assert.equal(listQueries.length, 3, 'catalog list must use one base and two batched hydration queries');
+  listQueries.length = 0;
+  const lightweight = await listRepository.listLightweight();
+  assert.equal(lightweight.length, 1, 'lightweight catalog list must map card rows');
+  assert.equal(lightweight[0].ingredients.length, 0, 'lightweight catalog list must not hydrate ingredients');
+  assert.equal(lightweight[0].steps.length, 0, 'lightweight catalog list must not hydrate instructions');
+  assert.equal(listQueries.length, 1, 'lightweight catalog list must use one query');
 
   const saved = new MemorySavedDishes();
   const service = new UserSavedDishService(saved, dishes);
