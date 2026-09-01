@@ -253,16 +253,16 @@ export function buildIngredientDisplayStrings(
     const amount = cleanText(component.quantity ?? component.amount);
     const unit = cleanText(component.unit);
     const ingredientName = cleanText(component.ingredientName);
-    if (rawText && isCompleteRawText(rawText, amount, unit)) {
+    const displayName = ingredientName || cleanText(component.displaySingular) || cleanText(component.displayPlural);
+    if (rawText && isCompleteRawText(rawText, amount, unit, displayName)) {
       displays.push(rawText);
       continue;
     }
-    const measuredDisplay = [amount, unit, ingredientName].filter(Boolean).join(' ');
+    const measuredDisplay = [amount, unit, displayName].filter(Boolean).join(' ');
     if (measuredDisplay && (amount || unit)) {
       displays.push(measuredDisplay);
       continue;
     }
-    const displayName = cleanText(component.displaySingular) || cleanText(component.displayPlural);
     if (displayName) {
       displays.push(displayName);
       continue;
@@ -283,9 +283,10 @@ function cleanText(value: unknown): string {
   return text === 'null' || text === 'undefined' ? '' : text;
 }
 
-function isCompleteRawText(rawText: string, amount: string, unit: string): boolean {
+function isCompleteRawText(rawText: string, amount: string, unit: string, displayName: string): boolean {
   if (!amount && !unit) return true;
   const normalized = rawText.toLocaleLowerCase();
+  if (displayName && !normalized.includes(displayName.toLocaleLowerCase())) return false;
   return Boolean(
     (amount && normalized.includes(amount.toLocaleLowerCase())) ||
     (unit && new RegExp(`(^|\\s)${escapeRegex(unit.toLocaleLowerCase())}(\\s|$)`).test(normalized)) ||

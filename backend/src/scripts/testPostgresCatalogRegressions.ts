@@ -17,6 +17,7 @@ const ingredientComponents = [
   { id: 'rice', quantity: '1', unit: 'cup', ingredientName: 'rice' },
   { id: 'salt-measured', quantity: '0.5', unit: 'tsp', ingredientName: 'salt' },
   { id: 'parsley', ingredientName: 'Parsley' },
+  { id: 'oil-display', rawText: '2 tbsp', quantity: '2', unit: 'tbsp', displaySingular: 'olive oil' },
 ];
 const expectedIngredients = [
   '500 g chicken breast',
@@ -24,6 +25,7 @@ const expectedIngredients = [
   '1 cup rice',
   '0.5 tsp salt',
   'Parsley',
+  '2 tbsp olive oil',
 ];
 
 assert.deepEqual(
@@ -31,6 +33,7 @@ assert.deepEqual(
   expectedIngredients,
   'ingredient display must prefer raw text, then measurements, then ingredient name, in input order',
 );
+assert(!expectedIngredients.includes('2 tbsp'), 'measurement-only output must not replace an available display name');
 
 const dish = mapCatalogDish({
   id: '11111111-1111-4111-8111-111111111111', legacy_mongo_id: 'legacy-dish',
