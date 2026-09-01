@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../animations/app_motion.dart';
 import 'app_route_transitions.dart';
 import '../../data/models/dish.dart';
+import '../../data/models/match_history.dart';
 import '../../features/auth/logic/auth_provider.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
@@ -16,6 +17,7 @@ import '../../features/matches/presentation/screens/match_overlay_screen.dart';
 import '../../features/matches/presentation/screens/matches_screen.dart';
 import '../../features/favorites/presentation/screens/favorites_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
+import '../../features/profile/presentation/screens/profile_detail_screens.dart';
 import '../../features/recipes/presentation/screens/recipes_screen.dart';
 import '../../features/shopping_list/presentation/screens/shopping_list_screen.dart';
 import '../../features/swipes/presentation/screens/swipes_screen.dart';
@@ -153,7 +155,35 @@ class AppRouter {
                       path: '/profile',
                       builder: (_, __) => const ProfileScreen(),
                       routes: <RouteBase>[
+                        GoRoute(
+                          path: 'edit',
+                          builder: (_, __) => const EditProfileScreen(),
+                        ),
+                        GoRoute(
+                          path: 'edit-profile',
+                          redirect: (_, __) => '/profile/edit',
+                        ),
                         GoRoute(path: 'settings', builder: (_, __) => const ProfileSettingsScreen()),
+                        GoRoute(
+                          path: 'match-history',
+                          builder: (_, __) => const MatchHistoryScreen(),
+                          routes: <RouteBase>[
+                            GoRoute(
+                              path: 'session/:sessionId',
+                              builder: (_, GoRouterState state) =>
+                                  MatchHistorySessionScreen(
+                                    sessionId:
+                                        state.pathParameters['sessionId']!,
+                                    initialSession:
+                                        state.extra is MatchHistorySession
+                                        ? state.extra! as MatchHistorySession
+                                        : null,
+                                  ),
+                            ),
+                          ],
+                        ),
+                        GoRoute(path: 'about', builder: (_, __) => const AboutFoodMatchScreen()),
+                        GoRoute(path: 'help', builder: (_, __) => const HelpScreen()),
                       ],
                     ),
                   ],

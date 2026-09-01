@@ -199,8 +199,7 @@ class _ShoppingRow extends StatelessWidget {
   String get quantityLabel {
     if (item.quantity == null) return '';
     if (item.measure == null) return item.quantity!;
-    final bool spaced = item.measure == 'pcs' || item.measure == 'pack';
-    return '${item.quantity}${spaced ? ' ' : ''}${item.measure}';
+    return '${item.quantity} ${item.measure}';
   }
 
   @override

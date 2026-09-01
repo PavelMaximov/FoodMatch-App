@@ -53,6 +53,41 @@ void main() {
     expect(provider.items.single.measure, 'g');
   });
 
+  test('recipe display strings preserve quantity, unit, and ingredient name',
+      () async {
+    final ShoppingListProvider provider = ShoppingListProvider();
+    await provider.addIngredients(
+      ingredients: <ShoppingListIngredientInput>[
+        for (final String line in <String>[
+          '500 g chicken breast',
+          '1 cup rice',
+          '2 tbsp olive oil',
+          'Parsley',
+        ])
+          ShoppingListIngredientInput.fromDisplayText(line),
+      ],
+    );
+
+    expect(provider.items.map((item) => item.name), <String>[
+      'chicken breast',
+      'rice',
+      'olive oil',
+      'Parsley',
+    ]);
+    expect(provider.items.map((item) => item.quantity), <String?>[
+      '500',
+      '1',
+      '2',
+      null,
+    ]);
+    expect(provider.items.map((item) => item.measure), <String?>[
+      'g',
+      'cup',
+      'tbsp',
+      null,
+    ]);
+  });
+
   test('manual duplicates fill missing details without adding a row', () async {
     final ShoppingListProvider provider = ShoppingListProvider();
     await provider.addManualItem(name: 'Milk');

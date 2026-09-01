@@ -80,11 +80,15 @@ export class DishController {
     // GET /api/dishes?mealType=breakfast&sort=popular&limit=20
     // GET /api/dishes?cuisine=italian,mexican&diet=vegetarian&limit=20
     if (limit === 'all') {
+      const startedAt = Date.now();
       const dishes = await dishService.listDishes(
         userId,
         queryToString((req.query.search ?? req.query.q) as string | string[] | undefined),
         true
       );
+      if (process.env.NODE_ENV !== 'production') {
+        console.info(`[API] GET /api/dishes?limit=all total ms=${Date.now() - startedAt}`);
+      }
       res.json({ dishes });
       return;
     }
