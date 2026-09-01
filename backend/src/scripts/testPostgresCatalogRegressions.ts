@@ -7,6 +7,7 @@ import {
   customDishImageUrl,
   customDishSource,
   mapCatalogDish,
+  PostgresDishRepository,
 } from '../infrastructure/postgres/repositories/PostgresCatalogRepositories';
 import { toDishDto } from '../modules/dishes/dto/dishDto';
 import { UserSavedDishService } from '../modules/users/services/userSavedDishService';
@@ -20,6 +21,10 @@ const ingredientComponents = [
   { id: 'oil-display', rawText: '2 tbsp', quantity: '2', unit: 'tbsp', displaySingular: 'olive oil' },
   { id: 'oil-complete', rawText: '2 tbsp olive oil', quantity: '2', unit: 'tbsp', displaySingular: 'olive oil' },
   { id: 'parsley-display', displaySingular: 'Parsley' },
+  { id: 'eggs-raw-name', rawText: 'eggs', quantity: '4', unit: 'piece' },
+  { id: 'beef-raw-name', rawText: 'beef sirloin', quantity: '250', unit: 'g' },
+  { id: 'mustard-display', quantity: '1', unit: 'tsp', displaySingular: 'mustard' },
+  { id: 'cream-raw-name', rawText: 'sour cream', quantity: '100', unit: 'g' },
 ];
 const expectedIngredients = [
   '500 g chicken breast',
@@ -30,6 +35,10 @@ const expectedIngredients = [
   '2 tbsp olive oil',
   '2 tbsp olive oil',
   'Parsley',
+  '4 piece eggs',
+  '250 g beef sirloin',
+  '1 tsp mustard',
+  '100 g sour cream',
 ];
 
 assert.deepEqual(
@@ -37,7 +46,7 @@ assert.deepEqual(
   expectedIngredients,
   'ingredient display must prefer raw text, then measurements, then ingredient name, in input order',
 );
-for (const measurementOnly of ['500 g', '1 cup', '2 tbsp']) {
+for (const measurementOnly of ['4 piece', '250 g', '1 tsp', '100 g', '500 g', '1 cup', '2 tbsp']) {
   assert(
     !buildIngredientDisplayStrings('fixture', ingredientComponents).includes(measurementOnly),
     `measurement-only output must be rejected when a name exists: ${measurementOnly}`,
@@ -67,6 +76,15 @@ const dishes = {
 };
 
 async function run() {
+  const listQueries: string[] = [];
+  const listRepository = new PostgresDishRepository((async (text: string) => {
+    listQueries.push(text);
+    if (text.startsWith('select d.*')) return { rows: [dish] } as any;
+    return { rows: [] } as any;
+  }) as any);
+  assert.equal((await listRepository.list()).length, 1, 'batched catalog list must map base rows');
+  assert.equal(listQueries.length, 3, 'catalog list must use one base and two batched hydration queries');
+
   const saved = new MemorySavedDishes();
   const service = new UserSavedDishService(saved, dishes);
   const user = '22222222-2222-4222-8222-222222222222';

@@ -22,7 +22,9 @@ const CATALOG_SELECT = `
           'normalizedName', ingredient.normalized_name,
           'joinedIngredientName', ingredient.name,
           'joinedNormalizedName', ingredient.normalized_name,
+          'quantityText', measurement.quantity_text,
           'quantity', coalesce(measurement.quantity_text, measurement.quantity::text),
+          'numericQuantity', measurement.quantity,
           'unit', measurement.unit,
           'unitName', measurement.unit
         ) order by s.position, c.position
@@ -106,14 +108,22 @@ export class PostgresDishRepository {
   constructor(private readonly databaseQuery: DatabaseQuery = queryPostgres) {}
 
   async list(ownerId?: string): Promise<CatalogDish[]> {
+    const startedAt = Date.now();
     const result = await this.databaseQuery<Record<string, unknown>>(
-      `${CATALOG_SELECT}
+      `select d.* from dishes d
        where d.status in ('approved', 'active')
          and (d.visibility = 'public' or d.owner_id = $1)
        order by d.updated_at desc`,
       [ownerId ?? null],
     );
-    return result.rows.map(mapCatalogDish);
+    const queryFinishedAt = Date.now();
+    const hydratedRows = await this.hydrateListRows(result.rows);
+    const hydrationFinishedAt = Date.now();
+    const mapped = hydratedRows.map(mapCatalogDish);
+    console.info(`[DishCatalog] list query ms=${queryFinishedAt - startedAt}`);
+    console.info(`[DishCatalog] ingredient hydration ms=${hydrationFinishedAt - queryFinishedAt}`);
+    console.info(`[DishCatalog] dto mapping ms=${Date.now() - hydrationFinishedAt}`);
+    return mapped;
   }
 
   async getByPublicId(publicId: string): Promise<CatalogDish | null> {
@@ -228,6 +238,73 @@ export class PostgresDishRepository {
       }
     }
   }
+
+  private async hydrateListRows(
+    rows: Record<string, unknown>[],
+  ): Promise<Record<string, unknown>[]> {
+    const ids = rows.map((row) => String(row.id));
+    if (ids.length === 0) return rows;
+    const [components, instructions] = await Promise.all([
+      this.databaseQuery<Record<string, unknown>>(
+        `select c.dish_id, c.id, c.position, s.position section_position,
+                coalesce(c.original_text,c.raw_text) raw_text,
+                c.ingredient_name, c.display_singular, c.display_plural,
+                ingredient.name joined_ingredient_name,
+                ingredient.normalized_name joined_normalized_name,
+                measurement.quantity_text, measurement.quantity,
+                measurement.unit
+           from dish_components c
+           join dish_sections s on s.id=c.section_id
+           left join lateral (
+             select m.quantity,m.quantity_text,m.unit
+               from dish_component_measurements m
+              where m.component_id=c.id
+              order by case m.system when 'universal' then 0 when 'metric' then 1 else 2 end,m.position
+              limit 1
+           ) measurement on true
+           left join lateral (
+             select i.name,i.normalized_name from ingredients i
+              where lower(i.name) in (lower(c.ingredient_name),lower(coalesce(c.display_singular,'')),lower(coalesce(c.display_plural,'')))
+                 or lower(i.normalized_name) in (lower(c.ingredient_name),lower(coalesce(c.display_singular,'')),lower(coalesce(c.display_plural,'')))
+              order by case when lower(i.name)=lower(c.ingredient_name) then 0 when lower(i.normalized_name)=lower(c.ingredient_name) then 1 else 2 end
+              limit 1
+           ) ingredient on true
+          where c.dish_id=any($1::uuid[])
+          order by c.dish_id,s.position,c.position`,
+        [ids],
+      ),
+      this.databaseQuery<Record<string, unknown>>(
+        `select dish_id,position + 1 step,display_text text
+           from dish_instructions
+          where dish_id=any($1::uuid[])
+          order by dish_id,position`,
+        [ids],
+      ),
+    ]);
+    const componentsByDish = groupRows(components.rows, 'dish_id');
+    const instructionsByDish = groupRows(instructions.rows, 'dish_id');
+    return rows.map((row) => ({
+      ...row,
+      ingredient_components: (componentsByDish.get(String(row.id)) ?? []).map(
+        (component) => ({
+          id: component.id,
+          rawText: component.raw_text,
+          ingredientName: component.ingredient_name,
+          displaySingular: component.display_singular,
+          displayPlural: component.display_plural,
+          normalizedName: component.joined_normalized_name,
+          joinedIngredientName: component.joined_ingredient_name,
+          joinedNormalizedName: component.joined_normalized_name,
+          quantityText: component.quantity_text,
+          quantity: component.quantity_text ?? component.quantity,
+          numericQuantity: component.quantity,
+          unit: component.unit,
+          unitName: component.unit,
+        }),
+      ),
+      steps: instructionsByDish.get(String(row.id)) ?? [],
+    }));
+  }
 }
 
 export class PostgresIngredientRepository {
@@ -257,6 +334,8 @@ interface IngredientDisplayComponent {
   rawText?: unknown;
   originalText?: unknown;
   quantity?: unknown;
+  quantityText?: unknown;
+  numericQuantity?: unknown;
   amount?: unknown;
   unit?: unknown;
   unitName?: unknown;
@@ -283,20 +362,58 @@ export function buildIngredientDisplayStrings(
     const displayName = resolveIngredientName(component, amount, unit);
     if (rawText && isCompleteRawText(rawText, amount, unit, displayName)) {
       displays.push(rawText);
+      logSuspiciousIngredient(dishId, componentId, rawText, component);
       continue;
     }
     const measuredDisplay = [amount, unit, displayName].filter(Boolean).join(' ');
     if (measuredDisplay && (amount || unit)) {
       displays.push(measuredDisplay);
+      logSuspiciousIngredient(dishId, componentId, measuredDisplay, component);
       continue;
     }
     if (displayName) {
       displays.push(displayName);
+      logSuspiciousIngredient(dishId, componentId, displayName, component);
       continue;
     }
     console.warn(`[DishCatalog] ingredient display missing dish=${dishId} component=${componentId}`);
   }
   return displays;
+}
+
+function logSuspiciousIngredient(
+  dishId: string,
+  componentId: string,
+  finalText: string,
+  component: IngredientDisplayComponent,
+): void {
+  if (process.env.NODE_ENV === 'production' || !isMeasurementOnly(finalText, '', '')) return;
+  console.warn('[DishCatalog] measurement-only ingredient', {
+    dish: dishId,
+    component: componentId,
+    text: finalText,
+    rawText: cleanText(component.rawText ?? component.originalText),
+    ingredientName: cleanText(component.ingredientName),
+    displaySingular: cleanText(component.displaySingular),
+    displayPlural: cleanText(component.displayPlural),
+    normalizedName: cleanText(component.normalizedName),
+    joinedIngredientName: cleanText(component.joinedIngredientName),
+    quantityText: cleanText(component.quantityText),
+    quantity: cleanText(component.numericQuantity ?? component.quantity),
+    unit: cleanText(component.unit ?? component.unitName),
+  });
+}
+
+function groupRows(
+  rows: Record<string, unknown>[],
+  key: string,
+): Map<string, Record<string, unknown>[]> {
+  const grouped = new Map<string, Record<string, unknown>[]>();
+  for (const row of rows) {
+    const id = String(row[key]);
+    grouped.set(id, [...(grouped.get(id) ?? []), row]);
+  }
+  return grouped;
 }
 
 function resolveIngredientName(
@@ -308,9 +425,11 @@ function resolveIngredientName(
     component.ingredientName,
     component.displaySingular,
     component.displayPlural,
-    component.normalizedName,
+    component.rawText,
+    component.originalText,
     component.joinedIngredientName,
     component.joinedNormalizedName,
+    component.normalizedName,
   ];
   for (const candidate of candidates) {
     const name = cleanText(candidate);
