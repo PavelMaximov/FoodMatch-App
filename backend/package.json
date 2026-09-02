@@ -32,6 +32,7 @@
     "audit:ingredients:files": "ts-node src/scripts/auditIngredients.ts --source files",
     "import:ingredients": "ts-node src/scripts/importIngredients.ts",
     "test:pair-recommendations": "ts-node src/scripts/testPairRecommendationService.ts",
+    "test:weighted-category-cuisine": "ts-node src/scripts/testWeightedCategoryCuisine.ts",
     "inspect:recommendations": "ts-node src/scripts/inspectRecommendationState.ts",
     "test:recommendation-observability": "ts-node src/scripts/testRecommendationObservability.ts",
     "test:pair-filter-flow": "ts-node src/scripts/testPairFilterFlow.ts",

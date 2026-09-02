@@ -12,6 +12,7 @@ class CoupleFilterChoices {
 
   final List<String> cuisines;
   final List<String> dishRegisters;
+  List<String> get selectedCategories => dishRegisters;
   final bool includeCustomDishesFirst;
   final List<String> moods;
   final List<String> diet;
@@ -23,7 +24,11 @@ class CoupleFilterChoices {
     if (json == null) return const CoupleFilterChoices();
     return CoupleFilterChoices(
       dishRegisters:
-          (json['dishRegisters'] as List<dynamic>? ?? const <dynamic>[])
+          (json['selectedCategories'] as List<dynamic>? ??
+                  json['dishRegisters'] as List<dynamic>? ??
+                  (json['category'] == null
+                      ? const <dynamic>[]
+                      : <dynamic>[json['category']]))
               .map((e) => e.toString())
               .toList(),
       includeCustomDishesFirst: json['includeCustomDishesFirst'] == true,
@@ -49,6 +54,7 @@ class CoupleFilterChoices {
   Map<String, dynamic> toJson() => <String, dynamic>{
     'cuisines': cuisines,
     'dishRegisters': dishRegisters,
+    'selectedCategories': dishRegisters,
     'includeCustomDishesFirst': includeCustomDishesFirst,
     'moods': moods,
     'diet': diet,

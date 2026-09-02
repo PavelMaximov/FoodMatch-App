@@ -64,6 +64,7 @@ class SwipeRepository {
   }) => _apiService.put(ApiConstants.filtersLast, <String, dynamic>{
     'mode': mode,
     'dishRegisters': dishRegisters,
+    'selectedCategories': dishRegisters,
     'includeCustomDishesFirst': includeCustomDishesFirst,
     'cuisines': cuisines,
     'moods': moods,
