@@ -5,13 +5,14 @@ import 'package:food_match/features/profile/logic/match_history_provider.dart';
 import 'package:food_match/data/models/match_history.dart';
 import 'package:food_match/data/models/dish.dart';
 import 'package:food_match/core/widgets/food_match_empty_state_image.dart';
+import 'package:food_match/core/theme/app_theme.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../helpers/dish_test_data.dart';
 
 void main() {
-  Widget testApp(Widget screen) {
+  Widget testApp(Widget screen, {ThemeMode themeMode = ThemeMode.light}) {
     final GoRouter router = GoRouter(
       initialLocation: '/profile/detail',
       routes: <RouteBase>[
@@ -19,7 +20,12 @@ void main() {
         GoRoute(path: '/profile/detail', builder: (_, __) => screen),
       ],
     );
-    return MaterialApp.router(routerConfig: router);
+    return MaterialApp.router(
+      routerConfig: router,
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: themeMode,
+    );
   }
 
   Widget historyApp(MatchHistoryProvider provider) => testApp(
@@ -47,6 +53,16 @@ void main() {
     expect(find.text('Contact Us'), findsOneWidget);
     expect(find.text('Rate Us'), findsOneWidget);
     expect(find.text('Share App'), findsOneWidget);
+  });
+
+  testWidgets('Profile details render with the dark FoodMatch theme',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      testApp(const HelpScreen(), themeMode: ThemeMode.dark),
+    );
+
+    expect(find.text('Help'), findsOneWidget);
+    expect(find.text('Contact Us'), findsOneWidget);
   });
 
   testWidgets('Match History has an image-based empty state',

@@ -97,12 +97,68 @@ class MatchHistoryContent extends StatelessWidget {
   }
 }
 
-class MatchHistorySessionScreen extends StatelessWidget {
-  const MatchHistorySessionScreen({required this.session, super.key});
-  final MatchHistorySession session;
+class MatchHistorySessionScreen extends StatefulWidget {
+  const MatchHistorySessionScreen({
+    required this.sessionId,
+    this.initialSession,
+    super.key,
+  });
+  final String sessionId;
+  final MatchHistorySession? initialSession;
 
   @override
-  Widget build(BuildContext context) => _DetailScaffold(
+  State<MatchHistorySessionScreen> createState() =>
+      _MatchHistorySessionScreenState();
+}
+
+class _MatchHistorySessionScreenState extends State<MatchHistorySessionScreen> {
+  MatchHistorySession? _session;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _session = widget.initialSession;
+    if (_session == null) _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _isLoading = true);
+    try {
+      final MatchHistorySession? session = await context
+          .read<MatchHistoryRepository>()
+          .getSession(widget.sessionId);
+      if (!mounted) return;
+      setState(() => _session = session);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _session = null);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const _DetailScaffold(
+        title: 'Match History',
+        children: <Widget>[Center(child: CircularProgressIndicator())],
+      );
+    }
+    final MatchHistorySession? session = _session;
+    if (session == null) {
+      return const _DetailScaffold(
+        title: 'Session not found',
+        children: <Widget>[
+          SizedBox(height: 80),
+          Center(
+            child: Text('This match history session is no longer available.'),
+          ),
+        ],
+      );
+    }
+    return _DetailScaffold(
     title: session.mode == MatchHistoryMode.solo ? 'Solo Session' : 'Pair Session',
     children: <Widget>[
       _ActionCard(children: <Widget>[
@@ -126,7 +182,8 @@ class MatchHistorySessionScreen extends StatelessWidget {
           ),
       ]),
     ],
-  );
+    );
+  }
 }
 
 class _MatchHistoryEmptyState extends StatelessWidget {
@@ -198,14 +255,14 @@ class _HistorySessionCard extends StatelessWidget {
           isThreeLine: names.isNotEmpty,
           trailing: const Icon(Icons.chevron_right_rounded),
           onTap: () => context.push(
-            '/profile/match-history/session',
+            '/profile/match-history/session/${session.sessionId}',
             extra: session,
           ),
         ),
         if (session.previewDishes.isNotEmpty)
           InkWell(
             onTap: () => context.push(
-              '/profile/match-history/session',
+              '/profile/match-history/session/${session.sessionId}',
               extra: session,
             ),
             child: Padding(
@@ -281,8 +338,18 @@ class ProfileSettingsScreen extends StatelessWidget {
       for (final option in MeasurementSystemPreference.values)
         RadioListTile<MeasurementSystemPreference>(value: option, groupValue: value, title: Text(option.label), onChanged: (selected) async {
           if (selected == null) return;
-          await auth.updateMeasurementSystemPreference(selected);
-          if (sheetContext.mounted) Navigator.pop(sheetContext);
+          final bool success =
+              await auth.updateMeasurementSystemPreference(selected);
+          if (!sheetContext.mounted) return;
+          if (success) {
+            Navigator.pop(sheetContext);
+          } else {
+            FoodMatchNotifications.show(
+              sheetContext,
+              type: FoodMatchNotificationType.error,
+              title: 'Could not update units. Please try again.',
+            );
+          }
         }),
     ])));
   }

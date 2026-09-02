@@ -13,4 +13,15 @@ class MatchHistoryRepository {
     }
     return MatchHistory.fromJson(Map<String, dynamic>.from(response));
   }
+
+  Future<MatchHistorySession?> getSession(String sessionId) async {
+    final MatchHistory history = await getHistory();
+    for (final MatchHistorySession session in <MatchHistorySession>[
+      ...history.solo,
+      ...history.pair,
+    ]) {
+      if (session.sessionId == sessionId) return session;
+    }
+    return null;
+  }
 }

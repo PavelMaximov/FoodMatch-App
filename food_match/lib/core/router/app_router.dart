@@ -156,8 +156,12 @@ class AppRouter {
                       builder: (_, __) => const ProfileScreen(),
                       routes: <RouteBase>[
                         GoRoute(
-                          path: 'edit-profile',
+                          path: 'edit',
                           builder: (_, __) => const EditProfileScreen(),
+                        ),
+                        GoRoute(
+                          path: 'edit-profile',
+                          redirect: (_, __) => '/profile/edit',
                         ),
                         GoRoute(path: 'settings', builder: (_, __) => const ProfileSettingsScreen()),
                         GoRoute(
@@ -165,14 +169,16 @@ class AppRouter {
                           builder: (_, __) => const MatchHistoryScreen(),
                           routes: <RouteBase>[
                             GoRoute(
-                              path: 'session',
+                              path: 'session/:sessionId',
                               builder: (_, GoRouterState state) =>
-                                  state.extra is MatchHistorySession
-                                      ? MatchHistorySessionScreen(
-                                          session: state.extra!
-                                              as MatchHistorySession,
-                                        )
-                                      : const MatchHistoryScreen(),
+                                  MatchHistorySessionScreen(
+                                    sessionId:
+                                        state.pathParameters['sessionId']!,
+                                    initialSession:
+                                        state.extra is MatchHistorySession
+                                        ? state.extra! as MatchHistorySession
+                                        : null,
+                                  ),
                             ),
                           ],
                         ),

@@ -101,6 +101,71 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _removeAvatar() async {
+    if (_isUploadingAvatar) return;
+    setState(() => _isUploadingAvatar = true);
+    try {
+      await context.read<UploadRepository>().deleteAvatar();
+      await context.read<AuthProvider>().clearCurrentUserAvatar();
+      if (!mounted) return;
+      setState(() => _localAvatarPreview = null);
+      FoodMatchNotifications.show(
+        context,
+        type: FoodMatchNotificationType.destructive,
+        title: 'Photo removed',
+      );
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      FoodMatchNotifications.show(
+        context,
+        type: FoodMatchNotificationType.error,
+        title: ErrorMessages.fromApiException(error),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      FoodMatchNotifications.show(
+        context,
+        type: FoodMatchNotificationType.error,
+        title: 'Unable to remove photo',
+      );
+    } finally {
+      if (mounted) setState(() => _isUploadingAvatar = false);
+    }
+  }
+
+  Future<void> _showAvatarActions({required bool hasAvatar}) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (BuildContext sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Change Photo'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _pickAndUploadAvatar();
+              },
+            ),
+            if (hasAvatar)
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Colors.red),
+                title: const Text(
+                  'Remove Photo',
+                  style: TextStyle(color: Colors.red),
+                ),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _removeAvatar();
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _logOut(BuildContext context) async {
     final bool confirmed =
         await showDialog<bool>(
@@ -152,8 +217,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               avatarUrl: user?.avatarUrl,
               localAvatarPreview: _localAvatarPreview,
               isUploadingAvatar: _isUploadingAvatar,
-              onAvatarTap: _pickAndUploadAvatar,
-              onEdit: () => context.push('/profile/edit-profile'),
+              onAvatarTap: () => _showAvatarActions(
+                hasAvatar: user?.avatarUrl?.trim().isNotEmpty == true,
+              ),
+              onEdit: () => context.push('/profile/edit'),
             ),
             const SizedBox(height: 16),
             ProfilePremiumBanner(
