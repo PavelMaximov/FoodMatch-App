@@ -1193,9 +1193,13 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         result = await _acquireCanonicalPairDeck(preSwipeProvider);
         deckPrepareSucceeded = true;
       } finally {
-        coupleProvider.resumeFilterStatePollingAfterDeckPrepare(
-          succeeded: deckPrepareSucceeded,
-        );
+        if (deckPrepareSucceeded) {
+          coupleProvider.stopFilterStatePolling(reason: 'pair_deck_ready');
+        } else {
+          coupleProvider.resumeFilterStatePollingAfterDeckPrepare(
+            succeeded: false,
+          );
+        }
       }
     } catch (e) {
       if (e is ApiException && e.code == 'PAIR_WAITING_FOR_PARTNER_FILTERS') {

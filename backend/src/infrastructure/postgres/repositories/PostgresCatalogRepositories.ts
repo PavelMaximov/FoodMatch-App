@@ -198,6 +198,20 @@ export class PostgresDishRepository {
     return ids.map((id) => byId.get(id)).filter((dish): dish is CatalogDish => Boolean(dish));
   }
 
+  async getLightweightByIds(ids: string[]): Promise<CatalogDish[]> {
+    if (ids.length === 0) return [];
+    const result = await this.databaseQuery<Record<string, unknown>>(
+      `select d.* from dishes d where d.id = any($1::uuid[])`,
+      [ids],
+    );
+    const byId = new Map(result.rows.map((row) => [String(row.id), mapCatalogDish({
+      ...row,
+      ingredient_components: undefined,
+      steps: [],
+    }, { logIngredients: false })]));
+    return ids.map((id) => byId.get(id)).filter((dish): dish is CatalogDish => Boolean(dish));
+  }
+
   async listMyCustomDishes(userId: string): Promise<CatalogDish[]> {
     const result = await this.databaseQuery<Record<string, unknown>>(
       `${CATALOG_SELECT}
