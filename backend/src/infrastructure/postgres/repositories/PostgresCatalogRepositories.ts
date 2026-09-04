@@ -137,25 +137,43 @@ export class PostgresDishRepository {
 
   async listLightweight(ownerId?: string): Promise<CatalogDish[]> {
     const startedAt = Date.now();
-    const result = await this.databaseQuery<Record<string, unknown>>(
-      `select d.* from dishes d
+    const [result, ingredientResult] = await Promise.all([
+      this.databaseQuery<Record<string, unknown>>(
+        `select d.* from dishes d
        where d.status in ('approved', 'active')
          and (d.visibility = 'public' or d.owner_id = $1)
        order by d.updated_at desc`,
-      [ownerId ?? null],
+        [ownerId ?? null],
+      ),
+      this.databaseQuery<Record<string, unknown>>(
+        `select c.dish_id,
+                array_agg(coalesce(nullif(btrim(c.ingredient_name), ''),
+                                   nullif(btrim(c.original_text), ''),
+                                   nullif(btrim(c.raw_text), '')) order by s.position, c.position)
+                  filter (where coalesce(c.ingredient_name, c.original_text, c.raw_text) is not null) ingredients
+           from dish_components c
+           join dish_sections s on s.id = c.section_id
+          where c.dish_id in (
+            select id from dishes
+             where status in ('approved', 'active')
+               and (visibility = 'public' or owner_id = $1)
+          )
+          group by c.dish_id`,
+        [ownerId ?? null],
+      ),
+    ]);
+    const ingredientsByDish = new Map(
+      ingredientResult.rows.map((row) => [String(row.dish_id), normalizeStringArray(row.ingredients)]),
     );
-    const queryFinishedAt = Date.now();
     const mapped = result.rows.map((row) => mapCatalogDish({
       ...row,
-      ingredient_components: [],
+      ingredients: ingredientsByDish.get(String(row.id)) ?? normalizeStringArray(row.ingredients),
+      ingredient_components: undefined,
       steps: [],
     }, { logIngredients: false }));
     if (process.env.NODE_ENV !== 'production') {
-      console.info(`[DishCatalog] list base query ms=${queryFinishedAt - startedAt}`);
-      console.info('[DishCatalog] list tags ms=0');
-      console.info('[DishCatalog] list ingredients ms=0');
-      console.info(`[DishCatalog] list dto mapping ms=${Date.now() - queryFinishedAt}`);
-      console.info(`[DishCatalog] list total ms=${Date.now() - startedAt} count=${mapped.length}`);
+      console.info(`[DishCatalog] lightweight list total ms=${Date.now() - startedAt} count=${mapped.length}`);
+      console.info('[DishCatalog] full ingredient hydration skipped for deck=true');
     }
     return mapped;
   }

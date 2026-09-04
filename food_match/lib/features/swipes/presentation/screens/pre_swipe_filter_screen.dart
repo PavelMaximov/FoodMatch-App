@@ -61,6 +61,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   bool _isPreparingSharedDeck = false;
   bool _hasStartedPrepareAfterBothConfirmed = false;
   bool _isApplyingFilters = false;
+  bool _submitInFlight = false;
   bool _isGoingBack = false;
   bool _isReturningFromWaiting = false;
   _WaitingOrigin _waitingOrigin = _WaitingOrigin.manualSteps;
@@ -434,7 +435,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
                                 _step--;
                               }),
                         onSkip: _loading ? null : _skip,
-                        onContinue: _loading ? null : _next,
+                        onContinue: _loading || _submitInFlight ? null : _next,
                       );
                     },
               ),
@@ -756,6 +757,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   }
 
   Future<void> _next() async {
+    if (_submitInFlight) return;
     if (_step == 1 && !_hasMealTypeSelection) {
       FoodMatchNotifications.show(
         context,
@@ -773,7 +775,12 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       return;
     }
     _waitingOrigin = _WaitingOrigin.manualSteps;
-    await _confirmCurrentFilters();
+    setState(() => _submitInFlight = true);
+    try {
+      await _confirmCurrentFilters();
+    } finally {
+      if (mounted) setState(() => _submitInFlight = false);
+    }
   }
 
   Future<void> _confirmCurrentFilters() async {

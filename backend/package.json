@@ -47,6 +47,7 @@
     "test:pair-filter-change": "ts-node src/scripts/testPairFilterChange.ts",
     "test:solo-abandon": "ts-node src/scripts/testSoloAbandon.ts",
     "test:solo-resume-isolation": "ts-node src/scripts/testSoloResumeIsolation.ts",
+    "test:solo-session-creation-safety": "ts-node src/scripts/testSoloSessionCreationSafety.ts",
     "migrate:pg:sessions": "ts-node src/scripts/migrateSessionsMongoToPostgres.ts",
     "migrate:pg:swipes": "ts-node src/scripts/migrateSwipesMongoToPostgres.ts",
     "migrate:pg:matches": "ts-node src/scripts/migrateMatchesMongoToPostgres.ts",
