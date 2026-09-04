@@ -53,6 +53,7 @@ class CoupleFilterChoices {
 
   Map<String, dynamic> toJson() => <String, dynamic>{
     'cuisines': cuisines,
+    'selectedCuisines': cuisines,
     'dishRegisters': dishRegisters,
     'selectedCategories': dishRegisters,
     'includeCustomDishesFirst': includeCustomDishesFirst,

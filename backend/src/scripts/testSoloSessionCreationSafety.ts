@@ -10,8 +10,10 @@ const flutter = fs.readFileSync(path.resolve(root, '../../food_match/lib/feature
 
 assert(isActiveSoloSessionUniqueViolation({ code: '23505', constraint: 'solo_sessions_one_active_per_user' }));
 assert(!isActiveSoloSessionUniqueViolation({ code: '23505', constraint: 'another_constraint' }));
-assert(service.includes('if(existing)') && service.includes('resumedExisting:true'), 'active sessions must be resumed before deck work');
+assert(service.includes('if(existing&&!options.startOver)') && service.includes('resumedExisting:true'), 'active sessions must be resumed unless start-over is explicit');
 assert(service.includes('const raced=await domainRepositories.soloSessions.findActive(userId)'), 'a unique-violation race must re-read the winner');
+assert(service.includes('domainRepositories.soloSessions.replaceActive(write)'), 'start-over must atomically replace the active session');
+assert(service.includes("sessionSwipes.filter((swipe)=>swipe.direction==='like').length"), 'likes must be scoped to the new solo session');
 assert(service.includes('postgresDishes.listLightweight(userId)'), 'solo deck creation must use lightweight catalog rows');
 assert(catalog.includes('full ingredient hydration skipped for deck=true'));
 assert(!catalog.slice(catalog.indexOf('async listLightweight'), catalog.indexOf('async getByPublicId')).includes('hydrateListRows'));

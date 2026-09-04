@@ -802,6 +802,23 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
           content: Text('Something went wrong. Please try again.'),
         ),
       );
+    } catch (error) {
+      debugPrint('[PreSwipe] filter confirmation failed $error');
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _isApplyingFilters = false;
+        _isPreparingSharedDeck = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            widget.mode == 'paired'
+                ? 'Could not save your filters. Please try again.'
+                : 'Could not create your session. Please try again.',
+          ),
+        ),
+      );
     }
   }
 
@@ -836,8 +853,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     if (widget.mode == 'solo') {
       final SwipeProvider swipeProvider = context.read<SwipeProvider>();
       final bool shouldUpdateActiveSession =
-          widget.intent == PreSwipeFilterIntent.updateActiveSoloSession ||
-          swipeProvider.hasActiveSoloSession;
+          widget.intent == PreSwipeFilterIntent.updateActiveSoloSession;
       final bool ready = shouldUpdateActiveSession
           ? await swipeProvider.rebuildActiveSoloSessionFilters(
               dishRegisters: _dishRegisters.toList(),
@@ -1272,8 +1288,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       });
       final SwipeProvider swipeProvider = context.read<SwipeProvider>();
       final bool shouldUpdateActiveSession =
-          widget.intent == PreSwipeFilterIntent.updateActiveSoloSession ||
-          swipeProvider.hasActiveSoloSession;
+          widget.intent == PreSwipeFilterIntent.updateActiveSoloSession;
       final bool ready = shouldUpdateActiveSession
           ? await swipeProvider.rebuildActiveSoloSessionFilters(
               dishRegisters: _dishRegisters.toList(),
