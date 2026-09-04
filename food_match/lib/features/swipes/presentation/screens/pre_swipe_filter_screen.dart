@@ -61,6 +61,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   bool _isPreparingSharedDeck = false;
   bool _hasStartedPrepareAfterBothConfirmed = false;
   bool _isApplyingFilters = false;
+  bool _submitInFlight = false;
   bool _isGoingBack = false;
   bool _isReturningFromWaiting = false;
   _WaitingOrigin _waitingOrigin = _WaitingOrigin.manualSteps;
@@ -434,10 +435,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
                                 _step--;
                               }),
                         onSkip: _loading ? null : _skip,
-                        onContinue:
-                            _loading || (_step == 1 && !_hasMealTypeSelection)
-                            ? null
-                            : _next,
+                        onContinue: _loading || _submitInFlight ? null : _next,
                       );
                     },
               ),
@@ -468,13 +466,21 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
 
   void _selectMealType(String option) {
     if (option == 'custom_dishes' && !_hasAvailableCustomDishes) return;
+    if (option != 'custom_dishes' &&
+        !_dishRegisters.contains(option) &&
+        _dishRegisters.length >= 3) {
+      FoodMatchNotifications.show(context, type: FoodMatchNotificationType.info,
+        title: 'Category limit', message: 'Choose up to 3 categories.');
+      return;
+    }
     setState(() {
-      _includeCustomDishesFirst = option == 'custom_dishes';
-      _dishRegisters
-        ..clear()
-        ..addAll(
-          _includeCustomDishesFirst ? const <String>[] : <String>[option],
-        );
+      if (option == 'custom_dishes') {
+        _includeCustomDishesFirst = true;
+        _dishRegisters.clear();
+      } else {
+        _includeCustomDishesFirst = false;
+        if (!_dishRegisters.remove(option)) _dishRegisters.add(option);
+      }
     });
   }
 
@@ -732,7 +738,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       _showPreviousChoice = false;
       _dishRegisters
         ..clear()
-        ..addAll(preset.dishRegisters.take(1));
+        ..addAll(preset.dishRegisters.take(3));
       _includeCustomDishesFirst = preset.includeCustomDishesFirst;
       _cuisines
         ..clear()
@@ -751,7 +757,16 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   }
 
   Future<void> _next() async {
-    if (_step == 1 && !_hasMealTypeSelection) return;
+    if (_submitInFlight) return;
+    if (_step == 1 && !_hasMealTypeSelection) {
+      FoodMatchNotifications.show(
+        context,
+        type: FoodMatchNotificationType.info,
+        title: 'Category required',
+        message: 'Choose at least one category.',
+      );
+      return;
+    }
     if (_step < 3) {
       setState(() {
         _isGoingBack = false;
@@ -760,7 +775,12 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       return;
     }
     _waitingOrigin = _WaitingOrigin.manualSteps;
-    await _confirmCurrentFilters();
+    setState(() => _submitInFlight = true);
+    try {
+      await _confirmCurrentFilters();
+    } finally {
+      if (mounted) setState(() => _submitInFlight = false);
+    }
   }
 
   Future<void> _confirmCurrentFilters() async {
@@ -780,6 +800,23 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Something went wrong. Please try again.'),
+        ),
+      );
+    } catch (error) {
+      debugPrint('[PreSwipe] filter confirmation failed $error');
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _isApplyingFilters = false;
+        _isPreparingSharedDeck = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            widget.mode == 'paired'
+                ? 'Could not save your filters. Please try again.'
+                : 'Could not create your session. Please try again.',
+          ),
         ),
       );
     }
@@ -816,8 +853,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     if (widget.mode == 'solo') {
       final SwipeProvider swipeProvider = context.read<SwipeProvider>();
       final bool shouldUpdateActiveSession =
-          widget.intent == PreSwipeFilterIntent.updateActiveSoloSession ||
-          swipeProvider.hasActiveSoloSession;
+          widget.intent == PreSwipeFilterIntent.updateActiveSoloSession;
       final bool ready = shouldUpdateActiveSession
           ? await swipeProvider.rebuildActiveSoloSessionFilters(
               dishRegisters: _dishRegisters.toList(),
@@ -1213,7 +1249,13 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       _isPreparingSharedDeck = false;
     });
 
-    for (final String message in result.messages) {
+    final List<String> deckMessages = <String>[...result.messages];
+    if (result.preparedDeckMeta?.expansionApplied == true) {
+      deckMessages
+        ..removeWhere((String message) => message.contains('expanded'))
+        ..add('Few matches — we expanded your selection.');
+    }
+    for (final String message in deckMessages) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(message)));
@@ -1246,8 +1288,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       });
       final SwipeProvider swipeProvider = context.read<SwipeProvider>();
       final bool shouldUpdateActiveSession =
-          widget.intent == PreSwipeFilterIntent.updateActiveSoloSession ||
-          swipeProvider.hasActiveSoloSession;
+          widget.intent == PreSwipeFilterIntent.updateActiveSoloSession;
       final bool ready = shouldUpdateActiveSession
           ? await swipeProvider.rebuildActiveSoloSessionFilters(
               dishRegisters: _dishRegisters.toList(),

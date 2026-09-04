@@ -349,6 +349,7 @@ class SwipeProvider extends ChangeNotifier {
     required List<String> diet,
   }) async {
     final dynamic data = await _swipeRepository.createSoloSession(
+      startOver: true,
       filter: _soloFilterPayload(
         dishRegisters: dishRegisters,
         includeCustomDishesFirst: includeCustomDishesFirst,
