@@ -1360,16 +1360,36 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
           result['swipe']?['matchCreated'] == true;
       if (createdMatch && swipedDish != null) {
         final String? matchId = result['swipe']?['matchId']?.toString();
+        final String eventId = result['swipe']?['id']?.toString() ??
+            result['swipe']?['dishId']?.toString() ??
+            swipedDish.id;
         if (matchId != null && matchId.isNotEmpty) {
           context.read<MatchProvider>().markMatchSeen(matchId);
         }
-        context.read<MatchProvider>().loadMatches(
+        final MatchProvider matchProvider = context.read<MatchProvider>();
+        if (wasSoloMode && soloSessionId != null) {
+          final bool accepted = matchProvider.recordSoloMatchFromSwipe(
+            dish: swipedDish,
+            sessionId: soloSessionId,
+            eventId: eventId,
+          );
+          if (accepted) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              context
+                  .read<NavBadgeAnimationController>()
+                  .showSoloMatchesPlusOne(
+                    eventKey: 'solo:$soloSessionId:$eventId',
+                  );
+            });
+          }
+        }
+        matchProvider.loadMatches(
               force: true,
               mode: wasSoloMode ? 'solo' : 'paired',
               soloSessionId: wasSoloMode ? soloSessionId : null,
             );
         if (wasSoloMode) {
-          context.read<NavBadgeAnimationController>().showSoloMatchesPlusOne();
           // ScaffoldMessenger.of(context).showSnackBar(
           //   SnackBar(
           //     content: TweenAnimationBuilder<double>(

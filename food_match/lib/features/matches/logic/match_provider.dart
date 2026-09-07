@@ -26,6 +26,7 @@ class MatchProvider extends ChangeNotifier {
   DateTime? _matchesLoadedAt;
   Future<void>? _matchesLoadFuture;
   final Set<String> _knownPairedMatchIds = <String>{};
+  final Set<String> _optimisticSoloMatchKeys = <String>{};
   bool _hasSeededPairedMatchNotifications = false;
   int _authBoundaryVersion = -1;
 
@@ -36,6 +37,34 @@ class MatchProvider extends ChangeNotifier {
   int get matchCount => matches.length;
   String get mode => _mode;
   bool get isSoloMode => _mode == 'solo';
+
+  bool recordSoloMatchFromSwipe({
+    required Dish dish,
+    required String sessionId,
+    required String eventId,
+  }) {
+    if (_mode != 'solo' || _activeSoloSessionId != sessionId) return false;
+    final String key = '$sessionId:$eventId';
+    if (!_optimisticSoloMatchKeys.add(key)) return false;
+    final bool alreadyPresent = matches.any(
+      (MatchItem item) => item.sessionId == sessionId && item.dish.id == dish.id,
+    );
+    if (!alreadyPresent) {
+      matches = <MatchItem>[
+        MatchItem(
+          id: eventId,
+          dish: dish,
+          mode: 'solo',
+          matchType: 'solo_pick',
+          sessionId: sessionId,
+          createdAt: DateTime.now(),
+        ),
+        ...matches,
+      ];
+      notifyListeners();
+    }
+    return true;
+  }
 
   void setActiveUser(String? userId) {
     final String? normalized = userId?.trim().isEmpty == true ? null : userId?.trim();
@@ -211,6 +240,7 @@ class MatchProvider extends ChangeNotifier {
     }
     _activeCoupleId = null;
     _activeSoloSessionId = normalized;
+    _optimisticSoloMatchKeys.clear();
     _mode = 'solo';
     matches = <MatchItem>[];
     error = null;
@@ -273,6 +303,7 @@ class MatchProvider extends ChangeNotifier {
     _activeCoupleId = null;
     _activeSoloSessionId = null;
     _activeUserId = null;
+    _optimisticSoloMatchKeys.clear();
     _mode = 'solo';
     _sessionStateVersion = 0;
     matches = <MatchItem>[];

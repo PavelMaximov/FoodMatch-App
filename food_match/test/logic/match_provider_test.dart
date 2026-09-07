@@ -5,6 +5,7 @@ import 'package:food_match/data/models/match_item.dart';
 import 'package:food_match/data/repositories/swipe_repository.dart';
 import 'package:food_match/data/services/api_service.dart';
 import 'package:food_match/features/matches/logic/match_provider.dart';
+import 'package:food_match/shell/logic/nav_badge_animation_controller.dart';
 
 import '../helpers/dish_test_data.dart';
 
@@ -47,6 +48,65 @@ void main() {
 
     expect(provider.matches, isEmpty);
     expect(fakeCacheService.wasCleared, isTrue);
+  });
+
+  test('first Solo swipe match updates badge state once', () {
+    provider.setActiveUser('user-a');
+    provider.setSoloSession('solo-new');
+    final NavBadgeAnimationController animation = NavBadgeAnimationController();
+
+    final bool first = provider.recordSoloMatchFromSwipe(
+      dish: dishes.first,
+      sessionId: 'solo-new',
+      eventId: 'swipe-1',
+    );
+    if (first) {
+      animation.showSoloMatchesPlusOne(
+        eventKey: 'solo:solo-new:swipe-1',
+      );
+    }
+
+    expect(first, isTrue);
+    expect(provider.matchCount, 1);
+    expect(animation.soloMatchesPlusOneEvent, 1);
+    expect(
+      provider.recordSoloMatchFromSwipe(
+        dish: dishes.first,
+        sessionId: 'solo-new',
+        eventId: 'swipe-1',
+      ),
+      isFalse,
+    );
+    expect(
+      animation.showSoloMatchesPlusOne(
+        eventKey: 'solo:solo-new:swipe-1',
+      ),
+      isFalse,
+    );
+    expect(animation.soloMatchesPlusOneEvent, 1);
+  });
+
+  test('new Solo session clears optimistic badge count', () {
+    provider.setActiveUser('user-a');
+    provider.setSoloSession('solo-a');
+    provider.recordSoloMatchFromSwipe(
+      dish: dishes.first,
+      sessionId: 'solo-a',
+      eventId: 'swipe-a',
+    );
+    expect(provider.matchCount, 1);
+
+    provider.setSoloSession('solo-b');
+
+    expect(provider.matchCount, 0);
+    expect(
+      provider.recordSoloMatchFromSwipe(
+        dish: dishes.first,
+        sessionId: 'solo-a',
+        eventId: 'late-swipe',
+      ),
+      isFalse,
+    );
   });
 }
 
