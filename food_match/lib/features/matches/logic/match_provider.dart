@@ -20,6 +20,7 @@ class MatchProvider extends ChangeNotifier {
   final CacheService _cacheService;
   String? _activeCoupleId;
   String? _activeSoloSessionId;
+  String? _activeUserId;
   String _mode = 'solo';
   int _sessionStateVersion = 0;
   DateTime? _matchesLoadedAt;
@@ -35,6 +36,18 @@ class MatchProvider extends ChangeNotifier {
   int get matchCount => matches.length;
   String get mode => _mode;
   bool get isSoloMode => _mode == 'solo';
+
+  void setActiveUser(String? userId) {
+    final String? normalized = userId?.trim().isEmpty == true ? null : userId?.trim();
+    if (_activeUserId == normalized) return;
+    _activeUserId = normalized;
+    matches = <MatchItem>[];
+    error = null;
+    _matchesLoadedAt = null;
+    _matchesLoadFuture = null;
+    _cacheService.clearCachedMatches();
+    AppLogger.info('[Cache] matches invalidated reason=account-change');
+  }
 
 
   bool get _hasFreshMatchesCache {
@@ -62,7 +75,7 @@ class MatchProvider extends ChangeNotifier {
     }
     if (!force && _hasFreshMatchesCache) {
       final int age = DateTime.now().difference(_matchesLoadedAt!).inSeconds;
-      AppLogger.info('[Cache] matches hit count=${matches.length} age=${age}s');
+      AppLogger.info('[MatchProvider] cache hit=true count=${matches.length} age=${age}s key=$_cacheKey');
       return Future<void>.value();
     }
     final Future<void>? inFlight = _matchesLoadFuture;
@@ -71,11 +84,14 @@ class MatchProvider extends ChangeNotifier {
       return inFlight;
     }
 
-    _matchesLoadFuture = _loadMatchesFromApi(force: force);
+    final String requestKey = _cacheKey;
+    AppLogger.info('[MatchProvider] loadMatches user=${_activeUserId ?? 'none'} mode=$_mode scope=${_mode == 'solo' ? 'current' : 'all'} sessionId=${_activeSoloSessionId ?? _activeCoupleId ?? 'none'} force=$force');
+    AppLogger.info('[MatchProvider] cache hit=false count=0 key=$requestKey');
+    _matchesLoadFuture = _loadMatchesFromApi(force: force, requestKey: requestKey);
     return _matchesLoadFuture!;
   }
 
-  Future<void> _loadMatchesFromApi({required bool force}) async {
+  Future<void> _loadMatchesFromApi({required bool force, required String requestKey}) async {
     AppLogger.info(
       '[PageLoad] start page=Matches reason=${force ? 'refresh' : 'route'}',
     );
@@ -85,15 +101,22 @@ class MatchProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      matches = _filterForMode(
+      final List<MatchItem> result = _filterForMode(
         await _swipeRepository.getMatches(
           mode: _mode,
           scope: _mode == 'solo' ? 'current' : null,
           soloSessionId: _mode == 'solo' ? _activeSoloSessionId : null,
         ),
       );
+      AppLogger.info('[MatchProvider] API result count=${result.length}');
+      if (requestKey != _cacheKey) {
+        AppLogger.info('[MatchProvider] stale response ignored requestKey=$requestKey currentKey=$_cacheKey');
+        return;
+      }
+      matches = result;
       _matchesLoadedAt = DateTime.now();
-      await _cacheService.cacheMatches(matches.map((MatchItem item) => item.dish).toList(), coupleId: _cacheKey);
+      await _cacheService.cacheMatches(matches.map((MatchItem item) => item.dish).toList(), coupleId: requestKey);
+      AppLogger.info('[MatchProvider] cache key=$requestKey');
       AppLogger.info('MatchProvider: loaded ${matches.length} matches');
       AppLogger.info(
         matches.isEmpty
@@ -101,7 +124,8 @@ class MatchProvider extends ChangeNotifier {
             : '[PageLoad] success page=Matches items=${matches.length}',
       );
     } catch (e) {
-      matches = (await _cacheService.getCachedMatches(coupleId: _cacheKey))
+      if (requestKey != _cacheKey) return;
+      matches = (await _cacheService.getCachedMatches(coupleId: requestKey))
           .map((Dish dish) => MatchItem.fromCachedDish(dish, _mode))
           .toList();
       if (matches.isEmpty) {
@@ -112,17 +136,20 @@ class MatchProvider extends ChangeNotifier {
         AppLogger.info('MatchProvider: loaded ${matches.length} from cache');
       }
     } finally {
-      isLoading = false;
-      _matchesLoadFuture = null;
-      notifyListeners();
+      if (requestKey == _cacheKey) {
+        isLoading = false;
+        _matchesLoadFuture = null;
+        notifyListeners();
+      }
     }
   }
 
   String get _cacheKey {
+    final String user = _activeUserId ?? 'anonymous';
     if (_mode == 'paired') {
-      return _activeCoupleId ?? 'paired';
+      return 'matches:user=$user:mode=paired:scope=current:session=${_activeCoupleId ?? 'none'}';
     }
-    return _activeSoloSessionId == null ? 'solo-current' : 'solo_$_activeSoloSessionId';
+    return 'matches:user=$user:mode=solo:scope=current:session=${_activeSoloSessionId ?? 'none'}';
   }
 
   List<MatchItem> _filterForMode(List<MatchItem> items) {
@@ -245,6 +272,7 @@ class MatchProvider extends ChangeNotifier {
         isLoading;
     _activeCoupleId = null;
     _activeSoloSessionId = null;
+    _activeUserId = null;
     _mode = 'solo';
     _sessionStateVersion = 0;
     matches = <MatchItem>[];

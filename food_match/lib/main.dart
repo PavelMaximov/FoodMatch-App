@@ -216,6 +216,7 @@ Future<void> main() async {
                       cacheService: cacheService,
                     );
                 provider.handleAuthBoundary(authProvider.authBoundaryVersion);
+                provider.setActiveUser(authProvider.currentUser?.id);
                 if (!authProvider.isAuthenticated) {
                   provider.clearForLogout(notify: false);
                   return provider;
