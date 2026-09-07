@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -68,6 +70,8 @@ class _MainShellState extends State<MainShell>
   String? _shownInvitationId;
   late final AnimationController _soloPlusOneController;
   NavBadgeAnimationController? _navBadgeAnimationController;
+  SwipeProvider? _swipeProvider;
+  String? _handledSoloMatchEventKey;
   int _lastSoloPlusOneEvent = 0;
 
   Future<bool> _hasIconAsset(String assetPath) {
@@ -98,6 +102,8 @@ class _MainShellState extends State<MainShell>
     });
     _navBadgeAnimationController = context.read<NavBadgeAnimationController>()
       ..addListener(_handleNavBadgeAnimationEvent);
+    _swipeProvider = context.read<SwipeProvider>()
+      ..addListener(_handleSwipeProviderEvent);
     _lastSoloPlusOneEvent =
         _navBadgeAnimationController!.soloMatchesPlusOneEvent;
     WidgetsBinding.instance.addObserver(this);
@@ -114,6 +120,7 @@ class _MainShellState extends State<MainShell>
   @override
   void dispose() {
     _navBadgeAnimationController?.removeListener(_handleNavBadgeAnimationEvent);
+    _swipeProvider?.removeListener(_handleSwipeProviderEvent);
     _soloPlusOneController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -133,6 +140,30 @@ class _MainShellState extends State<MainShell>
       ..stop()
       ..reset()
       ..forward();
+  }
+
+  void _handleSwipeProviderEvent() {
+    final SoloMatchCreatedEvent? event = _swipeProvider?.soloMatchCreatedEvent;
+    if (event == null || event.key == _handledSoloMatchEventKey || !mounted) {
+      return;
+    }
+    final MatchProvider matchProvider = context.read<MatchProvider>();
+    final bool accepted = matchProvider.recordSoloMatchFromSwipe(
+      dish: event.dish,
+      sessionId: event.sessionId,
+      eventId: event.eventId,
+    );
+    if (!accepted) return;
+    _handledSoloMatchEventKey = event.key;
+    debugPrint('[NavBadgeAnim] event fired source=swipe_result key=${event.key}');
+    context.read<NavBadgeAnimationController>().showSoloMatchesPlusOne(
+      eventKey: event.key,
+    );
+    unawaited(matchProvider.loadMatches(
+      force: true,
+      mode: 'solo',
+      soloSessionId: event.sessionId,
+    ));
   }
 
   @override

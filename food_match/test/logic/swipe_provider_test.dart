@@ -61,6 +61,35 @@ void main() {
     expect(provider.currentDish, isNull);
     expect(fakeSwipeRepo.sentSwipes, <(String, String)>[('1', 'like'), ('2', 'dislike')]);
   });
+
+  test('Solo matchCreated emits app-level event before Matches screen load', () async {
+    fakeSwipeRepo.soloSessionDishes = testDishes;
+    expect(
+      await provider.createSoloSession(
+        dishRegisters: <String>['everyday'],
+        includeCustomDishesFirst: false,
+        cuisines: <String>[],
+        moods: <String>[],
+        blocked: <String>[],
+        diet: <String>[],
+      ),
+      isTrue,
+    );
+    fakeSwipeRepo.swipeResult = <String, dynamic>{
+      'swipe': <String, dynamic>{
+        'id': 'swipe-first',
+        'dishId': '1',
+        'matchCreated': true,
+        'mode': 'solo',
+      },
+    };
+
+    await provider.like();
+
+    expect(provider.soloMatchCreatedEvent?.sessionId, 'solo-new');
+    expect(provider.soloMatchCreatedEvent?.dish.id, '1');
+    expect(provider.soloMatchCreatedEvent?.eventId, 'swipe-first');
+  });
 }
 
 class _FakeDishRepository extends DishRepository {
@@ -80,11 +109,31 @@ class _FakeSwipeRepository extends SwipeRepository {
   _FakeSwipeRepository() : super(ApiService());
 
   final List<(String, String)> sentSwipes = <(String, String)>[];
+  List<Dish> soloSessionDishes = <Dish>[];
+  dynamic swipeResult = <String, dynamic>{};
 
   @override
-  Future<dynamic> sendSwipe({required String dishId, required String direction, String? soloSessionId}) async {
+  Future<dynamic> createSoloSession({
+    required Map<String, dynamic> filter,
+    bool startOver = false,
+  }) async => <String, dynamic>{
+    'session': <String, dynamic>{
+      'sessionId': 'solo-new',
+      'status': 'active',
+      'matchedCount': 0,
+      'dishes': soloSessionDishes.map((Dish dish) => dish.toJson()).toList(),
+      'meta': <String, dynamic>{},
+    },
+  };
+
+  @override
+  Future<dynamic> sendSwipe({
+    required String dishId,
+    required String direction,
+    String? soloSessionId,
+  }) async {
     sentSwipes.add((dishId, direction));
-    return <String, dynamic>{};
+    return swipeResult;
   }
 }
 

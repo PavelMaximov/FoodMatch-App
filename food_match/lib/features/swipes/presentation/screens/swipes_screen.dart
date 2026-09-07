@@ -125,7 +125,6 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     });
   }
 
-
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -1359,67 +1358,18 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       final bool createdMatch = result is Map<String, dynamic> &&
           result['swipe']?['matchCreated'] == true;
       if (createdMatch && swipedDish != null) {
+        if (wasSoloMode) {
+          // MainShell listens to SwipeProvider and owns app-level Solo badge events.
+          return;
+        }
         final String? matchId = result['swipe']?['matchId']?.toString();
-        final String eventId = result['swipe']?['id']?.toString() ??
-            result['swipe']?['dishId']?.toString() ??
-            swipedDish.id;
         if (matchId != null && matchId.isNotEmpty) {
           context.read<MatchProvider>().markMatchSeen(matchId);
         }
-        final MatchProvider matchProvider = context.read<MatchProvider>();
-        if (wasSoloMode && soloSessionId != null) {
-          final bool accepted = matchProvider.recordSoloMatchFromSwipe(
-            dish: swipedDish,
-            sessionId: soloSessionId,
-            eventId: eventId,
-          );
-          if (accepted) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!mounted) return;
-              context
-                  .read<NavBadgeAnimationController>()
-                  .showSoloMatchesPlusOne(
-                    eventKey: 'solo:$soloSessionId:$eventId',
-                  );
-            });
-          }
-        }
-        matchProvider.loadMatches(
-              force: true,
-              mode: wasSoloMode ? 'solo' : 'paired',
-              soloSessionId: wasSoloMode ? soloSessionId : null,
-            );
-        if (wasSoloMode) {
-          // ScaffoldMessenger.of(context).showSnackBar(
-          //   SnackBar(
-          //     content: TweenAnimationBuilder<double>(
-          //       tween: Tween<double>(begin: 0.92, end: 1),
-          //       duration: AppMotion.fast,
-          //       curve: AppMotion.curve,
-          //       builder: (BuildContext context, double scale, Widget? child) {
-          //         return Opacity(
-          //           opacity: scale.clamp(0.0, 1.0),
-          //           child: Transform.scale(
-          //             scale: scale,
-          //             alignment: Alignment.centerLeft,
-          //             child: child,
-          //           ),
-          //         );
-          //       },
-          //       child: const Row(
-          //         children: <Widget>[
-          //           Icon(Icons.favorite, color: Colors.white, size: 18),
-          //           SizedBox(width: 8),
-          //           Text('Saved to Matches'),
-          //         ],
-          //       ),
-          //     ),
-          //     duration: const Duration(milliseconds: 1400),
-          //     behavior: SnackBarBehavior.floating,
-          //   ),
-          // );
-          return;
-        }
+        context.read<MatchProvider>().loadMatches(
+          force: true,
+          mode: 'paired',
+        );
         context.push('/match-overlay', extra: swipedDish);
         return;
       }

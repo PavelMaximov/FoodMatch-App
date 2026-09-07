@@ -12,6 +12,20 @@ import '../../../data/repositories/couple_repository.dart';
 import '../../../data/repositories/swipe_repository.dart';
 import '../../../data/services/api_service.dart';
 
+class SoloMatchCreatedEvent {
+  const SoloMatchCreatedEvent({
+    required this.sessionId,
+    required this.dish,
+    required this.eventId,
+  });
+
+  final String sessionId;
+  final Dish dish;
+  final String eventId;
+
+  String get key => 'solo:$sessionId:$eventId';
+}
+
 class SwipeProvider extends ChangeNotifier {
   SwipeProvider({
     required DishRepository dishRepository,
@@ -45,6 +59,7 @@ class SwipeProvider extends ChangeNotifier {
   Future<bool>? _existingPreparedDeckLoadFuture;
   bool _isApplyingSoloFilterRequest = false;
   int _authBoundaryVersion = -1;
+  SoloMatchCreatedEvent? _soloMatchCreatedEvent;
 
   List<Dish> deck = <Dish>[];
   int currentIndex = 0;
@@ -71,6 +86,7 @@ class SwipeProvider extends ChangeNotifier {
       activeSoloSessionId != null && !_soloSessionCompleted;
   bool get isSoloSessionCompleted => isSoloMode && _soloSessionCompleted;
   int get soloLikedCount => _soloLikedCount;
+  SoloMatchCreatedEvent? get soloMatchCreatedEvent => _soloMatchCreatedEvent;
   int get remainingDishCount => isSoloMode
       ? _soloRemainingCount
       : (deck.length > currentIndex ? deck.length - currentIndex : 0);
@@ -631,6 +647,24 @@ class SwipeProvider extends ChangeNotifier {
         direction: direction,
         soloSessionId: activeSoloSessionId,
       );
+      final bool matchCreated = result is Map<String, dynamic> &&
+          result['swipe']?['matchCreated'] == true;
+      debugPrint(
+        '[SwipeResult] mode=${isSoloMode ? 'solo' : 'paired'} '
+        'sessionId=${activeSoloSessionId ?? 'none'} dishId=${dish.id} '
+        'direction=$direction matchCreated=$matchCreated',
+      );
+      if (matchCreated && isSoloMode && activeSoloSessionId != null) {
+        final String eventId = result['swipe']?['id']?.toString() ??
+            result['swipe']?['dishId']?.toString() ??
+            dish.id;
+        _soloMatchCreatedEvent = SoloMatchCreatedEvent(
+          sessionId: activeSoloSessionId!,
+          dish: dish,
+          eventId: eventId,
+        );
+        notifyListeners();
+      }
     } catch (e) {
       if (_shouldQueueOffline(e)) {
         AppLogger.info('SwipeProvider: queueing swipe offline');
