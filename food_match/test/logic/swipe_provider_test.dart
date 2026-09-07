@@ -6,10 +6,7 @@ import 'package:food_match/data/repositories/couple_repository.dart';
 import 'package:food_match/data/repositories/dish_repository.dart';
 import 'package:food_match/data/repositories/swipe_repository.dart';
 import 'package:food_match/data/services/api_service.dart';
-import 'package:food_match/features/matches/logic/match_provider.dart';
 import 'package:food_match/features/swipes/logic/swipe_provider.dart';
-import 'package:food_match/shell/logic/nav_badge_animation_controller.dart';
-import 'package:food_match/shell/logic/solo_match_badge_coordinator.dart';
 
 import '../helpers/dish_test_data.dart';
 
@@ -65,108 +62,6 @@ void main() {
     expect(fakeSwipeRepo.sentSwipes, <(String, String)>[('1', 'like'), ('2', 'dislike')]);
   });
 
-  test('Solo matchCreated emits app-level event before Matches screen load', () async {
-    fakeSwipeRepo.soloSessionDishes = testDishes;
-    expect(
-      await provider.createSoloSession(
-        dishRegisters: <String>['everyday'],
-        includeCustomDishesFirst: false,
-        cuisines: <String>[],
-        moods: <String>[],
-        blocked: <String>[],
-        diet: <String>[],
-      ),
-      isTrue,
-    );
-    fakeSwipeRepo.swipeResult = <String, dynamic>{
-      'swipe': <String, dynamic>{
-        'id': 'swipe-first',
-        'dishId': '1',
-        'matchCreated': true,
-        'mode': 'solo',
-      },
-    };
-
-    await provider.like();
-
-    expect(provider.soloMatchCreatedEvent?.sessionId, 'solo-new');
-    expect(provider.soloMatchCreatedEvent?.dish.id, '1');
-    expect(provider.soloMatchCreatedEvent?.eventId, 'swipe-first');
-  });
-
-  test('app-level Solo badge chain uses the swiping provider instance', () async {
-    final MatchProvider matchProvider = MatchProvider(
-      swipeRepository: fakeSwipeRepo,
-      cacheService: fakeCacheService,
-    )..setActiveUser('user-a');
-    final NavBadgeAnimationController animationController =
-        NavBadgeAnimationController();
-    int handledEvents = 0;
-    provider.addListener(() {
-      final SoloMatchCreatedEvent? event = provider.soloMatchCreatedEvent;
-      if (event != null &&
-          registerSoloMatchBadgeEvent(
-            event: event,
-            matchProvider: matchProvider,
-            animationController: animationController,
-          )) {
-        handledEvents++;
-      }
-    });
-    fakeSwipeRepo.soloSessionDishes = testDishes;
-    await provider.createSoloSession(
-      dishRegisters: <String>['everyday'],
-      includeCustomDishesFirst: false,
-      cuisines: <String>[],
-      moods: <String>[],
-      blocked: <String>[],
-      diet: <String>[],
-    );
-    fakeSwipeRepo.swipeResult = <String, dynamic>{
-      'swipe': <String, dynamic>{
-        'id': 'swipe-runtime',
-        'dishId': '1',
-        'matchCreated': true,
-        'mode': 'solo',
-      },
-    };
-
-    await provider.like();
-
-    expect(matchProvider.activeSoloSessionId, provider.activeSoloSessionId);
-    expect(matchProvider.matchCount, 1);
-    expect(animationController.soloMatchesPlusOneEvent, 1);
-    expect(handledEvents, 1);
-    // Later provider notifications see the same event but cannot count it twice.
-    provider.setDeckError('test notification');
-    expect(matchProvider.matchCount, 1);
-    expect(animationController.soloMatchesPlusOneEvent, 1);
-    expect(handledEvents, 1);
-  });
-
-  test('matchCreated false does not emit a Solo badge event', () async {
-    fakeSwipeRepo.soloSessionDishes = testDishes;
-    await provider.createSoloSession(
-      dishRegisters: <String>['everyday'],
-      includeCustomDishesFirst: false,
-      cuisines: <String>[],
-      moods: <String>[],
-      blocked: <String>[],
-      diet: <String>[],
-    );
-    fakeSwipeRepo.swipeResult = <String, dynamic>{
-      'swipe': <String, dynamic>{
-        'id': 'swipe-no-match',
-        'dishId': '1',
-        'matchCreated': false,
-        'mode': 'solo',
-      },
-    };
-
-    await provider.like();
-
-    expect(provider.soloMatchCreatedEvent, isNull);
-  });
 }
 
 class _FakeDishRepository extends DishRepository {

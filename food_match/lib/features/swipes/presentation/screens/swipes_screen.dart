@@ -1335,7 +1335,6 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     _swipeStackKey.currentState?.resetInteractionState();
   }
 
-
   Future<void> _handleSwipe(SwipeDirection direction) async {
     final SwipeProvider swipeProvider = context.read<SwipeProvider>();
     final swipedDish = swipeProvider.currentDish;
@@ -1359,7 +1358,40 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
           result['swipe']?['matchCreated'] == true;
       if (createdMatch && swipedDish != null) {
         if (wasSoloMode) {
-          // MainShell listens to SwipeProvider and owns app-level Solo badge events.
+          final String? sessionId = soloSessionId;
+          if (sessionId == null) return;
+          final String eventId = result['swipe']?['id']?.toString() ??
+              result['swipe']?['dishId']?.toString() ??
+              swipedDish.id;
+          final String eventKey = 'solo:$sessionId:$eventId';
+          final MatchProvider matchProvider = context.read<MatchProvider>();
+          if (!matchProvider.isSoloMode ||
+              matchProvider.activeSoloSessionId != sessionId) {
+            matchProvider.setSoloSession(sessionId);
+          }
+          final bool registered = matchProvider.recordSoloMatchFromSwipe(
+            dish: swipedDish,
+            sessionId: sessionId,
+            eventId: eventId,
+          );
+          if (registered) {
+            if (kDebugMode) {
+              debugPrint(
+                '[BadgeSource] restored SwipesScreen path invoked '
+                'sessionId=$sessionId eventKey=$eventKey',
+              );
+            }
+            context
+                .read<NavBadgeAnimationController>()
+                .showSoloMatchesPlusOne(eventKey: eventKey);
+          }
+          unawaited(
+            matchProvider.loadMatches(
+              force: true,
+              mode: 'solo',
+              soloSessionId: sessionId,
+            ),
+          );
           return;
         }
         final String? matchId = result['swipe']?['matchId']?.toString();

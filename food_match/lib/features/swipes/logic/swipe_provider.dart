@@ -12,20 +12,6 @@ import '../../../data/repositories/couple_repository.dart';
 import '../../../data/repositories/swipe_repository.dart';
 import '../../../data/services/api_service.dart';
 
-class SoloMatchCreatedEvent {
-  const SoloMatchCreatedEvent({
-    required this.sessionId,
-    required this.dish,
-    required this.eventId,
-  });
-
-  final String sessionId;
-  final Dish dish;
-  final String eventId;
-
-  String get key => 'solo:$sessionId:$eventId';
-}
-
 class SwipeProvider extends ChangeNotifier {
   SwipeProvider({
     required DishRepository dishRepository,
@@ -59,7 +45,6 @@ class SwipeProvider extends ChangeNotifier {
   Future<bool>? _existingPreparedDeckLoadFuture;
   bool _isApplyingSoloFilterRequest = false;
   int _authBoundaryVersion = -1;
-  SoloMatchCreatedEvent? _soloMatchCreatedEvent;
 
   List<Dish> deck = <Dish>[];
   int currentIndex = 0;
@@ -86,7 +71,6 @@ class SwipeProvider extends ChangeNotifier {
       activeSoloSessionId != null && !_soloSessionCompleted;
   bool get isSoloSessionCompleted => isSoloMode && _soloSessionCompleted;
   int get soloLikedCount => _soloLikedCount;
-  SoloMatchCreatedEvent? get soloMatchCreatedEvent => _soloMatchCreatedEvent;
   int get remainingDishCount => isSoloMode
       ? _soloRemainingCount
       : (deck.length > currentIndex ? deck.length - currentIndex : 0);
@@ -660,25 +644,6 @@ class SwipeProvider extends ChangeNotifier {
           'swipeId=${swipeId ?? 'none'} direction=$direction '
           'matchCreated=$matchCreated',
         );
-      }
-      if (matchCreated && isSoloMode && activeSoloSessionId != null) {
-        final String eventId = swipeId ??
-            result['swipe']?['dishId']?.toString() ??
-            dish.id;
-        final SoloMatchCreatedEvent event = SoloMatchCreatedEvent(
-          sessionId: activeSoloSessionId!,
-          dish: dish,
-          eventId: eventId,
-        );
-        _soloMatchCreatedEvent = event;
-        if (kDebugMode) {
-          debugPrint(
-            '[SoloMatchEvent] emitted provider=${identityHashCode(this)} '
-            'eventKey=${event.key} sessionId=${event.sessionId} '
-            'dishId=${event.dish.id}',
-          );
-        }
-        notifyListeners();
       }
     } catch (e) {
       if (_shouldQueueOffline(e)) {

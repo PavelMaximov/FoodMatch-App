@@ -19,7 +19,7 @@ import '../../../features/matches/logic/match_provider.dart';
 import '../../../features/swipes/logic/swipe_provider.dart';
 import '../../../shared/widgets/network_status_bar.dart';
 import '../../logic/nav_badge_animation_controller.dart';
-import '../../logic/solo_match_badge_coordinator.dart';
+import '../widgets/matches_nav_badge.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({required this.navigationShell, super.key});
@@ -71,9 +71,6 @@ class _MainShellState extends State<MainShell>
   String? _shownInvitationId;
   late final AnimationController _soloPlusOneController;
   NavBadgeAnimationController? _navBadgeAnimationController;
-  SwipeProvider? _swipeProvider;
-  String? _handledSoloMatchEventKey;
-  String? _lastBadgeLogKey;
   int _lastSoloPlusOneEvent = 0;
 
   Future<bool> _hasIconAsset(String assetPath) {
@@ -118,23 +115,8 @@ class _MainShellState extends State<MainShell>
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final SwipeProvider next = context.read<SwipeProvider>();
-    if (identical(_swipeProvider, next)) return;
-    _swipeProvider?.removeListener(_handleSwipeProviderEvent);
-    _swipeProvider = next..addListener(_handleSwipeProviderEvent);
-    if (kDebugMode) {
-      debugPrint(
-        '[MainShell] attached SwipeProvider provider=${identityHashCode(next)}',
-      );
-    }
-  }
-
-  @override
   void dispose() {
     _navBadgeAnimationController?.removeListener(_handleNavBadgeAnimationEvent);
-    _swipeProvider?.removeListener(_handleSwipeProviderEvent);
     _soloPlusOneController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -154,34 +136,6 @@ class _MainShellState extends State<MainShell>
       ..stop()
       ..reset()
       ..forward();
-  }
-
-  void _handleSwipeProviderEvent() {
-    final SoloMatchCreatedEvent? event = _swipeProvider?.soloMatchCreatedEvent;
-    if (event == null) return;
-    if (kDebugMode) {
-      debugPrint(
-        '[MainShell] solo match event received '
-        'swipeProvider=${identityHashCode(_swipeProvider)} '
-        'eventKey=${event.key} mounted=$mounted',
-      );
-    }
-    if (event.key == _handledSoloMatchEventKey || !mounted) {
-      return;
-    }
-    final MatchProvider matchProvider = context.read<MatchProvider>();
-    final bool accepted = registerSoloMatchBadgeEvent(
-      event: event,
-      matchProvider: matchProvider,
-      animationController: context.read<NavBadgeAnimationController>(),
-    );
-    if (!accepted) return;
-    _handledSoloMatchEventKey = event.key;
-    unawaited(matchProvider.loadMatches(
-      force: true,
-      mode: 'solo',
-      soloSessionId: event.sessionId,
-    ));
   }
 
   @override
@@ -296,18 +250,6 @@ class _MainShellState extends State<MainShell>
       (MatchProvider p) => p.matchCount,
     );
     final MatchProvider matchProvider = context.read<MatchProvider>();
-    if (kDebugMode) {
-      final String badgeLogKey =
-          '${matchProvider.mode}:${matchProvider.activeSoloSessionId}:$matchCount';
-      if (_lastBadgeLogKey != badgeLogKey) {
-        _lastBadgeLogKey = badgeLogKey;
-        debugPrint(
-          '[BottomNavBadge] matches count read count=$matchCount '
-          'source=MatchProvider sessionId='
-          '${matchProvider.activeSoloSessionId ?? 'none'}',
-        );
-      }
-    }
     final int currentIndex = widget.navigationShell.currentIndex;
     final FoodMatchThemeColors colors = context.fmColors;
     final CoupleInvitation? invitation = context
@@ -400,74 +342,15 @@ class _MainShellState extends State<MainShell>
                             ),
                           ),
                           if (index == 1)
-                            Positioned(
-                              top: 1,
-                              right: -1,
-                              child: IgnorePointer(
-                                child: AnimatedBuilder(
-                                  animation: _soloPlusOneController,
-                                  builder:
-                                      (BuildContext context, Widget? child) {
-                                        final double value =
-                                            _soloPlusOneController.value;
-                                        final double opacity = value <= 0.2
-                                            ? value / 0.2
-                                            : (1 - value) / 0.8;
-                                        final double dy = value <= 0.2
-                                            ? 16 * (1 - (value / 0.2))
-                                            : -28 * ((value - 0.2) / 0.8);
-                                        final double scale = value <= 0.2
-                                            ? 0.75 + (0.3 * (value / 0.2))
-                                            : 1.05 -
-                                                  (0.1 * ((value - 0.2) / 0.8));
-                                        return Opacity(
-                                          opacity: opacity.clamp(0.0, 1.0),
-                                          child: Transform.translate(
-                                            offset: Offset(0, dy),
-                                            child: Transform.scale(
-                                              scale: scale,
-                                              child: child,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                  child: SvgPicture.asset(
-                                    'assets/icons/plus_one_badge.svg',
-                                    width: 20,
-                                    height: 10,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          if (index == 1 && matchCount > 0)
-                            Positioned(
-                              top: -4,
-                              right: -4,
-                              child: Container(
-                                padding: const EdgeInsets.all(3),
-                                decoration: BoxDecoration(
-                                  color: colors.badgeBackground,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: colors.bottomNavBackground,
-                                    width: 1.5,
-                                  ),
-                                ),
-                                constraints: const BoxConstraints(
-                                  minWidth: 18,
-                                  minHeight: 18,
-                                ),
-                                child: Text(
-                                  matchCount > 99
-                                      ? '99+'
-                                      : matchCount.toString(),
-                                  textAlign: TextAlign.center,
-                                  style: GoogleFonts.nunito(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w700,
-                                    color: colors.badgeText,
-                                  ),
-                                ),
+                            Positioned.fill(
+                              child: MatchesNavBadge(
+                                count: matchCount,
+                                mode: matchProvider.mode,
+                                sessionId: matchProvider.activeSoloSessionId,
+                                animation: _soloPlusOneController,
+                                animationEventKey:
+                                    _navBadgeAnimationController
+                                        ?.lastSoloMatchesPlusOneEventKey,
                               ),
                             ),
                         ],
