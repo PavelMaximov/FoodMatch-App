@@ -8,16 +8,20 @@ import '../../../data/models/dish.dart';
 import '../../../data/models/match_item.dart';
 import '../../../data/repositories/swipe_repository.dart';
 import '../../../data/services/api_service.dart';
+import '../../../shell/logic/nav_badge_animation_controller.dart';
 
 class MatchProvider extends ChangeNotifier {
   MatchProvider({
     required SwipeRepository swipeRepository,
     CacheService? cacheService,
+    NavBadgeAnimationController? badgeController,
   })  : _swipeRepository = swipeRepository,
-        _cacheService = cacheService ?? CacheService();
+        _cacheService = cacheService ?? CacheService(),
+        _badgeController = badgeController;
 
   final SwipeRepository _swipeRepository;
   final CacheService _cacheService;
+  final NavBadgeAnimationController? _badgeController;
   String? _activeCoupleId;
   String? _activeSoloSessionId;
   String? _activeUserId;
@@ -94,6 +98,7 @@ class MatchProvider extends ChangeNotifier {
         : userId?.trim();
     if (_activeUserId == normalized) return;
     _activeUserId = normalized;
+    _badgeController?.setActiveUser(normalized);
     _optimisticSoloMatchKeys.clear();
     _optimisticSoloMatches.clear();
     matches = <MatchItem>[];
@@ -154,6 +159,15 @@ class MatchProvider extends ChangeNotifier {
     isLoading = true;
     error = null;
     notifyListeners();
+    final Set<String> previousMatchIds = matches
+        .map((MatchItem item) => item.id ?? 'dish:${item.dish.id}')
+        .toSet();
+    if (kDebugMode) {
+      debugPrint(
+        '[MatchBadge] refresh start reason=${force ? 'refresh' : 'initial_load'} '
+        'previousMatchIds=$previousMatchIds',
+      );
+    }
 
     try {
       final List<MatchItem> result = _filterForMode(
@@ -164,6 +178,15 @@ class MatchProvider extends ChangeNotifier {
         ),
       );
       AppLogger.info('[MatchProvider] API result count=${result.length}');
+      final Set<String> fetchedMatchIds = result
+          .map((MatchItem item) => item.id ?? 'dish:${item.dish.id}')
+          .toSet();
+      if (kDebugMode) {
+        debugPrint(
+          '[MatchBadge] fetchedMatchIds=$fetchedMatchIds '
+          'newMatchIds=${fetchedMatchIds.difference(previousMatchIds)}',
+        );
+      }
       if (requestKey != _cacheKey) {
         AppLogger.info('[MatchProvider] stale response ignored requestKey=$requestKey currentKey=$_cacheKey');
         return;
@@ -188,6 +211,12 @@ class MatchProvider extends ChangeNotifier {
       await _cacheService.cacheMatches(matches.map((MatchItem item) => item.dish).toList(), coupleId: requestKey);
       AppLogger.info('[MatchProvider] cache key=$requestKey');
       AppLogger.info('MatchProvider: loaded ${matches.length} matches');
+      _badgeController?.applyFetchedMatches(
+        matchIds: matches.map(
+          (MatchItem item) => item.id ?? 'dish:${item.dish.id}',
+        ),
+        reason: force ? 'refresh' : 'initial_load',
+      );
       AppLogger.info(
         matches.isEmpty
             ? '[PageLoad] empty page=Matches'
@@ -257,10 +286,15 @@ class MatchProvider extends ChangeNotifier {
     final int nextVersion = sessionStateVersion ?? _sessionStateVersion;
     if (normalized == null) {
       if (_activeCoupleId == null && _mode == 'solo') {
+        _badgeController?.setScope(
+          mode: 'solo',
+          sessionId: _activeSoloSessionId,
+        );
         return;
       }
       _activeCoupleId = null;
       _mode = 'solo';
+      _badgeController?.setScope(mode: 'solo');
       _sessionStateVersion = nextVersion;
       matches = <MatchItem>[];
       error = null;
@@ -272,7 +306,10 @@ class MatchProvider extends ChangeNotifier {
       _clearPairNotificationState();
       return;
     }
-    if (normalized == _activeCoupleId && nextVersion == _sessionStateVersion && _mode == 'paired') {
+    if (normalized == _activeCoupleId &&
+        nextVersion == _sessionStateVersion &&
+        _mode == 'paired') {
+      _badgeController?.setScope(mode: 'paired', sessionId: normalized);
       return;
     }
 
@@ -281,6 +318,7 @@ class MatchProvider extends ChangeNotifier {
     _optimisticSoloMatchKeys.clear();
     _optimisticSoloMatches.clear();
     _mode = 'paired';
+    _badgeController?.setScope(mode: 'paired', sessionId: normalized);
     _sessionStateVersion = nextVersion;
     matches = <MatchItem>[];
     error = null;
@@ -299,6 +337,7 @@ class MatchProvider extends ChangeNotifier {
         ? null
         : sessionId?.trim();
     if (_mode == 'solo' && _activeSoloSessionId == normalized) {
+      _badgeController?.setScope(mode: 'solo', sessionId: normalized);
       return;
     }
     _activeCoupleId = null;
@@ -306,6 +345,7 @@ class MatchProvider extends ChangeNotifier {
     _optimisticSoloMatchKeys.clear();
     _optimisticSoloMatches.clear();
     _mode = 'solo';
+    _badgeController?.setScope(mode: 'solo', sessionId: normalized);
     matches = <MatchItem>[];
     error = null;
     isLoading = false;
@@ -322,6 +362,10 @@ class MatchProvider extends ChangeNotifier {
       return;
     }
     _mode = normalized;
+    _badgeController?.setScope(
+      mode: normalized,
+      sessionId: normalized == 'solo' ? _activeSoloSessionId : _activeCoupleId,
+    );
     if (normalized == 'paired') {
       _activeSoloSessionId = null;
       _optimisticSoloMatchKeys.clear();
@@ -370,6 +414,7 @@ class MatchProvider extends ChangeNotifier {
     _activeSoloSessionId = null;
     _activeUserId = null;
     _optimisticSoloMatchKeys.clear();
+    _optimisticSoloMatches.clear();
     _mode = 'solo';
     _sessionStateVersion = 0;
     matches = <MatchItem>[];

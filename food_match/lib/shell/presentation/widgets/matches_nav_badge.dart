@@ -12,6 +12,7 @@ class MatchesNavBadge extends StatefulWidget {
     required this.sessionId,
     required this.animation,
     required this.animationEventKey,
+    required this.bumpToken,
     super.key,
   });
 
@@ -20,6 +21,7 @@ class MatchesNavBadge extends StatefulWidget {
   final String? sessionId;
   final Animation<double> animation;
   final String? animationEventKey;
+  final int bumpToken;
 
   @override
   State<MatchesNavBadge> createState() => _MatchesNavBadgeState();
@@ -33,9 +35,11 @@ class _MatchesNavBadgeState extends State<MatchesNavBadge> {
     final colors = context.fmColors;
     if (kDebugMode) {
       debugPrint(
+        '[BottomNavBadge] build badgeCount=${widget.count} '
+        'previous=unknown bumpToken=${widget.bumpToken} '
         '[BottomNavBadgeRender] tab=matches visible=${widget.count > 0} '
         'count=${widget.count} currentMode=${widget.mode} '
-        'sessionId=${widget.sessionId ?? 'none'}',
+        'sessionId=${widget.sessionId ?? 'none'} bumpToken=${widget.bumpToken}',
       );
     }
     return IgnorePointer(

@@ -156,14 +156,20 @@ Future<void> main() async {
               },
         ),
         ChangeNotifierProxyProvider<AuthProvider, SwipeProvider>(
-          create: (_) => SwipeProvider(
+          create: (BuildContext context) => SwipeProvider(
             dishRepository: dishRepo,
             swipeRepository: swipeRepo,
             coupleRepository: coupleRepo,
             cacheService: cacheService,
             userProfileService: userProfileService,
+            badgeController: context.read<NavBadgeAnimationController>(),
           ),
-          update: (_, AuthProvider authProvider, SwipeProvider? swipeProvider) {
+          update:
+              (
+                BuildContext context,
+                AuthProvider authProvider,
+                SwipeProvider? swipeProvider,
+              ) {
             final SwipeProvider provider =
                 swipeProvider ??
                 SwipeProvider(
@@ -172,6 +178,7 @@ Future<void> main() async {
                   coupleRepository: coupleRepo,
                   cacheService: cacheService,
                   userProfileService: userProfileService,
+                  badgeController: context.read<NavBadgeAnimationController>(),
                 );
             provider.handleAuthBoundary(authProvider.authBoundaryVersion);
             provider.setActiveUser(authProvider.currentUser?.id);
@@ -198,13 +205,14 @@ Future<void> main() async {
           CoupleProvider,
           MatchProvider
         >(
-          create: (_) => MatchProvider(
+          create: (BuildContext context) => MatchProvider(
             swipeRepository: swipeRepo,
             cacheService: cacheService,
+            badgeController: context.read<NavBadgeAnimationController>(),
           ),
           update:
               (
-                _,
+                BuildContext context,
                 AuthProvider authProvider,
                 CoupleProvider coupleProvider,
                 MatchProvider? matchProvider,
@@ -214,10 +222,15 @@ Future<void> main() async {
                     MatchProvider(
                       swipeRepository: swipeRepo,
                       cacheService: cacheService,
+                      badgeController:
+                          context.read<NavBadgeAnimationController>(),
                     );
                 provider.handleAuthBoundary(authProvider.authBoundaryVersion);
                 provider.setActiveUser(authProvider.currentUser?.id);
                 if (!authProvider.isAuthenticated) {
+                  context
+                      .read<NavBadgeAnimationController>()
+                      .setActiveUser(null);
                   provider.clearForLogout(notify: false);
                   return provider;
                 }

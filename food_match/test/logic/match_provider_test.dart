@@ -13,6 +13,7 @@ void main() {
   late MatchProvider provider;
   late _FakeSwipeRepository fakeRepo;
   late _FakeCacheService fakeCacheService;
+  late NavBadgeAnimationController badgeController;
 
   final List<Dish> dishes = <Dish>[
     buildTestDish(id: '1', name: 'Borscht', description: 'Soup'),
@@ -24,9 +25,11 @@ void main() {
           .map((Dish dish) => MatchItem(dish: dish, mode: 'paired', matchType: 'pair_match'))
           .toList();
     fakeCacheService = _FakeCacheService();
+    badgeController = NavBadgeAnimationController();
     provider = MatchProvider(
       swipeRepository: fakeRepo,
       cacheService: fakeCacheService,
+      badgeController: badgeController,
     );
   });
 
@@ -53,22 +56,22 @@ void main() {
   test('first Solo swipe match updates badge state once', () {
     provider.setActiveUser('user-a');
     provider.setSoloSession('solo-new');
-    final NavBadgeAnimationController animation = NavBadgeAnimationController();
-
     final bool first = provider.recordSoloMatchFromSwipe(
       dish: dishes.first,
       sessionId: 'solo-new',
       eventId: 'swipe-1',
     );
-    if (first) {
-      animation.showSoloMatchesPlusOne(
-        eventKey: 'solo:solo-new:swipe-1',
-      );
-    }
+    final bool badgeRegistered = badgeController.registerImmediateMatch(
+      matchId: 'match-1',
+      mode: 'solo',
+      sessionId: 'solo-new',
+    );
 
     expect(first, isTrue);
+    expect(badgeRegistered, isTrue);
     expect(provider.matchCount, 1);
-    expect(animation.soloMatchesPlusOneEvent, 1);
+    expect(badgeController.badgeCount, 1);
+    expect(badgeController.bumpToken, 1);
     expect(
       provider.recordSoloMatchFromSwipe(
         dish: dishes.first,
@@ -78,12 +81,14 @@ void main() {
       isFalse,
     );
     expect(
-      animation.showSoloMatchesPlusOne(
-        eventKey: 'solo:solo-new:swipe-1',
+      badgeController.registerImmediateMatch(
+        matchId: 'match-1',
+        mode: 'solo',
+        sessionId: 'solo-new',
       ),
       isFalse,
     );
-    expect(animation.soloMatchesPlusOneEvent, 1);
+    expect(badgeController.bumpToken, 1);
   });
 
   test('new Solo session clears optimistic badge count', () {
@@ -135,6 +140,8 @@ void main() {
 
     expect(provider.matchCount, 1);
     expect(provider.matches.single.id, 'server-match-1');
+    expect(badgeController.badgeCount, 1);
+    expect(badgeController.bumpToken, 0);
   });
 }
 

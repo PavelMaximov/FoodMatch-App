@@ -11,6 +11,7 @@ import '../../../data/repositories/dish_repository.dart';
 import '../../../data/repositories/couple_repository.dart';
 import '../../../data/repositories/swipe_repository.dart';
 import '../../../data/services/api_service.dart';
+import '../../../shell/logic/nav_badge_animation_controller.dart';
 
 class SwipeProvider extends ChangeNotifier {
   SwipeProvider({
@@ -19,10 +20,12 @@ class SwipeProvider extends ChangeNotifier {
     required CoupleRepository coupleRepository,
     required UserProfileHiveService userProfileService,
     CacheService? cacheService,
+    NavBadgeAnimationController? badgeController,
   }) : _dishRepository = dishRepository,
        _swipeRepository = swipeRepository,
        _coupleRepository = coupleRepository,
        _cacheService = cacheService ?? CacheService(),
+       _badgeController = badgeController,
        _userProfileService = userProfileService;
 
   final DishRepository _dishRepository;
@@ -30,6 +33,7 @@ class SwipeProvider extends ChangeNotifier {
   final CoupleRepository _coupleRepository;
   final CacheService _cacheService;
   final UserProfileHiveService _userProfileService;
+  final NavBadgeAnimationController? _badgeController;
 
   final Set<String> _sentSwipeDishIds = <String>{};
   bool _isSendingSwipe = false;
@@ -643,6 +647,23 @@ class SwipeProvider extends ChangeNotifier {
           'sessionId=${activeSoloSessionId ?? 'none'} dishId=${dish.id} '
           'swipeId=${swipeId ?? 'none'} direction=$direction '
           'matchCreated=$matchCreated',
+        );
+      }
+      if (matchCreated) {
+        if (kDebugMode) {
+          debugPrint(
+            '[Swipe] matchCreated=true dish=${dish.id} '
+            'mode=${isSoloMode ? 'solo' : 'paired'}',
+          );
+        }
+        final String matchId = result['swipe']?['matchId']?.toString() ??
+            swipeId ??
+            result['swipe']?['dishId']?.toString() ??
+            dish.id;
+        _badgeController?.registerImmediateMatch(
+          matchId: matchId,
+          mode: isSoloMode ? 'solo' : 'paired',
+          sessionId: isSoloMode ? activeSoloSessionId : null,
         );
       }
     } catch (e) {

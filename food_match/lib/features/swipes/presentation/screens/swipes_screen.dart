@@ -1360,10 +1360,6 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
         if (wasSoloMode) {
           final String? sessionId = soloSessionId;
           if (sessionId == null) return;
-          final String eventId = result['swipe']?['id']?.toString() ??
-              result['swipe']?['dishId']?.toString() ??
-              swipedDish.id;
-          final String eventKey = 'solo:$sessionId:$eventId';
           final MatchProvider matchProvider = context.read<MatchProvider>();
           if (!matchProvider.isSoloMode ||
               matchProvider.activeSoloSessionId != sessionId) {
@@ -1372,18 +1368,15 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
           final bool registered = matchProvider.recordSoloMatchFromSwipe(
             dish: swipedDish,
             sessionId: sessionId,
-            eventId: eventId,
+            eventId: result['swipe']?['matchId']?.toString() ??
+                result['swipe']?['id']?.toString() ??
+                swipedDish.id,
           );
-          if (registered) {
-            if (kDebugMode) {
-              debugPrint(
-                '[BadgeSource] restored SwipesScreen path invoked '
-                'sessionId=$sessionId eventKey=$eventKey',
-              );
-            }
-            context
-                .read<NavBadgeAnimationController>()
-                .showSoloMatchesPlusOne(eventKey: eventKey);
+          if (registered && kDebugMode) {
+            debugPrint(
+              '[BadgeSource] SwipeProvider app-level path registered '
+              'sessionId=$sessionId',
+            );
           }
           unawaited(
             matchProvider.loadMatches(

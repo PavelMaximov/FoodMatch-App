@@ -13,6 +13,7 @@ import '../../../core/theme/notification_theme.dart';
 import '../../../core/theme/theme_extensions.dart';
 import '../../../core/utils/food_match_notifications.dart';
 import '../../../data/models/couple_invitation.dart';
+import '../../../features/auth/logic/auth_provider.dart';
 import '../../../features/couple/logic/couple_provider.dart';
 import '../../../features/couple/presentation/widgets/continuation_invitation_sheet.dart';
 import '../../../features/matches/logic/match_provider.dart';
@@ -72,6 +73,7 @@ class _MainShellState extends State<MainShell>
   late final AnimationController _soloPlusOneController;
   NavBadgeAnimationController? _navBadgeAnimationController;
   int _lastSoloPlusOneEvent = 0;
+  Timer? _matchBadgeRefreshTimer;
 
   Future<bool> _hasIconAsset(String assetPath) {
     return _iconAssetAvailability.putIfAbsent(assetPath, () async {
@@ -107,6 +109,7 @@ class _MainShellState extends State<MainShell>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _bootstrapMatchesBadge();
+        _startMatchBadgeRefresh();
         context.read<CoupleProvider>().startInvitationPolling(
           reason: 'main_shell',
         );
@@ -118,6 +121,7 @@ class _MainShellState extends State<MainShell>
   void dispose() {
     _navBadgeAnimationController?.removeListener(_handleNavBadgeAnimationEvent);
     _soloPlusOneController.dispose();
+    _matchBadgeRefreshTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -130,7 +134,7 @@ class _MainShellState extends State<MainShell>
     }
     _lastSoloPlusOneEvent = event;
     if (kDebugMode) {
-      debugPrint('[NavBadgeAnim] trigger soloPlusOne target=matches');
+      debugPrint('[BottomNavBadge] animate +1 delta=1 bumpToken=$event');
     }
     _soloPlusOneController
       ..stop()
@@ -143,6 +147,7 @@ class _MainShellState extends State<MainShell>
     if (state == AppLifecycleState.resumed) {
       context.read<CoupleProvider>().handleAppResumed();
       context.read<SwipeProvider>().syncPendingSwipes();
+      _refreshMatchBadge(reason: 'app_resume');
       return;
     }
     if (state == AppLifecycleState.inactive ||
@@ -150,6 +155,25 @@ class _MainShellState extends State<MainShell>
         state == AppLifecycleState.detached) {
       context.read<CoupleProvider>().handleAppPaused();
     }
+  }
+
+  void _startMatchBadgeRefresh() {
+    _matchBadgeRefreshTimer?.cancel();
+    _matchBadgeRefreshTimer = Timer.periodic(
+      const Duration(seconds: 15),
+      (_) => _refreshMatchBadge(reason: 'shell_poll'),
+    );
+  }
+
+  void _refreshMatchBadge({required String reason}) {
+    if (!mounted || !context.read<AuthProvider>().isAuthenticated) return;
+    final NavBadgeAnimationController badge =
+        context.read<NavBadgeAnimationController>();
+    if (badge.sessionId == null) return;
+    if (kDebugMode) {
+      debugPrint('[MatchBadge] refresh requested reason=$reason');
+    }
+    unawaited(context.read<MatchProvider>().loadMatches(force: true));
   }
 
   void _onTabTap(int index) {
@@ -246,8 +270,8 @@ class _MainShellState extends State<MainShell>
 
   @override
   Widget build(BuildContext context) {
-    final int matchCount = context.select<MatchProvider, int>(
-      (MatchProvider p) => p.matchCount,
+    final int matchCount = context.select<NavBadgeAnimationController, int>(
+      (NavBadgeAnimationController controller) => controller.badgeCount,
     );
     final MatchProvider matchProvider = context.read<MatchProvider>();
     final int currentIndex = widget.navigationShell.currentIndex;
@@ -345,8 +369,12 @@ class _MainShellState extends State<MainShell>
                             Positioned.fill(
                               child: MatchesNavBadge(
                                 count: matchCount,
-                                mode: matchProvider.mode,
-                                sessionId: matchProvider.activeSoloSessionId,
+                                mode: _navBadgeAnimationController?.mode ??
+                                    matchProvider.mode,
+                                sessionId:
+                                    _navBadgeAnimationController?.sessionId,
+                                bumpToken:
+                                    _navBadgeAnimationController?.bumpToken ?? 0,
                                 animation: _soloPlusOneController,
                                 animationEventKey:
                                     _navBadgeAnimationController
