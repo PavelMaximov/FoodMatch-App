@@ -649,20 +649,35 @@ class SwipeProvider extends ChangeNotifier {
       );
       final bool matchCreated = result is Map<String, dynamic> &&
           result['swipe']?['matchCreated'] == true;
-      debugPrint(
-        '[SwipeResult] mode=${isSoloMode ? 'solo' : 'paired'} '
-        'sessionId=${activeSoloSessionId ?? 'none'} dishId=${dish.id} '
-        'direction=$direction matchCreated=$matchCreated',
-      );
+      final String? swipeId = result is Map<String, dynamic>
+          ? result['swipe']?['id']?.toString()
+          : null;
+      if (kDebugMode) {
+        debugPrint(
+          '[SwipeResult] provider=${identityHashCode(this)} '
+          'mode=${isSoloMode ? 'solo' : 'paired'} '
+          'sessionId=${activeSoloSessionId ?? 'none'} dishId=${dish.id} '
+          'swipeId=${swipeId ?? 'none'} direction=$direction '
+          'matchCreated=$matchCreated',
+        );
+      }
       if (matchCreated && isSoloMode && activeSoloSessionId != null) {
-        final String eventId = result['swipe']?['id']?.toString() ??
+        final String eventId = swipeId ??
             result['swipe']?['dishId']?.toString() ??
             dish.id;
-        _soloMatchCreatedEvent = SoloMatchCreatedEvent(
+        final SoloMatchCreatedEvent event = SoloMatchCreatedEvent(
           sessionId: activeSoloSessionId!,
           dish: dish,
           eventId: eventId,
         );
+        _soloMatchCreatedEvent = event;
+        if (kDebugMode) {
+          debugPrint(
+            '[SoloMatchEvent] emitted provider=${identityHashCode(this)} '
+            'eventKey=${event.key} sessionId=${event.sessionId} '
+            'dishId=${event.dish.id}',
+          );
+        }
         notifyListeners();
       }
     } catch (e) {

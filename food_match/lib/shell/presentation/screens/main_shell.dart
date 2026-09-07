@@ -10,8 +10,8 @@ import 'package:provider/provider.dart';
 
 import '../../../core/animations/app_motion.dart';
 import '../../../core/theme/notification_theme.dart';
-import '../../../core/utils/food_match_notifications.dart';
 import '../../../core/theme/theme_extensions.dart';
+import '../../../core/utils/food_match_notifications.dart';
 import '../../../data/models/couple_invitation.dart';
 import '../../../features/couple/logic/couple_provider.dart';
 import '../../../features/couple/presentation/widgets/continuation_invitation_sheet.dart';
@@ -19,6 +19,7 @@ import '../../../features/matches/logic/match_provider.dart';
 import '../../../features/swipes/logic/swipe_provider.dart';
 import '../../../shared/widgets/network_status_bar.dart';
 import '../../logic/nav_badge_animation_controller.dart';
+import '../../logic/solo_match_badge_coordinator.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({required this.navigationShell, super.key});
@@ -72,6 +73,7 @@ class _MainShellState extends State<MainShell>
   NavBadgeAnimationController? _navBadgeAnimationController;
   SwipeProvider? _swipeProvider;
   String? _handledSoloMatchEventKey;
+  String? _lastBadgeLogKey;
   int _lastSoloPlusOneEvent = 0;
 
   Future<bool> _hasIconAsset(String assetPath) {
@@ -102,8 +104,6 @@ class _MainShellState extends State<MainShell>
     });
     _navBadgeAnimationController = context.read<NavBadgeAnimationController>()
       ..addListener(_handleNavBadgeAnimationEvent);
-    _swipeProvider = context.read<SwipeProvider>()
-      ..addListener(_handleSwipeProviderEvent);
     _lastSoloPlusOneEvent =
         _navBadgeAnimationController!.soloMatchesPlusOneEvent;
     WidgetsBinding.instance.addObserver(this);
@@ -115,6 +115,20 @@ class _MainShellState extends State<MainShell>
         );
       }
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final SwipeProvider next = context.read<SwipeProvider>();
+    if (identical(_swipeProvider, next)) return;
+    _swipeProvider?.removeListener(_handleSwipeProviderEvent);
+    _swipeProvider = next..addListener(_handleSwipeProviderEvent);
+    if (kDebugMode) {
+      debugPrint(
+        '[MainShell] attached SwipeProvider provider=${identityHashCode(next)}',
+      );
+    }
   }
 
   @override
@@ -144,21 +158,25 @@ class _MainShellState extends State<MainShell>
 
   void _handleSwipeProviderEvent() {
     final SoloMatchCreatedEvent? event = _swipeProvider?.soloMatchCreatedEvent;
-    if (event == null || event.key == _handledSoloMatchEventKey || !mounted) {
+    if (event == null) return;
+    if (kDebugMode) {
+      debugPrint(
+        '[MainShell] solo match event received '
+        'swipeProvider=${identityHashCode(_swipeProvider)} '
+        'eventKey=${event.key} mounted=$mounted',
+      );
+    }
+    if (event.key == _handledSoloMatchEventKey || !mounted) {
       return;
     }
     final MatchProvider matchProvider = context.read<MatchProvider>();
-    final bool accepted = matchProvider.recordSoloMatchFromSwipe(
-      dish: event.dish,
-      sessionId: event.sessionId,
-      eventId: event.eventId,
+    final bool accepted = registerSoloMatchBadgeEvent(
+      event: event,
+      matchProvider: matchProvider,
+      animationController: context.read<NavBadgeAnimationController>(),
     );
     if (!accepted) return;
     _handledSoloMatchEventKey = event.key;
-    debugPrint('[NavBadgeAnim] event fired source=swipe_result key=${event.key}');
-    context.read<NavBadgeAnimationController>().showSoloMatchesPlusOne(
-      eventKey: event.key,
-    );
     unawaited(matchProvider.loadMatches(
       force: true,
       mode: 'solo',
@@ -277,6 +295,19 @@ class _MainShellState extends State<MainShell>
     final int matchCount = context.select<MatchProvider, int>(
       (MatchProvider p) => p.matchCount,
     );
+    final MatchProvider matchProvider = context.read<MatchProvider>();
+    if (kDebugMode) {
+      final String badgeLogKey =
+          '${matchProvider.mode}:${matchProvider.activeSoloSessionId}:$matchCount';
+      if (_lastBadgeLogKey != badgeLogKey) {
+        _lastBadgeLogKey = badgeLogKey;
+        debugPrint(
+          '[BottomNavBadge] matches count read count=$matchCount '
+          'source=MatchProvider sessionId='
+          '${matchProvider.activeSoloSessionId ?? 'none'}',
+        );
+      }
+    }
     final int currentIndex = widget.navigationShell.currentIndex;
     final FoodMatchThemeColors colors = context.fmColors;
     final CoupleInvitation? invitation = context

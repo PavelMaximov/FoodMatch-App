@@ -27,6 +27,7 @@ class MatchProvider extends ChangeNotifier {
   Future<void>? _matchesLoadFuture;
   final Set<String> _knownPairedMatchIds = <String>{};
   final Set<String> _optimisticSoloMatchKeys = <String>{};
+  final Map<String, MatchItem> _optimisticSoloMatches = <String, MatchItem>{};
   bool _hasSeededPairedMatchNotifications = false;
   int _authBoundaryVersion = -1;
 
@@ -37,39 +38,64 @@ class MatchProvider extends ChangeNotifier {
   int get matchCount => matches.length;
   String get mode => _mode;
   bool get isSoloMode => _mode == 'solo';
+  String? get activeSoloSessionId => _activeSoloSessionId;
 
   bool recordSoloMatchFromSwipe({
     required Dish dish,
     required String sessionId,
     required String eventId,
   }) {
-    if (_mode != 'solo' || _activeSoloSessionId != sessionId) return false;
+    final String eventKey = 'solo:$sessionId:$eventId';
+    final int oldCount = matchCount;
+    if (_mode != 'solo' || _activeSoloSessionId != sessionId) {
+      if (kDebugMode) {
+        debugPrint(
+          '[MatchProvider] optimistic solo match rejected '
+          'provider=${identityHashCode(this)} eventKey=$eventKey '
+          'oldCount=$oldCount '
+          'newCount=$matchCount sessionId=$sessionId '
+          'activeSessionId=${_activeSoloSessionId ?? 'none'} mode=$_mode',
+        );
+      }
+      return false;
+    }
     final String key = '$sessionId:$eventId';
     if (!_optimisticSoloMatchKeys.add(key)) return false;
     final bool alreadyPresent = matches.any(
       (MatchItem item) => item.sessionId == sessionId && item.dish.id == dish.id,
     );
     if (!alreadyPresent) {
-      matches = <MatchItem>[
-        MatchItem(
-          id: eventId,
-          dish: dish,
-          mode: 'solo',
-          matchType: 'solo_pick',
-          sessionId: sessionId,
-          createdAt: DateTime.now(),
-        ),
-        ...matches,
-      ];
+      final MatchItem optimisticMatch = MatchItem(
+        id: eventId,
+        dish: dish,
+        mode: 'solo',
+        matchType: 'solo_pick',
+        sessionId: sessionId,
+        createdAt: DateTime.now(),
+      );
+      _optimisticSoloMatches[key] = optimisticMatch;
+      matches = <MatchItem>[optimisticMatch, ...matches];
       notifyListeners();
+    }
+    if (kDebugMode) {
+      debugPrint(
+        '[MatchProvider] optimistic solo match register '
+        'provider=${identityHashCode(this)} eventKey=$eventKey '
+        'oldCount=$oldCount '
+        'newCount=$matchCount sessionId=$sessionId',
+      );
     }
     return true;
   }
 
   void setActiveUser(String? userId) {
-    final String? normalized = userId?.trim().isEmpty == true ? null : userId?.trim();
+    final String? normalized = userId?.trim().isEmpty == true
+        ? null
+        : userId?.trim();
     if (_activeUserId == normalized) return;
     _activeUserId = normalized;
+    _optimisticSoloMatchKeys.clear();
+    _optimisticSoloMatches.clear();
     matches = <MatchItem>[];
     error = null;
     _matchesLoadedAt = null;
@@ -77,8 +103,6 @@ class MatchProvider extends ChangeNotifier {
     _cacheService.clearCachedMatches();
     AppLogger.info('[Cache] matches invalidated reason=account-change');
   }
-
-
   bool get _hasFreshMatchesCache {
     final DateTime? loadedAt = _matchesLoadedAt;
     return loadedAt != null &&
@@ -88,6 +112,8 @@ class MatchProvider extends ChangeNotifier {
   Future<void> loadMatches({bool force = false, String? mode, String? soloSessionId}) {
     if (soloSessionId != null && soloSessionId != _activeSoloSessionId) {
       _activeSoloSessionId = soloSessionId;
+      _optimisticSoloMatchKeys.clear();
+      _optimisticSoloMatches.clear();
       matches = <MatchItem>[];
       error = null;
       _matchesLoadedAt = null;
@@ -142,7 +168,22 @@ class MatchProvider extends ChangeNotifier {
         AppLogger.info('[MatchProvider] stale response ignored requestKey=$requestKey currentKey=$_cacheKey');
         return;
       }
-      matches = result;
+      if (_mode == 'solo') {
+        final Set<String> serverDishIds = result
+            .map((MatchItem item) => item.dish.id)
+            .toSet();
+        _optimisticSoloMatches.removeWhere(
+          (_, MatchItem item) => serverDishIds.contains(item.dish.id),
+        );
+        matches = <MatchItem>[
+          ..._optimisticSoloMatches.values.where(
+            (MatchItem item) => item.sessionId == _activeSoloSessionId,
+          ),
+          ...result,
+        ];
+      } else {
+        matches = result;
+      }
       _matchesLoadedAt = DateTime.now();
       await _cacheService.cacheMatches(matches.map((MatchItem item) => item.dish).toList(), coupleId: requestKey);
       AppLogger.info('[MatchProvider] cache key=$requestKey');
@@ -154,9 +195,25 @@ class MatchProvider extends ChangeNotifier {
       );
     } catch (e) {
       if (requestKey != _cacheKey) return;
-      matches = (await _cacheService.getCachedMatches(coupleId: requestKey))
+      final List<MatchItem> cached =
+          (await _cacheService.getCachedMatches(coupleId: requestKey))
           .map((Dish dish) => MatchItem.fromCachedDish(dish, _mode))
           .toList();
+      if (_mode == 'solo') {
+        final Set<String> cachedDishIds = cached
+            .map((MatchItem item) => item.dish.id)
+            .toSet();
+        matches = <MatchItem>[
+          ..._optimisticSoloMatches.values.where(
+            (MatchItem item) =>
+                item.sessionId == _activeSoloSessionId &&
+                !cachedDishIds.contains(item.dish.id),
+          ),
+          ...cached,
+        ];
+      } else {
+        matches = cached;
+      }
       if (matches.isEmpty) {
         error = _mapError(e);
         AppLogger.info('[PageLoad] error page=Matches error=$error');
@@ -194,7 +251,9 @@ class MatchProvider extends ChangeNotifier {
   }
 
   void setActiveCouple(String? coupleId, {int? sessionStateVersion}) {
-    final String? normalized = coupleId?.trim().isEmpty == true ? null : coupleId?.trim();
+    final String? normalized = coupleId?.trim().isEmpty == true
+        ? null
+        : coupleId?.trim();
     final int nextVersion = sessionStateVersion ?? _sessionStateVersion;
     if (normalized == null) {
       if (_activeCoupleId == null && _mode == 'solo') {
@@ -219,6 +278,8 @@ class MatchProvider extends ChangeNotifier {
 
     _activeCoupleId = normalized;
     _activeSoloSessionId = null;
+    _optimisticSoloMatchKeys.clear();
+    _optimisticSoloMatches.clear();
     _mode = 'paired';
     _sessionStateVersion = nextVersion;
     matches = <MatchItem>[];
@@ -234,13 +295,16 @@ class MatchProvider extends ChangeNotifier {
   }
 
   void setSoloSession(String? sessionId) {
-    final String? normalized = sessionId?.trim().isEmpty == true ? null : sessionId?.trim();
+    final String? normalized = sessionId?.trim().isEmpty == true
+        ? null
+        : sessionId?.trim();
     if (_mode == 'solo' && _activeSoloSessionId == normalized) {
       return;
     }
     _activeCoupleId = null;
     _activeSoloSessionId = normalized;
     _optimisticSoloMatchKeys.clear();
+    _optimisticSoloMatches.clear();
     _mode = 'solo';
     matches = <MatchItem>[];
     error = null;
@@ -260,6 +324,8 @@ class MatchProvider extends ChangeNotifier {
     _mode = normalized;
     if (normalized == 'paired') {
       _activeSoloSessionId = null;
+      _optimisticSoloMatchKeys.clear();
+      _optimisticSoloMatches.clear();
     }
     matches = <MatchItem>[];
     error = null;

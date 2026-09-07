@@ -108,6 +108,34 @@ void main() {
       isFalse,
     );
   });
+
+  test('Solo refresh reconciles optimistic match without double count', () async {
+    provider.setActiveUser('user-a');
+    provider.setSoloSession('solo-new');
+    provider.recordSoloMatchFromSwipe(
+      dish: dishes.first,
+      sessionId: 'solo-new',
+      eventId: 'swipe-1',
+    );
+    fakeRepo.matches = <MatchItem>[
+      MatchItem(
+        id: 'server-match-1',
+        dish: dishes.first,
+        mode: 'solo',
+        matchType: 'solo_pick',
+        sessionId: 'solo-new',
+      ),
+    ];
+
+    await provider.loadMatches(
+      force: true,
+      mode: 'solo',
+      soloSessionId: 'solo-new',
+    );
+
+    expect(provider.matchCount, 1);
+    expect(provider.matches.single.id, 'server-match-1');
+  });
 }
 
 class _FakeSwipeRepository extends SwipeRepository {

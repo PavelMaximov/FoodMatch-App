@@ -9,6 +9,11 @@ class NavBadgeAnimationController extends ChangeNotifier {
 
   bool showSoloMatchesPlusOne({String? eventKey}) {
     if (eventKey != null && !_animatedMatchEvents.add(eventKey)) return false;
+    if (kDebugMode) {
+      debugPrint(
+        '[NavBadgeAnim] trigger soloPlusOne eventKey=${eventKey ?? 'none'}',
+      );
+    }
     _soloMatchesPlusOneEvent++;
     notifyListeners();
     return true;
