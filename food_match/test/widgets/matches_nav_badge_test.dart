@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:food_match/core/theme/app_theme.dart';
-import 'package:food_match/shell/logic/nav_badge_animation_controller.dart';
+import 'package:food_match/shell/logic/match_badge_controller.dart';
 import 'package:food_match/shell/presentation/widgets/matches_nav_badge.dart';
 import 'package:provider/provider.dart';
 
@@ -9,8 +9,8 @@ void main() {
   testWidgets(
     'renders first Solo match badge and active plus-one animation',
     (WidgetTester tester) async {
-      final NavBadgeAnimationController badgeController =
-          NavBadgeAnimationController()
+      final MatchBadgeController badgeController =
+          MatchBadgeController()
             ..setActiveUser('user-a')
             ..setScope(mode: 'solo', sessionId: 'solo-b');
 
@@ -19,8 +19,9 @@ void main() {
       );
       expect(find.byKey(const Key('matches-nav-count-badge')), findsNothing);
 
-      badgeController.registerImmediateMatch(
+      badgeController.registerNewMatch(
         matchId: 'match-1',
+        source: 'test',
         mode: 'solo',
         sessionId: 'solo-b',
       );
@@ -38,9 +39,9 @@ void main() {
 }
 
 Widget _badgeHarness({
-  required NavBadgeAnimationController badgeController,
+  required MatchBadgeController badgeController,
 }) {
-  return ChangeNotifierProvider<NavBadgeAnimationController>.value(
+  return ChangeNotifierProvider<MatchBadgeController>.value(
     value: badgeController,
     child: MaterialApp(
       theme: AppTheme.light,
@@ -67,7 +68,7 @@ class _BadgeHost extends StatefulWidget {
 class _BadgeHostState extends State<_BadgeHost>
     with SingleTickerProviderStateMixin {
   late final AnimationController _animation;
-  NavBadgeAnimationController? _badgeController;
+  MatchBadgeController? _badgeController;
   int _previousBumpToken = 0;
 
   @override
@@ -82,8 +83,8 @@ class _BadgeHostState extends State<_BadgeHost>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final NavBadgeAnimationController next =
-        context.read<NavBadgeAnimationController>();
+    final MatchBadgeController next =
+        context.read<MatchBadgeController>();
     if (identical(next, _badgeController)) return;
     _badgeController?.removeListener(_handleBadgeChanged);
     _badgeController = next..addListener(_handleBadgeChanged);
@@ -106,14 +107,14 @@ class _BadgeHostState extends State<_BadgeHost>
 
   @override
   Widget build(BuildContext context) {
-    final NavBadgeAnimationController badge =
-        context.watch<NavBadgeAnimationController>();
+    final MatchBadgeController badge =
+        context.watch<MatchBadgeController>();
     return MatchesNavBadge(
       count: badge.badgeCount,
       mode: badge.mode,
       sessionId: badge.sessionId,
       animation: _animation,
-      animationEventKey: badge.lastSoloMatchesPlusOneEventKey,
+      animationEventKey: badge.lastAnimationEventId,
       bumpToken: badge.bumpToken,
     );
   }

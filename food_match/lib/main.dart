@@ -29,7 +29,7 @@ import 'features/shopping_list/logic/shopping_list_provider.dart';
 import 'features/swipes/logic/filter_scoring_service.dart';
 import 'features/swipes/logic/pre_swipe_provider.dart';
 import 'features/swipes/logic/swipe_provider.dart';
-import 'shell/logic/nav_badge_animation_controller.dart';
+import 'shell/logic/match_badge_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -97,8 +97,8 @@ Future<void> main() async {
         Provider<UploadRepository>.value(value: uploadRepo),
         Provider<UserProfileHiveService>.value(value: userProfileService),
         ChangeNotifierProvider<ThemeController>.value(value: themeController),
-        ChangeNotifierProvider<NavBadgeAnimationController>(
-          create: (_) => NavBadgeAnimationController(),
+        ChangeNotifierProvider<MatchBadgeController>(
+          create: (_) => MatchBadgeController(),
         ),
         ChangeNotifierProvider<PendingOverlayController>(
           create: (_) => PendingOverlayController(),
@@ -162,7 +162,7 @@ Future<void> main() async {
             coupleRepository: coupleRepo,
             cacheService: cacheService,
             userProfileService: userProfileService,
-            badgeController: context.read<NavBadgeAnimationController>(),
+            badgeController: context.read<MatchBadgeController>(),
           ),
           update:
               (
@@ -178,10 +178,13 @@ Future<void> main() async {
                   coupleRepository: coupleRepo,
                   cacheService: cacheService,
                   userProfileService: userProfileService,
-                  badgeController: context.read<NavBadgeAnimationController>(),
+                  badgeController: context.read<MatchBadgeController>(),
                 );
             provider.handleAuthBoundary(authProvider.authBoundaryVersion);
-            provider.setActiveUser(authProvider.currentUser?.id);
+            final String? userId = authProvider.currentUser?.id;
+            if (userId != null || !authProvider.isAuthenticated) {
+              provider.setActiveUser(userId);
+            }
             return provider;
           },
         ),
@@ -208,7 +211,7 @@ Future<void> main() async {
           create: (BuildContext context) => MatchProvider(
             swipeRepository: swipeRepo,
             cacheService: cacheService,
-            badgeController: context.read<NavBadgeAnimationController>(),
+            badgeController: context.read<MatchBadgeController>(),
           ),
           update:
               (
@@ -223,14 +226,17 @@ Future<void> main() async {
                       swipeRepository: swipeRepo,
                       cacheService: cacheService,
                       badgeController:
-                          context.read<NavBadgeAnimationController>(),
+                          context.read<MatchBadgeController>(),
                     );
                 provider.handleAuthBoundary(authProvider.authBoundaryVersion);
-                provider.setActiveUser(authProvider.currentUser?.id);
+                final String? userId = authProvider.currentUser?.id;
+                if (userId != null || !authProvider.isAuthenticated) {
+                  provider.setActiveUser(userId);
+                }
                 if (!authProvider.isAuthenticated) {
                   context
-                      .read<NavBadgeAnimationController>()
-                      .setActiveUser(null);
+                      .read<MatchBadgeController>()
+                      .resetForUserChange(reason: 'logout');
                   provider.clearForLogout(notify: false);
                   return provider;
                 }

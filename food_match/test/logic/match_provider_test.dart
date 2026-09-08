@@ -5,7 +5,7 @@ import 'package:food_match/data/models/match_item.dart';
 import 'package:food_match/data/repositories/swipe_repository.dart';
 import 'package:food_match/data/services/api_service.dart';
 import 'package:food_match/features/matches/logic/match_provider.dart';
-import 'package:food_match/shell/logic/nav_badge_animation_controller.dart';
+import 'package:food_match/shell/logic/match_badge_controller.dart';
 
 import '../helpers/dish_test_data.dart';
 
@@ -13,7 +13,7 @@ void main() {
   late MatchProvider provider;
   late _FakeSwipeRepository fakeRepo;
   late _FakeCacheService fakeCacheService;
-  late NavBadgeAnimationController badgeController;
+  late MatchBadgeController badgeController;
 
   final List<Dish> dishes = <Dish>[
     buildTestDish(id: '1', name: 'Borscht', description: 'Soup'),
@@ -25,7 +25,7 @@ void main() {
           .map((Dish dish) => MatchItem(dish: dish, mode: 'paired', matchType: 'pair_match'))
           .toList();
     fakeCacheService = _FakeCacheService();
-    badgeController = NavBadgeAnimationController();
+    badgeController = MatchBadgeController();
     provider = MatchProvider(
       swipeRepository: fakeRepo,
       cacheService: fakeCacheService,
@@ -61,8 +61,9 @@ void main() {
       sessionId: 'solo-new',
       eventId: 'swipe-1',
     );
-    final bool badgeRegistered = badgeController.registerImmediateMatch(
+    final bool badgeRegistered = badgeController.registerNewMatch(
       matchId: 'match-1',
+      source: 'test',
       mode: 'solo',
       sessionId: 'solo-new',
     );
@@ -81,8 +82,9 @@ void main() {
       isFalse,
     );
     expect(
-      badgeController.registerImmediateMatch(
+      badgeController.registerNewMatch(
         matchId: 'match-1',
+        source: 'test',
         mode: 'solo',
         sessionId: 'solo-new',
       ),

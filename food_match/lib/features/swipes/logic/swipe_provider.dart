@@ -11,7 +11,7 @@ import '../../../data/repositories/dish_repository.dart';
 import '../../../data/repositories/couple_repository.dart';
 import '../../../data/repositories/swipe_repository.dart';
 import '../../../data/services/api_service.dart';
-import '../../../shell/logic/nav_badge_animation_controller.dart';
+import '../../../shell/logic/match_badge_controller.dart';
 
 class SwipeProvider extends ChangeNotifier {
   SwipeProvider({
@@ -20,7 +20,7 @@ class SwipeProvider extends ChangeNotifier {
     required CoupleRepository coupleRepository,
     required UserProfileHiveService userProfileService,
     CacheService? cacheService,
-    NavBadgeAnimationController? badgeController,
+    MatchBadgeController? badgeController,
   }) : _dishRepository = dishRepository,
        _swipeRepository = swipeRepository,
        _coupleRepository = coupleRepository,
@@ -33,7 +33,7 @@ class SwipeProvider extends ChangeNotifier {
   final CoupleRepository _coupleRepository;
   final CacheService _cacheService;
   final UserProfileHiveService _userProfileService;
-  final NavBadgeAnimationController? _badgeController;
+  final MatchBadgeController? _badgeController;
 
   final Set<String> _sentSwipeDishIds = <String>{};
   bool _isSendingSwipe = false;
@@ -100,6 +100,10 @@ class SwipeProvider extends ChangeNotifier {
       return;
     }
     _activeUserId = normalized;
+    _badgeController?.setActiveUser(
+      normalized,
+      reason: normalized == null ? 'logout' : 'swipe_provider_user_change',
+    );
     clearForLogout(notify: false);
   }
 
@@ -664,8 +668,9 @@ class SwipeProvider extends ChangeNotifier {
             swipeId ??
             swipe?['dishId']?.toString() ??
             dish.id;
-        _badgeController?.registerImmediateMatch(
+        _badgeController?.registerNewMatch(
           matchId: matchId,
+          source: 'swipe_result',
           mode: isSoloMode ? 'solo' : 'paired',
           sessionId: isSoloMode ? activeSoloSessionId : null,
         );

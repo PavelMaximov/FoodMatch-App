@@ -7,7 +7,7 @@ import 'package:food_match/data/repositories/dish_repository.dart';
 import 'package:food_match/data/repositories/swipe_repository.dart';
 import 'package:food_match/data/services/api_service.dart';
 import 'package:food_match/features/swipes/logic/swipe_provider.dart';
-import 'package:food_match/shell/logic/nav_badge_animation_controller.dart';
+import 'package:food_match/shell/logic/match_badge_controller.dart';
 
 import '../helpers/dish_test_data.dart';
 
@@ -16,7 +16,7 @@ void main() {
   late _FakeDishRepository fakeDishRepo;
   late _FakeSwipeRepository fakeSwipeRepo;
   late _FakeCacheService fakeCacheService;
-  late NavBadgeAnimationController badgeController;
+  late MatchBadgeController badgeController;
 
   final List<Dish> testDishes = <Dish>[
     buildTestDish(id: '1', name: 'Borscht', description: 'Soup', cuisine: 'Russian'),
@@ -27,7 +27,7 @@ void main() {
     fakeDishRepo = _FakeDishRepository()..dishes = testDishes;
     fakeSwipeRepo = _FakeSwipeRepository();
     fakeCacheService = _FakeCacheService();
-    badgeController = NavBadgeAnimationController();
+    badgeController = MatchBadgeController();
 
     provider = SwipeProvider(
       dishRepository: fakeDishRepo,

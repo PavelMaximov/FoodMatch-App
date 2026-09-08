@@ -8,20 +8,20 @@ import '../../../data/models/dish.dart';
 import '../../../data/models/match_item.dart';
 import '../../../data/repositories/swipe_repository.dart';
 import '../../../data/services/api_service.dart';
-import '../../../shell/logic/nav_badge_animation_controller.dart';
+import '../../../shell/logic/match_badge_controller.dart';
 
 class MatchProvider extends ChangeNotifier {
   MatchProvider({
     required SwipeRepository swipeRepository,
     CacheService? cacheService,
-    NavBadgeAnimationController? badgeController,
+    MatchBadgeController? badgeController,
   })  : _swipeRepository = swipeRepository,
         _cacheService = cacheService ?? CacheService(),
         _badgeController = badgeController;
 
   final SwipeRepository _swipeRepository;
   final CacheService _cacheService;
-  final NavBadgeAnimationController? _badgeController;
+  final MatchBadgeController? _badgeController;
   String? _activeCoupleId;
   String? _activeSoloSessionId;
   String? _activeUserId;
@@ -211,12 +211,21 @@ class MatchProvider extends ChangeNotifier {
       await _cacheService.cacheMatches(matches.map((MatchItem item) => item.dish).toList(), coupleId: requestKey);
       AppLogger.info('[MatchProvider] cache key=$requestKey');
       AppLogger.info('MatchProvider: loaded ${matches.length} matches');
-      _badgeController?.applyFetchedMatches(
-        matchIds: matches.map(
-          (MatchItem item) => item.id ?? 'dish:${item.dish.id}',
-        ),
-        reason: force ? 'refresh' : 'initial_load',
-      );
+      final String? badgeUserId = _activeUserId;
+      if (badgeUserId != null) {
+        _badgeController?.applyFetchedMatches(
+          userId: badgeUserId,
+          mode: _mode,
+          sessionId: _mode == 'solo'
+              ? _activeSoloSessionId
+              : _activeCoupleId,
+          matchIds: matches.map(
+            (MatchItem item) => item.id ?? 'dish:${item.dish.id}',
+          ),
+          reason: force ? 'refresh' : 'initial_load',
+          animateNew: force,
+        );
+      }
       AppLogger.info(
         matches.isEmpty
             ? '[PageLoad] empty page=Matches'
