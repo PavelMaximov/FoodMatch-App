@@ -647,6 +647,8 @@ class SwipeProvider extends ChangeNotifier {
           ? Map<String, dynamic>.from(rawSwipe)
           : null;
       final bool matchCreated = swipe?['matchCreated'] == true;
+      final bool confirmedLike =
+          direction == 'like' && swipe?['direction'] == 'like';
       final String? swipeId = swipe?['id']?.toString();
       if (kDebugMode) {
         debugPrint(
@@ -657,23 +659,34 @@ class SwipeProvider extends ChangeNotifier {
           'matchCreated=$matchCreated',
         );
       }
-      if (matchCreated) {
+      if (confirmedLike && matchCreated) {
         if (kDebugMode) {
           debugPrint(
             '[Swipe] matchCreated=true dish=${dish.id} '
             'mode=${isSoloMode ? 'solo' : 'paired'}',
           );
         }
-        final String matchId = swipe?['matchId']?.toString() ??
-            swipeId ??
-            swipe?['dishId']?.toString() ??
-            dish.id;
-        _badgeController?.registerNewMatch(
-          matchId: matchId,
-          source: 'swipe_result',
-          mode: isSoloMode ? 'solo' : 'paired',
-          sessionId: isSoloMode ? activeSoloSessionId : null,
-        );
+        final String? matchId = _realMatchId(response, swipe);
+        final String mode = isSoloMode ? 'solo' : 'paired';
+        final String? sessionId = isSoloMode
+            ? activeSoloSessionId
+            : _badgeController?.sessionId;
+        final bool validScope = _badgeController?.hasValidScope == true &&
+            _badgeController?.mode == mode &&
+            _badgeController?.sessionId == sessionId;
+        if (matchId != null && validScope) {
+          _badgeController!.registerNewMatch(
+            matchId: matchId,
+            source: 'swipe_result',
+            mode: mode,
+            sessionId: sessionId,
+          );
+        } else if (kDebugMode) {
+          debugPrint(
+            '[MatchBadge] immediate registration skipped '
+            'reason=${matchId == null ? 'missing_match_id' : 'invalid_scope'}',
+          );
+        }
       }
     } catch (e) {
       if (_shouldQueueOffline(e)) {
@@ -708,6 +721,38 @@ class SwipeProvider extends ChangeNotifier {
       notifyListeners();
     }
     return result;
+  }
+
+  String? _realMatchId(
+    Map<String, dynamic>? response,
+    Map<String, dynamic>? swipe,
+  ) {
+    final dynamic rawMatch = swipe?['match'] ?? response?['match'];
+    final Map<String, dynamic>? match = rawMatch is Map
+        ? Map<String, dynamic>.from(rawMatch)
+        : null;
+    final dynamic rawData = response?['data'];
+    final Map<String, dynamic>? data = rawData is Map
+        ? Map<String, dynamic>.from(rawData)
+        : null;
+    final dynamic rawDataMatch = data?['match'];
+    final Map<String, dynamic>? dataMatch = rawDataMatch is Map
+        ? Map<String, dynamic>.from(rawDataMatch)
+        : null;
+    final List<dynamic> candidates = <dynamic>[
+      swipe?['matchId'],
+      match?['id'],
+      match?['_id'],
+      response?['matchId'],
+      data?['matchId'],
+      dataMatch?['id'],
+      dataMatch?['_id'],
+    ];
+    for (final dynamic candidate in candidates) {
+      final String value = candidate?.toString().trim() ?? '';
+      if (value.isNotEmpty) return value;
+    }
+    return null;
   }
 
   Future<void> _applyLocalPostSwipe(

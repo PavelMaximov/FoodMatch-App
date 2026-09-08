@@ -14,6 +14,8 @@ assert(service.includes('if(existing&&!options.startOver)') && service.includes(
 assert(service.includes('const raced=await domainRepositories.soloSessions.findActive(userId)'), 'a unique-violation race must re-read the winner');
 assert(service.includes('domainRepositories.soloSessions.replaceActive(write)'), 'start-over must atomically replace the active session');
 assert(service.includes("sessionSwipes.filter((swipe)=>swipe.direction==='like').length"), 'likes must be scoped to the new solo session');
+assert(service.includes('matchId=m.match.id'), 'created solo matches must expose their real persisted match id');
+assert(service.includes('match:matchId?{id:matchId'), 'solo swipe responses must include the real match object');
 assert(service.includes('postgresDishes.listLightweight(userId)'), 'solo deck creation must use lightweight catalog rows');
 assert(catalog.includes('full ingredient hydration skipped for deck=true'));
 assert(!catalog.slice(catalog.indexOf('async listLightweight'), catalog.indexOf('async getByPublicId')).includes('hydrateListRows'));

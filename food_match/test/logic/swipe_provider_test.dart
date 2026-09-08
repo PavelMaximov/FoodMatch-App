@@ -67,6 +67,7 @@ void main() {
   });
 
   test('matchCreated updates app badge before a matches refresh', () async {
+    provider.setActiveUser('user-a');
     fakeSwipeRepo.soloSessionDishes = testDishes;
     await provider.createSoloSession(
       dishRegisters: <String>['everyday'],
@@ -79,6 +80,7 @@ void main() {
     fakeSwipeRepo.swipeResult = <String, dynamic>{
       'swipe': <String, dynamic>{
         'id': 'swipe-1',
+        'direction': 'like',
         'matchId': 'match-1',
         'matchCreated': true,
       },
@@ -89,6 +91,58 @@ void main() {
     expect(badgeController.badgeCount, 1);
     expect(badgeController.bumpToken, 1);
     expect(badgeController.sessionId, 'solo-new');
+  });
+
+  test('dislike never updates badge even when response claims a match', () async {
+    provider.setActiveUser('user-a');
+    fakeSwipeRepo.soloSessionDishes = testDishes;
+    await provider.createSoloSession(
+      dishRegisters: <String>['everyday'],
+      includeCustomDishesFirst: false,
+      cuisines: <String>[],
+      moods: <String>[],
+      blocked: <String>[],
+      diet: <String>[],
+    );
+    fakeSwipeRepo.swipeResult = <String, dynamic>{
+      'swipe': <String, dynamic>{
+        'id': 'swipe-1',
+        'direction': 'dislike',
+        'matchId': 'match-1',
+        'matchCreated': true,
+      },
+    };
+
+    await provider.dislike();
+
+    expect(badgeController.badgeCount, 0);
+    expect(badgeController.bumpToken, 0);
+  });
+
+  test('swipe and dish ids are not accepted as match ids', () async {
+    provider.setActiveUser('user-a');
+    fakeSwipeRepo.soloSessionDishes = testDishes;
+    await provider.createSoloSession(
+      dishRegisters: <String>['everyday'],
+      includeCustomDishesFirst: false,
+      cuisines: <String>[],
+      moods: <String>[],
+      blocked: <String>[],
+      diet: <String>[],
+    );
+    fakeSwipeRepo.swipeResult = <String, dynamic>{
+      'swipe': <String, dynamic>{
+        'id': 'swipe-1',
+        'direction': 'like',
+        'dishId': 'dish-1',
+        'matchCreated': true,
+      },
+    };
+
+    await provider.like();
+
+    expect(badgeController.badgeCount, 0);
+    expect(badgeController.bumpToken, 0);
   });
 }
 

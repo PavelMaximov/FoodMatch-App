@@ -1378,19 +1378,6 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
               matchProvider.activeSoloSessionId != sessionId) {
             matchProvider.setSoloSession(sessionId);
           }
-          final bool registered = matchProvider.recordSoloMatchFromSwipe(
-            dish: swipedDish,
-            sessionId: sessionId,
-            eventId: result['swipe']?['matchId']?.toString() ??
-                result['swipe']?['id']?.toString() ??
-                swipedDish.id,
-          );
-          if (registered && kDebugMode) {
-            debugPrint(
-              '[BadgeSource] SwipeProvider app-level path registered '
-              'sessionId=$sessionId',
-            );
-          }
           unawaited(
             matchProvider.loadMatches(
               force: true,

@@ -9,10 +9,12 @@ class MatchBadgeController extends ChangeNotifier {
   String? _lastAnimationEventId;
 
   int get badgeCount => _activeScope?.unseenMatchIds.length ?? 0;
+  String? get activeUserId => _userId;
   int get bumpToken => _bumpToken;
   String get mode => _mode;
   String? get sessionId => _sessionId;
   String? get lastAnimationEventId => _lastAnimationEventId;
+  bool get hasValidScope => _userId != null && _sessionId != null;
   Set<String> get unseenMatchIds =>
       Set<String>.unmodifiable(_activeScope?.unseenMatchIds ?? <String>{});
   Set<String> get knownMatchIds =>
