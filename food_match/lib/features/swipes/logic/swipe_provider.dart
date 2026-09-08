@@ -635,11 +635,15 @@ class SwipeProvider extends ChangeNotifier {
         direction: direction,
         soloSessionId: activeSoloSessionId,
       );
-      final bool matchCreated = result is Map<String, dynamic> &&
-          result['swipe']?['matchCreated'] == true;
-      final String? swipeId = result is Map<String, dynamic>
-          ? result['swipe']?['id']?.toString()
+      final Map<String, dynamic>? response = result is Map<String, dynamic>
+          ? result
           : null;
+      final dynamic rawSwipe = response?['swipe'];
+      final Map<String, dynamic>? swipe = rawSwipe is Map
+          ? Map<String, dynamic>.from(rawSwipe)
+          : null;
+      final bool matchCreated = swipe?['matchCreated'] == true;
+      final String? swipeId = swipe?['id']?.toString();
       if (kDebugMode) {
         debugPrint(
           '[SwipeResult] provider=${identityHashCode(this)} '
@@ -656,9 +660,9 @@ class SwipeProvider extends ChangeNotifier {
             'mode=${isSoloMode ? 'solo' : 'paired'}',
           );
         }
-        final String matchId = result['swipe']?['matchId']?.toString() ??
+        final String matchId = swipe?['matchId']?.toString() ??
             swipeId ??
-            result['swipe']?['dishId']?.toString() ??
+            swipe?['dishId']?.toString() ??
             dish.id;
         _badgeController?.registerImmediateMatch(
           matchId: matchId,
