@@ -147,7 +147,7 @@ class _MainShellState extends State<MainShell>
     if (state == AppLifecycleState.resumed) {
       context.read<CoupleProvider>().handleAppResumed();
       context.read<SwipeProvider>().syncPendingSwipes();
-      _refreshMatchBadge(reason: 'app_resume');
+      unawaited(_refreshMatchBadge(reason: 'app_resume'));
       return;
     }
     if (state == AppLifecycleState.inactive ||
@@ -161,19 +161,31 @@ class _MainShellState extends State<MainShell>
     _matchBadgeRefreshTimer?.cancel();
     _matchBadgeRefreshTimer = Timer.periodic(
       const Duration(seconds: 15),
-      (_) => _refreshMatchBadge(reason: 'shell_poll'),
+      (_) => unawaited(_refreshMatchBadge(reason: 'shell_poll')),
     );
   }
 
-  void _refreshMatchBadge({required String reason}) {
-    if (!mounted || !context.read<AuthProvider>().isAuthenticated) return;
+  Future<void> _refreshMatchBadge({required String reason}) async {
+    if (!mounted) return;
+    final AuthProvider authProvider = context.read<AuthProvider>();
+    if (!authProvider.isAuthenticated) return;
+    if (authProvider.currentUser == null) {
+      await authProvider.loadUser();
+      if (!mounted) return;
+    }
+    final String? userId = authProvider.currentUser?.id;
+    if (userId == null) {
+      debugPrint('[MatchProvider] user unresolved reason=$reason');
+      return;
+    }
+    context.read<MatchProvider>().setActiveUser(userId);
     final NavBadgeAnimationController badge =
         context.read<NavBadgeAnimationController>();
     if (badge.sessionId == null) return;
     if (kDebugMode) {
       debugPrint('[MatchBadge] refresh requested reason=$reason');
     }
-    unawaited(context.read<MatchProvider>().loadMatches(force: true));
+    await context.read<MatchProvider>().loadMatches(force: true);
   }
 
   void _onTabTap(int index) {

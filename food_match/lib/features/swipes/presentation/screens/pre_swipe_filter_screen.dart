@@ -824,13 +824,16 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
 
   Future<void> _confirmCurrentFiltersOperation() async {
     if (_isApplyingFilters) {
+      debugPrint('[PreFilterSubmit] ignored reason=already_in_flight');
       return;
     }
-    final String? userId = context.read<AuthProvider>().currentUser?.id;
-    if (userId == null) {
-      Navigator.pop(context);
-      return;
-    }
+    debugPrint(
+      '[PreFilterSubmit] start mode=${widget.mode} '
+      'origin=${_waitingOrigin.name} selectedMode=${widget.mode} '
+      'includeCustomDishesFirst=$_includeCustomDishesFirst '
+      'dishRegisters=${_dishRegisters.toList()} '
+      'cuisines=${_cuisines.toList()} exclusions=${_blocked.length}',
+    );
     final PreSwipeProvider preSwipeProvider = context.read<PreSwipeProvider>();
     final CoupleProvider coupleProvider = context.read<CoupleProvider>();
     final int matchedLastTime = preSwipeProvider.countMatchingDishes(
@@ -851,6 +854,10 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       _isApplyingFilters = true;
     });
     if (widget.mode == 'solo') {
+      debugPrint(
+        '[PreFilterSubmit] calling='
+        '${widget.intent == PreSwipeFilterIntent.updateActiveSoloSession ? 'solo_update_active_filter' : 'solo_create_session'}',
+      );
       final SwipeProvider swipeProvider = context.read<SwipeProvider>();
       final bool shouldUpdateActiveSession =
           widget.intent == PreSwipeFilterIntent.updateActiveSoloSession;
@@ -873,11 +880,17 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
             );
       if (!mounted) return;
       if (ready) {
+        debugPrint(
+          '[PreFilterSubmit] success sessionId='
+          '${swipeProvider.activeSoloSessionId ?? 'none'} '
+          'deckCount=${swipeProvider.deck.length}',
+        );
         context.read<MatchProvider>().setSoloSession(
           swipeProvider.activeSoloSessionId,
         );
         await _saveBackendLastFilterPreset(matchedLastTime);
         if (!mounted) return;
+        debugPrint('[PreFilterSubmit] navigating=swipes');
         Navigator.pop(
           context,
           PreparedPoolResult(
@@ -889,6 +902,9 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
           ),
         );
       } else {
+        debugPrint(
+          '[PreFilterSubmit] error=${swipeProvider.error ?? 'solo_not_ready'}',
+        );
         setState(() {
           _loading = false;
           _isApplyingFilters = false;
@@ -904,6 +920,19 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       }
       return;
     }
+    final AuthProvider authProvider = context.read<AuthProvider>();
+    String? userId = authProvider.currentUser?.id;
+    if (userId == null && authProvider.isAuthenticated) {
+      debugPrint('[PreFilterSubmit] resolving authenticated user');
+      await authProvider.loadUser();
+      if (!mounted) return;
+      userId = authProvider.currentUser?.id;
+    }
+    if (userId == null) {
+      debugPrint('[PreFilterSubmit] error=authenticated_user_unavailable');
+      throw StateError('Authenticated user is unavailable.');
+    }
+    debugPrint('[PreFilterSubmit] calling=pair_confirm_filters');
     await preSwipeProvider.saveAndConfirmChoices(
       userId: userId,
       coupleProvider: coupleProvider,
@@ -1266,12 +1295,19 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     }
 
     if (result.dishes.isEmpty) {
+      debugPrint('[PreFilterSubmit] error=pair_deck_empty');
       Navigator.of(
         context,
       ).push(MaterialPageRoute<void>(builder: (_) => const _EmptyPoolScreen()));
       return;
     }
 
+    debugPrint(
+      '[PreFilterSubmit] success sessionId='
+      '${coupleProvider.currentCouple?.id ?? 'none'} '
+      'deckCount=${result.dishes.length}',
+    );
+    debugPrint('[PreFilterSubmit] navigating=swipes');
     Navigator.pop(context, result);
   }
 

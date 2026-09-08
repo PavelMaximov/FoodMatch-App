@@ -78,6 +78,7 @@ class SwipesScreen extends StatefulWidget {
 class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver {
   final GlobalKey<SwipeableStackState> _swipeStackKey = GlobalKey<SwipeableStackState>();
   bool _isOpeningPreSwipe = false;
+  bool _isPreSwipeRouteActive = false;
   bool _isCardActionInProgress = false;
   bool _showPairConnectionStep = false;
   bool _isHandlingSessionEnded = false;
@@ -527,6 +528,12 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
   }
 
   Future<void> _loadExistingBackendDeckOrStart() async {
+    if (_isPreSwipeRouteActive) {
+      debugPrint(
+        '[AppFlow] startup resolution skipped reason=pre_filter_active',
+      );
+      return;
+    }
     final AuthProvider authProvider = context.read<AuthProvider>();
     if (!authProvider.profileSetupReady) {
       if (mounted) {
@@ -542,7 +549,6 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       _initialSessionError = null;
       _pairFilterUpdateRequired = false;
       _showPairConnectionStep = false;
-      _isOpeningPreSwipe = false;
       _sessionResumeChoiceType = null;
       _suppressPreviousChoiceAutoOpen = true;
       _pairDeckReadyAutoLoadEnabled = false;
@@ -588,6 +594,12 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
           )
           .timeout(const Duration(seconds: 15));
       if (!mounted) return;
+      if (_isPreSwipeRouteActive) {
+        debugPrint(
+          '[AppFlow] startup result ignored reason=pre_filter_active',
+        );
+        return;
+      }
 
       swipeProvider.clearPreparedDeck();
       context.read<PreSwipeProvider>().clearDraft();
@@ -625,10 +637,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       if (mounted) {
         setState(() {
           _isLoadingInitialSession = false;
-          _isOpeningPreSwipe = false;
         });
-      } else {
-        _isOpeningPreSwipe = false;
       }
     }
   }
@@ -1035,9 +1044,11 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
   Future<void> _runSoloPreSwipeFlow({PreSwipeFilterIntent intent = PreSwipeFilterIntent.createNewSession}) async {
     if (_isOpeningPreSwipe) return;
     _isOpeningPreSwipe = true;
+    _isPreSwipeRouteActive = true;
     final SwipeProvider swipeProvider = context.read<SwipeProvider>();
     swipeProvider.setActiveUser(context.read<AuthProvider>().currentUser?.id);
     final PreparedPoolResult? result = await Navigator.of(context).push<PreparedPoolResult>(MaterialPageRoute<PreparedPoolResult>(fullscreenDialog: true, builder: (_) => PreSwipeFilterScreen(mode: 'solo', intent: intent)));
+    _isPreSwipeRouteActive = false;
     if (!mounted) { _isOpeningPreSwipe = false; return; }
     if (result != null && result.dishes.isNotEmpty) {
       _resetSwipeStackController();
@@ -1061,10 +1072,12 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     }
 
     _isOpeningPreSwipe = true;
+    _isPreSwipeRouteActive = true;
     _pairDeckReadyAutoLoadEnabled = true;
     final CoupleProvider currentCoupleProvider = context.read<CoupleProvider>();
     if (!currentCoupleProvider.hasCouple || !currentCoupleProvider.hasPartner) {
       _isOpeningPreSwipe = false;
+      _isPreSwipeRouteActive = false;
       if (mounted) {
         setState(() {
           _showPairConnectionStep = true;
@@ -1083,6 +1096,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
         builder: (_) => PreSwipeFilterScreen(mode: 'paired', commitPairFilterChange: commitPairFilterChange),
       ),
     );
+    _isPreSwipeRouteActive = false;
 
     if (!mounted) {
       _isOpeningPreSwipe = false;
