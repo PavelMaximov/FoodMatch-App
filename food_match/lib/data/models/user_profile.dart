@@ -14,6 +14,7 @@ class LastFilterPreset {
 
   final List<String> cuisines;
   final List<String> dishRegisters;
+  List<String> get selectedCategories => dishRegisters;
   final bool includeCustomDishesFirst;
   final List<String> moods;
   final List<String> diet;
@@ -24,6 +25,7 @@ class LastFilterPreset {
   Map<String, dynamic> toJson() => <String, dynamic>{
     'cuisines': cuisines,
     'dishRegisters': dishRegisters,
+    'selectedCategories': dishRegisters,
     'includeCustomDishesFirst': includeCustomDishesFirst,
     'moods': moods,
     'diet': diet,
@@ -35,7 +37,11 @@ class LastFilterPreset {
   factory LastFilterPreset.fromJson(Map<dynamic, dynamic> json) =>
       LastFilterPreset(
         dishRegisters: List<String>.from(
-          json['dishRegisters'] as List<dynamic>? ?? <dynamic>[],
+          json['selectedCategories'] as List<dynamic>? ??
+              json['dishRegisters'] as List<dynamic>? ??
+              (json['category'] == null
+                  ? <dynamic>[]
+                  : <dynamic>[json['category']]),
         ),
         includeCustomDishesFirst: json['includeCustomDishesFirst'] == true,
         cuisines: List<String>.from(

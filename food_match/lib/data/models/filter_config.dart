@@ -11,6 +11,7 @@ class FilterConfig {
 
   final List<String> cuisines;
   final List<String> dishRegisters;
+  List<String> get selectedCategories => dishRegisters;
   final bool includeCustomDishesFirst;
   final List<String> moods;
   final List<String> blocked;
@@ -20,6 +21,7 @@ class FilterConfig {
   Map<String, dynamic> toJson() => <String, dynamic>{
     'cuisines': cuisines,
     'dishRegisters': dishRegisters,
+    'selectedCategories': dishRegisters,
     'includeCustomDishesFirst': includeCustomDishesFirst,
     'moods': moods,
     'blocked': blocked,
@@ -29,7 +31,11 @@ class FilterConfig {
 
   factory FilterConfig.fromJson(Map<dynamic, dynamic> json) => FilterConfig(
     dishRegisters: List<String>.from(
-      json['dishRegisters'] as List<dynamic>? ?? <dynamic>[],
+      json['selectedCategories'] as List<dynamic>? ??
+          json['dishRegisters'] as List<dynamic>? ??
+          (json['category'] == null
+              ? <dynamic>[]
+              : <dynamic>[json['category']]),
     ),
     includeCustomDishesFirst: json['includeCustomDishesFirst'] == true,
     cuisines: List<String>.from(

@@ -24,7 +24,13 @@ export class SwipeController {
     const mode = rawMode === 'solo' || rawMode === 'paired' || rawMode === 'all' ? rawMode : 'all';
     const scope = req.query.scope === 'current' ? 'current' : 'all';
     const sessionId = typeof req.query.sessionId === 'string' ? req.query.sessionId : undefined;
+    if (process.env.NODE_ENV !== 'production') console.info(`[Matches] request user=${req.user!.id} mode=${mode} scope=${scope} sessionId=${sessionId ?? 'none'}`);
     const matches = await swipeService.getMyMatches(req.user!.id, mode, { scope, sessionId });
+    if (process.env.NODE_ENV !== 'production') {
+      const sessionIds = [...new Set(matches.map((match: any) => match.sessionId).filter(Boolean))];
+      console.info(`[Matches] result count=${matches.length} sessionIds=${sessionIds.join(',') || 'none'}`);
+      console.info(`[Matches] result dishIds=${matches.slice(0, 5).map((match: any) => match.dish?.id).filter(Boolean).join(',') || 'none'}`);
+    }
     res.json({ matches });
   }
 

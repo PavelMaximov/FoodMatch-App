@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../../../core/constants/app_strings.dart';
@@ -11,6 +13,7 @@ import '../../../data/repositories/dish_repository.dart';
 import '../../../data/repositories/couple_repository.dart';
 import '../../../data/repositories/swipe_repository.dart';
 import '../../../data/services/api_service.dart';
+import '../../../shell/logic/match_badge_controller.dart';
 
 class SwipeProvider extends ChangeNotifier {
   SwipeProvider({
@@ -19,10 +22,12 @@ class SwipeProvider extends ChangeNotifier {
     required CoupleRepository coupleRepository,
     required UserProfileHiveService userProfileService,
     CacheService? cacheService,
+    MatchBadgeController? badgeController,
   }) : _dishRepository = dishRepository,
        _swipeRepository = swipeRepository,
        _coupleRepository = coupleRepository,
        _cacheService = cacheService ?? CacheService(),
+       _badgeController = badgeController,
        _userProfileService = userProfileService;
 
   final DishRepository _dishRepository;
@@ -30,6 +35,7 @@ class SwipeProvider extends ChangeNotifier {
   final CoupleRepository _coupleRepository;
   final CacheService _cacheService;
   final UserProfileHiveService _userProfileService;
+  final MatchBadgeController? _badgeController;
 
   final Set<String> _sentSwipeDishIds = <String>{};
   bool _isSendingSwipe = false;
@@ -96,6 +102,10 @@ class SwipeProvider extends ChangeNotifier {
       return;
     }
     _activeUserId = normalized;
+    _badgeController?.setActiveUser(
+      normalized,
+      reason: normalized == null ? 'logout' : 'swipe_provider_user_change',
+    );
     clearForLogout(notify: false);
   }
 
@@ -349,6 +359,7 @@ class SwipeProvider extends ChangeNotifier {
     required List<String> diet,
   }) async {
     final dynamic data = await _swipeRepository.createSoloSession(
+      startOver: true,
       filter: _soloFilterPayload(
         dishRegisters: dishRegisters,
         includeCustomDishesFirst: includeCustomDishesFirst,
@@ -630,6 +641,91 @@ class SwipeProvider extends ChangeNotifier {
         direction: direction,
         soloSessionId: activeSoloSessionId,
       );
+      final Map<String, dynamic>? response = result is Map<String, dynamic>
+          ? result
+          : null;
+      final dynamic rawSwipe = response?['swipe'];
+      final Map<String, dynamic>? swipe = rawSwipe is Map
+          ? Map<String, dynamic>.from(rawSwipe)
+          : null;
+      final bool matchCreated = swipe?['matchCreated'] == true;
+      final String? backendDirection = swipe?['direction']?.toString();
+      final bool confirmedLike = direction == 'like' &&
+          (backendDirection == null || backendDirection == 'like');
+      final String? swipeId = swipe?['id']?.toString();
+      if (kDebugMode) {
+        debugPrint(
+          '[SwipeResult] provider=${identityHashCode(this)} '
+          'mode=${isSoloMode ? 'solo' : 'paired'} '
+          'sessionId=${activeSoloSessionId ?? 'none'} dishId=${dish.id} '
+          'swipeId=${swipeId ?? 'none'} direction=$direction '
+          'matchCreated=$matchCreated',
+        );
+        if (!confirmedLike || !matchCreated) {
+          debugPrint(
+            '[SwipeBadge] skip reason=${direction != 'like' ? 'dislike' : 'match_created_false'}',
+          );
+        }
+      }
+      final String? matchId = _realMatchId(response, swipe);
+      final int? responseBadgeCount = _intValue(swipe?['badgeCount']);
+      final int? responseBadgeDelta = _intValue(swipe?['badgeDelta']);
+      final String mode = isSoloMode ? 'solo' : 'paired';
+      final String? sessionId = isSoloMode
+          ? activeSoloSessionId
+          : swipe?['coupleId']?.toString() ?? _badgeController?.sessionId;
+      final bool validScope = _activeUserId?.isNotEmpty == true &&
+          sessionId?.isNotEmpty == true;
+      if (responseBadgeCount != null && validScope) {
+        final int previousBadgeCount = _badgeController?.badgeCount ?? 0;
+        final int safeDelta = confirmedLike && matchCreated && matchId != null
+            ? responseBadgeDelta ?? 1
+            : 0;
+        _badgeController?.applySwipeBadgeResult(
+          userId: _activeUserId!,
+          mode: mode,
+          sessionId: sessionId!,
+          badgeCount: responseBadgeCount,
+          badgeDelta: safeDelta,
+          matchId: matchId,
+          reason: 'swipe_response',
+        );
+        if (kDebugMode) {
+          if (!matchCreated &&
+              safeDelta == 0 &&
+              responseBadgeCount > previousBadgeCount) {
+            debugPrint(
+              '[SwipeBadgeFast] inconsistent badge response '
+              'count_increased_without_delta',
+            );
+          }
+          debugPrint(
+            '[SwipeBadgeFast] badgeCount=$responseBadgeCount '
+            'badgeDelta=$safeDelta matchId=${matchId ?? 'none'} '
+            'action=apply_fast',
+          );
+        }
+      } else if (confirmedLike && matchCreated && matchId != null && validScope) {
+        _badgeController?.registerNewMatch(
+          matchId: matchId,
+          source: 'swipe_result_legacy',
+          mode: mode,
+          sessionId: sessionId,
+        );
+      }
+      if (responseBadgeCount != null || matchCreated) {
+        final String refreshReason = matchCreated
+            ? 'swipe_match_created'
+            : 'swipe_badge_reconcile';
+        unawaited(
+          _badgeController?.requestAuthoritativeRefresh(
+                mode: mode,
+                sessionId: sessionId,
+                reason: refreshReason,
+              ) ??
+              Future<void>.value(),
+        );
+      }
     } catch (e) {
       if (_shouldQueueOffline(e)) {
         AppLogger.info('SwipeProvider: queueing swipe offline');
@@ -663,6 +759,43 @@ class SwipeProvider extends ChangeNotifier {
       notifyListeners();
     }
     return result;
+  }
+
+  String? _realMatchId(
+    Map<String, dynamic>? response,
+    Map<String, dynamic>? swipe,
+  ) {
+    final dynamic rawMatch = swipe?['match'] ?? response?['match'];
+    final Map<String, dynamic>? match = rawMatch is Map
+        ? Map<String, dynamic>.from(rawMatch)
+        : null;
+    final dynamic rawData = response?['data'];
+    final Map<String, dynamic>? data = rawData is Map
+        ? Map<String, dynamic>.from(rawData)
+        : null;
+    final dynamic rawDataMatch = data?['match'];
+    final Map<String, dynamic>? dataMatch = rawDataMatch is Map
+        ? Map<String, dynamic>.from(rawDataMatch)
+        : null;
+    final List<dynamic> candidates = <dynamic>[
+      swipe?['matchId'],
+      match?['id'],
+      match?['_id'],
+      response?['matchId'],
+      data?['matchId'],
+      dataMatch?['id'],
+      dataMatch?['_id'],
+    ];
+    for (final dynamic candidate in candidates) {
+      final String value = candidate?.toString().trim() ?? '';
+      if (value.isNotEmpty) return value;
+    }
+    return null;
+  }
+
+  int? _intValue(dynamic value) {
+    if (value is int) return value;
+    return int.tryParse(value?.toString() ?? '');
   }
 
   Future<void> _applyLocalPostSwipe(
@@ -704,6 +837,44 @@ class SwipeProvider extends ChangeNotifier {
         final dynamic data = await _swipeRepository.undoSoloSwipe(
           activeSoloSessionId!,
         );
+        final Map<String, dynamic>? response = data is Map<String, dynamic>
+            ? data
+            : null;
+        final dynamic rawUndo = response?['undo'];
+        final Map<String, dynamic>? undo = rawUndo is Map
+            ? Map<String, dynamic>.from(rawUndo)
+            : null;
+        final int? badgeCount = _intValue(undo?['badgeCount']);
+        final int badgeDelta = _intValue(undo?['badgeDelta']) ?? 0;
+        final String? removedMatchId = undo?['removedMatchId']?.toString();
+        final String sessionId = activeSoloSessionId!;
+        if (badgeCount != null && _activeUserId?.isNotEmpty == true) {
+          _badgeController?.applyUndoBadgeResult(
+            userId: _activeUserId!,
+            mode: 'solo',
+            sessionId: sessionId,
+            badgeCount: badgeCount,
+            badgeDelta: badgeDelta,
+            removedMatchId: removedMatchId,
+            reason: 'undo_response',
+          );
+          if (kDebugMode) {
+            debugPrint(
+              '[UndoBadgeFast] apply count=$badgeCount delta=$badgeDelta '
+              'removedMatchId=${removedMatchId ?? 'none'} '
+              'action=${badgeDelta < 0 ? 'decrement' : 'no_change'}',
+            );
+          }
+          unawaited(
+            _badgeController?.requestAuthoritativeRefresh(
+                  mode: 'solo',
+                  sessionId: sessionId,
+                  reason: 'undo_badge_reconcile',
+                  removedMatchId: removedMatchId,
+                ) ??
+                Future<void>.value(),
+          );
+        }
         final dynamic session = data is Map<String, dynamic>
             ? data['session']
             : null;

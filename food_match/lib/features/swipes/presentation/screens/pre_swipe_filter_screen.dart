@@ -61,6 +61,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   bool _isPreparingSharedDeck = false;
   bool _hasStartedPrepareAfterBothConfirmed = false;
   bool _isApplyingFilters = false;
+  bool _submitInFlight = false;
   bool _isGoingBack = false;
   bool _isReturningFromWaiting = false;
   _WaitingOrigin _waitingOrigin = _WaitingOrigin.manualSteps;
@@ -434,10 +435,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
                                 _step--;
                               }),
                         onSkip: _loading ? null : _skip,
-                        onContinue:
-                            _loading || (_step == 1 && !_hasMealTypeSelection)
-                            ? null
-                            : _next,
+                        onContinue: _loading || _submitInFlight ? null : _next,
                       );
                     },
               ),
@@ -468,13 +466,21 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
 
   void _selectMealType(String option) {
     if (option == 'custom_dishes' && !_hasAvailableCustomDishes) return;
+    if (option != 'custom_dishes' &&
+        !_dishRegisters.contains(option) &&
+        _dishRegisters.length >= 3) {
+      FoodMatchNotifications.show(context, type: FoodMatchNotificationType.info,
+        title: 'Category limit', message: 'Choose up to 3 categories.');
+      return;
+    }
     setState(() {
-      _includeCustomDishesFirst = option == 'custom_dishes';
-      _dishRegisters
-        ..clear()
-        ..addAll(
-          _includeCustomDishesFirst ? const <String>[] : <String>[option],
-        );
+      if (option == 'custom_dishes') {
+        _includeCustomDishesFirst = true;
+        _dishRegisters.clear();
+      } else {
+        _includeCustomDishesFirst = false;
+        if (!_dishRegisters.remove(option)) _dishRegisters.add(option);
+      }
     });
   }
 
@@ -732,7 +738,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       _showPreviousChoice = false;
       _dishRegisters
         ..clear()
-        ..addAll(preset.dishRegisters.take(1));
+        ..addAll(preset.dishRegisters.take(3));
       _includeCustomDishesFirst = preset.includeCustomDishesFirst;
       _cuisines
         ..clear()
@@ -751,7 +757,16 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   }
 
   Future<void> _next() async {
-    if (_step == 1 && !_hasMealTypeSelection) return;
+    if (_submitInFlight) return;
+    if (_step == 1 && !_hasMealTypeSelection) {
+      FoodMatchNotifications.show(
+        context,
+        type: FoodMatchNotificationType.info,
+        title: 'Category required',
+        message: 'Choose at least one category.',
+      );
+      return;
+    }
     if (_step < 3) {
       setState(() {
         _isGoingBack = false;
@@ -760,7 +775,12 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       return;
     }
     _waitingOrigin = _WaitingOrigin.manualSteps;
-    await _confirmCurrentFilters();
+    setState(() => _submitInFlight = true);
+    try {
+      await _confirmCurrentFilters();
+    } finally {
+      if (mounted) setState(() => _submitInFlight = false);
+    }
   }
 
   Future<void> _confirmCurrentFilters() async {
@@ -782,18 +802,38 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
           content: Text('Something went wrong. Please try again.'),
         ),
       );
+    } catch (error) {
+      debugPrint('[PreSwipe] filter confirmation failed $error');
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _isApplyingFilters = false;
+        _isPreparingSharedDeck = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            widget.mode == 'paired'
+                ? 'Could not save your filters. Please try again.'
+                : 'Could not create your session. Please try again.',
+          ),
+        ),
+      );
     }
   }
 
   Future<void> _confirmCurrentFiltersOperation() async {
     if (_isApplyingFilters) {
+      debugPrint('[PreFilterSubmit] ignored reason=already_in_flight');
       return;
     }
-    final String? userId = context.read<AuthProvider>().currentUser?.id;
-    if (userId == null) {
-      Navigator.pop(context);
-      return;
-    }
+    debugPrint(
+      '[PreFilterSubmit] start mode=${widget.mode} '
+      'origin=${_waitingOrigin.name} selectedMode=${widget.mode} '
+      'includeCustomDishesFirst=$_includeCustomDishesFirst '
+      'dishRegisters=${_dishRegisters.toList()} '
+      'cuisines=${_cuisines.toList()} exclusions=${_blocked.length}',
+    );
     final PreSwipeProvider preSwipeProvider = context.read<PreSwipeProvider>();
     final CoupleProvider coupleProvider = context.read<CoupleProvider>();
     final int matchedLastTime = preSwipeProvider.countMatchingDishes(
@@ -814,10 +854,13 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       _isApplyingFilters = true;
     });
     if (widget.mode == 'solo') {
+      debugPrint(
+        '[PreFilterSubmit] calling='
+        '${widget.intent == PreSwipeFilterIntent.updateActiveSoloSession ? 'solo_update_active_filter' : 'solo_create_session'}',
+      );
       final SwipeProvider swipeProvider = context.read<SwipeProvider>();
       final bool shouldUpdateActiveSession =
-          widget.intent == PreSwipeFilterIntent.updateActiveSoloSession ||
-          swipeProvider.hasActiveSoloSession;
+          widget.intent == PreSwipeFilterIntent.updateActiveSoloSession;
       final bool ready = shouldUpdateActiveSession
           ? await swipeProvider.rebuildActiveSoloSessionFilters(
               dishRegisters: _dishRegisters.toList(),
@@ -837,11 +880,17 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
             );
       if (!mounted) return;
       if (ready) {
+        debugPrint(
+          '[PreFilterSubmit] success sessionId='
+          '${swipeProvider.activeSoloSessionId ?? 'none'} '
+          'deckCount=${swipeProvider.deck.length}',
+        );
         context.read<MatchProvider>().setSoloSession(
           swipeProvider.activeSoloSessionId,
         );
         await _saveBackendLastFilterPreset(matchedLastTime);
         if (!mounted) return;
+        debugPrint('[PreFilterSubmit] navigating=swipes');
         Navigator.pop(
           context,
           PreparedPoolResult(
@@ -853,6 +902,9 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
           ),
         );
       } else {
+        debugPrint(
+          '[PreFilterSubmit] error=${swipeProvider.error ?? 'solo_not_ready'}',
+        );
         setState(() {
           _loading = false;
           _isApplyingFilters = false;
@@ -868,6 +920,19 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       }
       return;
     }
+    final AuthProvider authProvider = context.read<AuthProvider>();
+    String? userId = authProvider.currentUser?.id;
+    if (userId == null && authProvider.isAuthenticated) {
+      debugPrint('[PreFilterSubmit] resolving authenticated user');
+      await authProvider.loadUser();
+      if (!mounted) return;
+      userId = authProvider.currentUser?.id;
+    }
+    if (userId == null) {
+      debugPrint('[PreFilterSubmit] error=authenticated_user_unavailable');
+      throw StateError('Authenticated user is unavailable.');
+    }
+    debugPrint('[PreFilterSubmit] calling=pair_confirm_filters');
     await preSwipeProvider.saveAndConfirmChoices(
       userId: userId,
       coupleProvider: coupleProvider,
@@ -1157,9 +1222,13 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         result = await _acquireCanonicalPairDeck(preSwipeProvider);
         deckPrepareSucceeded = true;
       } finally {
-        coupleProvider.resumeFilterStatePollingAfterDeckPrepare(
-          succeeded: deckPrepareSucceeded,
-        );
+        if (deckPrepareSucceeded) {
+          coupleProvider.stopFilterStatePolling(reason: 'pair_deck_ready');
+        } else {
+          coupleProvider.resumeFilterStatePollingAfterDeckPrepare(
+            succeeded: false,
+          );
+        }
       }
     } catch (e) {
       if (e is ApiException && e.code == 'PAIR_WAITING_FOR_PARTNER_FILTERS') {
@@ -1213,19 +1282,32 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       _isPreparingSharedDeck = false;
     });
 
-    for (final String message in result.messages) {
+    final List<String> deckMessages = <String>[...result.messages];
+    if (result.preparedDeckMeta?.expansionApplied == true) {
+      deckMessages
+        ..removeWhere((String message) => message.contains('expanded'))
+        ..add('Few matches — we expanded your selection.');
+    }
+    for (final String message in deckMessages) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(message)));
     }
 
     if (result.dishes.isEmpty) {
+      debugPrint('[PreFilterSubmit] error=pair_deck_empty');
       Navigator.of(
         context,
       ).push(MaterialPageRoute<void>(builder: (_) => const _EmptyPoolScreen()));
       return;
     }
 
+    debugPrint(
+      '[PreFilterSubmit] success sessionId='
+      '${coupleProvider.currentCouple?.id ?? 'none'} '
+      'deckCount=${result.dishes.length}',
+    );
+    debugPrint('[PreFilterSubmit] navigating=swipes');
     Navigator.pop(context, result);
   }
 
@@ -1246,8 +1328,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       });
       final SwipeProvider swipeProvider = context.read<SwipeProvider>();
       final bool shouldUpdateActiveSession =
-          widget.intent == PreSwipeFilterIntent.updateActiveSoloSession ||
-          swipeProvider.hasActiveSoloSession;
+          widget.intent == PreSwipeFilterIntent.updateActiveSoloSession;
       final bool ready = shouldUpdateActiveSession
           ? await swipeProvider.rebuildActiveSoloSessionFilters(
               dishRegisters: _dishRegisters.toList(),
