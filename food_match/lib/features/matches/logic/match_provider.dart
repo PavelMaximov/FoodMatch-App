@@ -308,12 +308,22 @@ class MatchProvider extends ChangeNotifier {
     required String mode,
     required String? sessionId,
     required String reason,
+    String? removedMatchId,
   }) async {
     if (_activeUserId == null) {
       if (kDebugMode) {
         debugPrint('[SwipeBadge] action=force_refresh skipped=user_unresolved');
       }
       return;
+    }
+    if (removedMatchId != null && removedMatchId.isNotEmpty) {
+      matches = matches
+          .where((MatchItem item) => item.id != removedMatchId)
+          .toList();
+      _optimisticSoloMatches.removeWhere(
+        (_, MatchItem item) => item.id == removedMatchId,
+      );
+      notifyListeners();
     }
     if (kDebugMode) {
       debugPrint('[MatchProvider] background refresh reason=$reason started');

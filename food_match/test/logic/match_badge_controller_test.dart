@@ -172,4 +172,48 @@ void main() {
     expect(controller.badgeCount, 3);
     expect(controller.bumpToken, 0);
   });
+
+  test('undo delta removes match and decrements without animation', () {
+    final MatchBadgeController controller = MatchBadgeController()
+      ..applySwipeBadgeResult(
+        userId: 'user-a',
+        mode: 'solo',
+        sessionId: 'solo-a',
+        badgeCount: 2,
+        badgeDelta: 1,
+        matchId: 'match-2',
+        reason: 'test',
+      );
+    final int bumpToken = controller.bumpToken;
+
+    controller.applyUndoBadgeResult(
+      userId: 'user-a',
+      mode: 'solo',
+      sessionId: 'solo-a',
+      badgeCount: 1,
+      badgeDelta: -1,
+      removedMatchId: 'match-2',
+      reason: 'test',
+    );
+
+    expect(controller.badgeCount, 1);
+    expect(controller.knownMatchIds, isNot(contains('match-2')));
+    expect(controller.bumpToken, bumpToken);
+  });
+
+  test('undo dislike updates authoritative count without animation', () {
+    final MatchBadgeController controller = MatchBadgeController();
+
+    controller.applyUndoBadgeResult(
+      userId: 'user-a',
+      mode: 'solo',
+      sessionId: 'solo-a',
+      badgeCount: 2,
+      badgeDelta: 0,
+      reason: 'test',
+    );
+
+    expect(controller.badgeCount, 2);
+    expect(controller.bumpToken, 0);
+  });
 }

@@ -6,6 +6,7 @@ typedef MatchBadgeRefresh = Future<void> Function({
   required String mode,
   required String? sessionId,
   required String reason,
+  String? removedMatchId,
 });
 
 class MatchBadgeController extends ChangeNotifier {
@@ -38,6 +39,7 @@ class MatchBadgeController extends ChangeNotifier {
     required String mode,
     required String? sessionId,
     required String reason,
+    String? removedMatchId,
   }) async {
     final MatchBadgeRefresh? refresh = _refresh;
     if (refresh == null) {
@@ -46,7 +48,12 @@ class MatchBadgeController extends ChangeNotifier {
       }
       return;
     }
-    await refresh(mode: mode, sessionId: sessionId, reason: reason);
+    await refresh(
+      mode: mode,
+      sessionId: sessionId,
+      reason: reason,
+      removedMatchId: removedMatchId,
+    );
   }
 
   void setActiveUser(String? userId, {String reason = 'auth_update'}) {
@@ -183,6 +190,35 @@ class MatchBadgeController extends ChangeNotifier {
       );
     }
     _notifySafely('apply_swipe_badge_result');
+  }
+
+  void applyUndoBadgeResult({
+    required String userId,
+    required String mode,
+    required String sessionId,
+    required int badgeCount,
+    required int badgeDelta,
+    String? removedMatchId,
+    required String reason,
+  }) {
+    _activate(userId: userId, mode: mode, sessionId: sessionId);
+    final _MatchBadgeScope scope = _scopeForActive();
+    final String? normalizedMatchId = _normalize(removedMatchId);
+    scope.authoritativeCount = badgeCount < 0 ? 0 : badgeCount;
+    if (badgeDelta < 0 && normalizedMatchId != null) {
+      scope.authoritativeMatchIds.remove(normalizedMatchId);
+      scope.knownMatchIds.remove(normalizedMatchId);
+      scope.pendingImmediateIds.remove(normalizedMatchId);
+    }
+    scope.initialized = true;
+    if (kDebugMode) {
+      debugPrint(
+        '[MatchBadge] applyUndoBadgeResult count=${scope.authoritativeCount} '
+        'delta=$badgeDelta removedMatchId=${normalizedMatchId ?? 'none'} '
+        'bumpToken=$_bumpToken reason=$reason',
+      );
+    }
+    _notifySafely('apply_undo_badge_result');
   }
 
   void applyFetchedMatches({

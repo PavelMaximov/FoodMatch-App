@@ -153,6 +153,7 @@ void main() {
       required String mode,
       required String? sessionId,
       required String reason,
+      String? removedMatchId,
     }) async {
       refreshReason = reason;
     });
@@ -205,6 +206,50 @@ void main() {
     expect(badgeController.badgeCount, 3);
     expect(badgeController.bumpToken, 0);
   });
+
+  test('undo match decrements badge without a new animation bump', () async {
+    provider.setActiveUser('user-a');
+    fakeSwipeRepo.soloSessionDishes = testDishes;
+    await provider.createSoloSession(
+      dishRegisters: <String>['everyday'],
+      includeCustomDishesFirst: false,
+      cuisines: <String>[],
+      moods: <String>[],
+      blocked: <String>[],
+      diet: <String>[],
+    );
+    fakeSwipeRepo.swipeResult = <String, dynamic>{
+      'swipe': <String, dynamic>{
+        'direction': 'like',
+        'matchId': 'match-1',
+        'matchCreated': true,
+        'badgeCount': 2,
+        'badgeDelta': 1,
+      },
+    };
+    await provider.like();
+    final int bumpToken = badgeController.bumpToken;
+    fakeSwipeRepo.undoResult = <String, dynamic>{
+      'undo': <String, dynamic>{
+        'badgeCount': 1,
+        'badgeDelta': -1,
+        'matchRemoved': true,
+        'removedMatchId': 'match-1',
+      },
+      'session': <String, dynamic>{
+        'sessionId': 'solo-new',
+        'status': 'active',
+        'matchedCount': 1,
+        'dishes': testDishes.map((Dish dish) => dish.toJson()).toList(),
+        'meta': <String, dynamic>{},
+      },
+    };
+
+    await provider.undo();
+
+    expect(badgeController.badgeCount, 1);
+    expect(badgeController.bumpToken, bumpToken);
+  });
 }
 
 class _FakeDishRepository extends DishRepository {
@@ -226,6 +271,7 @@ class _FakeSwipeRepository extends SwipeRepository {
   final List<(String, String)> sentSwipes = <(String, String)>[];
   List<Dish> soloSessionDishes = <Dish>[];
   dynamic swipeResult = <String, dynamic>{};
+  dynamic undoResult = <String, dynamic>{};
 
   @override
   Future<dynamic> createSoloSession({
@@ -250,6 +296,9 @@ class _FakeSwipeRepository extends SwipeRepository {
     sentSwipes.add((dishId, direction));
     return swipeResult;
   }
+
+  @override
+  Future<dynamic> undoSoloSwipe(String sessionId) async => undoResult;
 }
 
 class _FakeCacheService extends CacheService {
