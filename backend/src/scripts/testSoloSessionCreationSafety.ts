@@ -5,6 +5,7 @@ import { isActiveSoloSessionUniqueViolation } from '../core/utils/postgresErrors
 
 const root = path.resolve(__dirname, '..');
 const service = fs.readFileSync(path.join(root, 'modules/solo-swipes/services/soloSwipeService.ts'), 'utf8');
+const pairSwipeService = fs.readFileSync(path.join(root, 'modules/swipes/services/swipeService.ts'), 'utf8');
 const catalog = fs.readFileSync(path.join(root, 'infrastructure/postgres/repositories/PostgresCatalogRepositories.ts'), 'utf8');
 const flutter = fs.readFileSync(path.resolve(root, '../../food_match/lib/features/swipes/presentation/screens/pre_swipe_filter_screen.dart'), 'utf8');
 
@@ -16,6 +17,12 @@ assert(service.includes('domainRepositories.soloSessions.replaceActive(write)'),
 assert(service.includes("sessionSwipes.filter((swipe)=>swipe.direction==='like').length"), 'likes must be scoped to the new solo session');
 assert(service.includes('matchId=m.match.id'), 'created solo matches must expose their real persisted match id');
 assert(service.includes('match:matchId?{id:matchId'), 'solo swipe responses must include the real match object');
+assert(service.includes('alreadyMatched=!m.created'), 'existing solo matches must be identified explicitly');
+assert(service.includes('badgeDelta=matchCreated?1:0'), 'solo badge delta must only count newly created matches');
+assert(service.includes('listForSoloSession(userId,id)).length'), 'solo swipe must return the current session match count');
+assert(service.includes('alreadyMatched,badgeDelta,badgeCount'), 'solo swipe response must expose an unambiguous badge contract');
+assert(pairSwipeService.includes('listForCouple(session.id)).length'), 'pair swipe must return the current session match count');
+assert(pairSwipeService.includes('alreadyMatched,badgeDelta,badgeCount'), 'pair swipe response must expose the same badge contract');
 assert(service.includes('postgresDishes.listLightweight(userId)'), 'solo deck creation must use lightweight catalog rows');
 assert(catalog.includes('full ingredient hydration skipped for deck=true'));
 assert(!catalog.slice(catalog.indexOf('async listLightweight'), catalog.indexOf('async getByPublicId')).includes('hydrateListRows'));

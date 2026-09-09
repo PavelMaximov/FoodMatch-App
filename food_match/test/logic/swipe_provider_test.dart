@@ -83,6 +83,8 @@ void main() {
         'direction': 'like',
         'matchId': 'match-1',
         'matchCreated': true,
+        'badgeCount': 1,
+        'badgeDelta': 1,
       },
     };
 
@@ -193,12 +195,14 @@ void main() {
       'swipe': <String, dynamic>{
         'direction': 'like',
         'matchCreated': false,
+        'badgeCount': 3,
+        'badgeDelta': 0,
       },
     };
 
     await provider.like();
 
-    expect(badgeController.badgeCount, 0);
+    expect(badgeController.badgeCount, 3);
     expect(badgeController.bumpToken, 0);
   });
 }

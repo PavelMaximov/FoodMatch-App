@@ -661,64 +661,53 @@ class SwipeProvider extends ChangeNotifier {
           'swipeId=${swipeId ?? 'none'} direction=$direction '
           'matchCreated=$matchCreated',
         );
-      }
-      if (!confirmedLike || !matchCreated) {
-        if (kDebugMode) {
+        if (!confirmedLike || !matchCreated) {
           debugPrint(
             '[SwipeBadge] skip reason=${direction != 'like' ? 'dislike' : 'match_created_false'}',
           );
         }
-      } else {
+      }
+      final String? matchId = _realMatchId(response, swipe);
+      final int? responseBadgeCount = _intValue(swipe?['badgeCount']);
+      final int responseBadgeDelta = _intValue(swipe?['badgeDelta']) ?? 0;
+      final String mode = isSoloMode ? 'solo' : 'paired';
+      final String? sessionId = isSoloMode
+          ? activeSoloSessionId
+          : swipe?['coupleId']?.toString() ?? _badgeController?.sessionId;
+      final bool validScope = _activeUserId?.isNotEmpty == true &&
+          sessionId?.isNotEmpty == true;
+      if (responseBadgeCount != null && validScope) {
+        final int safeDelta = confirmedLike && matchCreated
+            ? responseBadgeDelta
+            : 0;
+        _badgeController?.applySwipeBadgeResult(
+          userId: _activeUserId!,
+          mode: mode,
+          sessionId: sessionId!,
+          badgeCount: responseBadgeCount,
+          badgeDelta: safeDelta,
+          matchId: matchId,
+          reason: 'swipe_response',
+        );
         if (kDebugMode) {
           debugPrint(
-            '[Swipe] matchCreated=true dish=${dish.id} '
-            'mode=${isSoloMode ? 'solo' : 'paired'}',
+            '[SwipeBadgeFast] badgeCount=$responseBadgeCount '
+            'badgeDelta=$safeDelta matchId=${matchId ?? 'none'} '
+            'action=apply_fast',
           );
         }
-        final String? matchId = _realMatchId(response, swipe);
-        final String mode = isSoloMode ? 'solo' : 'paired';
-        final String? sessionId = isSoloMode
-            ? activeSoloSessionId
-            : swipe?['coupleId']?.toString() ?? _badgeController?.sessionId;
-        final bool canInitializeScope = _activeUserId != null &&
-            _activeUserId!.isNotEmpty &&
-            sessionId != null &&
-            sessionId.isNotEmpty;
-        if (canInitializeScope) {
-          _badgeController
-            ?..setActiveUser(_activeUserId)
-            ..setScope(mode: mode, sessionId: sessionId);
-        }
-        final bool validScope = canInitializeScope &&
-            _badgeController?.hasValidScope == true &&
-            _badgeController?.mode == mode &&
-            _badgeController?.sessionId == sessionId;
-        if (matchId != null && validScope) {
-          _badgeController!.registerNewMatch(
-            matchId: matchId,
-            source: 'swipe_result',
-            mode: mode,
-            sessionId: sessionId,
-          );
-          if (kDebugMode) {
-            debugPrint(
-              '[SwipeBadge] direction=like matchCreated=true '
-              'matchId=$matchId user=$_activeUserId mode=$mode '
-              'session=$sessionId action=immediate_register',
-            );
-          }
-        } else if (kDebugMode) {
-          debugPrint(
-            '[SwipeBadge] direction=like matchCreated=true '
-            'matchId=${matchId ?? 'none'} action=force_refresh '
-            'reason=${matchId == null ? 'no_real_match_id' : 'scope_unresolved'}',
-          );
-        }
-        final String refreshReason = matchId == null
-            ? 'swipe_match_created_no_match_id'
-            : validScope
-                ? 'swipe_match_created'
-                : 'swipe_match_created_scope_unresolved';
+      } else if (confirmedLike && matchCreated && matchId != null && validScope) {
+        _badgeController?.registerNewMatch(
+          matchId: matchId,
+          source: 'swipe_result_legacy',
+          mode: mode,
+          sessionId: sessionId,
+        );
+      }
+      if (responseBadgeCount != null || matchCreated) {
+        final String refreshReason = matchCreated
+            ? 'swipe_match_created'
+            : 'swipe_badge_reconcile';
         unawaited(
           _badgeController?.requestAuthoritativeRefresh(
                 mode: mode,
@@ -793,6 +782,11 @@ class SwipeProvider extends ChangeNotifier {
       if (value.isNotEmpty) return value;
     }
     return null;
+  }
+
+  int? _intValue(dynamic value) {
+    if (value is int) return value;
+    return int.tryParse(value?.toString() ?? '');
   }
 
   Future<void> _applyLocalPostSwipe(

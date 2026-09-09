@@ -1383,23 +1383,20 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
               matchProvider.activeSoloSessionId != sessionId) {
             matchProvider.setSoloSession(sessionId);
           }
-          unawaited(
-            matchProvider.loadMatches(
-              force: true,
-              mode: 'solo',
-              soloSessionId: sessionId,
-            ),
-          );
+          final String? matchId = result['swipe']?['matchId']?.toString();
+          if (matchId != null && matchId.isNotEmpty) {
+            matchProvider.recordSoloMatchFromSwipe(
+              dish: swipedDish,
+              sessionId: sessionId,
+              eventId: matchId,
+            );
+          }
           return;
         }
         final String? matchId = result['swipe']?['matchId']?.toString();
         if (matchId != null && matchId.isNotEmpty) {
           context.read<MatchProvider>().markMatchSeen(matchId);
         }
-        context.read<MatchProvider>().loadMatches(
-          force: true,
-          mode: 'paired',
-        );
         context.push('/match-overlay', extra: swipedDish);
         return;
       }

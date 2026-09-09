@@ -72,8 +72,10 @@ class _MainShellState extends State<MainShell>
   String? _shownInvitationId;
   late final AnimationController _soloPlusOneController;
   MatchBadgeController? _matchBadgeController;
+  SwipeProvider? _swipeProvider;
   int _lastBadgeBumpToken = 0;
   Timer? _matchBadgeRefreshTimer;
+  bool? _invitationPollingPausedForSolo;
 
   Future<bool> _hasIconAsset(String assetPath) {
     return _iconAssetAvailability.putIfAbsent(assetPath, () async {
@@ -103,6 +105,8 @@ class _MainShellState extends State<MainShell>
     });
     _matchBadgeController = context.read<MatchBadgeController>()
       ..addListener(_handleBadgeAnimationEvent);
+    _swipeProvider = context.read<SwipeProvider>()
+      ..addListener(_syncInvitationPollingForSwipeMode);
     _lastBadgeBumpToken =
         _matchBadgeController!.bumpToken;
     WidgetsBinding.instance.addObserver(this);
@@ -110,9 +114,7 @@ class _MainShellState extends State<MainShell>
       if (mounted) {
         _bootstrapMatchesBadge();
         _startMatchBadgeRefresh();
-        context.read<CoupleProvider>().startInvitationPolling(
-          reason: 'main_shell',
-        );
+        _syncInvitationPollingForSwipeMode();
       }
     });
   }
@@ -120,10 +122,27 @@ class _MainShellState extends State<MainShell>
   @override
   void dispose() {
     _matchBadgeController?.removeListener(_handleBadgeAnimationEvent);
+    _swipeProvider?.removeListener(_syncInvitationPollingForSwipeMode);
     _soloPlusOneController.dispose();
     _matchBadgeRefreshTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  void _syncInvitationPollingForSwipeMode() {
+    if (!mounted) return;
+    final bool pause = _swipeProvider?.hasActiveSoloSession == true;
+    if (_invitationPollingPausedForSolo == pause) return;
+    _invitationPollingPausedForSolo = pause;
+    final CoupleProvider coupleProvider = context.read<CoupleProvider>();
+    if (pause) {
+      coupleProvider.stopInvitationPolling(reason: 'active_solo_deck');
+      if (kDebugMode) {
+        debugPrint('[PairInvite] polling paused reason=active_solo_deck');
+      }
+    } else {
+      coupleProvider.startInvitationPolling(reason: 'solo_deck_inactive');
+    }
   }
 
   void _handleBadgeAnimationEvent() {
@@ -148,7 +167,7 @@ class _MainShellState extends State<MainShell>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      context.read<CoupleProvider>().handleAppResumed();
+      unawaited(_resumeCouplePolling());
       context.read<SwipeProvider>().syncPendingSwipes();
       unawaited(_refreshMatchBadge(reason: 'app_resume'));
       return;
@@ -158,6 +177,22 @@ class _MainShellState extends State<MainShell>
         state == AppLifecycleState.detached) {
       context.read<CoupleProvider>().handleAppPaused();
     }
+  }
+
+  Future<void> _resumeCouplePolling() async {
+    if (_swipeProvider?.hasActiveSoloSession == true) {
+      context.read<CoupleProvider>().stopInvitationPolling(
+        reason: 'active_solo_deck',
+      );
+      if (kDebugMode) {
+        debugPrint('[PairInvite] polling paused reason=active_solo_deck');
+      }
+      return;
+    }
+    await context.read<CoupleProvider>().handleAppResumed();
+    if (!mounted) return;
+    _invitationPollingPausedForSolo = null;
+    _syncInvitationPollingForSwipeMode();
   }
 
   void _startMatchBadgeRefresh() {

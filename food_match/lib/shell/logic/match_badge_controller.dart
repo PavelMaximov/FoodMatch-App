@@ -19,7 +19,7 @@ class MatchBadgeController extends ChangeNotifier {
   bool _notifyScheduled = false;
   bool _disposed = false;
 
-  int get badgeCount => _activeScope?.currentMatchIds.length ?? 0;
+  int get badgeCount => _activeScope?.badgeCount ?? 0;
   String? get activeUserId => _userId;
   int get bumpToken => _bumpToken;
   String get mode => _mode;
@@ -108,6 +108,7 @@ class MatchBadgeController extends ChangeNotifier {
     scope.authoritativeMatchIds
       ..clear()
       ..addAll(ids);
+    scope.authoritativeCount = ids.length;
     scope.knownMatchIds.addAll(ids);
     scope.pendingImmediateIds.clear();
     scope.initialized = true;
@@ -133,6 +134,8 @@ class MatchBadgeController extends ChangeNotifier {
     }
     final _MatchBadgeScope scope = _scopeForActive();
     if (!scope.knownMatchIds.add(normalizedId)) return false;
+    scope.authoritativeMatchIds.add(normalizedId);
+    scope.authoritativeCount++;
     scope.pendingImmediateIds.add(normalizedId);
     scope.initialized = true;
     _bumpToken++;
@@ -145,6 +148,41 @@ class MatchBadgeController extends ChangeNotifier {
     }
     _notifySafely('register_new_match');
     return true;
+  }
+
+  void applySwipeBadgeResult({
+    required String userId,
+    required String mode,
+    required String sessionId,
+    required int badgeCount,
+    required int badgeDelta,
+    String? matchId,
+    required String reason,
+  }) {
+    _activate(userId: userId, mode: mode, sessionId: sessionId);
+    final _MatchBadgeScope scope = _scopeForActive();
+    final String? normalizedMatchId = _normalize(matchId);
+    final bool isNewRealMatch = badgeDelta > 0 &&
+        normalizedMatchId != null &&
+        scope.knownMatchIds.add(normalizedMatchId);
+    scope.authoritativeCount = badgeCount < 0 ? 0 : badgeCount;
+    if (normalizedMatchId != null) {
+      scope.authoritativeMatchIds.add(normalizedMatchId);
+      scope.pendingImmediateIds.add(normalizedMatchId);
+    }
+    scope.initialized = true;
+    if (isNewRealMatch) {
+      _bumpToken++;
+      _lastAnimationEventId = '${_scopeKey()}:$normalizedMatchId';
+    }
+    if (kDebugMode) {
+      debugPrint(
+        '[MatchBadge] applySwipeBadgeResult count=${scope.authoritativeCount} '
+        'delta=$badgeDelta matchId=${normalizedMatchId ?? 'none'} '
+        'bumpToken=$_bumpToken reason=$reason',
+      );
+    }
+    _notifySafely('apply_swipe_badge_result');
   }
 
   void applyFetchedMatches({
@@ -182,13 +220,16 @@ class MatchBadgeController extends ChangeNotifier {
     }
     final Set<String> previousKnown = Set<String>.from(scope.knownMatchIds);
     final Set<String> newIds = fetchedIds.difference(previousKnown);
+    final bool handledByFastPath = scope.pendingImmediateIds.isNotEmpty &&
+        reason == 'swipe_match_created';
     scope.authoritativeMatchIds
       ..clear()
       ..addAll(fetchedIds);
+    scope.authoritativeCount = fetchedIds.length;
     scope.knownMatchIds.addAll(fetchedIds);
     scope.pendingImmediateIds.clear();
-    final bool shouldAnimate =
-        animateNew ?? _reasonAllowsAnimation(reason);
+    final bool shouldAnimate = !handledByFastPath &&
+        (animateNew ?? _reasonAllowsAnimation(reason));
     if (shouldAnimate && newIds.isNotEmpty) {
       _bumpToken++;
       _lastAnimationEventId =
@@ -299,9 +340,9 @@ class _MatchBadgeScope {
   final Set<String> knownMatchIds = <String>{};
   final Set<String> pendingImmediateIds = <String>{};
   bool initialized = false;
+  int authoritativeCount = 0;
 
-  Set<String> get currentMatchIds => <String>{
-        ...authoritativeMatchIds,
-        ...pendingImmediateIds,
-      };
+  int get badgeCount => authoritativeCount > authoritativeMatchIds.length
+      ? authoritativeCount
+      : authoritativeMatchIds.length;
 }

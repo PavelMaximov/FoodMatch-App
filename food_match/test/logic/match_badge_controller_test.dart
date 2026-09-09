@@ -129,4 +129,47 @@ void main() {
     expect(controller.badgeCount, 1);
     expect(controller.bumpToken, 0);
   });
+
+  test('swipe badge result applies authoritative count and one bump', () {
+    final MatchBadgeController controller = MatchBadgeController();
+
+    controller.applySwipeBadgeResult(
+      userId: 'user-a',
+      mode: 'solo',
+      sessionId: 'solo-a',
+      badgeCount: 2,
+      badgeDelta: 1,
+      matchId: 'match-2',
+      reason: 'test',
+    );
+
+    expect(controller.badgeCount, 2);
+    expect(controller.bumpToken, 1);
+    controller.applyFetchedMatches(
+      userId: 'user-a',
+      mode: 'solo',
+      sessionId: 'solo-a',
+      matchIds: <String>['match-1', 'match-2'],
+      reason: 'swipe_match_created',
+    );
+    expect(controller.badgeCount, 2);
+    expect(controller.bumpToken, 1);
+  });
+
+  test('zero badge delta updates count without animation', () {
+    final MatchBadgeController controller = MatchBadgeController();
+
+    controller.applySwipeBadgeResult(
+      userId: 'user-a',
+      mode: 'solo',
+      sessionId: 'solo-a',
+      badgeCount: 3,
+      badgeDelta: 0,
+      matchId: 'match-3',
+      reason: 'test',
+    );
+
+    expect(controller.badgeCount, 3);
+    expect(controller.bumpToken, 0);
+  });
 }

@@ -315,12 +315,21 @@ class MatchProvider extends ChangeNotifier {
       }
       return;
     }
+    if (kDebugMode) {
+      debugPrint('[MatchProvider] background refresh reason=$reason started');
+    }
     await loadMatches(
       force: true,
       mode: mode,
       soloSessionId: mode == 'solo' ? sessionId : null,
       reason: reason,
     );
+    if (kDebugMode) {
+      debugPrint(
+        '[MatchProvider] background refresh reason=$reason '
+        'completed total=${matches.length}',
+      );
+    }
   }
 
   String get _cacheKey {
