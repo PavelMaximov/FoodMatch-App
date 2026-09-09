@@ -36,6 +36,37 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );
+
+  testWidgets('user synchronization during build defers notification', (
+    WidgetTester tester,
+  ) async {
+    final MatchBadgeController controller = MatchBadgeController()
+      ..initializeBaseline(
+        userId: 'user-a',
+        mode: 'solo',
+        sessionId: 'solo-a',
+        matchIds: <String>['match-1'],
+      );
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<MatchBadgeController>.value(
+        value: controller,
+        child: MaterialApp(
+          home: Consumer<MatchBadgeController>(
+            builder: (_, MatchBadgeController badge, __) {
+              badge.setActiveUser('user-b', reason: 'provider_update');
+              return Text('${badge.badgeCount}');
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(controller.activeUserId, 'user-b');
+    expect(controller.badgeCount, 0);
+  });
 }
 
 Widget _badgeHarness({

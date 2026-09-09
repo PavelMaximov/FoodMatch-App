@@ -1,4 +1,6 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:flutter/widgets.dart';
 
 typedef MatchBadgeRefresh = Future<void> Function({
   required String mode,
@@ -14,6 +16,8 @@ class MatchBadgeController extends ChangeNotifier {
   int _bumpToken = 0;
   String? _lastAnimationEventId;
   MatchBadgeRefresh? _refresh;
+  bool _notifyScheduled = false;
+  bool _disposed = false;
 
   int get badgeCount => _activeScope?.currentMatchIds.length ?? 0;
   String? get activeUserId => _userId;
@@ -60,7 +64,7 @@ class MatchBadgeController extends ChangeNotifier {
       if (kDebugMode) {
         debugPrint('[MatchBadge] provisional state claimed user=$normalized');
       }
-      notifyListeners();
+      // Claiming provisional scopes does not change the visible count.
       return;
     }
     _userId = normalized;
@@ -70,10 +74,11 @@ class MatchBadgeController extends ChangeNotifier {
     if (kDebugMode) {
       debugPrint('[MatchBadge] reset reason=$reason user=${normalized ?? 'none'}');
     }
-    notifyListeners();
+    _notifySafely('set_active_user:$reason');
   }
 
   void setScope({required String mode, String? sessionId}) {
+    final int oldBadgeCount = badgeCount;
     final String normalizedMode = mode == 'paired' ? 'paired' : 'solo';
     final String? normalizedSession = _normalize(sessionId);
     if (_mode == normalizedMode && _sessionId == normalizedSession) return;
@@ -86,7 +91,9 @@ class MatchBadgeController extends ChangeNotifier {
         'badgeCount=$badgeCount',
       );
     }
-    notifyListeners();
+    if (oldBadgeCount != badgeCount) {
+      _notifySafely('set_scope');
+    }
   }
 
   void initializeBaseline({
@@ -110,7 +117,7 @@ class MatchBadgeController extends ChangeNotifier {
         'sessionId=${_sessionId ?? 'none'}',
       );
     }
-    notifyListeners();
+    _notifySafely('initialize_baseline');
   }
 
   bool registerNewMatch({
@@ -136,7 +143,7 @@ class MatchBadgeController extends ChangeNotifier {
         'badgeCount=$badgeCount bumpToken=$_bumpToken',
       );
     }
-    notifyListeners();
+    _notifySafely('register_new_match');
     return true;
   }
 
@@ -169,7 +176,7 @@ class MatchBadgeController extends ChangeNotifier {
             'bumpToken=$_bumpToken',
           );
         }
-        notifyListeners();
+        _notifySafely('reconcile_swipe_baseline');
       }
       return;
     }
@@ -194,7 +201,7 @@ class MatchBadgeController extends ChangeNotifier {
         'bumpToken=$_bumpToken',
       );
     }
-    notifyListeners();
+    _notifySafely('reconcile:$reason');
   }
 
   void markAllSeen({required String reason}) {
@@ -209,7 +216,7 @@ class MatchBadgeController extends ChangeNotifier {
     _sessionId = null;
     _lastAnimationEventId = null;
     if (kDebugMode) debugPrint('[MatchBadge] reset reason=$reason');
-    notifyListeners();
+    _notifySafely('reset:$reason');
   }
 
   _MatchBadgeScope? get _activeScope {
@@ -250,6 +257,36 @@ class MatchBadgeController extends ChangeNotifier {
         'swipe_match_created_scope_unresolved',
         'swipe_match_created_no_match_id',
       }.contains(reason);
+
+  void _notifySafely(String reason) {
+    if (_disposed) return;
+    final SchedulerPhase phase = WidgetsBinding.instance.schedulerPhase;
+    if (phase == SchedulerPhase.idle ||
+        phase == SchedulerPhase.postFrameCallbacks) {
+      if (kDebugMode) {
+        debugPrint('[MatchBadge] notify immediate reason=$reason');
+      }
+      notifyListeners();
+      return;
+    }
+    if (_notifyScheduled) return;
+    _notifyScheduled = true;
+    if (kDebugMode) {
+      debugPrint('[MatchBadge] notify deferred reason=$reason phase=$phase');
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _notifyScheduled = false;
+      if (_disposed) return;
+      notifyListeners();
+    });
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _refresh = null;
+    super.dispose();
+  }
 
   String? _normalize(String? value) {
     final String? trimmed = value?.trim();
