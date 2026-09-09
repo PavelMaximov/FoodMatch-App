@@ -71,7 +71,7 @@ void main() {
     expect(controller.bumpToken, 0);
   });
 
-  test('opening Matches marks badge entries seen without replaying animation', () {
+  test('opening Matches does not clear total-count badge', () {
     final MatchBadgeController controller = MatchBadgeController()
       ..initializeBaseline(
         userId: 'user-a',
@@ -89,7 +89,44 @@ void main() {
       reason: 'matches_screen_opened',
     );
 
-    expect(controller.badgeCount, 0);
+    expect(controller.badgeCount, 1);
+    expect(controller.bumpToken, 0);
+  });
+
+  test('scope-unresolved swipe refresh establishes count and animates', () {
+    final MatchBadgeController controller = MatchBadgeController();
+
+    controller.applyFetchedMatches(
+      userId: 'user-a',
+      mode: 'solo',
+      sessionId: 'solo-a',
+      matchIds: <String>['match-1'],
+      reason: 'swipe_match_created_scope_unresolved',
+    );
+
+    expect(controller.badgeCount, 1);
+    expect(controller.authoritativeMatchIds, <String>{'match-1'});
+    expect(controller.bumpToken, 1);
+  });
+
+  test('authoritative refresh corrects total count without replaying old ids', () {
+    final MatchBadgeController controller = MatchBadgeController()
+      ..initializeBaseline(
+        userId: 'user-a',
+        mode: 'solo',
+        sessionId: 'solo-a',
+        matchIds: <String>['match-1', 'match-2'],
+      );
+
+    controller.applyFetchedMatches(
+      userId: 'user-a',
+      mode: 'solo',
+      sessionId: 'solo-a',
+      matchIds: <String>['match-2'],
+      reason: 'shell_poll',
+    );
+
+    expect(controller.badgeCount, 1);
     expect(controller.bumpToken, 0);
   });
 }

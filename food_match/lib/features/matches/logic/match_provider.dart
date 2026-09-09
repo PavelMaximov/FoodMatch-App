@@ -17,7 +17,9 @@ class MatchProvider extends ChangeNotifier {
     MatchBadgeController? badgeController,
   })  : _swipeRepository = swipeRepository,
         _cacheService = cacheService ?? CacheService(),
-        _badgeController = badgeController;
+        _badgeController = badgeController {
+    badgeController?.attachRefreshHandler(_refreshForBadgeEvent);
+  }
 
   final SwipeRepository _swipeRepository;
   final CacheService _cacheService;
@@ -114,7 +116,18 @@ class MatchProvider extends ChangeNotifier {
         DateTime.now().difference(loadedAt) < CachePolicy.matchesTtl;
   }
 
-  Future<void> loadMatches({bool force = false, String? mode, String? soloSessionId}) {
+  Future<void> loadMatches({
+    bool force = false,
+    String? mode,
+    String? soloSessionId,
+    String? reason,
+  }) {
+    if (_activeUserId == null || _activeUserId!.isEmpty) {
+      AppLogger.info(
+        '[MatchProvider] loadMatches skipped reason=user_unresolved',
+      );
+      return Future<void>.value();
+    }
     if (soloSessionId != null && soloSessionId != _activeSoloSessionId) {
       _activeSoloSessionId = soloSessionId;
       _optimisticSoloMatchKeys.clear();
@@ -140,6 +153,19 @@ class MatchProvider extends ChangeNotifier {
     }
     final Future<void>? inFlight = _matchesLoadFuture;
     if (inFlight != null) {
+      if (force) {
+        AppLogger.info(
+          '[RequestDedup] matches force refresh queued reason=${reason ?? 'refresh'}',
+        );
+        return inFlight.then(
+          (_) => loadMatches(
+            force: true,
+            mode: mode,
+            soloSessionId: soloSessionId,
+            reason: reason,
+          ),
+        );
+      }
       AppLogger.info('[RequestDedup] matches load skipped: already in flight');
       return inFlight;
     }
@@ -147,24 +173,34 @@ class MatchProvider extends ChangeNotifier {
     final String requestKey = _cacheKey;
     AppLogger.info('[MatchProvider] loadMatches user=${_activeUserId ?? 'none'} mode=$_mode scope=${_mode == 'solo' ? 'current' : 'all'} sessionId=${_activeSoloSessionId ?? _activeCoupleId ?? 'none'} force=$force');
     AppLogger.info('[MatchProvider] cache hit=false count=0 key=$requestKey');
-    _matchesLoadFuture = _loadMatchesFromApi(force: force, requestKey: requestKey);
+    _matchesLoadFuture = _loadMatchesFromApi(
+      force: force,
+      requestKey: requestKey,
+      reason: reason ?? (force ? 'refresh' : 'initial_load'),
+    );
     return _matchesLoadFuture!;
   }
 
-  Future<void> _loadMatchesFromApi({required bool force, required String requestKey}) async {
+  Future<void> _loadMatchesFromApi({
+    required bool force,
+    required String requestKey,
+    required String reason,
+  }) async {
     AppLogger.info(
-      '[PageLoad] start page=Matches reason=${force ? 'refresh' : 'route'}',
+      '[PageLoad] start page=Matches reason=$reason',
     );
     AppLogger.info(force ? '[Cache] matches force refresh' : '[Cache] matches miss');
     isLoading = true;
     error = null;
     notifyListeners();
     final Set<String> previousMatchIds = matches
-        .map((MatchItem item) => item.id ?? 'dish:${item.dish.id}')
+        .map((MatchItem item) => item.id?.trim())
+        .whereType<String>()
+        .where((String id) => id.isNotEmpty)
         .toSet();
     if (kDebugMode) {
       debugPrint(
-        '[MatchBadge] refresh start reason=${force ? 'refresh' : 'initial_load'} '
+        '[MatchBadge] refresh start reason=$reason '
         'previousMatchIds=$previousMatchIds',
       );
     }
@@ -179,12 +215,15 @@ class MatchProvider extends ChangeNotifier {
       );
       AppLogger.info('[MatchProvider] API result count=${result.length}');
       final Set<String> fetchedMatchIds = result
-          .map((MatchItem item) => item.id ?? 'dish:${item.dish.id}')
+          .map((MatchItem item) => item.id?.trim())
+          .whereType<String>()
+          .where((String id) => id.isNotEmpty)
           .toSet();
       if (kDebugMode) {
         debugPrint(
-          '[MatchBadge] fetchedMatchIds=$fetchedMatchIds '
-          'newMatchIds=${fetchedMatchIds.difference(previousMatchIds)}',
+          '[MatchProvider] fetched user=${_activeUserId ?? 'none'} '
+          'mode=$_mode session=${_activeSoloSessionId ?? _activeCoupleId ?? 'none'} '
+          'total=${fetchedMatchIds.length} ids=$fetchedMatchIds',
         );
       }
       if (requestKey != _cacheKey) {
@@ -219,11 +258,8 @@ class MatchProvider extends ChangeNotifier {
           sessionId: _mode == 'solo'
               ? _activeSoloSessionId
               : _activeCoupleId,
-          matchIds: matches.map(
-            (MatchItem item) => item.id ?? 'dish:${item.dish.id}',
-          ),
-          reason: force ? 'refresh' : 'initial_load',
-          animateNew: force,
+          matchIds: fetchedMatchIds,
+          reason: reason,
         );
       }
       AppLogger.info(
@@ -266,6 +302,25 @@ class MatchProvider extends ChangeNotifier {
         notifyListeners();
       }
     }
+  }
+
+  Future<void> _refreshForBadgeEvent({
+    required String mode,
+    required String? sessionId,
+    required String reason,
+  }) async {
+    if (_activeUserId == null) {
+      if (kDebugMode) {
+        debugPrint('[SwipeBadge] action=force_refresh skipped=user_unresolved');
+      }
+      return;
+    }
+    await loadMatches(
+      force: true,
+      mode: mode,
+      soloSessionId: mode == 'solo' ? sessionId : null,
+      reason: reason,
+    );
   }
 
   String get _cacheKey {

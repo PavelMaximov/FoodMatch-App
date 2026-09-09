@@ -129,12 +129,15 @@ class _MainShellState extends State<MainShell>
   void _handleBadgeAnimationEvent() {
     final int event =
         _matchBadgeController?.bumpToken ?? 0;
-    if (event == _lastBadgeBumpToken || !mounted) {
+    if (event <= _lastBadgeBumpToken || !mounted) {
       return;
     }
     _lastBadgeBumpToken = event;
     if (kDebugMode) {
-      debugPrint('[BottomNavBadge] animate +1 delta=1 bumpToken=$event');
+      debugPrint(
+        '[BottomNavBadge] plusOne start bumpToken=$event '
+        'badge=${_matchBadgeController?.badgeCount ?? 0}',
+      );
     }
     _soloPlusOneController
       ..stop()
@@ -185,7 +188,10 @@ class _MainShellState extends State<MainShell>
     if (kDebugMode) {
       debugPrint('[MatchBadge] refresh requested reason=$reason');
     }
-    await context.read<MatchProvider>().loadMatches(force: true);
+    await context.read<MatchProvider>().loadMatches(
+      force: true,
+      reason: reason,
+    );
   }
 
   void _onTabTap(int index) {
@@ -195,9 +201,6 @@ class _MainShellState extends State<MainShell>
       return;
     }
     if (index == 1) {
-      context.read<MatchBadgeController>().markAllSeen(
-        reason: 'matches_tab_opened',
-      );
       context.read<MatchProvider>().loadMatches();
     }
 

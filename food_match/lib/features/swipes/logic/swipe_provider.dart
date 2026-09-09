@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../../../core/constants/app_strings.dart';
@@ -647,8 +649,9 @@ class SwipeProvider extends ChangeNotifier {
           ? Map<String, dynamic>.from(rawSwipe)
           : null;
       final bool matchCreated = swipe?['matchCreated'] == true;
-      final bool confirmedLike =
-          direction == 'like' && swipe?['direction'] == 'like';
+      final String? backendDirection = swipe?['direction']?.toString();
+      final bool confirmedLike = direction == 'like' &&
+          (backendDirection == null || backendDirection == 'like');
       final String? swipeId = swipe?['id']?.toString();
       if (kDebugMode) {
         debugPrint(
@@ -659,7 +662,13 @@ class SwipeProvider extends ChangeNotifier {
           'matchCreated=$matchCreated',
         );
       }
-      if (confirmedLike && matchCreated) {
+      if (!confirmedLike || !matchCreated) {
+        if (kDebugMode) {
+          debugPrint(
+            '[SwipeBadge] skip reason=${direction != 'like' ? 'dislike' : 'match_created_false'}',
+          );
+        }
+      } else {
         if (kDebugMode) {
           debugPrint(
             '[Swipe] matchCreated=true dish=${dish.id} '
@@ -670,8 +679,18 @@ class SwipeProvider extends ChangeNotifier {
         final String mode = isSoloMode ? 'solo' : 'paired';
         final String? sessionId = isSoloMode
             ? activeSoloSessionId
-            : _badgeController?.sessionId;
-        final bool validScope = _badgeController?.hasValidScope == true &&
+            : swipe?['coupleId']?.toString() ?? _badgeController?.sessionId;
+        final bool canInitializeScope = _activeUserId != null &&
+            _activeUserId!.isNotEmpty &&
+            sessionId != null &&
+            sessionId.isNotEmpty;
+        if (canInitializeScope) {
+          _badgeController
+            ?..setActiveUser(_activeUserId)
+            ..setScope(mode: mode, sessionId: sessionId);
+        }
+        final bool validScope = canInitializeScope &&
+            _badgeController?.hasValidScope == true &&
             _badgeController?.mode == mode &&
             _badgeController?.sessionId == sessionId;
         if (matchId != null && validScope) {
@@ -681,12 +700,33 @@ class SwipeProvider extends ChangeNotifier {
             mode: mode,
             sessionId: sessionId,
           );
+          if (kDebugMode) {
+            debugPrint(
+              '[SwipeBadge] direction=like matchCreated=true '
+              'matchId=$matchId user=$_activeUserId mode=$mode '
+              'session=$sessionId action=immediate_register',
+            );
+          }
         } else if (kDebugMode) {
           debugPrint(
-            '[MatchBadge] immediate registration skipped '
-            'reason=${matchId == null ? 'missing_match_id' : 'invalid_scope'}',
+            '[SwipeBadge] direction=like matchCreated=true '
+            'matchId=${matchId ?? 'none'} action=force_refresh '
+            'reason=${matchId == null ? 'no_real_match_id' : 'scope_unresolved'}',
           );
         }
+        final String refreshReason = matchId == null
+            ? 'swipe_match_created_no_match_id'
+            : validScope
+                ? 'swipe_match_created'
+                : 'swipe_match_created_scope_unresolved';
+        unawaited(
+          _badgeController?.requestAuthoritativeRefresh(
+                mode: mode,
+                sessionId: sessionId,
+                reason: refreshReason,
+              ) ??
+              Future<void>.value(),
+        );
       }
     } catch (e) {
       if (_shouldQueueOffline(e)) {

@@ -1,5 +1,11 @@
 import 'package:flutter/foundation.dart';
 
+typedef MatchBadgeRefresh = Future<void> Function({
+  required String mode,
+  required String? sessionId,
+  required String reason,
+});
+
 class MatchBadgeController extends ChangeNotifier {
   final Map<String, _MatchBadgeScope> _scopes = <String, _MatchBadgeScope>{};
   String? _userId;
@@ -7,18 +13,37 @@ class MatchBadgeController extends ChangeNotifier {
   String? _sessionId;
   int _bumpToken = 0;
   String? _lastAnimationEventId;
+  MatchBadgeRefresh? _refresh;
 
-  int get badgeCount => _activeScope?.unseenMatchIds.length ?? 0;
+  int get badgeCount => _activeScope?.currentMatchIds.length ?? 0;
   String? get activeUserId => _userId;
   int get bumpToken => _bumpToken;
   String get mode => _mode;
   String? get sessionId => _sessionId;
   String? get lastAnimationEventId => _lastAnimationEventId;
   bool get hasValidScope => _userId != null && _sessionId != null;
-  Set<String> get unseenMatchIds =>
-      Set<String>.unmodifiable(_activeScope?.unseenMatchIds ?? <String>{});
+  Set<String> get authoritativeMatchIds => Set<String>.unmodifiable(
+        _activeScope?.authoritativeMatchIds ?? <String>{},
+      );
   Set<String> get knownMatchIds =>
       Set<String>.unmodifiable(_activeScope?.knownMatchIds ?? <String>{});
+
+  void attachRefreshHandler(MatchBadgeRefresh refresh) => _refresh = refresh;
+
+  Future<void> requestAuthoritativeRefresh({
+    required String mode,
+    required String? sessionId,
+    required String reason,
+  }) async {
+    final MatchBadgeRefresh? refresh = _refresh;
+    if (refresh == null) {
+      if (kDebugMode) {
+        debugPrint('[SwipeBadge] action=force_refresh skipped=no_handler');
+      }
+      return;
+    }
+    await refresh(mode: mode, sessionId: sessionId, reason: reason);
+  }
 
   void setActiveUser(String? userId, {String reason = 'auth_update'}) {
     final String? normalized = _normalize(userId);
@@ -56,7 +81,8 @@ class MatchBadgeController extends ChangeNotifier {
     _sessionId = normalizedSession;
     if (kDebugMode) {
       debugPrint(
-        '[MatchBadge] scope mode=$_mode sessionId=${_sessionId ?? 'none'} '
+        '[MatchBadge] scope user=${_userId ?? 'none'} mode=$_mode '
+        'session=${_sessionId ?? 'none'} '
         'badgeCount=$badgeCount',
       );
     }
@@ -72,12 +98,11 @@ class MatchBadgeController extends ChangeNotifier {
     _activate(userId: userId, mode: mode, sessionId: sessionId);
     final _MatchBadgeScope scope = _scopeForActive();
     final Set<String> ids = _normalizeIds(matchIds);
-    scope.knownMatchIds
+    scope.authoritativeMatchIds
       ..clear()
       ..addAll(ids);
-    scope.unseenMatchIds
-      ..clear()
-      ..addAll(ids.difference(scope.seenMatchIds));
+    scope.knownMatchIds.addAll(ids);
+    scope.pendingImmediateIds.clear();
     scope.initialized = true;
     if (kDebugMode) {
       debugPrint(
@@ -101,7 +126,6 @@ class MatchBadgeController extends ChangeNotifier {
     }
     final _MatchBadgeScope scope = _scopeForActive();
     if (!scope.knownMatchIds.add(normalizedId)) return false;
-    scope.unseenMatchIds.add(normalizedId);
     scope.pendingImmediateIds.add(normalizedId);
     scope.initialized = true;
     _bumpToken++;
@@ -122,7 +146,7 @@ class MatchBadgeController extends ChangeNotifier {
     required String? sessionId,
     required Iterable<String> matchIds,
     required String reason,
-    bool animateNew = true,
+    bool? animateNew,
   }) {
     _activate(userId: userId, mode: mode, sessionId: sessionId);
     final _MatchBadgeScope scope = _scopeForActive();
@@ -134,43 +158,49 @@ class MatchBadgeController extends ChangeNotifier {
         sessionId: sessionId,
         matchIds: fetchedIds,
       );
+      if (_isSwipeMatchReason(reason) && fetchedIds.isNotEmpty) {
+        _bumpToken++;
+        _lastAnimationEventId =
+            '${_scopeKey()}:fetch:${fetchedIds.toList()..sort()}';
+        if (kDebugMode) {
+          debugPrint(
+            '[MatchBadge] reconcile reason=$reason previousKnown={} '
+            'fetched=$fetchedIds newIds=$fetchedIds badge=$badgeCount '
+            'bumpToken=$_bumpToken',
+          );
+        }
+        notifyListeners();
+      }
       return;
     }
-    final Set<String> newIds = fetchedIds.difference(scope.knownMatchIds);
-    final Set<String> genuinelyNew = newIds.difference(scope.pendingImmediateIds);
-    final Set<String> authoritativeIds = <String>{
-      ...fetchedIds,
-      ...scope.pendingImmediateIds,
-    };
-    scope.knownMatchIds
+    final Set<String> previousKnown = Set<String>.from(scope.knownMatchIds);
+    final Set<String> newIds = fetchedIds.difference(previousKnown);
+    scope.authoritativeMatchIds
       ..clear()
-      ..addAll(authoritativeIds);
-    scope.unseenMatchIds.retainAll(authoritativeIds);
-    scope.unseenMatchIds.addAll(newIds.difference(scope.seenMatchIds));
+      ..addAll(fetchedIds);
+    scope.knownMatchIds.addAll(fetchedIds);
     scope.pendingImmediateIds.clear();
-    if (animateNew && genuinelyNew.isNotEmpty) {
+    final bool shouldAnimate =
+        animateNew ?? _reasonAllowsAnimation(reason);
+    if (shouldAnimate && newIds.isNotEmpty) {
       _bumpToken++;
       _lastAnimationEventId =
-          '${_scopeKey()}:fetch:${genuinelyNew.toList()..sort()}';
+          '${_scopeKey()}:fetch:${newIds.toList()..sort()}';
     }
     if (kDebugMode) {
       debugPrint(
-        '[MatchBadge] fetched reason=$reason newIds=$newIds '
-        'badgeCount=$badgeCount bumpToken=$_bumpToken',
+        '[MatchBadge] reconcile reason=$reason previousKnown=$previousKnown '
+        'fetched=$fetchedIds newIds=$newIds badge=$badgeCount '
+        'bumpToken=$_bumpToken',
       );
     }
     notifyListeners();
   }
 
   void markAllSeen({required String reason}) {
-    final _MatchBadgeScope? scope = _activeScope;
-    if (scope == null || scope.unseenMatchIds.isEmpty) return;
-    scope.seenMatchIds.addAll(scope.unseenMatchIds);
-    scope.unseenMatchIds.clear();
     if (kDebugMode) {
-      debugPrint('[MatchBadge] markAllSeen reason=$reason');
+      debugPrint('[MatchBadge] markAllSeen ignored total-count reason=$reason');
     }
-    notifyListeners();
   }
 
   void resetForUserChange({required String reason}) {
@@ -207,6 +237,20 @@ class MatchBadgeController extends ChangeNotifier {
       .where((String id) => id.isNotEmpty)
       .toSet();
 
+  bool _reasonAllowsAnimation(String reason) => <String>{
+        'swipe_match_created',
+        'swipe_match_created_scope_unresolved',
+        'swipe_match_created_no_match_id',
+        'shell_poll',
+        'app_resume',
+      }.contains(reason);
+
+  bool _isSwipeMatchReason(String reason) => <String>{
+        'swipe_match_created',
+        'swipe_match_created_scope_unresolved',
+        'swipe_match_created_no_match_id',
+      }.contains(reason);
+
   String? _normalize(String? value) {
     final String? trimmed = value?.trim();
     return trimmed == null || trimmed.isEmpty ? null : trimmed;
@@ -214,9 +258,13 @@ class MatchBadgeController extends ChangeNotifier {
 }
 
 class _MatchBadgeScope {
+  final Set<String> authoritativeMatchIds = <String>{};
   final Set<String> knownMatchIds = <String>{};
-  final Set<String> unseenMatchIds = <String>{};
-  final Set<String> seenMatchIds = <String>{};
   final Set<String> pendingImmediateIds = <String>{};
   bool initialized = false;
+
+  Set<String> get currentMatchIds => <String>{
+        ...authoritativeMatchIds,
+        ...pendingImmediateIds,
+      };
 }

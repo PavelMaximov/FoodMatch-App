@@ -1367,7 +1367,12 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       if (!mounted) {
         return;
       }
-      final bool createdMatch = result is Map<String, dynamic> &&
+      final String? backendDirection = result is Map<String, dynamic>
+          ? result['swipe']?['direction']?.toString()
+          : null;
+      final bool createdMatch = direction == SwipeDirection.right &&
+          (backendDirection == null || backendDirection == 'like') &&
+          result is Map<String, dynamic> &&
           result['swipe']?['matchCreated'] == true;
       if (createdMatch && swipedDish != null) {
         if (wasSoloMode) {

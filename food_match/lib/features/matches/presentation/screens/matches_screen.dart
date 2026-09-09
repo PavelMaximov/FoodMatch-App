@@ -15,7 +15,6 @@ import '../../../../shared/widgets/dish_compact_card.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../couple/logic/couple_provider.dart';
 import '../../../favorites/logic/favorites_provider.dart';
-import '../../../../shell/logic/match_badge_controller.dart';
 import '../../logic/match_provider.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../data/models/couple.dart';
@@ -32,9 +31,6 @@ class _MatchesScreenState extends State<MatchesScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      context.read<MatchBadgeController>().markAllSeen(
-        reason: 'matches_screen_opened',
-      );
       await context.read<CoupleProvider>().loadCouple();
       if (!mounted) return;
       context.read<MatchProvider>().loadMatches();

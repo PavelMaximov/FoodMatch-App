@@ -144,6 +144,63 @@ void main() {
     expect(badgeController.badgeCount, 0);
     expect(badgeController.bumpToken, 0);
   });
+
+  test('missing immediate scope requests authoritative refresh', () async {
+    String? refreshReason;
+    badgeController.attachRefreshHandler(({
+      required String mode,
+      required String? sessionId,
+      required String reason,
+    }) async {
+      refreshReason = reason;
+    });
+    fakeSwipeRepo.soloSessionDishes = testDishes;
+    await provider.createSoloSession(
+      dishRegisters: <String>['everyday'],
+      includeCustomDishesFirst: false,
+      cuisines: <String>[],
+      moods: <String>[],
+      blocked: <String>[],
+      diet: <String>[],
+    );
+    fakeSwipeRepo.swipeResult = <String, dynamic>{
+      'swipe': <String, dynamic>{
+        'direction': 'like',
+        'matchId': 'match-1',
+        'matchCreated': true,
+      },
+    };
+
+    await provider.like();
+    await Future<void>.delayed(Duration.zero);
+
+    expect(badgeController.badgeCount, 0);
+    expect(refreshReason, 'swipe_match_created_scope_unresolved');
+  });
+
+  test('like without a created match does not update badge', () async {
+    provider.setActiveUser('user-a');
+    fakeSwipeRepo.soloSessionDishes = testDishes;
+    await provider.createSoloSession(
+      dishRegisters: <String>['everyday'],
+      includeCustomDishesFirst: false,
+      cuisines: <String>[],
+      moods: <String>[],
+      blocked: <String>[],
+      diet: <String>[],
+    );
+    fakeSwipeRepo.swipeResult = <String, dynamic>{
+      'swipe': <String, dynamic>{
+        'direction': 'like',
+        'matchCreated': false,
+      },
+    };
+
+    await provider.like();
+
+    expect(badgeController.badgeCount, 0);
+    expect(badgeController.bumpToken, 0);
+  });
 }
 
 class _FakeDishRepository extends DishRepository {

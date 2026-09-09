@@ -34,6 +34,7 @@ void main() {
   });
 
   test('loadMatches loads current couple matches', () async {
+    provider.setActiveUser('user-a');
     provider.setActiveCouple('couple-1');
     await provider.loadMatches();
 
