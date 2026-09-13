@@ -155,8 +155,8 @@ class CacheService {
       return <Dish>[];
     }
 
-    if (coupleId != null && cachedCoupleId != null && coupleId != cachedCoupleId) {
-      AppLogger.info('CacheService: cached matches couple mismatch, ignoring');
+    if (coupleId != cachedCoupleId) {
+      AppLogger.info('CacheService: cached matches scope mismatch, ignoring');
       return <Dish>[];
     }
 

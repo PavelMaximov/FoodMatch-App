@@ -5,8 +5,14 @@ import { buildRecommendationDiagnostics, RecommendationAlgorithm, Recommendation
 export const WEIGHTED_SCORING_MVP_ALGORITHM = 'weighted_scoring_mvp_v1' as const;
 export const WEIGHTED_SCORING_PAIR_SHARED_MVP_ALGORITHM = 'weighted_scoring_pair_shared_mvp_v1' as const;
 export const WEIGHTED_SCORING_PAIR_SHARED_V2_ALGORITHM = 'weighted_scoring_pair_shared_v2' as const;
+export const SCORING_VERSION = 'weighted_category_cuisine_v1' as const;
+export const MIN_THRESHOLD = 10;
+export const CRITICAL_THRESHOLD = 5;
+export const MIN_STRONG_SCORE = 0.45;
 
 export interface DeckRecommendationFilters {
+  /** Canonical category field. dishRegisters remains a backwards-compatible alias. */
+  selectedCategories?: string[];
   dishRegisters?: string[];
   includeCustomDishesFirst?: boolean;
   cuisines: string[];
@@ -39,6 +45,9 @@ export interface RecommendedDeckMeta extends RecommendationMeta {
   excludedByExclusionsCount: number;
   candidateCountAfterExclusions: number;
   expansionApplied: boolean;
+  expansionLevel: 'none' | 'category_relaxed' | 'cuisine_expanded' | 'critical';
+  availableCount: number;
+  strongCandidateCount: number;
   expansionReason?: 'low_candidates_after_exclusions' | 'critical_candidates_after_exclusions' | 'low_pair_candidates_after_hard_filters' | 'critical_pair_candidates_after_hard_filters';
 }
 
@@ -101,10 +110,12 @@ export function buildRecommendedDeck(input: BuildRecommendedDeckInput): BuildRec
   const candidates = afterExclusions.filter((dish) => matchesStrictDiet(dish, filters.diet));
   const excludedByDietCount = afterExclusions.length - candidates.length;
 
+  const initialScores = candidates.map((dish) => weightedPreferenceScore(dish, filters, recencyScore(dish, recentlySeenDishIds)));
+  const strongCandidateCount = initialScores.filter((score) => score >= MIN_STRONG_SCORE).length;
   let expansionReason: RecommendedDeckMeta['expansionReason'];
-  if (candidates.length < CRITICAL_CANDIDATE_THRESHOLD) {
+  if (candidates.length < CRITICAL_THRESHOLD) {
     expansionReason = 'critical_candidates_after_exclusions';
-  } else if (candidates.length < LOW_CANDIDATE_THRESHOLD) {
+  } else if (candidates.length < MIN_THRESHOLD || strongCandidateCount < MIN_THRESHOLD) {
     expansionReason = 'low_candidates_after_exclusions';
   }
 
@@ -150,6 +161,9 @@ export function buildRecommendedDeck(input: BuildRecommendedDeckInput): BuildRec
       coreCount: selection.coreCount,
       exploreCount: selection.exploreCount,
       expansionApplied: Boolean(expansionReason),
+      expansionLevel: expansionLevel(expansionReason, strongCandidateCount),
+      availableCount: candidates.length,
+      strongCandidateCount,
       ...(expansionReason ? { expansionReason } : {}),
       hardFilterSummary: { exclusions: filters.exclusions, strictDiet: filters.diet },
       diagnosticsNotes: buildRecommendationDiagnostics({ visibleDishCount: totalCatalogCount, excludedByExclusionsCount, excludedByDietCount, candidateCountAfterHardFilters: candidates.length, finalCount: selected.length }),
@@ -176,10 +190,11 @@ export function buildPairSharedRecommendedDeck(input: BuildPairRecommendedDeckIn
   const candidates = afterExclusions.filter((dish) => matchesStrictDiet(dish, hardFilters.diet));
   const excludedByDietCount = afterExclusions.length - candidates.length;
 
+  const strongCandidateCount = candidates.filter((dish) => input.users.every((user) => weightedPreferenceScore(dish, normalizeFilters(user.filters), 1) >= MIN_STRONG_SCORE)).length;
   let expansionReason: RecommendedDeckMeta['expansionReason'];
-  if (candidates.length < CRITICAL_CANDIDATE_THRESHOLD) {
+  if (candidates.length < CRITICAL_THRESHOLD) {
     expansionReason = 'critical_pair_candidates_after_hard_filters' as RecommendedDeckMeta['expansionReason'];
-  } else if (candidates.length < LOW_CANDIDATE_THRESHOLD) {
+  } else if (candidates.length < MIN_THRESHOLD || strongCandidateCount < MIN_THRESHOLD) {
     expansionReason = 'low_pair_candidates_after_hard_filters' as RecommendedDeckMeta['expansionReason'];
   }
 
@@ -241,6 +256,9 @@ export function buildPairSharedRecommendedDeck(input: BuildPairRecommendedDeckIn
       coreCount: selection.coreCount,
       exploreCount: selection.exploreCount,
       expansionApplied: Boolean(expansionReason),
+      expansionLevel: expansionLevel(expansionReason, strongCandidateCount),
+      availableCount: candidates.length,
+      strongCandidateCount,
       ...(expansionReason ? { expansionReason } : {}),
       pairCombineFunction: 'geometric_mean',
       pairScoreFloor: PAIR_SCORE_FLOOR,
@@ -312,13 +330,12 @@ function scoreDishForUser({
     popularityScore: popularityScore(dish),
     recencyScore: recencyScores?.get(getDishId(dish)) ?? recencyScore(dish, recentlySeenDishIds ?? new Set<string>())
   };
-  const score =
-    weights.country * components.countryScore +
-    weights.mood * components.moodScore +
-    weights.dishRegister * components.dishRegisterScore +
-    weights.history * components.historyScore +
-    weights.popularity * components.popularityScore +
-    weights.recency * components.recencyScore;
+  // Category and cuisine own the primary recommendation score. Existing learned
+  // signals are retained as a small deterministic tie-break contribution.
+  const preference = weightedPreferenceScore(dish, filters, components.recencyScore, criticalCandidates);
+  const learned = weights.mood * components.moodScore + weights.history * components.historyScore +
+    weights.popularity * components.popularityScore;
+  const score = preference + learned * 0.001;
   return { dish, score, components };
 }
 
@@ -358,9 +375,59 @@ function pickHighestScored(scored: ScoredDish[], deckSize: number): { items: Sco
   return { items, coreCount: items.length, exploreCount: 0 };
 }
 
-function countryScore(dish: DishDocument, cuisines: string[]) {
-  if (cuisines.length === 0) return 0.5;
-  return cuisines.includes(normalize(dish.cuisine)) ? 1.0 : 0.1;
+const CUISINE_CLUSTERS = [
+  ['italian','greek','spanish','turkish','mediterranean','it','gr','es','tr'],
+  ['balkan','serbian','croatian','bosnian','bulgarian','romanian','ukrainian','polish','eastern_european','rs','hr','ba','bg','ro','ua','pl'],
+  ['french','german','austrian','dutch','belgian','british','fr','de','at','nl','be','gb'],
+  ['japanese','korean','chinese','jp','kr','cn'], ['thai','vietnamese','indonesian','malaysian','filipino','th','vn','id','my','ph'],
+  ['indian','pakistani','bangladeshi','sri_lankan','in','pk','bd','lk'], ['lebanese','syrian','israeli','iranian','middle_eastern','lb','sy','il','ir'],
+  ['mexican','brazilian','peruvian','argentinian','latin_american','mx','br','pe','ar'], ['american','canadian','us','ca'],
+  ['international','fusion','other']
+].map((items) => new Set(items));
+
+export function cuisineScore(dish: DishDocument, cuisines: string[]) {
+  const selected = cuisines.map(canonicalCuisine).filter(Boolean);
+  if (!selected.length) return 0.5;
+  const actual = canonicalCuisine(dish.cuisine);
+  return Math.max(...selected.map((value) => value === actual ? 1 : CUISINE_CLUSTERS.some((cluster) => cluster.has(value) && cluster.has(actual)) ? 0.6 : 0.2));
+}
+
+const COUNTRY_CUISINES: Record<string, string> = {
+  it:'italian', gr:'greek', es:'spanish', tr:'turkish', rs:'serbian', hr:'croatian', ba:'bosnian', bg:'bulgarian', ro:'romanian', ua:'ukrainian', pl:'polish',
+  fr:'french', de:'german', at:'austrian', nl:'dutch', be:'belgian', gb:'british', jp:'japanese', kr:'korean', cn:'chinese', th:'thai', vn:'vietnamese',
+  id:'indonesian', my:'malaysian', ph:'filipino', in:'indian', pk:'pakistani', bd:'bangladeshi', lk:'sri_lankan', lb:'lebanese', sy:'syrian', il:'israeli',
+  ir:'iranian', mx:'mexican', br:'brazilian', pe:'peruvian', ar:'argentinian', us:'american', ca:'canadian'
+};
+function canonicalCuisine(value?: string) { const slug = normalizeSlug(value); return COUNTRY_CUISINES[slug] ?? slug; }
+
+function countryScore(dish: DishDocument, cuisines: string[]) { return cuisineScore(dish, cuisines); }
+
+const CATEGORY_NEIGHBORS: Record<string, string[]> = {
+  everyday: ['home_cooking', 'restaurant_style'], home_cooking: ['everyday', 'special_occasion'],
+  special_occasion: ['restaurant_style', 'home_cooking'], restaurant_style: ['special_occasion', 'everyday'], custom: []
+};
+const CATEGORY_ALIASES: Record<string, string> = { everyday_staple:'everyday', home_classic:'home_cooking', celebration:'special_occasion', custom_dishes:'custom' };
+function canonicalCategory(value?: string) { const slug = normalizeSlug(value); return CATEGORY_ALIASES[slug] ?? slug; }
+function dishCategory(dish: DishDocument) { return canonicalCategory(dish.dishRegister ?? dish.dish_register ?? (dish as any).rawSourceData?.dish_register); }
+
+export function categoryScore(dish: DishDocument, categories: string[]) {
+  const selected = categories.map(canonicalCategory).filter(Boolean);
+  if (!selected.length) return 0.5;
+  const actual = dishCategory(dish);
+  const custom = dish.isCustom === true || dish.sourceType === 'custom';
+  return Math.max(...selected.map((category) => {
+    if (category === 'custom') return custom ? 1 : 0;
+    if (custom) return 0;
+    if (category === actual) return 1;
+    if ((CATEGORY_NEIGHBORS[category] ?? []).includes(actual)) return 0.5;
+    return popularityScore(dish) >= 0.8 ? 0.1 : 0;
+  }));
+}
+
+export function weightedPreferenceScore(dish: DishDocument, filters: DeckRecommendationFilters, freshness = 1, critical = false) {
+  if (critical) return clamp(freshness, 0, 1);
+  return 0.5 * categoryScore(dish, filters.selectedCategories ?? filters.dishRegisters ?? []) +
+    0.4 * cuisineScore(dish, filters.cuisines ?? []) + 0.1 * clamp(freshness, 0, 1);
 }
 
 function moodScore(dish: DishDocument, moods: string[]) {
@@ -436,8 +503,10 @@ function matchesStrictDiet(dish: DishDocument, diet: string[]) {
 }
 
 function normalizeFilters(filters: DeckRecommendationFilters): DeckRecommendationFilters {
+  const selectedCategories = normalizeList(filters.selectedCategories ?? filters.dishRegisters);
   return {
-    dishRegisters: normalizeList(filters.dishRegisters),
+    selectedCategories,
+    dishRegisters: selectedCategories,
     includeCustomDishesFirst: filters.includeCustomDishesFirst === true,
     cuisines: normalizeList(filters.cuisines),
     moods: normalizeList(filters.moods),
@@ -453,6 +522,14 @@ function normalizeList(values?: string[]) {
 
 function normalize(value?: string) {
   return (value ?? '').trim().toLowerCase().replace(/_/g, ' ');
+}
+
+function normalizeSlug(value?: string) { return (value ?? '').trim().toLowerCase().replace(/[\s-]+/g, '_'); }
+
+function expansionLevel(reason: RecommendedDeckMeta['expansionReason'], strongCount: number): RecommendedDeckMeta['expansionLevel'] {
+  if (!reason) return 'none';
+  if (reason.includes('critical')) return 'critical';
+  return strongCount < CRITICAL_THRESHOLD ? 'cuisine_expanded' : 'category_relaxed';
 }
 
 function clamp(value: number, min: number, max: number) {

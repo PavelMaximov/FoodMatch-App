@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,15 +10,17 @@ import 'package:provider/provider.dart';
 
 import '../../../core/animations/app_motion.dart';
 import '../../../core/theme/notification_theme.dart';
-import '../../../core/utils/food_match_notifications.dart';
 import '../../../core/theme/theme_extensions.dart';
+import '../../../core/utils/food_match_notifications.dart';
 import '../../../data/models/couple_invitation.dart';
+import '../../../features/auth/logic/auth_provider.dart';
 import '../../../features/couple/logic/couple_provider.dart';
 import '../../../features/couple/presentation/widgets/continuation_invitation_sheet.dart';
 import '../../../features/matches/logic/match_provider.dart';
 import '../../../features/swipes/logic/swipe_provider.dart';
 import '../../../shared/widgets/network_status_bar.dart';
-import '../../logic/nav_badge_animation_controller.dart';
+import '../../logic/match_badge_controller.dart';
+import '../widgets/matches_nav_badge.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({required this.navigationShell, super.key});
@@ -67,8 +71,11 @@ class _MainShellState extends State<MainShell>
   bool _isBootstrappingMatchesBadge = false;
   String? _shownInvitationId;
   late final AnimationController _soloPlusOneController;
-  NavBadgeAnimationController? _navBadgeAnimationController;
-  int _lastSoloPlusOneEvent = 0;
+  MatchBadgeController? _matchBadgeController;
+  SwipeProvider? _swipeProvider;
+  int _lastBadgeBumpToken = 0;
+  Timer? _matchBadgeRefreshTimer;
+  bool? _invitationPollingPausedForSolo;
 
   Future<bool> _hasIconAsset(String assetPath) {
     return _iconAssetAvailability.putIfAbsent(assetPath, () async {
@@ -96,38 +103,60 @@ class _MainShellState extends State<MainShell>
         debugPrint('[NavBadgeAnim] complete');
       }
     });
-    _navBadgeAnimationController = context.read<NavBadgeAnimationController>()
-      ..addListener(_handleNavBadgeAnimationEvent);
-    _lastSoloPlusOneEvent =
-        _navBadgeAnimationController!.soloMatchesPlusOneEvent;
+    _matchBadgeController = context.read<MatchBadgeController>()
+      ..addListener(_handleBadgeAnimationEvent);
+    _swipeProvider = context.read<SwipeProvider>()
+      ..addListener(_syncInvitationPollingForSwipeMode);
+    _lastBadgeBumpToken =
+        _matchBadgeController!.bumpToken;
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _bootstrapMatchesBadge();
-        context.read<CoupleProvider>().startInvitationPolling(
-          reason: 'main_shell',
-        );
+        _startMatchBadgeRefresh();
+        _syncInvitationPollingForSwipeMode();
       }
     });
   }
 
   @override
   void dispose() {
-    _navBadgeAnimationController?.removeListener(_handleNavBadgeAnimationEvent);
+    _matchBadgeController?.removeListener(_handleBadgeAnimationEvent);
+    _swipeProvider?.removeListener(_syncInvitationPollingForSwipeMode);
     _soloPlusOneController.dispose();
+    _matchBadgeRefreshTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
-  void _handleNavBadgeAnimationEvent() {
+  void _syncInvitationPollingForSwipeMode() {
+    if (!mounted) return;
+    final bool pause = _swipeProvider?.hasActiveSoloSession == true;
+    if (_invitationPollingPausedForSolo == pause) return;
+    _invitationPollingPausedForSolo = pause;
+    final CoupleProvider coupleProvider = context.read<CoupleProvider>();
+    if (pause) {
+      coupleProvider.stopInvitationPolling(reason: 'active_solo_deck');
+      if (kDebugMode) {
+        debugPrint('[PairInvite] polling paused reason=active_solo_deck');
+      }
+    } else {
+      coupleProvider.startInvitationPolling(reason: 'solo_deck_inactive');
+    }
+  }
+
+  void _handleBadgeAnimationEvent() {
     final int event =
-        _navBadgeAnimationController?.soloMatchesPlusOneEvent ?? 0;
-    if (event == _lastSoloPlusOneEvent || !mounted) {
+        _matchBadgeController?.bumpToken ?? 0;
+    if (event <= _lastBadgeBumpToken || !mounted) {
       return;
     }
-    _lastSoloPlusOneEvent = event;
+    _lastBadgeBumpToken = event;
     if (kDebugMode) {
-      debugPrint('[NavBadgeAnim] trigger soloPlusOne target=matches');
+      debugPrint(
+        '[BottomNavBadge] plusOne start bumpToken=$event '
+        'badge=${_matchBadgeController?.badgeCount ?? 0}',
+      );
     }
     _soloPlusOneController
       ..stop()
@@ -138,8 +167,9 @@ class _MainShellState extends State<MainShell>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      context.read<CoupleProvider>().handleAppResumed();
+      unawaited(_resumeCouplePolling());
       context.read<SwipeProvider>().syncPendingSwipes();
+      unawaited(_refreshMatchBadge(reason: 'app_resume'));
       return;
     }
     if (state == AppLifecycleState.inactive ||
@@ -147,6 +177,56 @@ class _MainShellState extends State<MainShell>
         state == AppLifecycleState.detached) {
       context.read<CoupleProvider>().handleAppPaused();
     }
+  }
+
+  Future<void> _resumeCouplePolling() async {
+    if (_swipeProvider?.hasActiveSoloSession == true) {
+      context.read<CoupleProvider>().stopInvitationPolling(
+        reason: 'active_solo_deck',
+      );
+      if (kDebugMode) {
+        debugPrint('[PairInvite] polling paused reason=active_solo_deck');
+      }
+      return;
+    }
+    await context.read<CoupleProvider>().handleAppResumed();
+    if (!mounted) return;
+    _invitationPollingPausedForSolo = null;
+    _syncInvitationPollingForSwipeMode();
+  }
+
+  void _startMatchBadgeRefresh() {
+    _matchBadgeRefreshTimer?.cancel();
+    _matchBadgeRefreshTimer = Timer.periodic(
+      const Duration(seconds: 15),
+      (_) => unawaited(_refreshMatchBadge(reason: 'shell_poll')),
+    );
+  }
+
+  Future<void> _refreshMatchBadge({required String reason}) async {
+    if (!mounted) return;
+    final AuthProvider authProvider = context.read<AuthProvider>();
+    if (!authProvider.isAuthenticated) return;
+    if (authProvider.currentUser == null) {
+      await authProvider.loadUser();
+      if (!mounted) return;
+    }
+    final String? userId = authProvider.currentUser?.id;
+    if (userId == null) {
+      debugPrint('[MatchProvider] user unresolved reason=$reason');
+      return;
+    }
+    context.read<MatchProvider>().setActiveUser(userId);
+    final MatchBadgeController badge =
+        context.read<MatchBadgeController>();
+    if (badge.sessionId == null) return;
+    if (kDebugMode) {
+      debugPrint('[MatchBadge] refresh requested reason=$reason');
+    }
+    await context.read<MatchProvider>().loadMatches(
+      force: true,
+      reason: reason,
+    );
   }
 
   void _onTabTap(int index) {
@@ -243,9 +323,10 @@ class _MainShellState extends State<MainShell>
 
   @override
   Widget build(BuildContext context) {
-    final int matchCount = context.select<MatchProvider, int>(
-      (MatchProvider p) => p.matchCount,
+    final int matchCount = context.select<MatchBadgeController, int>(
+      (MatchBadgeController controller) => controller.badgeCount,
     );
+    final MatchProvider matchProvider = context.read<MatchProvider>();
     final int currentIndex = widget.navigationShell.currentIndex;
     final FoodMatchThemeColors colors = context.fmColors;
     final CoupleInvitation? invitation = context
@@ -338,74 +419,18 @@ class _MainShellState extends State<MainShell>
                             ),
                           ),
                           if (index == 1)
-                            Positioned(
-                              top: 1,
-                              right: -1,
-                              child: IgnorePointer(
-                                child: AnimatedBuilder(
-                                  animation: _soloPlusOneController,
-                                  builder:
-                                      (BuildContext context, Widget? child) {
-                                        final double value =
-                                            _soloPlusOneController.value;
-                                        final double opacity = value <= 0.2
-                                            ? value / 0.2
-                                            : (1 - value) / 0.8;
-                                        final double dy = value <= 0.2
-                                            ? 16 * (1 - (value / 0.2))
-                                            : -28 * ((value - 0.2) / 0.8);
-                                        final double scale = value <= 0.2
-                                            ? 0.75 + (0.3 * (value / 0.2))
-                                            : 1.05 -
-                                                  (0.1 * ((value - 0.2) / 0.8));
-                                        return Opacity(
-                                          opacity: opacity.clamp(0.0, 1.0),
-                                          child: Transform.translate(
-                                            offset: Offset(0, dy),
-                                            child: Transform.scale(
-                                              scale: scale,
-                                              child: child,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                  child: SvgPicture.asset(
-                                    'assets/icons/plus_one_badge.svg',
-                                    width: 20,
-                                    height: 10,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          if (index == 1 && matchCount > 0)
-                            Positioned(
-                              top: -4,
-                              right: -4,
-                              child: Container(
-                                padding: const EdgeInsets.all(3),
-                                decoration: BoxDecoration(
-                                  color: colors.badgeBackground,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: colors.bottomNavBackground,
-                                    width: 1.5,
-                                  ),
-                                ),
-                                constraints: const BoxConstraints(
-                                  minWidth: 18,
-                                  minHeight: 18,
-                                ),
-                                child: Text(
-                                  matchCount > 99
-                                      ? '99+'
-                                      : matchCount.toString(),
-                                  textAlign: TextAlign.center,
-                                  style: GoogleFonts.nunito(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w700,
-                                    color: colors.badgeText,
-                                  ),
-                                ),
+                            Positioned.fill(
+                              child: MatchesNavBadge(
+                                count: matchCount,
+                                mode: _matchBadgeController?.mode ??
+                                    matchProvider.mode,
+                                sessionId:
+                                    _matchBadgeController?.sessionId,
+                                bumpToken:
+                                    _matchBadgeController?.bumpToken ?? 0,
+                                animation: _soloPlusOneController,
+                                animationEventKey:
+                                    _matchBadgeController?.lastAnimationEventId,
                               ),
                             ),
                         ],

@@ -42,6 +42,8 @@ class PreparedDeckMeta {
     this.fallbackReason,
     required this.usedPartnerChoices,
     required this.bothConfirmed,
+    this.expansionApplied = false,
+    this.expansionLevel = 'none',
   });
 
   final int totalCatalogCount;
@@ -52,8 +54,13 @@ class PreparedDeckMeta {
   final String? fallbackReason;
   final bool usedPartnerChoices;
   final bool bothConfirmed;
+  final bool expansionApplied;
+  final String expansionLevel;
 
   factory PreparedDeckMeta.fromJson(Map<String, dynamic> json) {
+    final Map<String, dynamic> recommendation = json['recommendationMeta'] is Map
+        ? Map<String, dynamic>.from(json['recommendationMeta'] as Map)
+        : const <String, dynamic>{};
     return PreparedDeckMeta(
       totalCatalogCount: _readInt(json['totalCatalogCount']),
       candidateCount: _readInt(json['candidateCount']),
@@ -63,6 +70,8 @@ class PreparedDeckMeta {
       fallbackReason: _readNullableString(json['fallbackReason']),
       usedPartnerChoices: json['usedPartnerChoices'] == true,
       bothConfirmed: json['bothConfirmed'] == true,
+      expansionApplied: json['expansionApplied'] == true || recommendation['expansionApplied'] == true,
+      expansionLevel: (json['expansionLevel'] ?? recommendation['expansionLevel'] ?? 'none').toString(),
     );
   }
 

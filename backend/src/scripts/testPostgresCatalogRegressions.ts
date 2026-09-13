@@ -87,9 +87,11 @@ async function run() {
   listQueries.length = 0;
   const lightweight = await listRepository.listLightweight();
   assert.equal(lightweight.length, 1, 'lightweight catalog list must map card rows');
-  assert.equal(lightweight[0].ingredients.length, 0, 'lightweight catalog list must not hydrate ingredients');
+  assert.deepEqual(lightweight[0].ingredients, expectedIngredients, 'lightweight catalog list must retain exclusion ingredient names');
   assert.equal(lightweight[0].steps.length, 0, 'lightweight catalog list must not hydrate instructions');
-  assert.equal(listQueries.length, 1, 'lightweight catalog list must use one query');
+  assert.equal(listQueries.length, 2, 'lightweight catalog list must use parallel base and exclusion-index queries');
+  assert(!listQueries.some((query) => query.includes('dish_component_measurements')), 'lightweight catalog must skip measurement hydration');
+  assert(!listQueries.some((query) => query.includes('dish_instructions')), 'lightweight catalog must skip instruction hydration');
 
   const saved = new MemorySavedDishes();
   const service = new UserSavedDishService(saved, dishes);

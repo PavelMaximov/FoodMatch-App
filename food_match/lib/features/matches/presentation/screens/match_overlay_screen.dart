@@ -156,7 +156,7 @@ class _MatchOverlayButton extends StatelessWidget {
           foregroundColor: foregroundColor,
           elevation: 0,
           padding: const EdgeInsets.symmetric(vertical: 18),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
         ),
         child: Text(
           text,
