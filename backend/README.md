@@ -87,12 +87,18 @@ use a direct PostgreSQL URL and either `MONGODB_URI` (collection defaults to
 `dishes_v13`) or `MONGO_EXPORT_PATH` (a JSON array or `{ "dishes": [] }`).
 
 ```bash
+npm run supabase:db:push
 npm run supabase:migrate:catalog -- --dry-run --limit 5
 npm run supabase:migrate:catalog -- --limit 5
 npm run supabase:validate:catalog -- --limit 5
 npm run supabase:sync:catalog
 npm run supabase:migration:report
 ```
+
+Always apply the SQL migrations before a non-dry-run import. The migrator runs
+an `information_schema` preflight before the first dish transaction and reports
+every missing table, missing column, or incompatible decimal/JSON/timestamp type.
+This prevents an outdated Supabase schema from causing one rollback per dish.
 
 All catalog commands accept `--source`, `--limit`, `--dish-id`, `--slug`, and
 `--verbose`; migration additionally accepts `--dry-run` and `--fail-fast`.
