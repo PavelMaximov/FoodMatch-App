@@ -536,7 +536,7 @@ class _SwitchModeCard extends StatelessWidget {
                 foregroundColor: context.fmColors.buttonPrimaryText,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(36),
                 ),
                 textStyle: GoogleFonts.nunito(
                   fontSize: 15,
