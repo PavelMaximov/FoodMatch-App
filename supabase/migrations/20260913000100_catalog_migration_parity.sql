@@ -6,6 +6,17 @@ alter table public.dish_components add column if not exists ingredient_id uuid r
 alter table public.dish_component_measurements add column if not exists display_text text;
 create index if not exists dish_components_ingredient_id_idx on public.dish_components(ingredient_id);
 
+-- Catalog imports explicitly preserve provider timestamps. Normal application
+-- updates retain the existing database-managed updated_at behavior.
+create or replace function public.set_updated_at() returns trigger
+language plpgsql set search_path = '' as $$
+begin
+  if current_setting('foodmatch.preserve_updated_at', true) is distinct from 'on' then
+    new.updated_at = now();
+  end if;
+  return new;
+end; $$;
+
 comment on column public.dishes.quality_score is 'Catalog quality score from MongoDB.';
 comment on column public.dish_tags.value is 'Provider tag value when it is distinct from name/display_name.';
 comment on column public.dish_sections.type is 'Provider section type.';
