@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { canonicalize, CatalogWriteError, fieldReport, hash, migrateDish, normalizedIngredient, parseOptions } from './catalogMigrationCore';
+import { canonicalize, CatalogWriteError, fieldReport, hash, migrateDish, normalizedIngredient, normalizeSpiceLevel, parseOptions } from './catalogMigrationCore';
 import { assertCatalogSchema, CatalogSchemaError } from './catalogSchemaPreflight';
 import { applyStaleCleanup, catalogAudit, CatalogRow, resolveCatalogIdentity } from './catalogIdentity';
 import { scalarDiffs } from './validateMongoCatalogSupabaseParity';
@@ -44,6 +44,17 @@ async function main(){
   assert.throws(()=>parseOptions(['--delete-stale']),/requires --confirm-delete-stale/);assert(parseOptions(['--delete-stale','--confirm-delete-stale']).deleteStale);
   const formatting=scalarDiffs({quality_score:8.5,updated_at:'2024-06-01T00:00:00.000Z'},{quality_score:'8.5000',updated_at:'2024-06-01 00:00:00+00'});assert(formatting.every(x=>x.status==='equal_after_normalization'));
   assert.equal(scalarDiffs({image_url:'correct'},{image_url:'wrong'})[0].status,'mismatch');
+  const spiceDish=(fields:any)=>canonicalize({_id:`spice-${JSON.stringify(fields)}`,name:'Spice test',...fields});
+  assert.equal(spiceDish({spice_level:'spicy'}).scalar.spice_level,'hot');
+  assert.equal(spiceDish({spiceLevel:'hot'}).scalar.spice_level,'hot');
+  assert.equal(spiceDish({spiciness:'very_spicy'}).scalar.spice_level,'hot');
+  assert.equal(spiceDish({heat_level:'low'}).scalar.spice_level,'mild');
+  assert.equal(spiceDish({heatLevel:'moderate'}).scalar.spice_level,'medium');
+  assert.equal(spiceDish({spice:'mild'}).scalar.spice_level,'mild');assert.equal(spiceDish({spice:'medium'}).scalar.spice_level,'medium');
+  assert.equal(spiceDish({spiceLevel:'',rawSourceData:{spice_level:'hot'}}).scalar.spice_level,'hot','empty model default must not mask provider spice level');
+  assert.equal(spiceDish({tags:[{name:'spicy'}]}).scalar.spice_level,'hot','spicy tag must not become none');
+  assert.equal(spiceDish({}).scalar.spice_level,'none');assert(normalizeSpiceLevel('volcanic').warning);
+  const spiceMismatch=scalarDiffs({spice_level:'hot'},{spice_level:'none'});assert.equal(spiceMismatch[0].field,'spice_level');assert.equal(spiceMismatch[0].status,'mismatch');
   console.log('Catalog migration pipeline assertions passed');
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});
