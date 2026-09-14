@@ -102,6 +102,10 @@ This prevents an outdated Supabase schema from causing one rollback per dish.
 
 All catalog commands accept `--source`, `--limit`, `--dish-id`, `--slug`, and
 `--verbose`; migration additionally accepts `--dry-run` and `--fail-fast`.
+Migration and validation accept `--fail-on-stale`. Migration also supports
+`--archive-stale`; destructive cleanup requires both `--delete-stale` and
+`--confirm-delete-stale`. Stale cleanup is rejected for limited/filtered runs,
+and every cleanup query excludes custom, non-public, and user-owned dishes.
 Migration uses one PostgreSQL transaction per dish. It upserts the scalar row,
 resolves ingredients by the application's normalized key, then deletes and
 rebuilds only that dish's children. A failed dish is rolled back and reported;
