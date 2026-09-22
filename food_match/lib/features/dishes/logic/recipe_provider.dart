@@ -14,15 +14,21 @@ class RecipeProvider extends ChangeNotifier {
   Dish? currentDish;
   bool isLoading = false;
   String? error;
+  int _requestGeneration = 0;
+  String? _activeDishId;
+  bool _disposed = false;
 
   Future<void> loadRecipeForDish({required String dishId, Dish? dish}) async {
+    final int generation = ++_requestGeneration;
+    _activeDishId = dishId;
     if (dish != null) {
       currentDish = dish;
       error = null;
       isLoading = false;
       notifyListeners();
       if (!_needsHydration(dish)) return;
-    } else { currentDish = null;
+    } else {
+      currentDish = null;
     }
 
     final hasInitialDish = currentDish != null;
@@ -32,20 +38,48 @@ class RecipeProvider extends ChangeNotifier {
 
     try {
       AppLogger.info('[RecipeDetail] hydrate full dish id=$dishId');
-      currentDish = await _repository.getDishById(dishId);
-      AppLogger.info('[RecipeDetail] hydrated hasTime=${currentDish!.hasTime} totalTime=${currentDish!.resolvedTotalTimeMinutes}');
+      final Dish loadedDish = await _repository.getDishById(dishId);
+      if (!_isCurrentRequest(dishId, generation)) return;
+      currentDish = loadedDish;
+      AppLogger.info(
+        '[RecipeDetail] hydrated hasTime=${currentDish!.hasTime} '
+        'totalTime=${currentDish!.resolvedTotalTimeMinutes}',
+      );
     } catch (e) {
+      if (!_isCurrentRequest(dishId, generation)) return;
       if (!hasInitialDish) error = _mapError(e);
     } finally {
+      if (!_isCurrentRequest(dishId, generation)) return;
       isLoading = false;
       notifyListeners();
     }
   }
-  bool _needsHydration(Dish dish) => !dish.hasTime || dish.sections.isEmpty || dish.steps.isEmpty || !dish.sections.expand((s) => s.components).any((c) => c.measurements.isNotEmpty);
+
+  bool _needsHydration(Dish dish) =>
+      !dish.hasTime ||
+      dish.sections.isEmpty ||
+      dish.steps.isEmpty ||
+      !dish.sections
+          .expand((DishSection section) => section.components)
+          .any(
+            (DishComponent component) => component.measurements.isNotEmpty,
+          );
 
   void clearRecipe() {
+    _requestGeneration++;
+    _activeDishId = null;
     currentDish = null;
     notifyListeners();
+  }
+
+  bool _isCurrentRequest(String dishId, int generation) =>
+      !_disposed && generation == _requestGeneration && dishId == _activeDishId;
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _requestGeneration++;
+    super.dispose();
   }
 
   String _mapError(Object e) {

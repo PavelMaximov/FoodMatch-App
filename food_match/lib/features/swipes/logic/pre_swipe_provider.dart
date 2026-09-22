@@ -101,6 +101,8 @@ class PreSwipeProvider extends ChangeNotifier {
   String? backendDeckError;
   Future<PreparedPoolResult>? _canonicalPrepareFuture;
   PreparedPoolResult? _canonicalPreparedResult;
+  int _prepareGeneration = 0;
+  bool _disposed = false;
 
   Future<UserProfile> loadProfile(String userId) =>
       _profileService.getProfile(userId);
@@ -155,10 +157,15 @@ class PreSwipeProvider extends ChangeNotifier {
     final bool changed =
         isPreparingBackendDeck ||
         preparedDeckMeta != null ||
-        backendDeckError != null;
+        backendDeckError != null ||
+        _canonicalPreparedResult != null ||
+        _canonicalPrepareFuture != null;
+    _prepareGeneration++;
     isPreparingBackendDeck = false;
     preparedDeckMeta = null;
     backendDeckError = null;
+    _canonicalPreparedResult = null;
+    _canonicalPrepareFuture = null;
     if (notify && (changed || forceNotify)) {
       notifyListeners();
     }
@@ -245,7 +252,7 @@ class PreSwipeProvider extends ChangeNotifier {
     required List<String> blocked,
     required List<String> diet,
   }) async {
-    _canonicalPreparedResult = null;
+    _invalidateCanonicalPreparation();
     await _profileService.saveSessionChoices(
       userId,
       cuisines: cuisines,
@@ -342,10 +349,14 @@ class PreSwipeProvider extends ChangeNotifier {
 
   Future<PreparedPoolResult> prepareCanonicalPairDeck() {
     final PreparedPoolResult? ready = _canonicalPreparedResult;
-    if (ready != null && ready.dishes.isNotEmpty) return Future<PreparedPoolResult>.value(ready);
+    if (ready != null && ready.dishes.isNotEmpty) {
+      return Future<PreparedPoolResult>.value(ready);
+    }
     final Future<PreparedPoolResult>? inFlight = _canonicalPrepareFuture;
     if (inFlight != null) {
-      debugPrint('[RequestDedup] canonical pair deck prepare joined existing future');
+      debugPrint(
+        '[RequestDedup] canonical pair deck prepare joined existing future',
+      );
       return inFlight;
     }
     final Future<PreparedPoolResult> future = _prepareCanonicalPairDeck();
@@ -362,6 +373,7 @@ class PreSwipeProvider extends ChangeNotifier {
       if (existing != null) return existing;
       throw StateError('Pair deck preparation state is inconsistent.');
     }
+    final int generation = ++_prepareGeneration;
     isPreparingBackendDeck = true;
     backendDeckError = null;
     notifyListeners();
@@ -369,9 +381,15 @@ class PreSwipeProvider extends ChangeNotifier {
 
     try {
       final PreparedDeck preparedDeck = await _coupleRepository.prepareDeck();
+      if (!_isCurrentPreparation(generation)) {
+        return _poolResultFromPreparedDeck(preparedDeck);
+      }
       final PreparedDeck backendDeck = await _loadCanonicalBackendDeck(
         preparedDeck,
       );
+      if (!_isCurrentPreparation(generation)) {
+        return _poolResultFromPreparedDeck(backendDeck);
+      }
       preparedDeckMeta = backendDeck.meta;
       debugPrint(
         '[PairDeck] canonical prepare success final=${backendDeck.meta.finalCount}',
@@ -392,6 +410,7 @@ class PreSwipeProvider extends ChangeNotifier {
       _canonicalPreparedResult = result;
       return result;
     } on ApiException catch (e) {
+      if (!_isCurrentPreparation(generation)) rethrow;
       backendDeckError = e.code == 'PAIR_WAITING_FOR_PARTNER_FILTERS'
           ? 'Waiting for partner choices'
           : ErrorMessages.fromApiException(e);
@@ -400,13 +419,16 @@ class PreSwipeProvider extends ChangeNotifier {
       );
       rethrow;
     } catch (e) {
+      if (!_isCurrentPreparation(generation)) rethrow;
       backendDeckError = 'Could not load the shared deck. Please try again.';
       debugPrint('[PairDeck] canonical prepare failed $e');
       rethrow;
     } finally {
-      _canonicalPrepareFuture = null;
-      isPreparingBackendDeck = false;
-      notifyListeners();
+      if (_isCurrentPreparation(generation)) {
+        _canonicalPrepareFuture = null;
+        isPreparingBackendDeck = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -419,6 +441,7 @@ class PreSwipeProvider extends ChangeNotifier {
       );
       return fallback;
     }
+    final int generation = ++_prepareGeneration;
     isPreparingBackendDeck = true;
     backendDeckError = null;
     notifyListeners();
@@ -428,9 +451,11 @@ class PreSwipeProvider extends ChangeNotifier {
 
     try {
       final PreparedDeck preparedDeck = await _coupleRepository.prepareDeck();
+      if (!_isCurrentPreparation(generation)) return fallback;
       final PreparedDeck backendDeck = await _loadCanonicalBackendDeck(
         preparedDeck,
       );
+      if (!_isCurrentPreparation(generation)) return fallback;
       preparedDeckMeta = backendDeck.meta;
       debugPrint(
         '[PreparedDeck] prepare success final=${backendDeck.meta.finalCount}',
@@ -450,6 +475,7 @@ class PreSwipeProvider extends ChangeNotifier {
         preparedDeckMeta: backendDeck.meta,
       );
     } on ApiException catch (e) {
+      if (!_isCurrentPreparation(generation)) return fallback;
       final bool filtersNotReady =
           e.statusCode == 409 && e.message.toLowerCase().contains('filter');
       backendDeckError = filtersNotReady
@@ -476,14 +502,47 @@ class PreSwipeProvider extends ChangeNotifier {
         preparedDeckMeta: fallback.preparedDeckMeta,
       );
     } finally {
-      isPreparingBackendDeck = false;
-      notifyListeners();
+      if (_isCurrentPreparation(generation)) {
+        isPreparingBackendDeck = false;
+        notifyListeners();
+      }
     }
   }
 
   Future<PreparedDeck> _loadCanonicalBackendDeck(
     PreparedDeck preparedDeck,
   ) async => preparedDeck;
+
+  bool _isCurrentPreparation(int generation) =>
+      !_disposed && generation == _prepareGeneration;
+
+  void _invalidateCanonicalPreparation() {
+    _prepareGeneration++;
+    _canonicalPreparedResult = null;
+    _canonicalPrepareFuture = null;
+    isPreparingBackendDeck = false;
+  }
+
+  PreparedPoolResult _poolResultFromPreparedDeck(PreparedDeck deck) {
+    final String? fallbackReason = deck.meta.fallbackReason;
+    return PreparedPoolResult(
+      dishes: deck.dishes,
+      seenDishIds: const <String>{},
+      usedFallback: false,
+      relaxed: fallbackReason != null,
+      messages: fallbackReason == null
+          ? const <String>[]
+          : <String>[fallbackReason],
+      preparedDeckMeta: deck.meta,
+    );
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _prepareGeneration++;
+    super.dispose();
+  }
 
   FilterAvailabilitySummary buildAvailabilitySummary({
     required List<Dish> allDishes,
