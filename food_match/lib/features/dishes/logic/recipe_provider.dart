@@ -49,9 +49,10 @@ class RecipeProvider extends ChangeNotifier {
       if (!_isCurrentRequest(dishId, generation)) return;
       if (!hasInitialDish) error = _mapError(e);
     } finally {
-      if (!_isCurrentRequest(dishId, generation)) return;
-      isLoading = false;
-      notifyListeners();
+      if (_isCurrentRequest(dishId, generation)) {
+        isLoading = false;
+        notifyListeners();
+      }
     }
   }
 

@@ -100,10 +100,11 @@ class FavoritesProvider extends ChangeNotifier {
       if (!_isCurrentRequest(userId, generation)) return;
       error = _mapError(e);
     } finally {
-      if (!_isCurrentRequest(userId, generation)) return;
-      isLoading = false;
-      _favoritesLoadFuture = null;
-      notifyListeners();
+      if (_isCurrentRequest(userId, generation)) {
+        isLoading = false;
+        _favoritesLoadFuture = null;
+        notifyListeners();
+      }
     }
   }
 
@@ -172,9 +173,10 @@ class FavoritesProvider extends ChangeNotifier {
       }
       error = _mapError(e);
     } finally {
-      if (!_isCurrentUser(userId, userGeneration)) return;
-      _updatingDishIds.remove(dishId);
-      notifyListeners();
+      if (_isCurrentUser(userId, userGeneration)) {
+        _updatingDishIds.remove(dishId);
+        notifyListeners();
+      }
     }
   }
 
