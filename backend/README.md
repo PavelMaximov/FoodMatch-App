@@ -80,3 +80,41 @@ flutter run -d <deviceId> --dart-define=API_BASE_URL=http://192.168.0.39:4000
 
 ## Production readiness (post Mongo migration)
 MongoDB is migration-tooling-only and absent from the server import graph. See [`../docs/production_readiness.md`](../docs/production_readiness.md) for architecture, configuration, run commands, common errors, and rollback. Follow [`../docs/deploy_checklist.md`](../docs/deploy_checklist.md) for every deployment.
+# MongoDB catalog synchronization
+
+MongoDB remains the catalog source of truth. Apply the Supabase migrations, then
+use a direct PostgreSQL URL and either `MONGODB_URI` (collection defaults to
+`dishes_v13`) or `MONGO_EXPORT_PATH` (a JSON array or `{ "dishes": [] }`).
+
+```bash
+npm run supabase:db:push
+npm run supabase:migrate:catalog -- --dry-run --limit 5
+npm run supabase:migrate:catalog -- --limit 5
+npm run supabase:validate:catalog -- --limit 5
+npm run supabase:sync:catalog
+npm run supabase:migration:report
+```
+
+Always apply the SQL migrations before a non-dry-run import. The migrator runs
+an `information_schema` preflight before the first dish transaction and reports
+every missing table, missing column, or incompatible decimal/JSON/timestamp type.
+This prevents an outdated Supabase schema from causing one rollback per dish.
+
+All catalog commands accept `--source`, `--limit`, `--dish-id`, `--slug`, and
+`--verbose`; migration additionally accepts `--dry-run` and `--fail-fast`.
+Migration and validation accept `--fail-on-stale`. Migration also supports
+`--archive-stale`; destructive cleanup requires both `--delete-stale` and
+`--confirm-delete-stale`. Stale cleanup is rejected for limited/filtered runs,
+and every cleanup query excludes custom, non-public, and user-owned dishes.
+Migration uses one PostgreSQL transaction per dish. It upserts the scalar row,
+resolves ingredients by the application's normalized key, then deletes and
+rebuilds only that dish's children. A failed dish is rolled back and reported;
+other dishes continue unless `--fail-fast` is set. No command globally truncates
+catalog tables.
+
+Validation performs scoped global counts and per-dish canonical/hash comparisons
+for scalars, tags, sections, components, measurements, ingredient links, and
+instructions. It writes JSON and Markdown under `reports/` and exits non-zero on
+any supported mismatch. The coverage command classifies every observed top-level
+Mongo field and records non-catalog migration coverage; unknown fields are
+reported as `unsupported_missing_schema` rather than silently discarded.
