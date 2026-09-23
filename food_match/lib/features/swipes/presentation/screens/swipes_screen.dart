@@ -353,6 +353,11 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     swipeProvider.clearDeckError(notify: false);
     setState(() {});
     final CoupleProvider coupleProvider = context.read<CoupleProvider>();
+    final String? requestUserId = context.read<AuthProvider>().currentUser?.id;
+    final String? requestSessionId = coupleProvider.currentCouple?.id;
+    final int requestSessionGeneration =
+        coupleProvider.currentCouple?.lifecycleGeneration ?? 0;
+    final bool requestWasSolo = swipeProvider.isSoloMode;
     debugPrint(
       '[PairFlow] both filters confirmed session=${coupleProvider.currentCouple?.id ?? 'none'} generation=${coupleProvider.currentCouple?.lifecycleGeneration ?? 0}',
     );
@@ -385,11 +390,32 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
               .read<PreSwipeProvider>()
               .prepareCanonicalPairDeck();
           if (!mounted) return;
+          final PreSwipeProvider preSwipeProvider =
+              context.read<PreSwipeProvider>();
+          final bool staleContext =
+              context.read<AuthProvider>().currentUser?.id != requestUserId ||
+              swipeProvider.isSoloMode != requestWasSolo ||
+              coupleProvider.currentCouple?.id != requestSessionId ||
+              (coupleProvider.currentCouple?.lifecycleGeneration ?? 0) !=
+                  requestSessionGeneration ||
+              result.operationGeneration !=
+                  preSwipeProvider.operationGeneration;
+          if (result.status == PreparedDeckStatus.cancelled || staleContext) {
+            debugPrint(
+              '[SwipesScreen] ignored prepared deck reason='
+              '${result.status == PreparedDeckStatus.cancelled ? 'cancelled' : 'stale_context'}',
+            );
+            _pairDeckReadyAutoLoadEnabled = false;
+            return;
+          }
           debugPrint(
             '[PairDeck] POST prepare result attempt=${attempt + 1} '
             'source=$reason dishes=${result.dishes.length}',
           );
           if (result.dishes.isNotEmpty) {
+            coupleProvider.stopInvitationPolling(
+              reason: 'pair_deck_transition',
+            );
             swipeProvider.applyPreparedDeck(
               result.dishes,
               preparedDeckMeta: result.preparedDeckMeta,
@@ -440,9 +466,9 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
           _resetSwipeStackController();
           _startPairLifecyclePolling();
           _startPairMatchPolling();
-          Navigator.of(
-            context,
-          ).popUntil((Route<dynamic> route) => route.isFirst);
+          // SwipesScreen is already the active shell branch. Popping its
+          // navigator here races with a pre-swipe route returning its result
+          // and can dispose the navigator while it is still locked.
           setState(() {});
           return;
         }
@@ -1046,11 +1072,22 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     _isOpeningPreSwipe = true;
     _isPreSwipeRouteActive = true;
     final SwipeProvider swipeProvider = context.read<SwipeProvider>();
-    swipeProvider.setActiveUser(context.read<AuthProvider>().currentUser?.id);
+    final String? requestUserId = context.read<AuthProvider>().currentUser?.id;
+    final String? requestSessionId = swipeProvider.activeSoloSessionId;
+    swipeProvider.setActiveUser(requestUserId);
     final PreparedPoolResult? result = await Navigator.of(context).push<PreparedPoolResult>(MaterialPageRoute<PreparedPoolResult>(fullscreenDialog: true, builder: (_) => PreSwipeFilterScreen(mode: 'solo', intent: intent)));
     _isPreSwipeRouteActive = false;
     if (!mounted) { _isOpeningPreSwipe = false; return; }
-    if (result != null && result.dishes.isNotEmpty) {
+    final bool staleContext =
+        context.read<AuthProvider>().currentUser?.id != requestUserId ||
+        !swipeProvider.isSoloMode ||
+        swipeProvider.activeSoloSessionId != requestSessionId;
+    if (result?.status == PreparedDeckStatus.cancelled || staleContext) {
+      debugPrint(
+        '[SwipesScreen] ignored prepared deck reason='
+        '${result?.status == PreparedDeckStatus.cancelled ? 'cancelled' : 'stale_context'}',
+      );
+    } else if (result != null && result.dishes.isNotEmpty) {
       _resetSwipeStackController();
       _stopPairLifecyclePolling();
       _stopPairMatchPolling();
@@ -1088,6 +1125,9 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     }
     final SwipeProvider swipeProvider = context.read<SwipeProvider>();
     final String? userId = context.read<AuthProvider>().currentUser?.id;
+    final String? requestSessionId = currentCoupleProvider.currentCouple?.id;
+    final int requestSessionGeneration =
+        currentCoupleProvider.currentCouple?.lifecycleGeneration ?? 0;
     swipeProvider.setActiveUser(userId);
 
     final PreparedPoolResult? result = await Navigator.of(context).push<PreparedPoolResult>(
@@ -1100,6 +1140,25 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
 
     if (!mounted) {
       _isOpeningPreSwipe = false;
+      return;
+    }
+
+    final CoupleProvider resultCoupleProvider =
+        _coupleProvider ?? context.read<CoupleProvider>();
+    final bool staleContext =
+        context.read<AuthProvider>().currentUser?.id != userId ||
+        swipeProvider.isSoloMode ||
+        resultCoupleProvider.currentCouple?.id != requestSessionId ||
+        (resultCoupleProvider.currentCouple?.lifecycleGeneration ?? 0) !=
+            requestSessionGeneration;
+    if (result?.status == PreparedDeckStatus.cancelled || staleContext) {
+      debugPrint(
+        '[SwipesScreen] ignored prepared deck reason='
+        '${result?.status == PreparedDeckStatus.cancelled ? 'cancelled' : 'stale_context'}',
+      );
+      _isOpeningPreSwipe = false;
+      _pairDeckReadyAutoLoadEnabled = false;
+      setState(() {});
       return;
     }
 
@@ -1144,6 +1203,9 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       return;
     }
 
+    resultCoupleProvider.stopInvitationPolling(
+      reason: 'pair_deck_transition',
+    );
     swipeProvider.applyPreparedDeck(
       result.dishes,
       seenDishIds: result.seenDishIds,

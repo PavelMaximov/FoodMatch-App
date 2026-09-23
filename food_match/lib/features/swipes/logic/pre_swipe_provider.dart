@@ -14,6 +14,8 @@ import '../../../data/services/api_service.dart';
 import '../../couple/logic/couple_provider.dart';
 import 'filter_scoring_service.dart';
 
+enum PreparedDeckStatus { success, cancelled, failed }
+
 class PreparedPoolResult {
   const PreparedPoolResult({
     required this.dishes,
@@ -23,7 +25,19 @@ class PreparedPoolResult {
     required this.messages,
     this.config,
     this.preparedDeckMeta,
+    this.status = PreparedDeckStatus.success,
+    this.operationGeneration = -1,
   });
+
+  const PreparedPoolResult.cancelled({required this.operationGeneration})
+    : status = PreparedDeckStatus.cancelled,
+      dishes = const <Dish>[],
+      seenDishIds = const <String>{},
+      usedFallback = false,
+      relaxed = false,
+      messages = const <String>[],
+      config = null,
+      preparedDeckMeta = null;
 
   final List<Dish> dishes;
   final Set<String> seenDishIds;
@@ -32,6 +46,10 @@ class PreparedPoolResult {
   final List<String> messages;
   final FilterConfig? config;
   final PreparedDeckMeta? preparedDeckMeta;
+  final PreparedDeckStatus status;
+  final int operationGeneration;
+
+  bool get isSuccess => status == PreparedDeckStatus.success;
 }
 
 class FilterAvailabilitySummary {
@@ -103,6 +121,8 @@ class PreSwipeProvider extends ChangeNotifier {
   PreparedPoolResult? _canonicalPreparedResult;
   int _prepareGeneration = 0;
   bool _disposed = false;
+
+  int get operationGeneration => _prepareGeneration;
 
   Future<UserProfile> loadProfile(String userId) =>
       _profileService.getProfile(userId);
@@ -382,13 +402,13 @@ class PreSwipeProvider extends ChangeNotifier {
     try {
       final PreparedDeck preparedDeck = await _coupleRepository.prepareDeck();
       if (!_isCurrentPreparation(generation)) {
-        return _poolResultFromPreparedDeck(preparedDeck);
+        return _cancelledPreparation(generation);
       }
       final PreparedDeck backendDeck = await _loadCanonicalBackendDeck(
         preparedDeck,
       );
       if (!_isCurrentPreparation(generation)) {
-        return _poolResultFromPreparedDeck(backendDeck);
+        return _cancelledPreparation(generation);
       }
       preparedDeckMeta = backendDeck.meta;
       debugPrint(
@@ -406,11 +426,14 @@ class PreSwipeProvider extends ChangeNotifier {
         relaxed: fallbackReason != null,
         messages: messages,
         preparedDeckMeta: backendDeck.meta,
+        operationGeneration: generation,
       );
       _canonicalPreparedResult = result;
       return result;
     } on ApiException catch (e) {
-      if (!_isCurrentPreparation(generation)) rethrow;
+      if (!_isCurrentPreparation(generation)) {
+        return _cancelledPreparation(generation);
+      }
       backendDeckError = e.code == 'PAIR_WAITING_FOR_PARTNER_FILTERS'
           ? 'Waiting for partner choices'
           : ErrorMessages.fromApiException(e);
@@ -419,7 +442,9 @@ class PreSwipeProvider extends ChangeNotifier {
       );
       rethrow;
     } catch (e) {
-      if (!_isCurrentPreparation(generation)) rethrow;
+      if (!_isCurrentPreparation(generation)) {
+        return _cancelledPreparation(generation);
+      }
       backendDeckError = 'Could not load the shared deck. Please try again.';
       debugPrint('[PairDeck] canonical prepare failed $e');
       rethrow;
@@ -451,11 +476,15 @@ class PreSwipeProvider extends ChangeNotifier {
 
     try {
       final PreparedDeck preparedDeck = await _coupleRepository.prepareDeck();
-      if (!_isCurrentPreparation(generation)) return fallback;
+      if (!_isCurrentPreparation(generation)) {
+        return _cancelledPreparation(generation);
+      }
       final PreparedDeck backendDeck = await _loadCanonicalBackendDeck(
         preparedDeck,
       );
-      if (!_isCurrentPreparation(generation)) return fallback;
+      if (!_isCurrentPreparation(generation)) {
+        return _cancelledPreparation(generation);
+      }
       preparedDeckMeta = backendDeck.meta;
       debugPrint(
         '[PreparedDeck] prepare success final=${backendDeck.meta.finalCount}',
@@ -473,9 +502,12 @@ class PreSwipeProvider extends ChangeNotifier {
         messages: messages,
         config: fallback.config,
         preparedDeckMeta: backendDeck.meta,
+        operationGeneration: generation,
       );
     } on ApiException catch (e) {
-      if (!_isCurrentPreparation(generation)) return fallback;
+      if (!_isCurrentPreparation(generation)) {
+        return _cancelledPreparation(generation);
+      }
       final bool filtersNotReady =
           e.statusCode == 409 && e.message.toLowerCase().contains('filter');
       backendDeckError = filtersNotReady
@@ -515,6 +547,13 @@ class PreSwipeProvider extends ChangeNotifier {
 
   bool _isCurrentPreparation(int generation) =>
       !_disposed && generation == _prepareGeneration;
+
+  PreparedPoolResult _cancelledPreparation(int generation) {
+    debugPrint(
+      '[PreSwipe] prepare cancelled reason=stale_generation/session_changed/user_changed',
+    );
+    return PreparedPoolResult.cancelled(operationGeneration: generation);
+  }
 
   void _invalidateCanonicalPreparation() {
     _prepareGeneration++;

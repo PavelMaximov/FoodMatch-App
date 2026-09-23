@@ -73,9 +73,14 @@ class _MainShellState extends State<MainShell>
   late final AnimationController _soloPlusOneController;
   MatchBadgeController? _matchBadgeController;
   SwipeProvider? _swipeProvider;
+  AuthProvider? _authProvider;
+  MatchProvider? _matchProvider;
+  CoupleProvider? _coupleProvider;
   int _lastBadgeBumpToken = 0;
   Timer? _matchBadgeRefreshTimer;
   bool? _invitationPollingPausedForSolo;
+  bool _isDisposed = false;
+  int _badgeRefreshGeneration = 0;
 
   Future<bool> _hasIconAsset(String assetPath) {
     return _iconAssetAvailability.putIfAbsent(assetPath, () async {
@@ -103,12 +108,6 @@ class _MainShellState extends State<MainShell>
         debugPrint('[NavBadgeAnim] complete');
       }
     });
-    _matchBadgeController = context.read<MatchBadgeController>()
-      ..addListener(_handleBadgeAnimationEvent);
-    _swipeProvider = context.read<SwipeProvider>()
-      ..addListener(_syncInvitationPollingForSwipeMode);
-    _lastBadgeBumpToken =
-        _matchBadgeController!.bumpToken;
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -120,21 +119,51 @@ class _MainShellState extends State<MainShell>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_isDisposed) return;
+    final MatchBadgeController badge = context.read<MatchBadgeController>();
+    if (!identical(_matchBadgeController, badge)) {
+      _matchBadgeController?.removeListener(_handleBadgeAnimationEvent);
+      _matchBadgeController = badge..addListener(_handleBadgeAnimationEvent);
+      _lastBadgeBumpToken = badge.bumpToken;
+    }
+    final SwipeProvider swipe = context.read<SwipeProvider>();
+    if (!identical(_swipeProvider, swipe)) {
+      _swipeProvider?.removeListener(_syncInvitationPollingForSwipeMode);
+      _swipeProvider = swipe..addListener(_syncInvitationPollingForSwipeMode);
+    }
+    _authProvider = context.read<AuthProvider>();
+    _matchProvider = context.read<MatchProvider>();
+    _coupleProvider = context.read<CoupleProvider>();
+  }
+
+  @override
   void dispose() {
+    _isDisposed = true;
+    _badgeRefreshGeneration++;
+    _matchBadgeRefreshTimer?.cancel();
+    _matchBadgeRefreshTimer = null;
+    _coupleProvider?.stopInvitationPolling(reason: 'main_shell_dispose');
     _matchBadgeController?.removeListener(_handleBadgeAnimationEvent);
     _swipeProvider?.removeListener(_syncInvitationPollingForSwipeMode);
     _soloPlusOneController.dispose();
-    _matchBadgeRefreshTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
+    _authProvider = null;
+    _matchProvider = null;
+    _coupleProvider = null;
+    _matchBadgeController = null;
+    _swipeProvider = null;
     super.dispose();
   }
 
   void _syncInvitationPollingForSwipeMode() {
-    if (!mounted) return;
+    if (!mounted || _isDisposed) return;
     final bool pause = _swipeProvider?.hasActiveSoloSession == true;
     if (_invitationPollingPausedForSolo == pause) return;
     _invitationPollingPausedForSolo = pause;
-    final CoupleProvider coupleProvider = context.read<CoupleProvider>();
+    final CoupleProvider? coupleProvider = _coupleProvider;
+    if (coupleProvider == null) return;
     if (pause) {
       coupleProvider.stopInvitationPolling(reason: 'active_solo_deck');
       if (kDebugMode) {
@@ -166,22 +195,26 @@ class _MainShellState extends State<MainShell>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!mounted || _isDisposed) return;
     if (state == AppLifecycleState.resumed) {
       unawaited(_resumeCouplePolling());
-      context.read<SwipeProvider>().syncPendingSwipes();
+      _swipeProvider?.syncPendingSwipes();
       unawaited(_refreshMatchBadge(reason: 'app_resume'));
       return;
     }
     if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
-      context.read<CoupleProvider>().handleAppPaused();
+      _coupleProvider?.handleAppPaused();
     }
   }
 
   Future<void> _resumeCouplePolling() async {
+    if (!mounted || _isDisposed) return;
+    final CoupleProvider? coupleProvider = _coupleProvider;
+    if (coupleProvider == null) return;
     if (_swipeProvider?.hasActiveSoloSession == true) {
-      context.read<CoupleProvider>().stopInvitationPolling(
+      coupleProvider.stopInvitationPolling(
         reason: 'active_solo_deck',
       );
       if (kDebugMode) {
@@ -189,8 +222,8 @@ class _MainShellState extends State<MainShell>
       }
       return;
     }
-    await context.read<CoupleProvider>().handleAppResumed();
-    if (!mounted) return;
+    await coupleProvider.handleAppResumed();
+    if (!mounted || _isDisposed) return;
     _invitationPollingPausedForSolo = null;
     _syncInvitationPollingForSwipeMode();
   }
@@ -199,34 +232,44 @@ class _MainShellState extends State<MainShell>
     _matchBadgeRefreshTimer?.cancel();
     _matchBadgeRefreshTimer = Timer.periodic(
       const Duration(seconds: 15),
-      (_) => unawaited(_refreshMatchBadge(reason: 'shell_poll')),
+      (_) {
+        if (!mounted || _isDisposed) return;
+        unawaited(_refreshMatchBadge(reason: 'shell_poll'));
+      },
     );
   }
 
   Future<void> _refreshMatchBadge({required String reason}) async {
-    if (!mounted) return;
-    final AuthProvider authProvider = context.read<AuthProvider>();
+    if (!mounted || _isDisposed) return;
+    final int generation = _badgeRefreshGeneration;
+    final AuthProvider? authProvider = _authProvider;
+    final MatchProvider? matchProvider = _matchProvider;
+    final MatchBadgeController? badge = _matchBadgeController;
+    if (authProvider == null || matchProvider == null || badge == null) return;
     if (!authProvider.isAuthenticated) return;
     if (authProvider.currentUser == null) {
       await authProvider.loadUser();
-      if (!mounted) return;
+      if (!mounted || _isDisposed || generation != _badgeRefreshGeneration) {
+        return;
+      }
     }
     final String? userId = authProvider.currentUser?.id;
     if (userId == null) {
       debugPrint('[MatchProvider] user unresolved reason=$reason');
       return;
     }
-    context.read<MatchProvider>().setActiveUser(userId);
-    final MatchBadgeController badge =
-        context.read<MatchBadgeController>();
+    matchProvider.setActiveUser(userId);
     if (badge.sessionId == null) return;
     if (kDebugMode) {
       debugPrint('[MatchBadge] refresh requested reason=$reason');
     }
-    await context.read<MatchProvider>().loadMatches(
+    await matchProvider.loadMatches(
       force: true,
       reason: reason,
     );
+    if (!mounted || _isDisposed || generation != _badgeRefreshGeneration) {
+      return;
+    }
   }
 
   void _onTabTap(int index) {
