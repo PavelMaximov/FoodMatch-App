@@ -413,6 +413,9 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
             'source=$reason dishes=${result.dishes.length}',
           );
           if (result.dishes.isNotEmpty) {
+            coupleProvider.stopInvitationPolling(
+              reason: 'pair_deck_transition',
+            );
             swipeProvider.applyPreparedDeck(
               result.dishes,
               preparedDeckMeta: result.preparedDeckMeta,
@@ -463,9 +466,9 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
           _resetSwipeStackController();
           _startPairLifecyclePolling();
           _startPairMatchPolling();
-          Navigator.of(
-            context,
-          ).popUntil((Route<dynamic> route) => route.isFirst);
+          // SwipesScreen is already the active shell branch. Popping its
+          // navigator here races with a pre-swipe route returning its result
+          // and can dispose the navigator while it is still locked.
           setState(() {});
           return;
         }
@@ -1200,6 +1203,9 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       return;
     }
 
+    resultCoupleProvider.stopInvitationPolling(
+      reason: 'pair_deck_transition',
+    );
     swipeProvider.applyPreparedDeck(
       result.dishes,
       seenDishIds: result.seenDishIds,
