@@ -30,7 +30,7 @@ const envSchema = z.object({
 export function validateProductionEnvironment(values: NodeJS.ProcessEnv): string[] {
   if (values.NODE_ENV !== 'production') return [];
   const errors: string[] = [];
-  const placeholder = /(?:<[^>]+>|replace[_-]?me|changeme|example|your[_-])/i;
+  const placeholder = /(?:<[^>]+>|replace(?:[_-](?:me|with))?|changeme|example|your[_-])/i;
   const local = (value?: string) => {
     try { return ['localhost', '127.0.0.1', '::1'].includes(new URL(value ?? '').hostname); } catch { return false; }
   };
