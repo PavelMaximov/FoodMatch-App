@@ -37,6 +37,7 @@ void main() {
       userProfileService: _FakeUserProfileHiveService(),
       badgeController: badgeController,
     );
+    provider.currentSwipeMode = 'solo';
   });
 
   test('loadDeck loads dishes', () async {
@@ -147,7 +148,7 @@ void main() {
     expect(badgeController.bumpToken, 0);
   });
 
-  test('missing immediate scope requests authoritative refresh', () async {
+  test('created solo session requests authoritative match refresh', () async {
     String? refreshReason;
     badgeController.attachRefreshHandler(({
       required String mode,
@@ -178,7 +179,7 @@ void main() {
     await Future<void>.delayed(Duration.zero);
 
     expect(badgeController.badgeCount, 0);
-    expect(refreshReason, 'swipe_match_created_scope_unresolved');
+    expect(refreshReason, 'swipe_match_created');
   });
 
   test('like without a created match does not update badge', () async {
@@ -313,4 +314,18 @@ class _FakeCacheService extends CacheService {
   Future<List<Dish>> getCachedDishes() async => <Dish>[];
 }
 
-class _FakeUserProfileHiveService extends UserProfileHiveService {}
+class _FakeUserProfileHiveService extends UserProfileHiveService {
+  @override
+  Future<void> recordSwipe({
+    required String userId,
+    required String dishId,
+    required String direction,
+    required String cuisine,
+  }) async {}
+
+  @override
+  Future<void> recordMatch({
+    required String userId,
+    required String dishId,
+  }) async {}
+}

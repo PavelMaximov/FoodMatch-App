@@ -337,7 +337,17 @@ class MatchBadgeController extends ChangeNotifier {
 
   void _notifySafely(String reason) {
     if (_disposed) return;
-    final SchedulerPhase phase = WidgetsBinding.instance.schedulerPhase;
+    WidgetsBinding? binding;
+    try {
+      binding = WidgetsBinding.instance;
+    } catch (_) {
+      if (kDebugMode) {
+        debugPrint('[MatchBadge] notify immediate reason=$reason no_binding');
+      }
+      notifyListeners();
+      return;
+    }
+    final SchedulerPhase phase = binding.schedulerPhase;
     if (phase == SchedulerPhase.idle ||
         phase == SchedulerPhase.postFrameCallbacks) {
       if (kDebugMode) {
@@ -351,7 +361,7 @@ class MatchBadgeController extends ChangeNotifier {
     if (kDebugMode) {
       debugPrint('[MatchBadge] notify deferred reason=$reason phase=$phase');
     }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    binding.addPostFrameCallback((_) {
       _notifyScheduled = false;
       if (_disposed) return;
       notifyListeners();
