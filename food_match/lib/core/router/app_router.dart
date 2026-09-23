@@ -106,8 +106,8 @@ class AppRouter {
                 StatefulNavigationShell navigationShell,
                 List<Widget> children,
               ) =>
-                  _PagedBranchNavigatorContainer(
-                navigationShell: navigationShell,
+                  RootTabBranchStack(
+                currentIndex: navigationShell.currentIndex,
                 children: children,
               ),
               builder: (
@@ -196,59 +196,43 @@ class AppRouter {
   final GoRouter router;
 }
 
-class _PagedBranchNavigatorContainer extends StatefulWidget {
-  const _PagedBranchNavigatorContainer({
-    required this.navigationShell,
+class RootTabBranchStack extends StatefulWidget {
+  /// Keeps branch navigators alive while switching the visible branch without
+  /// producing intermediate page-change events for non-adjacent tab taps.
+  const RootTabBranchStack({
+    required this.currentIndex,
     required this.children,
+    super.key,
   });
 
-  final StatefulNavigationShell navigationShell;
+  final int currentIndex;
   final List<Widget> children;
 
   @override
-  State<_PagedBranchNavigatorContainer> createState() =>
-      _PagedBranchNavigatorContainerState();
+  State<RootTabBranchStack> createState() => _RootTabBranchStackState();
 }
 
-class _PagedBranchNavigatorContainerState
-    extends State<_PagedBranchNavigatorContainer> {
-  late final PageController _pageController;
+class _RootTabBranchStackState extends State<RootTabBranchStack> {
   late final Set<int> _visitedBranches;
   late List<Widget> _tabPages;
 
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(
-      initialPage: widget.navigationShell.currentIndex,
-      keepPage: true,
-    );
-    _visitedBranches = <int>{widget.navigationShell.currentIndex};
+    _visitedBranches = <int>{widget.currentIndex};
     _tabPages = _buildTabPages(widget.children);
   }
 
   @override
-  void didUpdateWidget(covariant _PagedBranchNavigatorContainer oldWidget) {
+  void didUpdateWidget(covariant RootTabBranchStack oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.children != widget.children) {
       _tabPages = _buildTabPages(widget.children);
     }
-    final int currentIndex = widget.navigationShell.currentIndex;
+    final int currentIndex = widget.currentIndex;
     if (_visitedBranches.add(currentIndex)) {
       _tabPages = _buildTabPages(widget.children);
     }
-    if (!_pageController.hasClients ||
-        (_pageController.page?.round() ?? _pageController.initialPage) ==
-            currentIndex) {
-      return;
-    }
-    _animateToBranch(currentIndex);
-  }
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
   }
 
   List<Widget> _buildTabPages(List<Widget> children) {
@@ -285,35 +269,12 @@ class _PagedBranchNavigatorContainerState
     }
   }
 
-  Future<void> _animateToBranch(int index) async {
-    if (!_pageController.hasClients) {
-      return;
-    }
-    await _pageController.animateToPage(
-      index,
-      duration: AppMotion.durationFor(context, AppMotion.tab),
-      curve: AppMotion.curve,
-    );
-  }
-
-  void _handlePageChanged(int index) {
-    if (_visitedBranches.add(index)) {
-      setState(() => _tabPages = _buildTabPages(widget.children));
-    }
-    if (index == widget.navigationShell.currentIndex) return;
-    widget.navigationShell.goBranch(index);
-  }
-
   @override
   Widget build(BuildContext context) {
-    final bool isSwipesTab = widget.navigationShell.currentIndex == 2;
-    return PageView(
-      controller: _pageController,
-      physics: isSwipesTab
-          ? const NeverScrollableScrollPhysics()
-          : const PageScrollPhysics(),
-      onPageChanged: _handlePageChanged,
-      allowImplicitScrolling: true,
+    return IndexedStack(
+      key: const Key('root-tab-stack'),
+      index: widget.currentIndex,
+      sizing: StackFit.expand,
       children: _tabPages,
     );
   }
