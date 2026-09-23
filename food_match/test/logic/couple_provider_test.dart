@@ -22,6 +22,7 @@ void main() {
   setUp(() {
     fakeRepo = _FakeCoupleRepository()..currentCouple = couple;
     provider = CoupleProvider(repository: fakeRepo);
+    provider.setAuthenticatedUser('u1', isAuthenticated: true);
   });
 
   test('create sets couple', () async {

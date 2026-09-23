@@ -2,16 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:food_match/shared/widgets/empty_state.dart';
 
+import '../helpers/pump_food_match_test_app.dart';
+
 void main() {
   testWidgets('EmptyState показывает title и subtitle', (tester) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(
-          body: EmptyState(
-            icon: Icons.favorite,
-            title: 'Пусто',
-            subtitle: 'Ничего нет',
-          ),
+    await pumpFoodMatchTestApp(
+      tester,
+      const Scaffold(
+        body: EmptyState(
+          icon: Icons.favorite,
+          title: 'Пусто',
+          subtitle: 'Ничего нет',
         ),
       ),
     );
@@ -21,16 +22,15 @@ void main() {
   });
 
   testWidgets('EmptyState показывает кнопку если задана', (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: EmptyState(
-            icon: Icons.favorite,
-            title: 'Пусто',
-            subtitle: 'Ничего нет',
-            buttonText: 'Обновить',
-            onButtonPressed: () {},
-          ),
+    await pumpFoodMatchTestApp(
+      tester,
+      Scaffold(
+        body: EmptyState(
+          icon: Icons.favorite,
+          title: 'Пусто',
+          subtitle: 'Ничего нет',
+          buttonText: 'Обновить',
+          onButtonPressed: () {},
         ),
       ),
     );

@@ -2,6 +2,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:food_match/shell/logic/match_badge_controller.dart';
 
 void main() {
+  test('notifies without an initialized WidgetsBinding', () {
+    final MatchBadgeController controller = MatchBadgeController();
+    int notifications = 0;
+    controller.addListener(() => notifications++);
+
+    controller.setActiveUser('user-a');
+
+    expect(notifications, 1);
+  });
+
   test('initial baseline restores count without animation', () {
     final MatchBadgeController controller =
         MatchBadgeController()

@@ -25,6 +25,7 @@ void main() {
         mode: 'solo',
         sessionId: 'solo-b',
       );
+      await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.byKey(const Key('matches-nav-count-badge')), findsOneWidget);
