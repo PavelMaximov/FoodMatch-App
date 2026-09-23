@@ -528,7 +528,7 @@ class _CodeInput extends StatelessWidget {
               TextButton.icon(
                 onPressed: onPaste,
                 icon: const Icon(Icons.content_paste_rounded, size: 15),
-                label: const Text('paste'),
+                label: const Text('Paste'),
               ),
             ],
           ),
