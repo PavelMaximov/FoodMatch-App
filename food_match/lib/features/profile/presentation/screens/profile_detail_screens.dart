@@ -357,7 +357,7 @@ class ProfileSettingsScreen extends StatelessWidget {
   Future<void> _showTheme(BuildContext context) async {
     final controller = context.read<ThemeController>();
     await showModalBottomSheet<void>(context: context, builder: (sheetContext) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: <Widget>[
-      const ListTile(title: Text('Color Theme', style: TextStyle(fontWeight: FontWeight.w800))),
+      const ListTile(title: Text('Color Theme', style: TextStyle(fontWeight: FontWeight.w900))),
       for (final option in ThemeMode.values)
         ListTile(title: Text(_themeLabel(option)), trailing: controller.themeMode == option ? const Icon(Icons.check) : null, onTap: () async {
           await controller.setThemeMode(option);

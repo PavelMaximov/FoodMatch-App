@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:food_match/core/router/app_router.dart';
+import '../helpers/pump_food_match_test_app.dart';
 
 void main() {
   testWidgets('non-adjacent root tabs switch directly', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(const MaterialApp(home: _TabStackHarness()));
+    await pumpFoodMatchTestApp(tester, const _TabStackHarness());
 
     expect(find.text('Recipes').hitTestable(), findsOneWidget);
     expect(find.text('Matches').hitTestable(), findsNothing);
