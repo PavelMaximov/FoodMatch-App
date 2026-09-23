@@ -20,6 +20,9 @@ class FavoritesProvider extends ChangeNotifier {
   Future<void>? _favoritesLoadFuture;
   int _requestGeneration = 0;
   int _userGeneration = 0;
+  int _favoritesMutationGeneration = 0;
+  final Map<String, _LocalFavoriteMutation> _localMutations =
+      <String, _LocalFavoriteMutation>{};
   bool _disposed = false;
 
   bool isLoading = false;
@@ -47,6 +50,8 @@ class FavoritesProvider extends ChangeNotifier {
     _savedDishes = <Dish>[];
     _savedDishIds = <String>{};
     _updatingDishIds.clear();
+    _favoritesMutationGeneration = 0;
+    _localMutations.clear();
     _favoritesLoadedAt = null;
     _favoritesLoadFuture = null;
     error = null;
@@ -83,6 +88,7 @@ class FavoritesProvider extends ChangeNotifier {
   Future<void> _loadFavoritesFromApi({required bool force}) async {
     final String userId = _activeUserId!;
     final int generation = ++_requestGeneration;
+    final int mutationGeneration = _favoritesMutationGeneration;
     AppLogger.info(force ? '[Cache] favorites force refresh' : '[Cache] favorites miss');
     isLoading = true;
     error = null;
@@ -92,8 +98,27 @@ class FavoritesProvider extends ChangeNotifier {
       final List<Dish> dishes = await _repository.getSavedDishes();
       if (!_isCurrentRequest(userId, generation)) return;
       dishes.sort((Dish a, Dish b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
-      _savedDishes = List<Dish>.from(dishes);
-      _savedDishIds = dishes.map((Dish dish) => dish.id).where((String id) => id.isNotEmpty).toSet();
+      final Map<String, Dish> reconciled = <String, Dish>{
+        for (final Dish dish in dishes)
+          if (dish.id.isNotEmpty) dish.id: dish,
+      };
+      for (final MapEntry<String, _LocalFavoriteMutation> entry
+          in _localMutations.entries) {
+        final _LocalFavoriteMutation mutation = entry.value;
+        if (mutation.generation <= mutationGeneration) continue;
+        if (mutation.shouldBeSaved) {
+          reconciled[entry.key] = mutation.dish;
+        } else {
+          reconciled.remove(entry.key);
+        }
+      }
+      _localMutations.removeWhere(
+        (String _, _LocalFavoriteMutation mutation) =>
+            mutation.generation <= mutationGeneration,
+      );
+      _savedDishes = reconciled.values.toList()
+        ..sort((Dish a, Dish b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      _savedDishIds = reconciled.keys.toSet();
       _favoritesLoadedAt = DateTime.now();
       error = null;
     } catch (e) {
@@ -115,6 +140,8 @@ class FavoritesProvider extends ChangeNotifier {
     _savedDishes = <Dish>[];
     _savedDishIds = <String>{};
     _updatingDishIds.clear();
+    _favoritesMutationGeneration = 0;
+    _localMutations.clear();
     _favoritesLoadedAt = null;
     _favoritesLoadFuture = null;
     error = null;
@@ -134,6 +161,12 @@ class FavoritesProvider extends ChangeNotifier {
     final bool wasSaved = _savedDishIds.contains(dishId);
     final String? userId = _activeUserId;
     final int userGeneration = _userGeneration;
+    final int mutationGeneration = ++_favoritesMutationGeneration;
+    _localMutations[dishId] = _LocalFavoriteMutation(
+      generation: mutationGeneration,
+      dish: dish,
+      shouldBeSaved: !wasSaved,
+    );
 
     _updatingDishIds.add(dishId);
     if (wasSaved) {
@@ -161,6 +194,9 @@ class FavoritesProvider extends ChangeNotifier {
       _favoritesLoadedAt = DateTime.now();
     } catch (e) {
       if (!_isCurrentUser(userId, userGeneration)) return;
+      if (_localMutations[dishId]?.generation == mutationGeneration) {
+        _localMutations.remove(dishId);
+      }
       if (wasSaved) {
         _savedDishIds.add(dishId);
         if (!_savedDishes.any((Dish savedDish) => savedDish.id == dishId)) {
@@ -202,4 +238,16 @@ class FavoritesProvider extends ChangeNotifier {
     }
     return ErrorMessages.unexpected;
   }
+}
+
+class _LocalFavoriteMutation {
+  const _LocalFavoriteMutation({
+    required this.generation,
+    required this.dish,
+    required this.shouldBeSaved,
+  });
+
+  final int generation;
+  final Dish dish;
+  final bool shouldBeSaved;
 }

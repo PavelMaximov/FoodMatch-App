@@ -34,12 +34,36 @@ void main() {
     final Future<PreparedPoolResult> stale = provider.prepareCanonicalPairDeck();
     provider.clearDraft();
     repository.requests[0].complete(_deck('old'));
-    await stale;
+    final PreparedPoolResult staleResult = await stale;
+
+    expect(staleResult.status, PreparedDeckStatus.cancelled);
+    expect(staleResult.dishes, isEmpty);
 
     final Future<PreparedPoolResult> fresh = provider.prepareCanonicalPairDeck();
     expect(repository.requests, hasLength(2));
     repository.requests[1].complete(_deck('new'));
     expect((await fresh).dishes.single.id, 'new');
+  });
+
+  test('request then reset prevents old response from being applied', () async {
+    final _FakeCoupleRepository repository = _FakeCoupleRepository();
+    final PreSwipeProvider provider = _provider(repository);
+    final List<Dish> appliedDeck = <Dish>[];
+
+    final Future<PreparedPoolResult> request =
+        provider.prepareCanonicalPairDeck();
+    provider.clearForLogout();
+    repository.requests.single.complete(_deck('stale-valid-dish'));
+    final PreparedPoolResult result = await request;
+
+    if (result.status == PreparedDeckStatus.success) {
+      appliedDeck.addAll(result.dishes);
+    }
+    expect(result.status, PreparedDeckStatus.cancelled);
+    expect(appliedDeck, isEmpty);
+    expect(repository.requests, hasLength(1));
+    await Future<void>.delayed(Duration.zero);
+    expect(appliedDeck, isEmpty);
   });
 }
 
