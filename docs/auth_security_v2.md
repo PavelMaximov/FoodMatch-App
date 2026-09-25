@@ -1,5 +1,7 @@
 # Auth Security v2
 
+> Historical documentation for the retired MongoDB authentication implementation. The current backend delegates authentication and session refresh to Supabase Auth. The legacy token/email services and token models have been removed; the behavior described below is not a guarantee of current runtime behavior. Migration scripts and MongoDB data are unaffected.
+
 ## Access token TTL
 Access tokens are stateless JWTs signed with `JWT_SECRET` and expire with `JWT_ACCESS_EXPIRES_IN` (default `15m`). They contain only `userId`/`sub` and email. Access tokens are not stored in MongoDB.
 
