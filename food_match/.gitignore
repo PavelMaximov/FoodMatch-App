@@ -11,3 +11,9 @@ build/
 
 # Generated
 **/generated_plugin_registrant.dart
+
+# Flutter-generated local plugin metadata and desktop build files
+/.flutter-plugins
+/.flutter-plugins-dependencies
+/linux/flutter/ephemeral/
+/macos/Flutter/ephemeral/
