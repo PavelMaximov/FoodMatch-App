@@ -374,10 +374,6 @@ class _RecipesScreenState extends State<RecipesScreen> {
     final List<RecipeCategoryConfig> categories = _visibleCategories(
       activePool,
     );
-    // final int germanCount = activePool
-    //     .where((Dish d) => d.cuisine.trim().toLowerCase() == 'german')
-    //     .length;
-    // debugPrint('[Recipes] German Favorites count=$germanCount');
     final List<Dish> preview = _previewRecipes(activePool);
     final bool hasPreview = preview.isNotEmpty;
 

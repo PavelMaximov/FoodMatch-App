@@ -1518,9 +1518,8 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
 
   final SwipeableStackState? swipeStackState = _swipeStackKey.currentState;
 
-  // Запускаем анимацию сразу — не дожидаясь ответа сервера. Направление уже
-  // известно локально, ждать backend незачем, если только он не разойдётся
-  // с ожиданием (см. проверку ниже).
+  // Start the undo animation immediately using the locally known direction.
+  // Reconcile any mismatch with the server response below.
   final Future<void>? animationFuture = (undoDishId != null && undoDirection != null)
       ? swipeStackState?.playUndoReturnAnimation(direction: undoDirection)
       : null;

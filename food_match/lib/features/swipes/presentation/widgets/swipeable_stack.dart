@@ -354,10 +354,10 @@ class SwipeableStackState extends State<SwipeableStack>
     if (!accepted) {
       direction = null;
     } else if (hasMeaningfulDrag) {
-      // Основное направление берём по положению карточки.
+      // Prefer the card displacement when determining swipe direction.
       direction = dragX < 0 ? SwipeDirection.left : SwipeDirection.right;
     } else {
-      // Для короткого быстрого броска берём направление скорости.
+      // For a short, fast flick, use the velocity direction instead.
       direction = velocity < 0 ? SwipeDirection.left : SwipeDirection.right;
     }
 
@@ -573,7 +573,6 @@ class SwipeableStackState extends State<SwipeableStack>
           fit: StackFit.expand,
           clipBehavior: Clip.none,
           children: <Widget>[
-            // if (baseStartIndex + 2 < widget.itemCount) _preview(baseStartIndex + 2, .94, .72),
             if (baseStartIndex + 1 < widget.itemCount)
               _preview(baseStartIndex + 1, .97, .9),
             if (baseStartIndex < widget.itemCount)

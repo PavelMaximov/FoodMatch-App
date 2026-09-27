@@ -324,13 +324,6 @@ class SwipeCardWidget extends StatelessWidget {
           shape: BoxShape.circle,
           color: bgColor,
           border: borderColor == null ? null : Border.all(color: borderColor),
-          // boxShadow: <BoxShadow>[
-          //   BoxShadow(
-          //     color: Colors.black.withValues(alpha: 0.15),
-          //     blurRadius: 8,
-          //     offset: const Offset(0, 2),
-          //   ),
-          // ],
         ),
         child: Center(
           child: SvgPicture.asset(
