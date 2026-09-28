@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
+import 'package:flutter/scheduler.dart' show TickerCanceled;
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -283,7 +284,9 @@ class SwipeableStackState extends State<SwipeableStack>
       _undoReturnDirection = direction;
     });
     try {
-      await _undoReturnController.forward(from: 0);
+      await _undoReturnController.forward(from: 0).orCancel;
+    } on TickerCanceled {
+      // Reset or disposal cancels the visual return, but must release the action.
     } finally {
       if (mounted) {
         if (kDebugMode)
