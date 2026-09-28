@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:food_match/data/local/cache_service.dart';
 import 'package:food_match/data/local/user_profile_hive_service.dart';
@@ -208,6 +210,28 @@ void main() {
     expect(badgeController.bumpToken, 0);
   });
 
+  test('undo shows the previous card while pending and rolls back on failure', () async {
+    provider.setActiveUser('user-a');
+    fakeSwipeRepo.soloSessionDishes = testDishes;
+    await provider.createSoloSession(
+      dishRegisters: <String>['everyday'],
+      includeCustomDishesFirst: false,
+      cuisines: <String>[], moods: <String>[], blocked: <String>[], diet: <String>[],
+    );
+    await provider.like();
+    expect(provider.currentDish?.id, '2');
+    fakeSwipeRepo.pendingUndo = Completer<dynamic>();
+    final pending = provider.undo();
+    expect(provider.currentDish?.id, '1');
+    expect(provider.isSendingSwipe, isTrue);
+    expect(provider.canUndo, isFalse);
+    fakeSwipeRepo.pendingUndo!.completeError(Exception('offline'));
+    await pending;
+    expect(provider.currentDish?.id, '2');
+    expect(provider.isSendingSwipe, isFalse);
+    expect(provider.canUndo, isTrue);
+  });
+
   test('undo match decrements badge without a new animation bump', () async {
     provider.setActiveUser('user-a');
     fakeSwipeRepo.soloSessionDishes = testDishes;
@@ -272,6 +296,7 @@ class _FakeSwipeRepository extends SwipeRepository {
   final List<(String, String)> sentSwipes = <(String, String)>[];
   List<Dish> soloSessionDishes = <Dish>[];
   dynamic swipeResult = <String, dynamic>{};
+  Completer<dynamic>? pendingUndo;
   dynamic undoResult = <String, dynamic>{};
 
   @override
@@ -299,7 +324,8 @@ class _FakeSwipeRepository extends SwipeRepository {
   }
 
   @override
-  Future<dynamic> undoSoloSwipe(String sessionId) async => undoResult;
+  Future<dynamic> undoSoloSwipe(String sessionId) async =>
+      pendingUndo == null ? undoResult : await pendingUndo!.future;
 }
 
 class _FakeCacheService extends CacheService {

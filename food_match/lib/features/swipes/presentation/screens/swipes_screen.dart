@@ -1538,7 +1538,11 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
 
     if (animationFuture != null) await animationFuture;
   } finally {
-    _isCardActionInProgress = false;
+    if (mounted) {
+      setState(() => _isCardActionInProgress = false);
+    } else {
+      _isCardActionInProgress = false;
+    }
   }
 }
 

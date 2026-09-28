@@ -831,12 +831,23 @@ class SwipeProvider extends ChangeNotifier {
       '[Undo] requested mode=$currentSwipeMode hasSession=${activeSoloSessionId != null} currentIndex=$currentIndex',
     );
     if (isSoloMode && activeSoloSessionId != null) {
+      final String undoSessionId = activeSoloSessionId!;
+      final String? undoUserId = _activeUserId;
+      final List<Dish> undoDeck = deck;
+      final int previousIndex = currentIndex;
+      bool isCurrentUndoScope() =>
+          activeSoloSessionId == undoSessionId &&
+          _activeUserId == undoUserId &&
+          identical(deck, undoDeck);
+      // Show the previous card before the network request completes.
+      currentIndex = _lastSwipedIndex!;
       _isSendingSwipe = true;
       notifyListeners();
       try {
         final dynamic data = await _swipeRepository.undoSoloSwipe(
-          activeSoloSessionId!,
+          undoSessionId,
         );
+        if (!isCurrentUndoScope()) return;
         final Map<String, dynamic>? response = data is Map<String, dynamic>
             ? data
             : null;
@@ -887,9 +898,13 @@ class SwipeProvider extends ChangeNotifier {
           '[Undo] backend undo success currentIndex=$currentIndex currentDish=$currentDishId',
         );
       } on ApiException catch (e) {
+        if (!isCurrentUndoScope()) return;
+        currentIndex = previousIndex;
         debugPrint('[Undo] backend undo failed code=${e.code ?? e.statusCode}');
         error = _mapSwipeError(e);
       } catch (e) {
+        if (!isCurrentUndoScope()) return;
+        currentIndex = previousIndex;
         debugPrint('[Undo] backend undo failed code=unknown');
         error = _mapSwipeError(e);
       } finally {
