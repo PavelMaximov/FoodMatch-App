@@ -232,6 +232,33 @@ void main() {
     expect(provider.canUndo, isTrue);
   });
 
+  test('compact undo keeps the deck and allows another swipe', () async {
+    provider.setActiveUser('user-a');
+    fakeSwipeRepo.soloSessionDishes = testDishes;
+    await provider.createSoloSession(
+      dishRegisters: <String>['everyday'],
+      includeCustomDishesFirst: false,
+      cuisines: <String>[], moods: <String>[], blocked: <String>[], diet: <String>[],
+    );
+    await provider.like();
+    final originalDeck = provider.deck;
+    fakeSwipeRepo.undoResult = <String, dynamic>{
+      'undo': <String, dynamic>{'success': true},
+      'session': <String, dynamic>{
+        'sessionId': 'solo-new', 'status': 'active',
+        'deckUnchanged': true, 'restoredDishId': '1', 'matchedCount': 0,
+      },
+    };
+    await provider.undo();
+    expect(identical(provider.deck, originalDeck), isTrue);
+    expect(provider.currentDish?.id, '1');
+    expect(provider.isSendingSwipe, isFalse);
+    expect(provider.canUndo, isFalse);
+    await provider.dislike();
+    expect(provider.currentDish?.id, '2');
+    expect(provider.error, isNull);
+  });
+
   test('undo match decrements badge without a new animation bump', () async {
     provider.setActiveUser('user-a');
     fakeSwipeRepo.soloSessionDishes = testDishes;

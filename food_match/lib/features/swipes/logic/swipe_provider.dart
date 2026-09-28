@@ -892,7 +892,22 @@ class SwipeProvider extends ChangeNotifier {
         if (session is! Map<String, dynamic>) {
           throw const FormatException('Unexpected solo undo response.');
         }
-        _applySoloSession(session);
+        if (session['deckUnchanged'] == true) {
+          if (session['sessionId'] != undoSessionId ||
+              session['restoredDishId'] != currentDish?.id ||
+              undo?['success'] != true) {
+            throw const FormatException('Unexpected compact solo undo response.');
+          }
+          _soloLikedCount = _readInt(session['matchedCount']);
+          _soloRemainingCount = deck.length - currentIndex;
+          _soloSessionCompleted = session['status'] == 'completed';
+          _sentSwipeDishIds.remove(currentDish!.id);
+          _lastSwipedDish = null;
+          _lastSwipedIndex = null;
+          _lastSwipedDirection = null;
+        } else {
+          _applySoloSession(session);
+        }
         final String currentDishId = currentDish?.id ?? 'none';
         debugPrint(
           '[Undo] backend undo success currentIndex=$currentIndex currentDish=$currentDishId',

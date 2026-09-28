@@ -4,6 +4,7 @@
   "description": "FoodMatch backend API",
   "main": "dist/server.js",
   "scripts": {
+    "test:solo-undo-compact": "SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_SERVICE_ROLE_KEY=test-only ts-node src/scripts/testSoloUndoCompact.ts",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
@@ -76,7 +77,7 @@
     "supabase:rls:check": "ts-node scripts/checkSupabaseRls.ts",
     "test:production-readiness": "ts-node src/scripts/testProductionReadiness.ts",
     "test:env-validation": "ts-node src/scripts/testEnvironmentValidation.ts",
-    "check:backend": "npm run build && npm run lint && npm run audit:no-mongo-runtime && npm run audit:secrets && npm run test:catalog-regressions"
+    "check:backend": "npm run build && npm run lint && npm run audit:no-mongo-runtime && npm run audit:secrets && npm run test:catalog-regressions && npm run test:solo-undo-compact"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.109.0",
