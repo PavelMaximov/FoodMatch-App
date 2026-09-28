@@ -34,7 +34,7 @@ import '../../logic/pre_swipe_provider.dart';
 import '../../logic/swipe_provider.dart';
 import '../widgets/inline_deck_end_restart_card.dart';
 import '../widgets/session_settings_sheet.dart';
-import '../widgets/swipe_card_widget.dart';
+import '../widgets/swipe_deck_view.dart';
 import '../widgets/swipeable_stack.dart';
 import 'session_resume_choice_screen.dart';
 import 'pair_connection_step_screen.dart';
@@ -1967,33 +1967,18 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                       return const ShimmerCard();
                     }
 
-                    return SwipeableStack(
-                      key: _swipeStackKey,
-                      itemCount: provider.deck.length - provider.currentIndex,
-                      canSwipe: !provider.isLoading &&
-                          !provider.isSendingSwipe &&
-                          !_isCardActionInProgress,
-                      cardBuilder: (BuildContext context, int index) {
-                        final dish = provider.deck[provider.currentIndex + index];
-                        return SwipeCardWidget(
-                          key: ValueKey<String>(dish.id),
-                          dish: dish,
-                          onLike: provider.isLoading || provider.isSendingSwipe || _isCardActionInProgress
-                              ? null
-                              : _handleLike,
-                          onDislike: provider.isLoading || provider.isSendingSwipe || _isCardActionInProgress
-                              ? null
-                              : _handleDislike,
-                          onBack: provider.canUndo && !provider.isSendingSwipe && !_isCardActionInProgress
-                              ? () => _handleBack(provider)
-                              : null,
-                          onInfoTap: () => context.push('/recipe-detail/${dish.id}?source=swipes', extra: dish),
-                          showSeenBadge: provider.isSeenDish(dish.id),
-                        );
-                      },
-                      onSwipe: (int index, SwipeDirection direction) {
-                        unawaited(_handleSwipe(direction));
-                      },
+                    return SwipeDeckView(
+                      provider: provider,
+                      stackKey: _swipeStackKey,
+                      isCardActionInProgress: _isCardActionInProgress,
+                      onLike: _handleLike,
+                      onDislike: _handleDislike,
+                      onUndo: () => _handleBack(provider),
+                      onInfoTap: (cardContext, dish) => cardContext.push(
+                        '/recipe-detail/${dish.id}?source=swipes',
+                        extra: dish,
+                      ),
+                      onSwipe: (direction) => unawaited(_handleSwipe(direction)),
                     );
                   },
                 ),
