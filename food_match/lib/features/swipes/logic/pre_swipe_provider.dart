@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../../../core/errors/error_messages.dart';
@@ -224,44 +226,6 @@ class PreSwipeProvider extends ChangeNotifier {
     return <String>['Any', ...options];
   }
 
-  Future<PreparedPoolResult> skip(String userId) async {
-    final List<Dish> all = await _dishRepository.getCatalogDishes();
-    return PreparedPoolResult(
-      dishes: _scoringService.fallbackPopular(all),
-      seenDishIds: <String>{},
-      usedFallback: true,
-      relaxed: false,
-      messages: const <String>[],
-      config: null,
-    );
-  }
-
-  Future<void> saveChoices({
-    required String userId,
-    required CoupleProvider coupleProvider,
-    required List<String> dishRegisters,
-    required bool includeCustomDishesFirst,
-    required List<String> cuisines,
-    required List<String> moods,
-    required List<String> blocked,
-    required List<String> diet,
-  }) async {
-    await _profileService.saveSessionChoices(
-      userId,
-      cuisines: cuisines,
-      moods: moods,
-      blocked: blocked,
-    );
-    await coupleProvider.saveMyChoices(
-      dishRegisters: dishRegisters,
-      includeCustomDishesFirst: includeCustomDishesFirst,
-      cuisines: cuisines,
-      moods: moods,
-      diet: diet,
-      exclusions: blocked,
-    );
-  }
-
   Future<void> saveAndConfirmChoices({
     required String userId,
     required CoupleProvider coupleProvider,
@@ -271,14 +235,19 @@ class PreSwipeProvider extends ChangeNotifier {
     required List<String> moods,
     required List<String> blocked,
     required List<String> diet,
+    bool Function()? isCurrent,
   }) async {
     _invalidateCanonicalPreparation();
+    final generation = _prepareGeneration;
     await _profileService.saveSessionChoices(
       userId,
       cuisines: cuisines,
       moods: moods,
       blocked: blocked,
     );
+    if (!_isCurrentPreparation(generation) || isCurrent?.call() == false) {
+      return;
+    }
     await coupleProvider.saveAndConfirmMyChoices(
       dishRegisters: dishRegisters,
       includeCustomDishesFirst: includeCustomDishesFirst,
@@ -289,85 +258,58 @@ class PreSwipeProvider extends ChangeNotifier {
     );
   }
 
-  Future<PreparedPoolResult> prepare({
-    required String userId,
-    required CoupleProvider coupleProvider,
-    required List<String> dishRegisters,
-    required bool includeCustomDishesFirst,
-    required List<String> cuisines,
-    required List<String> moods,
-    required List<String> blocked,
-    required List<String> diet,
-    bool saveChoicesFirst = true,
+  Future<PreparedPoolResult> preparePairDeckWithRetry({
+    required bool Function() isCurrent,
+    List<Duration> delays = const <Duration>[
+      Duration.zero,
+      Duration(milliseconds: 700),
+      Duration(milliseconds: 1200),
+      Duration(seconds: 2),
+      Duration(seconds: 3),
+      Duration(seconds: 4),
+      Duration(seconds: 5),
+    ],
   }) async {
-    final UserProfile profile = await _profileService.getProfile(userId);
-    if (saveChoicesFirst) {
-      await saveChoices(
-        userId: userId,
-        coupleProvider: coupleProvider,
-        dishRegisters: dishRegisters,
-        includeCustomDishesFirst: includeCustomDishesFirst,
-        cuisines: cuisines,
-        moods: moods,
-        blocked: blocked,
-        diet: diet,
-      );
+    int generation = _prepareGeneration;
+    Object? lastError;
+    bool current() => isCurrent() && _isCurrentPreparation(generation);
+    for (final delay in delays) {
+      if (!current()) return _cancelledPreparation(generation);
+      if (delay > Duration.zero) await Future<void>.delayed(delay);
+      if (!current()) return _cancelledPreparation(generation);
+      try {
+        final request = prepareCanonicalPairDeck();
+        generation = _prepareGeneration;
+        final result = await request;
+        if (!current() ||
+            result.status == PreparedDeckStatus.cancelled ||
+            result.operationGeneration != generation) {
+          return _cancelledPreparation(generation);
+        }
+        if (result.dishes.isNotEmpty) return result;
+        lastError = StateError('Prepared deck is not ready');
+      } catch (error) {
+        if (!current()) return _cancelledPreparation(generation);
+        if (error is ApiException &&
+            const <String>{
+              'PAIR_WAITING_FOR_PARTNER_FILTERS',
+              'PAIR_SESSION_NEEDS_RESYNC',
+              'PAIR_SESSION_INACTIVE',
+            }.contains(error.code)) {
+          rethrow;
+        }
+        lastError = error;
+      }
     }
-
-    final partner = coupleProvider.partnerChoices;
-    final bool usePairCuisineLogic =
-        (partner?.cuisines ?? const <String>[]).isNotEmpty;
-    final List<String> effectivePartnerCuisines = usePairCuisineLogic
-        ? partner!.cuisines
-        : const <String>[];
-    final List<String> messages = <String>[];
-
-    if (_scoringService.shouldShowPairCuisineFallback(
-      cuisines,
-      effectivePartnerCuisines,
-    )) {
-      messages.add('No common cuisine — showing both preferences');
-    }
-
-    final FilterConfig config = _scoringService.buildConfig(
-      myDishRegisters: dishRegisters,
-      myCuisines: cuisines,
-      myMoods: moods,
-      myBlocked: blocked,
-      myDiet: diet,
-      partnerCuisines: effectivePartnerCuisines,
-      partnerMoods: partner?.moods ?? const <String>[],
-      partnerBlocked: partner?.exclusions ?? const <String>[],
-      partnerDiet: partner?.diet ?? const <String>[],
-      partnerDishRegisters: partner?.dishRegisters ?? const <String>[],
-    );
-
-    final List<Dish> all = await _dishRepository.getCatalogDishes();
-    debugPrint(
-      '[PreSwipeProvider] prepare using full catalog dishes=${all.length}',
-    );
-    final _DeckAttempt attempt = _buildFallbackDeck(
-      all: all,
-      config: config,
-      profile: profile,
-      now: DateTime.now(),
-    );
-    messages.addAll(attempt.messages);
-
-    return PreparedPoolResult(
-      dishes: attempt.picked.map((ScoredDish e) => e.dish).toList(),
-      seenDishIds: attempt.picked
-          .where((ScoredDish e) => e.seenBefore)
-          .map((ScoredDish e) => e.dish.id)
-          .toSet(),
-      usedFallback: attempt.usedPopularFallback,
-      relaxed: messages.isNotEmpty,
-      messages: messages,
-      config: config,
-    );
+    throw lastError ?? StateError('Shared deck preparation timed out');
   }
 
   Future<PreparedPoolResult> prepareCanonicalPairDeck() {
+    if (_disposed) {
+      return Future<PreparedPoolResult>.value(
+        _cancelledPreparation(_prepareGeneration),
+      );
+    }
     final PreparedPoolResult? ready = _canonicalPreparedResult;
     if (ready != null && ready.dishes.isNotEmpty) {
       return Future<PreparedPoolResult>.value(ready);
@@ -379,34 +321,25 @@ class PreSwipeProvider extends ChangeNotifier {
       );
       return inFlight;
     }
-    final Future<PreparedPoolResult> future = _prepareCanonicalPairDeck();
-    _canonicalPrepareFuture = future;
-    return future;
+    final int generation = ++_prepareGeneration;
+    // Publish the future before notifying listeners, which may join this request.
+    final completer = Completer<PreparedPoolResult>();
+    _canonicalPrepareFuture = completer.future;
+    completer.complete(_prepareCanonicalPairDeck(generation));
+    return completer.future;
   }
 
-  Future<PreparedPoolResult> _prepareCanonicalPairDeck() async {
-    if (isPreparingBackendDeck) {
-      debugPrint(
-        '[RequestDedup] canonical pair deck prepare skipped: already in flight',
-      );
-      final Future<PreparedPoolResult>? existing = _canonicalPrepareFuture;
-      if (existing != null) return existing;
-      throw StateError('Pair deck preparation state is inconsistent.');
-    }
-    final int generation = ++_prepareGeneration;
+  Future<PreparedPoolResult> _prepareCanonicalPairDeck(int generation) async {
     isPreparingBackendDeck = true;
     backendDeckError = null;
     notifyListeners();
+    if (!_isCurrentPreparation(generation)) {
+      return _cancelledPreparation(generation);
+    }
     debugPrint('[PairDeck] canonical prepare started');
 
     try {
-      final PreparedDeck preparedDeck = await _coupleRepository.prepareDeck();
-      if (!_isCurrentPreparation(generation)) {
-        return _cancelledPreparation(generation);
-      }
-      final PreparedDeck backendDeck = await _loadCanonicalBackendDeck(
-        preparedDeck,
-      );
+      final PreparedDeck backendDeck = await _coupleRepository.prepareDeck();
       if (!_isCurrentPreparation(generation)) {
         return _cancelledPreparation(generation);
       }
@@ -457,94 +390,6 @@ class PreSwipeProvider extends ChangeNotifier {
     }
   }
 
-  Future<PreparedPoolResult> prepareBackendDeckWithFallback(
-    PreparedPoolResult fallback,
-  ) async {
-    if (isPreparingBackendDeck) {
-      debugPrint(
-        '[RequestDedup] prepared deck prepare skipped: already in flight',
-      );
-      return fallback;
-    }
-    final int generation = ++_prepareGeneration;
-    isPreparingBackendDeck = true;
-    backendDeckError = null;
-    notifyListeners();
-    debugPrint(
-      '[PreparedDeck] prepare started with solo/local fallback enabled',
-    );
-
-    try {
-      final PreparedDeck preparedDeck = await _coupleRepository.prepareDeck();
-      if (!_isCurrentPreparation(generation)) {
-        return _cancelledPreparation(generation);
-      }
-      final PreparedDeck backendDeck = await _loadCanonicalBackendDeck(
-        preparedDeck,
-      );
-      if (!_isCurrentPreparation(generation)) {
-        return _cancelledPreparation(generation);
-      }
-      preparedDeckMeta = backendDeck.meta;
-      debugPrint(
-        '[PreparedDeck] prepare success final=${backendDeck.meta.finalCount}',
-      );
-      final List<String> messages = <String>[...fallback.messages];
-      final String? fallbackReason = backendDeck.meta.fallbackReason;
-      if (fallbackReason != null && fallbackReason.isNotEmpty) {
-        messages.add(fallbackReason);
-      }
-      return PreparedPoolResult(
-        dishes: backendDeck.dishes,
-        seenDishIds: const <String>{},
-        usedFallback: false,
-        relaxed: fallback.relaxed || fallbackReason != null,
-        messages: messages,
-        config: fallback.config,
-        preparedDeckMeta: backendDeck.meta,
-        operationGeneration: generation,
-      );
-    } on ApiException catch (e) {
-      if (!_isCurrentPreparation(generation)) {
-        return _cancelledPreparation(generation);
-      }
-      final bool filtersNotReady =
-          e.statusCode == 409 && e.message.toLowerCase().contains('filter');
-      backendDeckError = filtersNotReady
-          ? 'Waiting for partner choices'
-          : ErrorMessages.fromApiException(e);
-      debugPrint('[PreparedDeck] prepare failed $e');
-      if (filtersNotReady) {
-        debugPrint('[Deck] prepare skipped: filters not ready');
-        rethrow;
-      }
-      debugPrint(
-        '[PreparedDeck] Backend prepare failed, using solo/local fallback',
-      );
-      return PreparedPoolResult(
-        dishes: fallback.dishes,
-        seenDishIds: fallback.seenDishIds,
-        usedFallback: true,
-        relaxed: true,
-        messages: <String>[
-          ...fallback.messages,
-          'Could not prepare deck. Using local fallback for now.',
-        ],
-        config: fallback.config,
-        preparedDeckMeta: fallback.preparedDeckMeta,
-      );
-    } finally {
-      if (_isCurrentPreparation(generation)) {
-        isPreparingBackendDeck = false;
-        notifyListeners();
-      }
-    }
-  }
-
-  Future<PreparedDeck> _loadCanonicalBackendDeck(
-    PreparedDeck preparedDeck,
-  ) async => preparedDeck;
-
   bool _isCurrentPreparation(int generation) =>
       !_disposed && generation == _prepareGeneration;
 
@@ -559,21 +404,9 @@ class PreSwipeProvider extends ChangeNotifier {
     _prepareGeneration++;
     _canonicalPreparedResult = null;
     _canonicalPrepareFuture = null;
+    preparedDeckMeta = null;
+    backendDeckError = null;
     isPreparingBackendDeck = false;
-  }
-
-  PreparedPoolResult _poolResultFromPreparedDeck(PreparedDeck deck) {
-    final String? fallbackReason = deck.meta.fallbackReason;
-    return PreparedPoolResult(
-      dishes: deck.dishes,
-      seenDishIds: const <String>{},
-      usedFallback: false,
-      relaxed: fallbackReason != null,
-      messages: fallbackReason == null
-          ? const <String>[]
-          : <String>[fallbackReason],
-      preparedDeckMeta: deck.meta,
-    );
   }
 
   @override
@@ -711,147 +544,6 @@ class PreSwipeProvider extends ChangeNotifier {
     return _scoringService.buildExceptionChipStates(options, cuisineBase);
   }
 
-  _DeckAttempt _buildFallbackDeck({
-    required List<Dish> all,
-    required FilterConfig config,
-    required UserProfile profile,
-    required DateTime now,
-  }) {
-    final List<String> messages = <String>[];
-
-    List<Dish> pool = _scoringService.applyHardFilters(all, config);
-    List<ScoredDish> picked = _pickDeck(
-      pool,
-      config: config,
-      profile: profile,
-      now: now,
-    );
-    if (pool.length >= 5) {
-      return _DeckAttempt(
-        picked: picked,
-        messages: messages,
-        usedPopularFallback: false,
-      );
-    }
-
-    final FilterConfig neutralMoodConfig = FilterConfig(
-      cuisines: config.cuisines,
-      moods: const <String>[],
-      blocked: config.blocked,
-      diet: config.diet,
-      maxCookTime: config.maxCookTime,
-    );
-    picked = _pickDeck(
-      pool,
-      config: neutralMoodConfig,
-      profile: profile,
-      now: now,
-    );
-    messages.add('Widened mood filter to find more options');
-    if (pool.length >= 5) {
-      return _DeckAttempt(
-        picked: picked,
-        messages: messages,
-        usedPopularFallback: false,
-      );
-    }
-
-    final FilterConfig noCuisineConfig = FilterConfig(
-      cuisines: const <String>[],
-      moods: const <String>[],
-      blocked: config.blocked,
-      diet: config.diet,
-      maxCookTime: config.maxCookTime,
-    );
-    pool = _scoringService.applyHardFilters(all, noCuisineConfig);
-    picked = _pickDeck(
-      pool,
-      config: noCuisineConfig,
-      profile: profile,
-      now: now,
-    );
-    messages.add('Added dishes from other cuisines');
-    if (pool.length >= 5) {
-      return _DeckAttempt(
-        picked: picked,
-        messages: messages,
-        usedPopularFallback: false,
-      );
-    }
-
-    final FilterConfig dietOnlyConfig = FilterConfig(
-      cuisines: const <String>[],
-      moods: const <String>[],
-      blocked: const <String>[],
-      diet: config.diet,
-      maxCookTime: config.maxCookTime,
-    );
-    pool = _scoringService.applyHardFilters(all, dietOnlyConfig);
-    picked = _pickDeck(
-      pool,
-      config: dietOnlyConfig,
-      profile: profile,
-      now: now,
-    );
-    messages.add('Removed some restrictions to fill your deck');
-    if (pool.length >= 5) {
-      return _DeckAttempt(
-        picked: picked,
-        messages: messages,
-        usedPopularFallback: false,
-      );
-    }
-
-    final List<Dish> popular = _scoringService.fallbackPopular(all);
-    final List<ScoredDish> popularPicked = _sortScoredDeterministically(
-      popular
-          .map(
-            (Dish dish) => ScoredDish(
-              dish: dish,
-              score: _scoringService.scoreDish(
-                dish,
-                dietOnlyConfig,
-                profile,
-                now,
-              ),
-              seenBefore: profile.matchHistory.contains(dish.id),
-            ),
-          )
-          .toList(),
-    );
-    messages.add('Showing popular dishes — filters were too narrow');
-    return _DeckAttempt(
-      picked: popularPicked,
-      messages: messages,
-      usedPopularFallback: true,
-    );
-  }
-
-  List<ScoredDish> _pickDeck(
-    List<Dish> pool, {
-    required FilterConfig config,
-    required UserProfile profile,
-    required DateTime now,
-  }) {
-    final List<ScoredDish> scored = _scoringService.scoreDishes(
-      dishes: pool,
-      config: config,
-      profile: profile,
-      now: now,
-    );
-    return _sortScoredDeterministically(scored).take(30).toList();
-  }
-
-  List<ScoredDish> _sortScoredDeterministically(List<ScoredDish> scored) {
-    return List<ScoredDish>.from(scored)
-      ..sort((ScoredDish a, ScoredDish b) {
-        final int scoreOrder = b.score.compareTo(a.score);
-        return scoreOrder != 0
-            ? scoreOrder
-            : a.dish.id.compareTo(b.dish.id);
-      });
-  }
-
   String _normalizeCuisine(String value) {
     final String trimmed = value.trim();
     if (trimmed.isEmpty) {
@@ -864,16 +556,4 @@ class PreSwipeProvider extends ChangeNotifier {
         .map((String token) => token[0].toUpperCase() + token.substring(1))
         .join(' ');
   }
-}
-
-class _DeckAttempt {
-  const _DeckAttempt({
-    required this.picked,
-    required this.messages,
-    required this.usedPopularFallback,
-  });
-
-  final List<ScoredDish> picked;
-  final List<String> messages;
-  final bool usedPopularFallback;
 }

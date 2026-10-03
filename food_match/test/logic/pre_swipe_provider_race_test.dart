@@ -65,6 +65,155 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     expect(appliedDeck, isEmpty);
   });
+
+  test('a listener can join preparation without starting another request', () async {
+    final repository = _FakeCoupleRepository();
+    final provider = _provider(repository);
+    addTearDown(provider.dispose);
+    Future<PreparedPoolResult>? joined;
+    provider.addListener(() {
+      if (provider.isPreparingBackendDeck) {
+        joined = provider.prepareCanonicalPairDeck();
+      }
+    });
+    final first = provider.prepareCanonicalPairDeck();
+    expect(identical(first, joined), isTrue);
+    expect(repository.requests, hasLength(1));
+    repository.requests.single.complete(_deck('shared'));
+    expect((await first).dishes.single.id, 'shared');
+    expect((await joined!).dishes.single.id, 'shared');
+  });
+
+  test('cancelled preparation is not retried', () async {
+    final repository = _FakeCoupleRepository();
+    final provider = _provider(repository);
+    addTearDown(provider.dispose);
+    final request = provider.preparePairDeckWithRetry(
+      isCurrent: () => true,
+      delays: const [Duration.zero, Duration.zero],
+    );
+    provider.clearDraft();
+    repository.requests.single.complete(_deck('old'));
+    expect((await request).status, PreparedDeckStatus.cancelled);
+    expect(repository.requests, hasLength(1));
+    expect(provider.preparedDeckMeta, isNull);
+  });
+
+  test('changed screen scope rejects a successful response', () async {
+    final repository = _FakeCoupleRepository();
+    final provider = _provider(repository);
+    addTearDown(provider.dispose);
+    var current = true;
+    final request = provider.preparePairDeckWithRetry(
+      isCurrent: () => current,
+      delays: const [Duration.zero, Duration.zero],
+    );
+    current = false;
+    repository.requests.single.complete(_deck('old'));
+    expect((await request).status, PreparedDeckStatus.cancelled);
+    expect(repository.requests, hasLength(1));
+  });
+
+  test('transient failure retries and returns the next deck', () async {
+    final repository = _FakeCoupleRepository();
+    final provider = _provider(repository);
+    addTearDown(provider.dispose);
+    final request = provider.preparePairDeckWithRetry(
+      isCurrent: () => true,
+      delays: const [Duration.zero, Duration.zero],
+    );
+    repository.requests.first.completeError(StateError('temporary'));
+    await Future<void>.delayed(Duration.zero);
+    expect(repository.requests, hasLength(2));
+    repository.requests.last.complete(_deck('ready'));
+    expect((await request).dishes.single.id, 'ready');
+    expect(provider.backendDeckError, isNull);
+    expect(provider.isPreparingBackendDeck, isFalse);
+  });
+
+  for (final code in <String>[
+    'PAIR_WAITING_FOR_PARTNER_FILTERS',
+    'PAIR_SESSION_NEEDS_RESYNC',
+    'PAIR_SESSION_INACTIVE',
+  ]) {
+    test('$code is returned to the screen without retries', () async {
+      final repository = _FakeCoupleRepository();
+      final provider = _provider(repository);
+      addTearDown(provider.dispose);
+      final request = provider.preparePairDeckWithRetry(
+        isCurrent: () => true,
+        delays: const [Duration.zero, Duration.zero],
+      );
+      final expectation = expectLater(request, throwsA(isA<ApiException>()));
+      repository.requests.single.completeError(
+        ApiException('Session unavailable', statusCode: 409, code: code),
+      );
+      await expectation;
+      expect(repository.requests, hasLength(1));
+    });
+  }
+
+  test('late failure cannot clear a newer preparation', () async {
+    final repository = _FakeCoupleRepository();
+    final provider = _provider(repository);
+    addTearDown(provider.dispose);
+    final old = provider.prepareCanonicalPairDeck();
+    provider.clearDraft();
+    final fresh = provider.prepareCanonicalPairDeck();
+    repository.requests.first.completeError(StateError('old failure'));
+    expect((await old).status, PreparedDeckStatus.cancelled);
+    expect(provider.isPreparingBackendDeck, isTrue);
+    expect(provider.backendDeckError, isNull);
+    repository.requests.last.complete(_deck('new'));
+    expect((await fresh).dishes.single.id, 'new');
+  });
+
+  testWidgets('reset during retry delay prevents the next request', (tester) async {
+    final repository = _FakeCoupleRepository();
+    final provider = _provider(repository);
+    addTearDown(provider.dispose);
+    final request = provider.preparePairDeckWithRetry(
+      isCurrent: () => true,
+      delays: const [Duration.zero, Duration(seconds: 1)],
+    );
+    repository.requests.single.completeError(StateError('temporary'));
+    await tester.pump();
+    provider.clearForLogout();
+    await tester.pump(const Duration(seconds: 1));
+    expect((await request).status, PreparedDeckStatus.cancelled);
+    expect(repository.requests, hasLength(1));
+  });
+
+  test('exhausted retries release busy state and allow a fresh attempt', () async {
+    final repository = _FakeCoupleRepository();
+    final provider = _provider(repository);
+    addTearDown(provider.dispose);
+    final request = provider.preparePairDeckWithRetry(
+      isCurrent: () => true,
+      delays: const [Duration.zero],
+    );
+    final expectation = expectLater(request, throwsStateError);
+    repository.requests.single.completeError(StateError('temporary'));
+    await expectation;
+    expect(provider.isPreparingBackendDeck, isFalse);
+    final retry = provider.prepareCanonicalPairDeck();
+    repository.requests.last.complete(_deck('fresh'));
+    expect((await retry).dishes.single.id, 'fresh');
+    expect(repository.requests, hasLength(2));
+  });
+
+  test('dispose cancels outstanding work and rejects new work', () async {
+    final repository = _FakeCoupleRepository();
+    final provider = _provider(repository);
+    final request = provider.prepareCanonicalPairDeck();
+    provider.dispose();
+    repository.requests.single.complete(_deck('old'));
+    expect((await request).status, PreparedDeckStatus.cancelled);
+    expect((await provider.prepareCanonicalPairDeck()).status,
+        PreparedDeckStatus.cancelled);
+    expect(repository.requests, hasLength(1));
+  });
+
 }
 
 PreSwipeProvider _provider(CoupleRepository repository) => PreSwipeProvider(
