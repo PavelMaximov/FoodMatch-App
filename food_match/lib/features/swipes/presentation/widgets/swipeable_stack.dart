@@ -248,6 +248,9 @@ class SwipeableStackState extends State<SwipeableStack>
   }
 
   void resetInteractionState() {
+    _buttonSwipeController
+      ..stop()
+      ..reset();
     _animationController.stop();
     _animationController.reset();
     _snapBackController.stop();
@@ -440,11 +443,15 @@ class SwipeableStackState extends State<SwipeableStack>
         '[ButtonSwipe] controller reset value=${_buttonSwipeController.value.toStringAsFixed(2)}',
       );
     }
-    await _buttonSwipeController.animateTo(
-      1,
-      duration: _buttonSwipeDuration,
-      curve: Curves.easeInOutCubic,
-    );
+    try {
+      await _buttonSwipeController.animateTo(
+        1,
+        duration: _buttonSwipeDuration,
+        curve: Curves.easeInOutCubic,
+      ).orCancel;
+    } on TickerCanceled {
+      return;
+    }
     if (!mounted) return;
     if (!_buttonSwipeController.value.isFinite) {
       _recoverFromInvalidSwipeState('button_swipe_value');
