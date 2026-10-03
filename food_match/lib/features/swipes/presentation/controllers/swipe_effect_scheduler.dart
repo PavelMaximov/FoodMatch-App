@@ -16,6 +16,8 @@ class SwipeEffectScheduler {
       if (_disposed || generation != _generation) return;
       _pending.remove(key)?.call();
     });
+    // Post-frame callbacks alone do not request a frame when the app is idle.
+    WidgetsBinding.instance.ensureVisualUpdate();
   }
 
   void reset() {
