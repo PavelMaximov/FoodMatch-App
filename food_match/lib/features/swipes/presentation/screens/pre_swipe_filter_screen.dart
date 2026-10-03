@@ -1786,18 +1786,6 @@ class _FilterBottomPanel extends StatelessWidget {
                   child: const Text('Back'),
                 ),
               ),
-              // const SizedBox(width: 10),
-              // TextButton(
-              //   onPressed: onSkip,
-              //   child: Text(
-              //     'Skip',
-              //     style: GoogleFonts.nunito(
-              //       fontSize: 16,
-              //       color: context.fmColors.primary,
-              //       fontWeight: FontWeight.w700,
-              //     ),
-              //   ),
-              // ),
               const SizedBox(width: 10),
               Expanded(
                 child: ElevatedButton(

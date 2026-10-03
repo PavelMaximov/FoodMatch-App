@@ -34,7 +34,7 @@ class SwipeRepository {
 
   Future<dynamic> undoSoloSwipe(String sessionId) => _apiService.post(
     ApiConstants.soloSwipeUndo(sessionId),
-    <String, dynamic>{},
+    <String, dynamic>{'compact': true},
   );
 
   Future<dynamic> createSoloSession({

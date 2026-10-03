@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
+import 'package:flutter/scheduler.dart' show TickerCanceled;
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -247,6 +248,9 @@ class SwipeableStackState extends State<SwipeableStack>
   }
 
   void resetInteractionState() {
+    _buttonSwipeController
+      ..stop()
+      ..reset();
     _animationController.stop();
     _animationController.reset();
     _snapBackController.stop();
@@ -283,7 +287,9 @@ class SwipeableStackState extends State<SwipeableStack>
       _undoReturnDirection = direction;
     });
     try {
-      await _undoReturnController.forward(from: 0);
+      await _undoReturnController.forward(from: 0).orCancel;
+    } on TickerCanceled {
+      // Reset or disposal cancels the visual return, but must release the action.
     } finally {
       if (mounted) {
         if (kDebugMode)
@@ -354,10 +360,10 @@ class SwipeableStackState extends State<SwipeableStack>
     if (!accepted) {
       direction = null;
     } else if (hasMeaningfulDrag) {
-      // Основное направление берём по положению карточки.
+      // Prefer the card displacement when determining swipe direction.
       direction = dragX < 0 ? SwipeDirection.left : SwipeDirection.right;
     } else {
-      // Для короткого быстрого броска берём направление скорости.
+      // For a short, fast flick, use the velocity direction instead.
       direction = velocity < 0 ? SwipeDirection.left : SwipeDirection.right;
     }
 
@@ -437,11 +443,15 @@ class SwipeableStackState extends State<SwipeableStack>
         '[ButtonSwipe] controller reset value=${_buttonSwipeController.value.toStringAsFixed(2)}',
       );
     }
-    await _buttonSwipeController.animateTo(
-      1,
-      duration: _buttonSwipeDuration,
-      curve: Curves.easeInOutCubic,
-    );
+    try {
+      await _buttonSwipeController.animateTo(
+        1,
+        duration: _buttonSwipeDuration,
+        curve: Curves.easeInOutCubic,
+      ).orCancel;
+    } on TickerCanceled {
+      return;
+    }
     if (!mounted) return;
     if (!_buttonSwipeController.value.isFinite) {
       _recoverFromInvalidSwipeState('button_swipe_value');
@@ -573,7 +583,6 @@ class SwipeableStackState extends State<SwipeableStack>
           fit: StackFit.expand,
           clipBehavior: Clip.none,
           children: <Widget>[
-            // if (baseStartIndex + 2 < widget.itemCount) _preview(baseStartIndex + 2, .94, .72),
             if (baseStartIndex + 1 < widget.itemCount)
               _preview(baseStartIndex + 1, .97, .9),
             if (baseStartIndex < widget.itemCount)
