@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:food_match/data/local/cache_service.dart';
 import 'package:food_match/data/models/dish.dart';
@@ -146,32 +148,159 @@ void main() {
     expect(badgeController.badgeCount, 1);
     expect(badgeController.bumpToken, 0);
   });
+
+  test('forced refresh burst shares one follow-up request', () async {
+    provider.setActiveUser('user-a');
+    provider.setSoloSession('solo-a');
+    fakeRepo.holdRequests = true;
+    final initial = provider.loadMatches();
+    final first = provider.loadMatches(force: true);
+    final second = provider.loadMatches(force: true);
+    expect(identical(first, second), isTrue);
+    expect(fakeRepo.requests, hasLength(1));
+    fakeRepo.requests.first.complete(<MatchItem>[]);
+    await initial;
+    await Future<void>.delayed(Duration.zero);
+    expect(fakeRepo.requests, hasLength(2));
+    fakeRepo.requests.last.complete(<MatchItem>[]);
+    await Future.wait([first, second]);
+    expect(fakeRepo.requests, hasLength(2));
+    expect(provider.isLoading, isFalse);
+  });
+
+  test('old queued refresh cannot restore a previous session', () async {
+    provider.setActiveUser('user-a');
+    provider.setSoloSession('solo-a');
+    fakeRepo.holdRequests = true;
+    final initial = provider.loadMatches();
+    final queued = provider.loadMatches(force: true, soloSessionId: 'solo-a');
+    provider.setSoloSession('solo-b');
+    fakeRepo.requests.single.complete(<MatchItem>[]);
+    await Future.wait([initial, queued]);
+    expect(provider.activeSoloSessionId, 'solo-b');
+    expect(fakeRepo.requests, hasLength(1));
+  });
+
+  test('returning to the same session does not revive an old response', () async {
+    provider.setActiveUser('user-a');
+    provider.setSoloSession('solo-a');
+    fakeRepo.holdRequests = true;
+    final old = provider.loadMatches();
+    provider.setSoloSession('solo-b');
+    provider.setSoloSession('solo-a');
+    final fresh = provider.loadMatches();
+    fakeRepo.requests.first.complete(<MatchItem>[
+      MatchItem(id: 'stale', dish: dishes.first, mode: 'solo',
+          matchType: 'solo_pick', sessionId: 'solo-a'),
+    ]);
+    await old;
+    expect(provider.matches, isEmpty);
+    expect(provider.isLoading, isTrue);
+    fakeRepo.requests.last.complete(<MatchItem>[]);
+    await fresh;
+    expect(provider.isLoading, isFalse);
+  });
+
+  test('account change during cache write cannot update the new badge', () async {
+    provider.setActiveUser('user-a');
+    provider.setSoloSession('solo-a');
+    fakeRepo.matches = <MatchItem>[
+      MatchItem(id: 'old-match', dish: dishes.first, mode: 'solo',
+          matchType: 'solo_pick', sessionId: 'solo-a'),
+    ];
+    fakeCacheService.writeGate = Completer<void>();
+    final request = provider.loadMatches();
+    await Future<void>.delayed(Duration.zero);
+    provider.setActiveUser('user-b');
+    fakeCacheService.writeGate!.complete();
+    await request;
+    expect(provider.matches, isEmpty);
+    expect(badgeController.badgeCount, 0);
+  });
+
+  test('late cache fallback cannot populate a different session', () async {
+    provider.setActiveUser('user-a');
+    provider.setSoloSession('solo-a');
+    fakeRepo.holdRequests = true;
+    fakeCacheService.readGate = Completer<List<Dish>>();
+    final request = provider.loadMatches();
+    fakeRepo.requests.single.completeError(StateError('offline'));
+    await Future<void>.delayed(Duration.zero);
+    provider.setSoloSession('solo-b');
+    fakeCacheService.readGate!.complete(dishes);
+    await request;
+    expect(provider.matches, isEmpty);
+    expect(provider.error, isNull);
+  });
+
+  test('paired notification response is ignored after switching to Solo', () async {
+    provider.setActiveUser('user-a');
+    provider.setActiveCouple('pair-a');
+    await provider.loadMatches();
+    fakeRepo.holdRequests = true;
+    final request = provider.syncPairedMatchesForNotifications();
+    provider.setSoloSession('solo-b');
+    fakeRepo.requests.single.complete(<MatchItem>[
+      MatchItem(id: 'old-pair', dish: dishes.first, mode: 'paired',
+          matchType: 'pair_match', sessionId: 'pair-a'),
+    ]);
+    expect(await request, isEmpty);
+    expect(provider.matches, isEmpty);
+    expect(provider.mode, 'solo');
+  });
+
+  test('listener joins the published request without recursive loading', () async {
+    provider.setActiveUser('user-a');
+    provider.setSoloSession('solo-a');
+    fakeRepo.holdRequests = true;
+    Future<void>? joined;
+    provider.addListener(() {
+      if (provider.isLoading) joined = provider.loadMatches();
+    });
+    final first = provider.loadMatches();
+    expect(identical(first, joined), isTrue);
+    expect(fakeRepo.requests, hasLength(1));
+    fakeRepo.requests.single.complete(<MatchItem>[]);
+    await first;
+  });
+
 }
 
 class _FakeSwipeRepository extends SwipeRepository {
   _FakeSwipeRepository() : super(ApiService());
 
   List<MatchItem> matches = <MatchItem>[];
+  bool holdRequests = false;
+  final requests = <Completer<List<MatchItem>>>[];
 
   @override
   Future<List<MatchItem>> getMatches({
     String mode = 'all',
     String? scope,
     String? soloSessionId,
-  }) async => matches;
+  }) {
+    if (!holdRequests) return Future.value(matches);
+    final completer = Completer<List<MatchItem>>();
+    requests.add(completer);
+    return completer.future;
+  }
 }
 
 class _FakeCacheService extends CacheService {
   List<Dish> cachedMatches = <Dish>[];
   bool wasCleared = false;
+  Completer<void>? writeGate;
+  Completer<List<Dish>>? readGate;
 
   @override
   Future<void> cacheMatches(List<Dish> matches, {String? coupleId}) async {
+    if (writeGate != null) await writeGate!.future;
     cachedMatches = matches;
   }
 
   @override
-  Future<List<Dish>> getCachedMatches({String? coupleId}) async => <Dish>[];
+  Future<List<Dish>> getCachedMatches({String? coupleId}) =>
+      readGate?.future ?? Future.value(<Dish>[]);
 
   @override
   Future<void> clearCachedMatches() async {
