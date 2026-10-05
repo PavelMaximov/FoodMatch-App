@@ -46,6 +46,7 @@ class SwipeableStackState extends State<SwipeableStack>
   bool _isDragging = false;
   bool _didTriggerThresholdHaptic = false;
   bool _isAnimating = false;
+  bool _buttonMotion = false;
   bool _isUndoReturnAnimating = false;
   SwipeDirection? _undoReturnDirection;
   int _visualIndex = 0;
@@ -409,15 +410,16 @@ class SwipeableStackState extends State<SwipeableStack>
           ? _ButtonActionOverlay.like
           : _ButtonActionOverlay.dislike,
     );
-    return _startSwipe(direction, duration: const Duration(milliseconds: 300));
+    return _startSwipe(direction, duration: const Duration(milliseconds: 500), buttonMotion: true);
   }
 
-  Future<void> _startSwipe(SwipeDirection direction, {Duration? duration}) async {
+  Future<void> _startSwipe(SwipeDirection direction, {Duration? duration, bool buttonMotion = false}) async {
     if (_isAnimating ||
         !widget.canSwipe ||
         _visualIndex >= widget.itemCount) {
       return Future<void>.value();
     }
+    _buttonMotion = buttonMotion;
     final generation = ++_transitionGeneration;
     final int outgoingIndex = _visualIndex;
     final double targetX = direction == SwipeDirection.left
@@ -580,7 +582,7 @@ class SwipeableStackState extends State<SwipeableStack>
                             ? undoRotation
                             : _rotation;
                         final double growth = _isAnimating
-                            ? Curves.easeOutCubic.transform(
+                            ? (_buttonMotion ? Curves.easeInOutCubic : Curves.easeOutCubic).transform(
                                 _safeDouble(
                                   _animationController.value,
                                   min: 0,
@@ -625,11 +627,18 @@ class SwipeableStackState extends State<SwipeableStack>
                   child: AnimatedBuilder(
                     animation: _animationController,
                     builder: (BuildContext context, Widget? _) {
+                      // Preserve the pre-PR button timing, including its eased controller.
+                      final progress = Curves.easeInOutCubic.transform(
+                        Curves.easeInOutCubic.transform(_animationController.value),
+                      );
+                      final sign = (_offsetAnimation?.value.dx ?? 0) < 0 ? -1.0 : 1.0;
                       final Offset offset = _safeOffset(
-                        _offsetAnimation?.value ?? _dragOffset,
+                        _buttonMotion
+                            ? Offset(sign * _cardAreaWidth * 1.25 * progress, -24 * progress)
+                            : _offsetAnimation?.value ?? _dragOffset,
                       );
                       final double opacity = _safeDouble(
-                        _opacityAnimation?.value ?? _dragOpacity,
+                        _buttonMotion ? 1 - .15 * progress : _opacityAnimation?.value ?? _dragOpacity,
                         fallback: 1,
                         min: 0,
                         max: 1,
@@ -637,11 +646,12 @@ class SwipeableStackState extends State<SwipeableStack>
                       return Transform(
                         alignment: Alignment.center,
                         transform: Matrix4.identity()
-                          ..translateByDouble(offset.dx, 0, 0, 1)
+                          ..translateByDouble(offset.dx, offset.dy, 0, 1)
                           ..rotateZ(
                             _safeDouble(
-                              (offset.dx / _safeScreenWidth).clamp(-1.0, 1.0) *
-                                  (pi / 20),
+                              _buttonMotion
+                                  ? sign * (pi / 22.5) * progress
+                                  : (offset.dx / _safeScreenWidth).clamp(-1.0, 1.0) * (pi / 20),
                             ),
                           ),
                         child: Opacity(opacity: opacity, child: _outgoingCard!),

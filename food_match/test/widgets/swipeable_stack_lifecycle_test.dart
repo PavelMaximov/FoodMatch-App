@@ -76,6 +76,13 @@ void main() {
     )).first;
     expect(outgoing.transform.storage[12], greaterThan(0));
     expect(find.byKey(const ValueKey('card-1')), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 230));
+    // The restored button transition lasts 500 ms, not 300 ms.
+    expect(find.byKey(const ValueKey('card-0')), findsOneWidget);
+    final opacity = tester.widgetList<Opacity>(find.ancestor(
+      of: find.byKey(const ValueKey('card-0')), matching: find.byType(Opacity),
+    )).first.opacity;
+    expect(opacity, greaterThanOrEqualTo(.85));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('card-0')), findsNothing);
   });
