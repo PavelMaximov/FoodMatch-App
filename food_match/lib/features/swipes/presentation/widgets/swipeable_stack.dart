@@ -12,15 +12,19 @@ class SwipeableStack extends StatefulWidget {
   const SwipeableStack({
     super.key,
     required this.itemCount,
+    this.currentIndex = 0,
     required this.cardBuilder,
     required this.canSwipe,
     this.onSwipe,
+    this.onTransitionChanged,
   });
 
   final int itemCount;
+  final int currentIndex;
   final Widget Function(BuildContext context, int index) cardBuilder;
   final bool canSwipe;
   final void Function(int index, SwipeDirection direction)? onSwipe;
+  final ValueChanged<bool>? onTransitionChanged;
 
   @override
   SwipeableStackState createState() => SwipeableStackState();
@@ -45,6 +49,7 @@ class SwipeableStackState extends State<SwipeableStack>
   bool _isUndoReturnAnimating = false;
   SwipeDirection? _undoReturnDirection;
   int _visualIndex = 0;
+  int _transitionGeneration = 0;
   Widget? _outgoingCard;
   late final AnimationController _animationController;
   late final AnimationController _buttonPulseController;
@@ -89,6 +94,7 @@ class SwipeableStackState extends State<SwipeableStack>
   @override
   void initState() {
     super.initState();
+    _visualIndex = widget.currentIndex;
     _animationController = AnimationController(
       vsync: this,
       duration: _swipeDuration,
@@ -129,9 +135,8 @@ class SwipeableStackState extends State<SwipeableStack>
   @override
   void didUpdateWidget(covariant SwipeableStack oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Once the provider advances its deck, B becomes index zero in this stack.
-    if (oldWidget.itemCount != widget.itemCount && _visualIndex != 0) {
-      _visualIndex = 0;
+    if (oldWidget.currentIndex != widget.currentIndex) {
+      _visualIndex = widget.currentIndex;
     }
   }
 
@@ -237,6 +242,7 @@ class SwipeableStackState extends State<SwipeableStack>
   }
 
   void resetInteractionState() {
+    _transitionGeneration++;
     _animationController.stop();
     _animationController.reset();
     _snapBackController.stop();
@@ -252,7 +258,7 @@ class SwipeableStackState extends State<SwipeableStack>
       _isAnimating = false;
       _isUndoReturnAnimating = false;
       _undoReturnDirection = null;
-      _visualIndex = 0;
+      _visualIndex = widget.currentIndex;
       _outgoingCard = null;
       _offsetAnimation = null;
       _opacityAnimation = null;
@@ -412,6 +418,7 @@ class SwipeableStackState extends State<SwipeableStack>
         _visualIndex >= widget.itemCount) {
       return Future<void>.value();
     }
+    final generation = ++_transitionGeneration;
     final int outgoingIndex = _visualIndex;
     final double targetX = direction == SwipeDirection.left
         ? -_screenWidth * 1.25
@@ -424,9 +431,7 @@ class SwipeableStackState extends State<SwipeableStack>
       ],
     );
     _isAnimating = true;
-    if (outgoingIndex + 1 < widget.itemCount) {
-      _visualIndex++;
-    }
+    _visualIndex++;
     _offsetAnimation =
         Tween<Offset>(begin: _dragOffset, end: Offset(targetX, 0)).animate(
           CurvedAnimation(
@@ -444,6 +449,7 @@ class SwipeableStackState extends State<SwipeableStack>
     }
     _dragOffset = Offset.zero;
     setState(() {});
+    widget.onTransitionChanged?.call(true);
     widget.onSwipe?.call(outgoingIndex, direction);
     try {
       await _animationController.animateTo(
@@ -452,9 +458,13 @@ class SwipeableStackState extends State<SwipeableStack>
         curve: Curves.linear,
       ).orCancel;
     } on TickerCanceled {
+      if (mounted && generation == _transitionGeneration) {
+        widget.onTransitionChanged?.call(false);
+      }
       return;
     }
-    if (!mounted) return;
+    if (!mounted || generation != _transitionGeneration) return;
+    widget.onTransitionChanged?.call(false);
     setState(() {
       _dragOffset = Offset.zero;
       _isAnimating = false;
@@ -499,7 +509,9 @@ class SwipeableStackState extends State<SwipeableStack>
 
   @override
   Widget build(BuildContext context) {
-    if (_visualIndex >= widget.itemCount) return const SizedBox.shrink();
+    if (_visualIndex >= widget.itemCount && _outgoingCard == null) {
+      return const SizedBox.shrink();
+    }
     final int baseStartIndex = _visualIndex;
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {

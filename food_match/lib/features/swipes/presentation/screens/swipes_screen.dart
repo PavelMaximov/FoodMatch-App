@@ -86,6 +86,8 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
   late final SwipePollingController _polling = SwipePollingController(
     onError: (error, stack) => debugPrint('[SwipePolling] $error'),
   );
+  bool _isSwipeTransitionActive = false;
+
   bool get _isCardActionInProgress => _cardActions.isBusy;
 
   void _onCardActionChanged() {
@@ -1282,6 +1284,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
   }
 
   void _resetSwipeStackController() {
+    _isSwipeTransitionActive = false;
     _swipeStackKey.currentState?.resetInteractionState();
   }
 
@@ -1311,6 +1314,12 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
           (wasSoloMode
               ? swipeProvider.activeSoloSessionId != soloSessionId
               : context.read<CoupleProvider>().currentCouple?.id != coupleId)) return;
+      if (result == null && swipeProvider.error != null &&
+          swipeProvider.currentDish?.id == swipedDish?.id) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(swipeProvider.error!)),
+        );
+      }
       final Map<String, dynamic>? swipeData = result is Map<String, dynamic>
           ? (result['swipe'] as Map<String, dynamic>?)
           : null;
@@ -1730,7 +1739,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                       return const ShimmerCard();
                     }
 
-                    if (provider.error != null) {
+                    if (provider.error != null && provider.deck.isEmpty) {
                       return ErrorState(
                         message: provider.error!,
                         onRetry: provider.isSoloMode
@@ -1743,6 +1752,8 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
 
                     final bool allowDeckEnd = provider.deck.isNotEmpty &&
                         provider.isDeckEmpty &&
+                        !provider.isSendingSwipe &&
+                        !_isSwipeTransitionActive &&
                         !_isPairDeckReadyLoading &&
                         !_isOpeningPreSwipe &&
                         _sessionResumeChoiceType == null &&
@@ -1766,6 +1777,9 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                     return SwipeDeckView(
                       provider: provider,
                       stackKey: _swipeStackKey,
+                      onTransitionChanged: (active) {
+                        if (mounted) setState(() => _isSwipeTransitionActive = active);
+                      },
                       isCardActionInProgress: _isCardActionInProgress,
                       onLike: _handleLike,
                       onDislike: _handleDislike,

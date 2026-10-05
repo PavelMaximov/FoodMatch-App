@@ -51,6 +51,54 @@ void main() {
     expect(scale(), closeTo(1, .001));
   });
 
+  testWidgets('button motion survives parent index and busy-state rebuilds', (tester) async {
+    final key = GlobalKey<SwipeableStackState>();
+    var currentIndex = 0;
+    var canSwipe = true;
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: StatefulBuilder(
+      builder: (context, update) => SwipeableStack(
+        key: key, itemCount: 2, currentIndex: currentIndex, canSwipe: canSwipe,
+        cardBuilder: (_, index) => ColoredBox(key: ValueKey('card-$index'),
+          color: Colors.orange, child: TextButton(
+            onPressed: () => key.currentState!.swipeRightFromButton(),
+            child: Text('like-$index'),
+          )),
+        onSwipe: (_, __) => update(() { currentIndex++; canSwipe = false; }),
+      ),
+    ))));
+    await tester.tap(find.text('like-0'));
+    await tester.pump();
+    expect(currentIndex, 1);
+    expect(find.byKey(const ValueKey('card-0')), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 120));
+    final outgoing = tester.widgetList<Transform>(find.ancestor(
+      of: find.byKey(const ValueKey('card-0')), matching: find.byType(Transform),
+    )).first;
+    expect(outgoing.transform.storage[12], greaterThan(0));
+    expect(find.byKey(const ValueKey('card-1')), findsOneWidget);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('card-0')), findsNothing);
+  });
+
+  testWidgets('last card remains mounted for its outgoing animation', (tester) async {
+    final key = GlobalKey<SwipeableStackState>();
+    var currentIndex = 0;
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: StatefulBuilder(
+      builder: (context, update) => SwipeableStack(
+        key: key, itemCount: 1, currentIndex: currentIndex, canSwipe: true,
+        cardBuilder: (_, __) => const Text('last-card'),
+        onSwipe: (_, __) => update(() => currentIndex++),
+      ),
+    ))));
+    final action = key.currentState!.swipeLeftFromButton();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 120));
+    expect(find.text('last-card'), findsOneWidget);
+    await tester.pumpAndSettle();
+    await action;
+    expect(find.text('last-card'), findsNothing);
+  });
+
   testWidgets('disposing the stack resolves a pending Undo animation', (tester) async {
     final key = GlobalKey<SwipeableStackState>();
     await tester.pumpWidget(MaterialApp(home: SwipeableStack(
