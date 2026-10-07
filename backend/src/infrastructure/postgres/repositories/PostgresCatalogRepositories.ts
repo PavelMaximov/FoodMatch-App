@@ -222,6 +222,14 @@ export class PostgresDishRepository {
     return result.rows.map((row) => mapCatalogDish(row));
   }
 
+  async countMyCustomDishes(userId: string): Promise<number> {
+    const result = await this.databaseQuery<{ count: string }>(
+      "select count(*)::text as count from dishes where owner_id=$1 and is_custom=true and status='approved'",
+      [userId],
+    );
+    return Number(result.rows[0]?.count ?? 0);
+  }
+
   async createCustomDish(userId: string, input: Record<string, unknown>): Promise<CatalogDish> {
     const source = customDishSource(input.source);
     const imageUrl = customDishImageUrl(input.imageUrl);
