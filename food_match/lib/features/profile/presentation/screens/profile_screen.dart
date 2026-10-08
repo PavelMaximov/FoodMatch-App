@@ -19,6 +19,7 @@ import '../../../../data/repositories/upload_repository.dart';
 import '../../../../data/services/api_service.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../couple/logic/couple_provider.dart';
+import '../../../premium/logic/premium_provider.dart';
 import '../../../../shared/widgets/media/safe_avatar_image.dart';
 import '../widgets/profile_premium_banner.dart';
 
@@ -224,7 +225,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 16),
             ProfilePremiumBanner(
-              onTap: () => _notice(context, 'Premium subscriptions will be available soon.'),
+              isPremium: context.watch<PremiumProvider>().isPremium,
+              onTap: () => context.push('/profile/premium'),
             ),
             const SizedBox(height: 24),
             const _SectionLabel('Your FoodMatch'),

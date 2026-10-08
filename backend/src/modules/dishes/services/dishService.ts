@@ -1,6 +1,7 @@
 import { AppError } from '../../../core/errors/AppError';
 import { postgresDishes } from '../../../infrastructure/postgres/repositories/PostgresCatalogRepositories';
 import { toDishDto } from '../dto/dishDto';
+import { entitlementService } from '../../entitlements/services/entitlementService';
 
 export interface DishListFilters { search?:string;cuisine?:string[];type?:string[];mood?:string[];diet?:string[];effort?:string;popular?:boolean;source?:string;season?:string[];mealType?:string[];maxCookTime?:number;maxTotalTime?:number;timeTier?:string[];maxIngredients?:number;minCalories?:number;maxCalories?:number }
 export interface DishListOptions extends DishListFilters { limit:number;offset:number;sort?:string }
@@ -12,7 +13,7 @@ export class DishService {
  async searchDishes(userId:string,q:string){return this.listDishes(userId,q);}
  async getDishById(userId:string,id:string){const d=await postgresDishes.getByPublicId(id.trim());if(!d||!this.visible(d,userId))throw new AppError('Dish not found',404,'DISH_NOT_FOUND');return toDishDto(d);}
  async getRandomDish(userId:string){const all=await postgresDishes.list(userId);if(!all.length)throw new AppError('Dish not found',404,'DISH_NOT_FOUND');return toDishDto(all[Math.floor(Math.random()*all.length)]);}
- async createCustomDish(userId:string,input:CreateCustomDishInput){return toDishDto(await postgresDishes.createCustomDish(userId,this.clean(input)));}
+ async createCustomDish(userId:string,input:CreateCustomDishInput){const entitlement=await entitlementService.getEffectiveEntitlements(userId);const count=await postgresDishes.countMyCustomDishes(userId);if(entitlement.limits.customDishes!==null&&count>=entitlement.limits.customDishes)throw new AppError('Premium is required to create more custom dishes.',403,'PREMIUM_CUSTOM_DISH_LIMIT',{limit:entitlement.limits.customDishes});return toDishDto(await postgresDishes.createCustomDish(userId,this.clean(input)));}
  async updateMyCustomDish(userId:string,id:string,input:CreateCustomDishInput){const result=await postgresDishes.updateCustomDish(userId,id,this.clean(input));if(result==='forbidden')throw new AppError('You can only edit your own dishes.',403,'CUSTOM_DISH_FORBIDDEN');if(!result)throw new AppError('Custom dish not found',404,'CUSTOM_DISH_NOT_FOUND');return toDishDto(result);}
  async listMyCustomDishes(userId:string){return (await postgresDishes.listMyCustomDishes(userId)).map(toDishDto).filter(Boolean);}
  async deleteMyCustomDish(userId:string,id:string){const result=await postgresDishes.deleteCustomDish(userId,id);if(result==='forbidden')throw new AppError('You can only delete your own dishes.',403,'CUSTOM_DISH_FORBIDDEN');if(result==='missing')throw new AppError('Custom dish not found',404,'CUSTOM_DISH_NOT_FOUND');return{deleted:true};}
