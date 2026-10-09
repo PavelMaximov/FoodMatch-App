@@ -21,6 +21,9 @@ import '../../../../shared/widgets/shimmer_card.dart';
 import '../../../favorites/logic/favorites_provider.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../shopping_list/logic/shopping_list_provider.dart';
+import '../../../premium/domain/effective_entitlements.dart';
+import '../../../premium/domain/premium_entry_point.dart';
+import '../../../premium/logic/premium_provider.dart';
 import '../../domain/ingredient_display_parser.dart';
 import '../../domain/ingredient_formatter.dart';
 import '../../logic/recipe_provider.dart';
@@ -195,6 +198,11 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     Dish dish,
     List<ShoppingListIngredientInput> ingredients,
   ) async {
+    final premium=context.read<PremiumProvider>();
+    if(!premium.canUse(PremiumFeature.shoppingList)&&!premium.canUse(PremiumFeature.sharedShoppingList)){
+      await context.push('/profile/premium',extra:PremiumEntryPoint.shoppingList);
+      return;
+    }
     if (_isAddingIngredientsToShoppingList ||
         _hasScheduledShoppingListNavigation) {
       return;

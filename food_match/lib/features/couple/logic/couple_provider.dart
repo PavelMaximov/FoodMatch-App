@@ -458,6 +458,11 @@ class CoupleProvider extends ChangeNotifier {
     required List<String> moods,
     required List<String> diet,
     required List<String> exclusions,
+    int? maxCookTime,
+    List<String> calories = const <String>[],
+    List<String> effort = const <String>[],
+    List<String> ingredients = const <String>[],
+    List<String> season = const <String>[],
   }) async {
     final int requestVersion = _sessionStateVersion;
     final String? requestUserId = _activeUserId;
@@ -472,6 +477,11 @@ class CoupleProvider extends ChangeNotifier {
         moods: moods,
         diet: diet,
         exclusions: exclusions,
+        maxCookTime: maxCookTime,
+        calories: calories,
+        effort: effort,
+        ingredients: ingredients,
+        season: season,
       ),
     );
     if (!_isCurrentSession(requestVersion, requestUserId)) return;

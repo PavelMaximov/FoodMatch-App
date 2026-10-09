@@ -6,6 +6,11 @@ class CoupleFilterChoices {
     this.moods = const <String>[],
     this.diet = const <String>[],
     this.exclusions = const <String>[],
+    this.maxCookTime,
+    this.calories = const <String>[],
+    this.effort = const <String>[],
+    this.ingredients = const <String>[],
+    this.season = const <String>[],
     this.confirmed = false,
     this.updatedAt,
   });
@@ -17,6 +22,11 @@ class CoupleFilterChoices {
   final List<String> moods;
   final List<String> diet;
   final List<String> exclusions;
+  final int? maxCookTime;
+  final List<String> calories;
+  final List<String> effort;
+  final List<String> ingredients;
+  final List<String> season;
   final bool confirmed;
   final DateTime? updatedAt;
 
@@ -44,6 +54,11 @@ class CoupleFilterChoices {
       exclusions: (json['exclusions'] as List<dynamic>? ?? const <dynamic>[])
           .map((e) => e.toString())
           .toList(),
+      maxCookTime: (json['maxCookTime'] as num?)?.toInt(),
+      calories: (json['calories'] as List<dynamic>? ?? const <dynamic>[]).map((e) => e.toString()).toList(),
+      effort: (json['effort'] as List<dynamic>? ?? const <dynamic>[]).map((e) => e.toString()).toList(),
+      ingredients: (json['ingredients'] as List<dynamic>? ?? const <dynamic>[]).map((e) => e.toString()).toList(),
+      season: (json['season'] as List<dynamic>? ?? const <dynamic>[]).map((e) => e.toString()).toList(),
       confirmed: json['confirmed'] == true,
       updatedAt: json['updatedAt'] != null
           ? DateTime.tryParse(json['updatedAt'].toString())
@@ -60,6 +75,11 @@ class CoupleFilterChoices {
     'moods': moods,
     'diet': diet,
     'exclusions': exclusions,
+    if (maxCookTime != null) 'maxCookTime': maxCookTime,
+    'calories': calories,
+    'effort': effort,
+    'ingredients': ingredients,
+    'season': season,
   };
 }
 

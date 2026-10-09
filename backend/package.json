@@ -5,6 +5,8 @@
   "main": "dist/server.js",
   "scripts": {
     "test:solo-undo-compact": "SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_SERVICE_ROLE_KEY=test-only ts-node src/scripts/testSoloUndoCompact.ts",
+    "test:entitlements": "SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_SERVICE_ROLE_KEY=test-only ts-node src/scripts/testEntitlements.ts",
+    "test:premium-features": "SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_SERVICE_ROLE_KEY=test-only ts-node src/scripts/testPremiumFeatureGates.ts",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",

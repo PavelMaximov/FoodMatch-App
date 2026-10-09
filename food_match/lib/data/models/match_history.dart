@@ -8,6 +8,7 @@ class MatchHistorySession {
     required this.mode,
     required this.startedAt,
     required this.completedAt,
+    this.status = 'completed',
     required this.partnerName,
     required this.dishCount,
     required this.previewDishes,
@@ -18,6 +19,7 @@ class MatchHistorySession {
   final MatchHistoryMode mode;
   final DateTime startedAt;
   final DateTime? completedAt;
+  final String status;
   final String? partnerName;
   final int dishCount;
   final List<Dish> previewDishes;
@@ -38,6 +40,7 @@ class MatchHistorySession {
       startedAt:
           DateTime.tryParse(json['startedAt'] as String? ?? '') ?? DateTime(0),
       completedAt: DateTime.tryParse(json['completedAt'] as String? ?? ''),
+      status: json['status']?.toString() ?? 'completed',
       partnerName: json['partnerName'] as String?,
       dishCount: (json['dishCount'] as num?)?.toInt() ?? 0,
       previewDishes: readDishes('previewDishes'),

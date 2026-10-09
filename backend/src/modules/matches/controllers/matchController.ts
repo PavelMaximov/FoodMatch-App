@@ -12,6 +12,8 @@ export class MatchController {
     res.json(await matchService.historyForUser(req.user!.id));
   }
 
+  async historySession(req:AuthRequest,res:Response){res.json({session:await matchService.historySessionForUser(req.user!.id,String(req.params.sessionId))});}
+
   async list(req: AuthRequest, res: Response) {
     const session = await coupleService.getMyActiveSession(req.user!.id);
     if (!session) {

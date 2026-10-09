@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../data/shopping_list_storage.dart';
 import '../domain/shopping_list_item.dart';
 import '../../dishes/domain/ingredient_display_parser.dart';
+import '../data/shared_shopping_list_repository.dart';
 
 class ShoppingListIngredientInput {
   const ShoppingListIngredientInput({
@@ -37,10 +38,14 @@ class ShoppingListIngredientInput {
 }
 
 class ShoppingListProvider extends ChangeNotifier {
-  ShoppingListProvider({ShoppingListStorage? storage})
-      : _storage = storage ?? ShoppingListStorage();
+  ShoppingListProvider({ShoppingListStorage? storage,SharedShoppingListRepository? sharedRepository})
+      : _storage = storage ?? ShoppingListStorage(),_sharedRepository=sharedRepository;
 
   final ShoppingListStorage _storage;
+  final SharedShoppingListRepository? _sharedRepository;
+  String? _sharedSessionId;
+  int _scopeGeneration=0;
+  bool get isShared=>_sharedSessionId!=null;
   final List<ShoppingListItem> _items = <ShoppingListItem>[];
   int _idSequence = 0;
   bool _isLoaded = false;
@@ -60,6 +65,8 @@ class ShoppingListProvider extends ChangeNotifier {
     await _loadFuture;
   }
 
+  Future<void> setSharedSession(String? sessionId)async{if(sessionId==_sharedSessionId)return;_sharedSessionId=sessionId;final generation=++_scopeGeneration;_items.clear();_isLoaded=false;_loadFuture=null;notifyListeners();if(sessionId==null)return;final loaded=await _sharedRepository?.load()??<ShoppingListItem>[];if(generation!=_scopeGeneration||sessionId!=_sharedSessionId)return;_items..clear()..addAll(loaded);_isLoaded=true;notifyListeners();}
+
   Future<void> _loadFromStorage() async {
     _items
       ..clear()
@@ -74,6 +81,7 @@ class ShoppingListProvider extends ChangeNotifier {
     String? quantity,
     String? measure,
   }) async {
+    if(isShared&&_sharedRepository!=null){final generation=_scopeGeneration;final loaded=await _sharedRepository.add(name:name,quantity:quantity,measure:measure);if(generation==_scopeGeneration){_items..clear()..addAll(loaded);_isLoaded=true;notifyListeners();}return;}
     await load();
     final String cleanName = name.trim();
     if (cleanName.isEmpty) return;
@@ -113,6 +121,7 @@ class ShoppingListProvider extends ChangeNotifier {
     String? sourceDishId,
     String? sourceDishName,
   }) async {
+    if(isShared&&_sharedRepository!=null){final generation=_scopeGeneration;var added=0;List<ShoppingListItem> loaded=_items;for(final ingredient in ingredients){if(ingredient.name.trim().isEmpty)continue;loaded=await _sharedRepository.add(name:ingredient.name,quantity:ingredient.quantity,measure:ingredient.measure);added++;}if(generation==_scopeGeneration){_items..clear()..addAll(loaded);_isLoaded=true;notifyListeners();}return added;}
     await load();
     int added = 0;
     bool updated = false;
@@ -170,33 +179,37 @@ class ShoppingListProvider extends ChangeNotifier {
         sourceDishName: sourceDishName,
       );
 
-  Future<void> toggleChecked(String id) async => _update(
+  Future<void> toggleChecked(String id) async {if(isShared&&_sharedRepository!=null){final item=_items.firstWhere((item)=>item.id==id);final generation=_scopeGeneration;final loaded=await _sharedRepository.setChecked(id,!item.checked);if(generation==_scopeGeneration){_items..clear()..addAll(loaded);notifyListeners();}return;}await _update(
         id,
         (ShoppingListItem item) => item.copyWith(
           checked: !item.checked,
           updatedAt: DateTime.now(),
         ),
-      );
+      );}
 
   Future<void> removeItem(String id) async {
+    if(isShared&&_sharedRepository!=null){final generation=_scopeGeneration;final loaded=await _sharedRepository.remove(id);if(generation==_scopeGeneration){_items..clear()..addAll(loaded);notifyListeners();}return;}
     await load();
     _items.removeWhere((ShoppingListItem item) => item.id == id);
     await _renumberAndPersist();
   }
 
   Future<void> clearCompleted() async {
+    if(isShared){for(final item in List<ShoppingListItem>.from(_items.where((item)=>item.checked)))await removeItem(item.id);return;}
     await load();
     _items.removeWhere((ShoppingListItem item) => item.checked);
     await _renumberAndPersist();
   }
 
   Future<void> clearAll() async {
+    if(isShared){for(final item in List<ShoppingListItem>.from(_items))await removeItem(item.id);return;}
     await load();
     _items.clear();
     await _persist();
   }
 
   Future<void> resetChecked() async {
+    if(isShared&&_sharedRepository!=null){for(final item in List<ShoppingListItem>.from(_items.where((item)=>item.checked)))await toggleChecked(item.id);return;}
     await load();
     final DateTime now = DateTime.now();
     for (int index = 0; index < _items.length; index++) {

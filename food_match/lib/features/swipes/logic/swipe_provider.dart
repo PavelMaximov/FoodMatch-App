@@ -262,6 +262,11 @@ class SwipeProvider extends ChangeNotifier {
     required List<String> moods,
     required List<String> blocked,
     required List<String> diet,
+    int? maxCookTime,
+    List<String> calories = const <String>[],
+    List<String> effort = const <String>[],
+    List<String> ingredients = const <String>[],
+    List<String> season = const <String>[],
   }) async {
     if (_isApplyingSoloFilterRequest) {
       return false;
@@ -274,6 +279,11 @@ class SwipeProvider extends ChangeNotifier {
         moods: moods,
         blocked: blocked,
         diet: diet,
+        maxCookTime: maxCookTime,
+        calories: calories,
+        effort: effort,
+        ingredients: ingredients,
+        season: season,
       );
     }
     _isApplyingSoloFilterRequest = true;
@@ -288,6 +298,11 @@ class SwipeProvider extends ChangeNotifier {
         moods: moods,
         blocked: blocked,
         diet: diet,
+        maxCookTime: maxCookTime,
+        calories: calories,
+        effort: effort,
+        ingredients: ingredients,
+        season: season,
       );
     } on ApiException catch (e) {
       final bool activeSessionConflict =
@@ -302,6 +317,11 @@ class SwipeProvider extends ChangeNotifier {
             moods: moods,
             blocked: blocked,
             diet: diet,
+        maxCookTime: maxCookTime,
+        calories: calories,
+        effort: effort,
+        ingredients: ingredients,
+        season: season,
           );
         }
       }
@@ -323,6 +343,11 @@ class SwipeProvider extends ChangeNotifier {
     required List<String> moods,
     required List<String> blocked,
     required List<String> diet,
+    int? maxCookTime,
+    List<String> calories = const <String>[],
+    List<String> effort = const <String>[],
+    List<String> ingredients = const <String>[],
+    List<String> season = const <String>[],
   }) async {
     if (_isApplyingSoloFilterRequest) {
       return false;
@@ -339,6 +364,11 @@ class SwipeProvider extends ChangeNotifier {
         moods: moods,
         blocked: blocked,
         diet: diet,
+        maxCookTime: maxCookTime,
+        calories: calories,
+        effort: effort,
+        ingredients: ingredients,
+        season: season,
       );
     } catch (e) {
       error = _mapSwipeError(e);
@@ -357,6 +387,11 @@ class SwipeProvider extends ChangeNotifier {
     required List<String> moods,
     required List<String> blocked,
     required List<String> diet,
+    int? maxCookTime,
+    List<String> calories = const <String>[],
+    List<String> effort = const <String>[],
+    List<String> ingredients = const <String>[],
+    List<String> season = const <String>[],
   }) async {
     final dynamic data = await _swipeRepository.createSoloSession(
       startOver: true,
@@ -367,6 +402,11 @@ class SwipeProvider extends ChangeNotifier {
         moods: moods,
         blocked: blocked,
         diet: diet,
+        maxCookTime: maxCookTime,
+        calories: calories,
+        effort: effort,
+        ingredients: ingredients,
+        season: season,
       ),
     );
     return _applySoloSessionFromResponse(data);
@@ -379,6 +419,11 @@ class SwipeProvider extends ChangeNotifier {
     required List<String> moods,
     required List<String> blocked,
     required List<String> diet,
+    int? maxCookTime,
+    List<String> calories = const <String>[],
+    List<String> effort = const <String>[],
+    List<String> ingredients = const <String>[],
+    List<String> season = const <String>[],
   }) async {
     final dynamic data = await _swipeRepository.updateActiveSoloFilter(
       filter: _soloFilterPayload(
@@ -388,6 +433,11 @@ class SwipeProvider extends ChangeNotifier {
         moods: moods,
         blocked: blocked,
         diet: diet,
+        maxCookTime: maxCookTime,
+        calories: calories,
+        effort: effort,
+        ingredients: ingredients,
+        season: season,
       ),
     );
     return _applySoloSessionFromResponse(data);
@@ -405,6 +455,11 @@ class SwipeProvider extends ChangeNotifier {
     required List<String> moods,
     required List<String> blocked,
     required List<String> diet,
+    int? maxCookTime,
+    List<String> calories = const <String>[],
+    List<String> effort = const <String>[],
+    List<String> ingredients = const <String>[],
+    List<String> season = const <String>[],
   }) => <String, dynamic>{
     'dishRegisters': dishRegisters,
     'includeCustomDishesFirst': includeCustomDishesFirst,
@@ -412,6 +467,11 @@ class SwipeProvider extends ChangeNotifier {
     'moods': moods,
     'exclusions': blocked,
     'diet': diet,
+    if (maxCookTime != null) 'maxCookTime': maxCookTime,
+    'calories': calories,
+    'effort': effort,
+    'ingredients': ingredients,
+    'season': season,
   };
 
   bool _applySoloSessionFromResponse(dynamic data) {
@@ -432,6 +492,11 @@ class SwipeProvider extends ChangeNotifier {
     required List<String> moods,
     required List<String> blocked,
     required List<String> diet,
+    int? maxCookTime,
+    List<String> calories = const <String>[],
+    List<String> effort = const <String>[],
+    List<String> ingredients = const <String>[],
+    List<String> season = const <String>[],
   }) async {
     if (activeSoloSessionId == null || _soloSessionCompleted) {
       return createSoloSession(

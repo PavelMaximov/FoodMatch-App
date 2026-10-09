@@ -5,12 +5,13 @@ import '../../../../core/assets/app_profile_assets.dart';
 import '../../../../core/widgets/food_match_ripple.dart';
 
 class ProfilePremiumBanner extends StatelessWidget {
-  const ProfilePremiumBanner({required this.onTap, super.key});
+  const ProfilePremiumBanner({required this.onTap, required this.isPremium, super.key});
 
   static const double _height = 60;
   static const double _radius = 20;
 
   final VoidCallback onTap;
+  final bool isPremium;
 
   @override
   Widget build(BuildContext context) {
@@ -72,14 +73,14 @@ class ProfilePremiumBanner extends StatelessWidget {
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Text(
-                        'Upgrade to Premium',
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start,mainAxisAlignment: MainAxisAlignment.center,children:[Text(
+                        'FoodMatch Premium',
                         style: GoogleFonts.nunito(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
                           color: titleColor,
                         ),
-                      ),
+                      ),Text(isPremium?'Active':'Unlock more features',style:GoogleFonts.nunito(fontSize:12,fontWeight:FontWeight.w600,color:titleColor.withValues(alpha:.8)))]),
                     ),
                     Icon(
                       Icons.chevron_right_rounded,
