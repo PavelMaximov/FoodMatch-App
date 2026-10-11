@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/animations/app_motion.dart';
@@ -23,6 +24,9 @@ import '../../../../data/services/api_service.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../couple/logic/couple_provider.dart';
 import '../../../matches/logic/match_provider.dart';
+import '../../../premium/domain/effective_entitlements.dart';
+import '../../../premium/domain/premium_entry_point.dart';
+import '../../../premium/logic/premium_provider.dart';
 import '../../logic/filter_scoring_service.dart';
 import '../../logic/pre_swipe_provider.dart';
 import '../../logic/swipe_provider.dart';
@@ -77,6 +81,11 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
   final Set<String> _moods = <String>{};
   final Set<String> _blocked = <String>{};
   final Set<String> _diet = <String>{};
+  int? _maxCookTime;
+  final Set<String> _calories = <String>{};
+  final Set<String> _effort = <String>{};
+  final Set<String> _ingredients = <String>{};
+  final Set<String> _season = <String>{};
   Set<String> _favoriteCuisines = <String>{};
   List<Dish> _allDishes = <Dish>[];
 
@@ -565,6 +574,9 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     }
 
     return _buildTopAlignedScrollable(
+      Column(crossAxisAlignment: CrossAxisAlignment.start, children: <Widget>[
+      _buildAdvancedFilters(),
+      const SizedBox(height: 20),
       _buildChipGrid(
         options: _exclusionOptions,
         selected: <String>{..._diet, ..._blocked},
@@ -575,9 +587,28 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
           allDishes: _allDishes,
           selectedCuisines: _cuisines.toList(),
         ),
-      ),
+      ),]),
     );
   }
+
+  Widget _buildAdvancedFilters() {
+    final bool unlocked = context.watch<PremiumProvider>().canUse(PremiumFeature.advancedFilters);
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: <Widget>[
+      Row(children: <Widget>[Text('Advanced filters', style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w800)), const SizedBox(width: 8), if (!unlocked) const Icon(Icons.lock_outline_rounded, size: 18), const Spacer(), const Text('Premium', style: TextStyle(fontSize: 12))]),
+      const SizedBox(height: 8),
+      Wrap(spacing: 8, runSpacing: 8, children: <Widget>[
+        _advancedChip('Cook time', _maxCookTime == null ? null : '≤ $_maxCookTime min', unlocked, () => _chooseAdvanced('Cook time', const <String>['15 min','30 min','45 min','60 min'])),
+        _advancedChip('Calories', _calories.isEmpty ? null : _calories.first, unlocked, () => _chooseAdvanced('Calories', const <String>['low','medium','high'])),
+        _advancedChip('Effort', _effort.isEmpty ? null : _effort.first, unlocked, () => _chooseAdvanced('Effort', const <String>['easy','medium','hard'])),
+        _advancedChip('Ingredients', _ingredients.isEmpty ? null : _ingredients.join(', '), unlocked, _chooseIngredient),
+        _advancedChip('Season', _season.isEmpty ? null : _season.first, unlocked, () => _chooseAdvanced('Season', const <String>['spring','summer','autumn','winter'])),
+      ]),
+    ]);
+  }
+
+  Widget _advancedChip(String label,String? value,bool unlocked,VoidCallback action)=>ActionChip(avatar:Icon(unlocked?Icons.tune_rounded:Icons.lock_outline_rounded,size:16),label:Text(value==null?label:'$label: $value'),onPressed:unlocked?action:()=>context.push('/profile/premium',extra:PremiumEntryPoint.advancedFilters));
+  Future<void> _chooseAdvanced(String title,List<String> values)async{final value=await showModalBottomSheet<String>(context:context,builder:(context)=>SafeArea(child:Column(mainAxisSize:MainAxisSize.min,children:[ListTile(title:Text(title,style:const TextStyle(fontWeight:FontWeight.bold))),for(final value in values)ListTile(title:Text(value),onTap:()=>Navigator.pop(context,value))])));if(value==null||!mounted)return;setState((){if(title=='Cook time')_maxCookTime=int.parse(value.split(' ').first);if(title=='Calories'){_calories..clear()..add(value);}if(title=='Effort'){_effort..clear()..add(value);}if(title=='Season'){_season..clear()..add(value);}});}
+  Future<void> _chooseIngredient()async{final controller=TextEditingController();final value=await showDialog<String>(context:context,builder:(context)=>AlertDialog(title:const Text('Include ingredient'),content:TextField(controller:controller,autofocus:true,decoration:const InputDecoration(hintText:'e.g. tomato')),actions:[TextButton(onPressed:()=>Navigator.pop(context),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(context,controller.text),child:const Text('Add'))]));controller.dispose();if(value?.trim().isNotEmpty==true&&mounted)setState(()=>_ingredients.add(value!.trim().toLowerCase()));}
 
   Widget _buildTopAlignedScrollable(Widget child) {
     return SizedBox.expand(
@@ -883,6 +914,11 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
               moods: _moods.toList(),
               blocked: _blocked.toList(),
               diet: _diet.toList(),
+              maxCookTime: _maxCookTime,
+              calories: _calories.toList(),
+              effort: _effort.toList(),
+              ingredients: _ingredients.toList(),
+              season: _season.toList(),
             )
           : await swipeProvider.createSoloSession(
               dishRegisters: _dishRegisters.toList(),
@@ -891,6 +927,11 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
               moods: _moods.toList(),
               blocked: _blocked.toList(),
               diet: _diet.toList(),
+              maxCookTime: _maxCookTime,
+              calories: _calories.toList(),
+              effort: _effort.toList(),
+              ingredients: _ingredients.toList(),
+              season: _season.toList(),
             );
       if (!isCurrent()) return;
       if (ready) {
@@ -957,6 +998,11 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       moods: _moods.toList(),
       blocked: _blocked.toList(),
       diet: _diet.toList(),
+      maxCookTime: _maxCookTime,
+      calories: _calories.toList(),
+      effort: _effort.toList(),
+      ingredients: _ingredients.toList(),
+      season: _season.toList(),
     );
     if (!isCurrent()) return;
     await _saveBackendLastFilterPreset(matchedLastTime);

@@ -235,6 +235,11 @@ class PreSwipeProvider extends ChangeNotifier {
     required List<String> moods,
     required List<String> blocked,
     required List<String> diet,
+    int? maxCookTime,
+    List<String> calories = const <String>[],
+    List<String> effort = const <String>[],
+    List<String> ingredients = const <String>[],
+    List<String> season = const <String>[],
     bool Function()? isCurrent,
   }) async {
     _invalidateCanonicalPreparation();
@@ -255,6 +260,11 @@ class PreSwipeProvider extends ChangeNotifier {
       moods: moods,
       diet: diet,
       exclusions: blocked,
+      maxCookTime: maxCookTime,
+      calories: calories,
+      effort: effort,
+      ingredients: ingredients,
+      season: season,
     );
   }
 

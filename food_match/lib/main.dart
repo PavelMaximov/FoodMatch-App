@@ -25,7 +25,11 @@ import 'features/couple/logic/couple_provider.dart';
 import 'features/dishes/logic/recipe_provider.dart';
 import 'features/favorites/logic/favorites_provider.dart';
 import 'features/matches/logic/match_provider.dart';
+import 'features/premium/data/premium_repository.dart';
+import 'features/premium/logic/premium_provider.dart';
+import 'features/premium/domain/effective_entitlements.dart';
 import 'features/shopping_list/logic/shopping_list_provider.dart';
+import 'features/shopping_list/data/shared_shopping_list_repository.dart';
 import 'features/swipes/logic/filter_scoring_service.dart';
 import 'features/swipes/logic/pre_swipe_provider.dart';
 import 'features/swipes/logic/swipe_provider.dart';
@@ -126,6 +130,15 @@ Future<void> main() async {
                 );
                 return provider;
               },
+        ),
+        ChangeNotifierProxyProvider2<AuthProvider, CoupleProvider, PremiumProvider>(
+          create: (_) => PremiumProvider(repository: ApiPremiumRepository(apiService)),
+          update: (_, AuthProvider auth, CoupleProvider couple, PremiumProvider? premium) {
+            final provider = premium ?? PremiumProvider(repository: ApiPremiumRepository(apiService));
+            provider.setAuthenticatedUser(auth.currentUser?.id, isAuthenticated: auth.isAuthenticated);
+            provider.handlePairContext(couple.currentCouple?.id);
+            return provider;
+          },
         ),
         ChangeNotifierProxyProvider<AuthProvider, PreSwipeProvider>(
           create: (BuildContext context) => PreSwipeProvider(
@@ -250,8 +263,15 @@ Future<void> main() async {
         ChangeNotifierProvider<RecipeProvider>(
           create: (_) => RecipeProvider(repository: dishRepo),
         ),
-        ChangeNotifierProvider<ShoppingListProvider>(
-          create: (_) => ShoppingListProvider()..load(),
+        ChangeNotifierProxyProvider3<AuthProvider, CoupleProvider, PremiumProvider, ShoppingListProvider>(
+          create: (_) => ShoppingListProvider(sharedRepository: SharedShoppingListRepository(apiService)),
+          update: (_, auth, couple, premium, previous) {
+            final provider=previous??ShoppingListProvider(sharedRepository: SharedShoppingListRepository(apiService));
+            final shared=auth.isAuthenticated&&premium.canUse(PremiumFeature.sharedShoppingList)?couple.currentCouple?.id:null;
+            provider.setSharedSession(shared);
+            if(shared==null&&premium.canUse(PremiumFeature.shoppingList))provider.load();
+            return provider;
+          },
         ),
       ],
       child: const FoodMatchApp(),

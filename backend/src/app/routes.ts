@@ -9,6 +9,8 @@ import userRoutes from '../modules/users/routes/userRoutes';
 import uploadRoutes from '../modules/uploads/uploadRoutes';
 import soloSwipeRoutes from '../modules/solo-swipes/routes/soloSwipeRoutes';
 import filterRoutes from '../modules/filters/routes/lastFilterPresetRoutes';
+import entitlementRoutes from '../modules/entitlements/routes/entitlementRoutes';
+import shoppingListRoutes from '../modules/shopping-list/routes/shoppingListRoutes';
 import { env } from '../config/env';
 import { getConfigHealthResponse, isConfigHealthEnabled } from '../modules/dev/configHealth';
 
@@ -31,5 +33,7 @@ router.use('/users', userRoutes);
 router.use('/uploads', uploadRoutes);
 router.use('/solo-swipes', soloSwipeRoutes);
 router.use('/filters', filterRoutes);
+router.use('/entitlements', entitlementRoutes);
+router.use('/shopping-list', shoppingListRoutes);
 
 export default router;
