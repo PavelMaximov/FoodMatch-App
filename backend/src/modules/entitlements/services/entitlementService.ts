@@ -27,15 +27,6 @@ export class EntitlementService {
     return {tier:isPremium?'premium':'free',isPremium,subscription:{status,productId:subscription?.productId??null,expiresAt:subscription?.expiresAt?.toISOString()??null,trialEndsAt:subscription?.trialEndsAt?.toISOString()??null},features:{...(isPremium?premiumFeatures:freeFeatures)},limits:{customDishes:isPremium?null:3},rewardedGrants:Object.fromEntries(grants.filter(g=>g.status==='active'&&!g.consumedAt&&g.expiresAt>now).map(g=>[g.feature,g.expiresAt.toISOString()]))};
   }
   async canPairUseFeature(session:Pick<CoupleSessionRecord,'memberIds'>,feature:PremiumFeature){if(feature!=='shared_shopping_list')return false;const members=await Promise.all(session.memberIds.map(id=>this.getEffectiveEntitlements(id)));return members.some(x=>x.features.sharedShoppingList);}
-  async canUseFeature(userId:string,feature:PremiumFeature,now=new Date()):Promise<boolean>{
-    const entitlements=await this.getEffectiveEntitlements(userId,now);
-    if(entitlements.features[featureKey(feature)])return true;
-    const rewarded:Partial<Record<PremiumFeature,string>>={advanced_filters:'advanced_filters_once',shopping_list:'shopping_list_once',session_history:'session_history_once',smart_deck:'smart_deck_once'};
-    const grant=rewarded[feature];
-    return Boolean(grant&&entitlements.rewardedGrants[grant as keyof typeof entitlements.rewardedGrants]);
-  }
 }
-
-function featureKey(feature:PremiumFeature):keyof EffectiveEntitlements['features']{return feature.replace(/_([a-z])/g,(_,letter:string)=>letter.toUpperCase()) as keyof EffectiveEntitlements['features'];}
 
 export const entitlementService=new EntitlementService();

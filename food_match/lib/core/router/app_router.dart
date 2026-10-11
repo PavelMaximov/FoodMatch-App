@@ -19,10 +19,6 @@ import '../../features/favorites/presentation/screens/favorites_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/profile/presentation/screens/profile_detail_screens.dart';
 import '../../features/premium/presentation/premium_screen.dart';
-import '../../features/premium/domain/effective_entitlements.dart';
-import '../../features/premium/domain/premium_entry_point.dart';
-import '../../features/premium/logic/premium_provider.dart';
-import 'package:provider/provider.dart';
 import '../../features/recipes/presentation/screens/recipes_screen.dart';
 import '../../features/shopping_list/presentation/screens/shopping_list_screen.dart';
 import '../../features/swipes/presentation/screens/swipes_screen.dart';
@@ -171,7 +167,7 @@ class AppRouter {
                           redirect: (_, __) => '/profile/edit',
                         ),
                         GoRoute(path: 'settings', builder: (_, __) => const ProfileSettingsScreen()),
-                        GoRoute(path: 'premium', builder: (_, GoRouterState state) => PremiumScreen(entryPoint: state.extra is PremiumEntryPoint ? state.extra! as PremiumEntryPoint : PremiumEntryPoint.overview)),
+                        GoRoute(path: 'premium', builder: (_, __) => const PremiumScreen()),
                         GoRoute(
                           path: 'match-history',
                           builder: (BuildContext context, __) => context.watch<PremiumProvider>().canUse(PremiumFeature.sessionHistory) ? const MatchHistoryScreen() : const PremiumScreen(entryPoint: PremiumEntryPoint.sessionHistory),

@@ -20,7 +20,6 @@ import '../../../../data/repositories/upload_repository.dart';
 import '../../../../data/services/api_service.dart';
 import '../../../swipes/logic/swipe_provider.dart';
 import '../../../premium/logic/premium_provider.dart';
-import '../../../premium/domain/premium_entry_point.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/dish_compact_card.dart';
 import '../../../../shared/widgets/empty_state.dart';
@@ -198,7 +197,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
     if (_isSubmitting) return;
     final int? customDishLimit = context.read<PremiumProvider>().customDishLimit;
     if (customDishLimit != null && _myDishes.length >= customDishLimit) {
-      context.push('/profile/premium', extra: PremiumEntryPoint.customDishLimit);
+      context.push('/profile/premium');
       return;
     }
     final bool isValidForm = _formKey.currentState?.validate() ?? false;
@@ -312,7 +311,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
     } on ApiException catch (e) {
       if (mounted) {
         if (e.code == 'PREMIUM_CUSTOM_DISH_LIMIT') {
-          context.push('/profile/premium', extra: PremiumEntryPoint.customDishLimit);
+          context.push('/profile/premium');
           return;
         }
         FoodMatchNotifications.show(

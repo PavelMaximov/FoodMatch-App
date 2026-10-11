@@ -7,7 +7,7 @@ class EffectiveEntitlements {
   static const free=EffectiveEntitlements(tier:SubscriptionTier.free,status:SubscriptionStatus.none,features:<PremiumFeature>{},customDishLimit:3);
   final SubscriptionTier tier; final SubscriptionStatus status; final Set<PremiumFeature> features; final int? customDishLimit; final Map<String,DateTime> rewardedGrants;
   bool get isPremium=>tier==SubscriptionTier.premium;
-  bool canUse(PremiumFeature feature){if(features.contains(feature))return true;final grant=switch(feature){PremiumFeature.advancedFilters=>'advanced_filters_once',PremiumFeature.shoppingList=>'shopping_list_once',PremiumFeature.sessionHistory=>'session_history_once',PremiumFeature.smartDeck=>'smart_deck_once',_=>null};return grant!=null&&(rewardedGrants[grant]?.isAfter(DateTime.now())??false);}
+  bool canUse(PremiumFeature feature)=>features.contains(feature);
   factory EffectiveEntitlements.fromJson(Map<String,dynamic> json){
     final f=Map<String,dynamic>.from(json['features'] as Map? ?? const {});
     const names=<PremiumFeature,String>{PremiumFeature.adFree:'adFree',PremiumFeature.advancedFilters:'advancedFilters',PremiumFeature.unlimitedCustomDishes:'unlimitedCustomDishes',PremiumFeature.sessionHistory:'sessionHistory',PremiumFeature.shoppingList:'shoppingList',PremiumFeature.sharedShoppingList:'sharedShoppingList',PremiumFeature.smartDeck:'smartDeck',PremiumFeature.recipeImport:'recipeImport',PremiumFeature.favoriteCollections:'favoriteCollections',PremiumFeature.servingScaling:'servingScaling'};

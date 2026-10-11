@@ -27,7 +27,6 @@ import 'features/favorites/logic/favorites_provider.dart';
 import 'features/matches/logic/match_provider.dart';
 import 'features/premium/data/premium_repository.dart';
 import 'features/premium/logic/premium_provider.dart';
-import 'features/premium/domain/effective_entitlements.dart';
 import 'features/shopping_list/logic/shopping_list_provider.dart';
 import 'features/shopping_list/data/shared_shopping_list_repository.dart';
 import 'features/swipes/logic/filter_scoring_service.dart';
@@ -116,6 +115,14 @@ Future<void> main() async {
             apiService: apiService,
             cacheService: cacheService,
           ),
+        ),
+        ChangeNotifierProxyProvider<AuthProvider, PremiumProvider>(
+          create: (_) => PremiumProvider(repository: ApiPremiumRepository(apiService)),
+          update: (_, AuthProvider auth, PremiumProvider? premium) {
+            final provider = premium ?? PremiumProvider(repository: ApiPremiumRepository(apiService));
+            provider.setAuthenticatedUser(auth.currentUser?.id, isAuthenticated: auth.isAuthenticated);
+            return provider;
+          },
         ),
         ChangeNotifierProxyProvider<AuthProvider, CoupleProvider>(
           create: (_) => CoupleProvider(repository: coupleRepo),
