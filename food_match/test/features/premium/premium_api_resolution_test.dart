@@ -13,7 +13,7 @@ void main() {
       'HTTP $status through the real repository preserves resolution and ad rules',
       () async {
         final client = MockClient((request) async {
-          expect(request.url.path, endsWith('/entitlements/me'));
+          expect(request.url.path, '/api/entitlements/me');
           return http.Response(
             status == 503
                 ? '{"code":"ENTITLEMENT_RESOLUTION_UNAVAILABLE","message":"Entitlements unavailable"}'

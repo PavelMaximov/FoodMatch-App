@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import express from 'express';
+import applicationRoutes from '../app/routes';
 import { AuthRequest } from '../core/middleware/authMiddleware';
 import { errorHandler } from '../core/middleware/errorHandler';
 import { CoupleSessionRecord } from '../domain/repositories/types';
@@ -69,4 +70,27 @@ export async function testEntitlementResolution() {
       await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
     }
   }
+  const mounted = express();
+  mounted.use('/api', applicationRoutes);
+  mounted.use(errorHandler);
+  const server = mounted.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  try {
+    const address = server.address();
+    assert.ok(address && typeof address !== 'string');
+    for (const [method, path] of [
+      ['GET', '/api/entitlements/me'], ['GET', '/api/shopping-list/shared'],
+      ['POST', '/api/shopping-list/shared/items'], ['PATCH', '/api/shopping-list/shared/items/item'],
+      ['DELETE', '/api/shopping-list/shared/items/item'], ['PATCH', '/api/shopping-list/shared/reorder'],
+    ]) {
+      const response: globalThis.Response = await fetch(`http://127.0.0.1:${address.port}${path}`, {method});
+      assert.equal(response.status, 401, `${method} ${path} must be mounted and authenticated, not 404`);
+      const body = await response.json() as {code: string};
+      assert.equal(body.code, 'AUTH_TOKEN_MISSING');
+    }
+    console.log('PASS production /api entitlement and shared-list mounts require authentication');
+  } finally {
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+
 }

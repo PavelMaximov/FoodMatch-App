@@ -61,6 +61,14 @@ class ApiConstants {
   }
 
   static const String health = '/health';
+  static const String entitlementsMe = '/api/entitlements/me';
+  static const String sharedShoppingList = '/api/shopping-list/shared';
+  static const String sharedShoppingListItems =
+      '/api/shopping-list/shared/items';
+  static String sharedShoppingListItem(String id) =>
+      '/api/shopping-list/shared/items/$id';
+  static const String sharedShoppingListReorder =
+      '/api/shopping-list/shared/reorder';
   static const String register = '/api/auth/register';
   static const String login = '/api/auth/login';
   static const String me = '/api/auth/me';

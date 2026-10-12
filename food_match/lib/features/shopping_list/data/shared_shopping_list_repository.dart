@@ -1,3 +1,4 @@
+import '../../../core/constants/api_constants.dart';
 import '../../../data/services/api_service.dart';
 import '../domain/shopping_list_item.dart';
 
@@ -6,13 +7,13 @@ class SharedShoppingListRepository {
   final ApiService _api;
 
   Future<List<ShoppingListItem>> load() async =>
-      _items(await _api.get('/shopping-list/shared'));
+      _items(await _api.get(ApiConstants.sharedShoppingList));
   Future<List<ShoppingListItem>> add({
     required String name,
     String? quantity,
     String? measure,
   }) async => _items(
-    await _api.post('/shopping-list/shared/items', <String, dynamic>{
+    await _api.post(ApiConstants.sharedShoppingListItems, <String, dynamic>{
       'name': name,
       'quantity': quantity,
       'measure': measure,
@@ -20,15 +21,16 @@ class SharedShoppingListRepository {
   );
   Future<List<ShoppingListItem>> setChecked(String id, bool checked) async =>
       _items(
-        await _api.patch('/shopping-list/shared/items/$id', <String, dynamic>{
-          'checked': checked,
-        }),
+        await _api.patch(
+          ApiConstants.sharedShoppingListItem(id),
+          <String, dynamic>{'checked': checked},
+        ),
       );
   Future<List<ShoppingListItem>> remove(String id) async =>
-      _items(await _api.delete('/shopping-list/shared/items/$id'));
+      _items(await _api.delete(ApiConstants.sharedShoppingListItem(id)));
 
   Future<List<ShoppingListItem>> reorder(List<String> itemIds) async => _items(
-    await _api.patch('/shopping-list/shared/reorder', <String, dynamic>{
+    await _api.patch(ApiConstants.sharedShoppingListReorder, <String, dynamic>{
       'itemIds': itemIds,
     }),
   );
