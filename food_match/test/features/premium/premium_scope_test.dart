@@ -51,7 +51,7 @@ void main() {
   );
 
   test(
-    'leaving a pair clears shared access while preserving personal capabilities',
+    'leaving a pair denies access until refreshed personal capabilities resolve',
     () async {
       final repository = _Repository();
       final provider = PremiumProvider(repository: repository);
@@ -72,6 +72,17 @@ void main() {
       await _flush();
       provider.handlePairContext(null);
       expect(provider.canUse(PremiumFeature.sharedShoppingList), isFalse);
+      expect(provider.canUse(PremiumFeature.advancedFilters), isFalse);
+      expect(provider.customDishLimit, 3);
+      repository.requests.last.complete(
+        const EffectiveEntitlements(
+          tier: SubscriptionTier.premium,
+          status: SubscriptionStatus.active,
+          features: {PremiumFeature.advancedFilters},
+          customDishLimit: null,
+        ),
+      );
+      await _flush();
       expect(provider.canUse(PremiumFeature.advancedFilters), isTrue);
       expect(provider.customDishLimit, isNull);
     },

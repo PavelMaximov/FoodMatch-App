@@ -17,12 +17,16 @@ export async function closePostgresPool(): Promise<void> {
   pool = undefined;
 }
 
-export async function withPostgresAdvisoryLock<T>(key: string, task: () => Promise<T>): Promise<T> {
-  const client = await getPostgresPool().connect();
+export async function withPostgresAdvisoryLock<T>(
+  key: string,
+  task: (query: typeof queryPostgres) => Promise<T>,
+  pool: Pick<Pool, 'connect'> = getPostgresPool(),
+): Promise<T> {
+  const client = await pool.connect();
   try {
     await client.query('begin');
     await client.query('select pg_advisory_xact_lock(hashtext($1))', [key]);
-    const result = await task();
+    const result = await task((text, values = []) => client.query(text, [...values]));
     await client.query('commit');
     return result;
   } catch (error) {

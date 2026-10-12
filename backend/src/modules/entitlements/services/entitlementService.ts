@@ -5,8 +5,9 @@ import { EffectiveEntitlements, PremiumFeature, RewardedGrantRecord, Subscriptio
 export interface EntitlementRepository { findSubscription(userId:string):Promise<SubscriptionRecord|null>; findActiveGrants(userId:string,now:Date):Promise<RewardedGrantRecord[]> }
 
 export class PostgresEntitlementRepository implements EntitlementRepository {
-  async findSubscription(userId:string){const r=await queryPostgres<any>('select tier,status,provider,product_id,current_period_start,expires_at,trial_ends_at,updated_at from user_subscriptions where user_id=$1',[userId]);const x=r.rows[0];return x?{tier:x.tier,status:x.status,provider:x.provider,productId:x.product_id,currentPeriodStart:x.current_period_start,expiresAt:x.expires_at,trialEndsAt:x.trial_ends_at,updatedAt:x.updated_at}:null;}
-  async findActiveGrants(userId:string,now:Date){const r=await queryPostgres<any>("select feature,created_at,expires_at,consumed_at,status from rewarded_feature_grants where user_id=$1 and status='active' and consumed_at is null and expires_at>$2",[userId,now]);return r.rows.map(x=>({feature:x.feature,createdAt:x.created_at,expiresAt:x.expires_at,consumedAt:x.consumed_at,status:x.status}));}
+  constructor(private readonly query: typeof queryPostgres = queryPostgres) {}
+  async findSubscription(userId:string){const r=await this.query<any>('select tier,status,provider,product_id,current_period_start,expires_at,trial_ends_at,updated_at from user_subscriptions where user_id=$1',[userId]);const x=r.rows[0];return x?{tier:x.tier,status:x.status,provider:x.provider,productId:x.product_id,currentPeriodStart:x.current_period_start,expiresAt:x.expires_at,trialEndsAt:x.trial_ends_at,updatedAt:x.updated_at}:null;}
+  async findActiveGrants(userId:string,now:Date){const r=await this.query<any>("select feature,created_at,expires_at,consumed_at,status from rewarded_feature_grants where user_id=$1 and status='active' and consumed_at is null and expires_at>$2",[userId,now]);return r.rows.map(x=>({feature:x.feature,createdAt:x.created_at,expiresAt:x.expires_at,consumedAt:x.consumed_at,status:x.status}));}
 }
 
 const premiumFeatures = {adFree:true,advancedFilters:true,unlimitedCustomDishes:true,sessionHistory:true,shoppingList:true,sharedShoppingList:true,smartDeck:true,recipeImport:true,favoriteCollections:true,servingScaling:true};
@@ -21,8 +22,9 @@ export class EntitlementService {
   }
   compute(subscription:SubscriptionRecord|null,grants:RewardedGrantRecord[]=[],now=new Date()):EffectiveEntitlements{
     const status=subscription?.status??'none';
-    const validStatus=status==='active'||status==='trialing';
-    const notExpired=!subscription?.expiresAt||subscription.expiresAt.getTime()>now.getTime();
+    const validStatus = status === 'active' || status === 'trialing' || status === 'grace_period' || status === 'cancelled';
+    const expiry = subscription?.expiresAt ?? (status === 'trialing' ? subscription?.trialEndsAt : null);
+    const notExpired = expiry !== null && expiry !== undefined && expiry.getTime() > now.getTime();
     const isPremium=subscription?.tier==='premium'&&validStatus&&notExpired;
     return {tier:isPremium?'premium':'free',isPremium,subscription:{status,productId:subscription?.productId??null,expiresAt:subscription?.expiresAt?.toISOString()??null,trialEndsAt:subscription?.trialEndsAt?.toISOString()??null},features:{...(isPremium?premiumFeatures:freeFeatures)},limits:{customDishes:isPremium?null:3},rewardedGrants:Object.fromEntries(grants.filter(g=>g.status==='active'&&!g.consumedAt&&g.expiresAt>now).map(g=>[g.feature,g.expiresAt.toISOString()]))};
   }

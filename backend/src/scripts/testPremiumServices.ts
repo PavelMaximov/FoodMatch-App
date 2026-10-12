@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { testPremiumCorrectness } from './testPremiumCorrectness';
 import { AppError } from '../core/errors/AppError';
 import { CoupleSessionRecord } from '../domain/repositories/types';
 import { queryPostgres } from '../shared/db/postgresClient';
@@ -184,6 +185,7 @@ async function main() {
       assert.equal(fixture.hydrated.length, 0);
     });
   }
-  console.log(`PASS ${passed} focused Premium service checks`);
+  await testPremiumCorrectness();
+  console.log(`PASS ${passed} focused Premium service checks plus leave/history and Free/Premium concurrency regressions`);
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
