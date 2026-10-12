@@ -26,6 +26,19 @@ export class EntitlementService {
     const isPremium=subscription?.tier==='premium'&&validStatus&&notExpired;
     return {tier:isPremium?'premium':'free',isPremium,subscription:{status,productId:subscription?.productId??null,expiresAt:subscription?.expiresAt?.toISOString()??null,trialEndsAt:subscription?.trialEndsAt?.toISOString()??null},features:{...(isPremium?premiumFeatures:freeFeatures)},limits:{customDishes:isPremium?null:3},rewardedGrants:Object.fromEntries(grants.filter(g=>g.status==='active'&&!g.consumedAt&&g.expiresAt>now).map(g=>[g.feature,g.expiresAt.toISOString()]))};
   }
+  async canUseFeature(userId: string, feature: PremiumFeature, now = new Date()): Promise<boolean> {
+    const value = await this.getEffectiveEntitlements(userId, now);
+    const featureNames: Record<PremiumFeature, keyof EffectiveEntitlements['features']> = {
+      ad_free: 'adFree', advanced_filters: 'advancedFilters', unlimited_custom_dishes: 'unlimitedCustomDishes',
+      session_history: 'sessionHistory', shopping_list: 'shoppingList', shared_shopping_list: 'sharedShoppingList',
+      smart_deck: 'smartDeck', recipe_import: 'recipeImport', favorite_collections: 'favoriteCollections', serving_scaling: 'servingScaling',
+    };
+    if (value.features[featureNames[feature]]) return true;
+    const grants = { advanced_filters: 'advanced_filters_once', shopping_list: 'shopping_list_once', session_history: 'session_history_once', smart_deck: 'smart_deck_once' } as const;
+    const grant = grants[feature as keyof typeof grants];
+    const expiresAt = grant ? value.rewardedGrants[grant] : undefined;
+    return expiresAt !== undefined && new Date(expiresAt).getTime() > now.getTime();
+  }
   async canPairUseFeature(session:Pick<CoupleSessionRecord,'memberIds'>,feature:PremiumFeature){if(feature!=='shared_shopping_list')return false;const members=await Promise.all(session.memberIds.map(id=>this.getEffectiveEntitlements(id)));return members.some(x=>x.features.sharedShoppingList);}
 }
 

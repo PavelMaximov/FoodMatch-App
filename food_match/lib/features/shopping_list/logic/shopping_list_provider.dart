@@ -21,7 +21,8 @@ class ShoppingListIngredientInput {
       return ShoppingListIngredientInput(name: parts.original);
     }
     final List<String> measurementParts = parts.measurement.split(' ');
-    final bool hasUnit = measurementParts.length > 1 &&
+    final bool hasUnit =
+        measurementParts.length > 1 &&
         RegExp(r'^[A-Za-z]+\.?$').hasMatch(measurementParts.last);
     return ShoppingListIngredientInput(
       name: parts.name,
@@ -38,40 +39,74 @@ class ShoppingListIngredientInput {
 }
 
 class ShoppingListProvider extends ChangeNotifier {
-  ShoppingListProvider({ShoppingListStorage? storage,SharedShoppingListRepository? sharedRepository})
-      : _storage = storage ?? ShoppingListStorage(),_sharedRepository=sharedRepository;
+  ShoppingListProvider({
+    ShoppingListStorage? storage,
+    SharedShoppingListRepository? sharedRepository,
+  }) : _storage = storage ?? ShoppingListStorage(),
+       _sharedRepository = sharedRepository;
 
   final ShoppingListStorage _storage;
   final SharedShoppingListRepository? _sharedRepository;
   String? _sharedSessionId;
-  int _scopeGeneration=0;
-  bool get isShared=>_sharedSessionId!=null;
+  int _scopeGeneration = 0;
+  bool _disposed = false;
+  bool get isShared => _sharedSessionId != null;
   final List<ShoppingListItem> _items = <ShoppingListItem>[];
   int _idSequence = 0;
   bool _isLoaded = false;
   Future<void>? _loadFuture;
 
-  List<ShoppingListItem> get items => List<ShoppingListItem>.unmodifiable(_items);
-  int get checkedCount => _items.where((ShoppingListItem item) => item.checked).length;
+  List<ShoppingListItem> get items =>
+      List<ShoppingListItem>.unmodifiable(_items);
+  int get checkedCount =>
+      _items.where((ShoppingListItem item) => item.checked).length;
   bool get isLoaded => _isLoaded;
 
   Future<void> load() async {
-    if (_isLoaded) return;
-    if (_loadFuture != null) {
-      await _loadFuture;
-      return;
+    if (_disposed || _isLoaded) return;
+    if (_loadFuture != null) return _loadFuture;
+    final generation = _scopeGeneration;
+    final sessionId = _sharedSessionId;
+    final future = _loadForScope(generation, sessionId);
+    _loadFuture = future;
+    try {
+      await future;
+    } finally {
+      if (_isCurrentScope(generation, sessionId)) _loadFuture = null;
     }
-    _loadFuture = _loadFromStorage();
-    await _loadFuture;
   }
 
-  Future<void> setSharedSession(String? sessionId)async{if(sessionId==_sharedSessionId)return;_sharedSessionId=sessionId;final generation=++_scopeGeneration;_items.clear();_isLoaded=false;_loadFuture=null;notifyListeners();if(sessionId==null)return;final loaded=await _sharedRepository?.load()??<ShoppingListItem>[];if(generation!=_scopeGeneration||sessionId!=_sharedSessionId)return;_items..clear()..addAll(loaded);_isLoaded=true;notifyListeners();}
+  bool _isCurrentScope(int generation, String? sessionId) =>
+      !_disposed &&
+      generation == _scopeGeneration &&
+      sessionId == _sharedSessionId;
 
-  Future<void> _loadFromStorage() async {
+  Future<void> setSharedSession(String? sessionId) async {
+    if (_disposed || sessionId == _sharedSessionId) return;
+    _sharedSessionId = sessionId;
+    _scopeGeneration++;
+    _items.clear();
+    _isLoaded = false;
+    _loadFuture = null;
+    notifyListeners();
+    if (sessionId != null) {
+      try {
+        await load();
+      } catch (_) {
+        // A later load can retry. Provider-tree updates do not await this load.
+      }
+    }
+  }
+
+  Future<void> _loadForScope(int generation, String? sessionId) async {
+    final loaded = sessionId == null
+        ? await _storage.load()
+        : await _sharedRepository?.load() ?? <ShoppingListItem>[];
+    if (!_isCurrentScope(generation, sessionId)) return;
     _items
       ..clear()
-      ..addAll(await _storage.load())
-      ..sort((ShoppingListItem a, ShoppingListItem b) => a.sortOrder.compareTo(b.sortOrder));
+      ..addAll(loaded)
+      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
     _isLoaded = true;
     notifyListeners();
   }
@@ -81,7 +116,22 @@ class ShoppingListProvider extends ChangeNotifier {
     String? quantity,
     String? measure,
   }) async {
-    if(isShared&&_sharedRepository!=null){final generation=_scopeGeneration;final loaded=await _sharedRepository.add(name:name,quantity:quantity,measure:measure);if(generation==_scopeGeneration){_items..clear()..addAll(loaded);_isLoaded=true;notifyListeners();}return;}
+    if (isShared && _sharedRepository != null) {
+      final generation = _scopeGeneration;
+      final loaded = await _sharedRepository.add(
+        name: name,
+        quantity: quantity,
+        measure: measure,
+      );
+      if (!_disposed && generation == _scopeGeneration) {
+        _items
+          ..clear()
+          ..addAll(loaded);
+        _isLoaded = true;
+        notifyListeners();
+      }
+      return;
+    }
     await load();
     final String cleanName = name.trim();
     if (cleanName.isEmpty) return;
@@ -102,17 +152,19 @@ class ShoppingListProvider extends ChangeNotifier {
       return;
     }
     final DateTime now = DateTime.now();
-    _items.add(ShoppingListItem(
-      id: '${now.microsecondsSinceEpoch}-${_idSequence++}',
-      name: cleanName,
-      normalizedName: normalized,
-      quantity: cleanQuantity,
-      measure: cleanMeasure,
-      checked: false,
-      sortOrder: _items.length,
-      createdAt: now,
-      updatedAt: now,
-    ));
+    _items.add(
+      ShoppingListItem(
+        id: '${now.microsecondsSinceEpoch}-${_idSequence++}',
+        name: cleanName,
+        normalizedName: normalized,
+        quantity: cleanQuantity,
+        measure: cleanMeasure,
+        checked: false,
+        sortOrder: _items.length,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
     await _persist();
   }
 
@@ -121,7 +173,29 @@ class ShoppingListProvider extends ChangeNotifier {
     String? sourceDishId,
     String? sourceDishName,
   }) async {
-    if(isShared&&_sharedRepository!=null){final generation=_scopeGeneration;var added=0;List<ShoppingListItem> loaded=_items;for(final ingredient in ingredients){if(ingredient.name.trim().isEmpty)continue;loaded=await _sharedRepository.add(name:ingredient.name,quantity:ingredient.quantity,measure:ingredient.measure);added++;}if(generation==_scopeGeneration){_items..clear()..addAll(loaded);_isLoaded=true;notifyListeners();}return added;}
+    if (isShared && _sharedRepository != null) {
+      final generation = _scopeGeneration;
+      var added = 0;
+      List<ShoppingListItem> loaded = _items;
+      for (final ingredient in ingredients) {
+        if (_disposed || generation != _scopeGeneration) return added;
+        if (ingredient.name.trim().isEmpty) continue;
+        loaded = await _sharedRepository.add(
+          name: ingredient.name,
+          quantity: ingredient.quantity,
+          measure: ingredient.measure,
+        );
+        added++;
+      }
+      if (!_disposed && generation == _scopeGeneration) {
+        _items
+          ..clear()
+          ..addAll(loaded);
+        _isLoaded = true;
+        notifyListeners();
+      }
+      return added;
+    }
     await load();
     int added = 0;
     bool updated = false;
@@ -134,8 +208,10 @@ class ShoppingListProvider extends ChangeNotifier {
       );
       if (existingIndex >= 0) {
         final ShoppingListItem existing = _items[existingIndex];
-        final String? quantity = existing.quantity ?? _optional(ingredient.quantity);
-        final String? measure = existing.measure ?? _optional(ingredient.measure);
+        final String? quantity =
+            existing.quantity ?? _optional(ingredient.quantity);
+        final String? measure =
+            existing.measure ?? _optional(ingredient.measure);
         if (quantity != existing.quantity || measure != existing.measure) {
           _items[existingIndex] = existing.copyWith(
             quantity: quantity,
@@ -147,19 +223,21 @@ class ShoppingListProvider extends ChangeNotifier {
         continue;
       }
       final DateTime now = DateTime.now();
-      _items.add(ShoppingListItem(
-        id: '${now.microsecondsSinceEpoch}-${_idSequence++}',
-        name: name,
-        normalizedName: normalized,
-        quantity: _optional(ingredient.quantity),
-        measure: _optional(ingredient.measure),
-        sourceDishId: _optional(sourceDishId),
-        sourceDishName: _optional(sourceDishName),
-        checked: false,
-        sortOrder: _items.length,
-        createdAt: now,
-        updatedAt: now,
-      ));
+      _items.add(
+        ShoppingListItem(
+          id: '${now.microsecondsSinceEpoch}-${_idSequence++}',
+          name: name,
+          normalizedName: normalized,
+          quantity: _optional(ingredient.quantity),
+          measure: _optional(ingredient.measure),
+          sourceDishId: _optional(sourceDishId),
+          sourceDishName: _optional(sourceDishName),
+          checked: false,
+          sortOrder: _items.length,
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
       added++;
     }
     if (added > 0 || updated) await _persist();
@@ -170,46 +248,81 @@ class ShoppingListProvider extends ChangeNotifier {
     required List<String> ingredients,
     String? sourceDishId,
     String? sourceDishName,
-  }) =>
-      addIngredients(
-        ingredients: ingredients
-            .map(ShoppingListIngredientInput.fromName)
-            .toList(),
-        sourceDishId: sourceDishId,
-        sourceDishName: sourceDishName,
-      );
+  }) => addIngredients(
+    ingredients: ingredients.map(ShoppingListIngredientInput.fromName).toList(),
+    sourceDishId: sourceDishId,
+    sourceDishName: sourceDishName,
+  );
 
-  Future<void> toggleChecked(String id) async {if(isShared&&_sharedRepository!=null){final item=_items.firstWhere((item)=>item.id==id);final generation=_scopeGeneration;final loaded=await _sharedRepository.setChecked(id,!item.checked);if(generation==_scopeGeneration){_items..clear()..addAll(loaded);notifyListeners();}return;}await _update(
-        id,
-        (ShoppingListItem item) => item.copyWith(
-          checked: !item.checked,
-          updatedAt: DateTime.now(),
-        ),
-      );}
+  Future<void> toggleChecked(String id) async {
+    if (isShared && _sharedRepository != null) {
+      final item = _items.firstWhere((item) => item.id == id);
+      final generation = _scopeGeneration;
+      final loaded = await _sharedRepository.setChecked(id, !item.checked);
+      if (!_disposed && generation == _scopeGeneration) {
+        _items
+          ..clear()
+          ..addAll(loaded);
+        notifyListeners();
+      }
+      return;
+    }
+    await _update(
+      id,
+      (ShoppingListItem item) =>
+          item.copyWith(checked: !item.checked, updatedAt: DateTime.now()),
+    );
+  }
 
   Future<void> removeItem(String id) async {
-    if(isShared&&_sharedRepository!=null){final generation=_scopeGeneration;final loaded=await _sharedRepository.remove(id);if(generation==_scopeGeneration){_items..clear()..addAll(loaded);notifyListeners();}return;}
+    if (isShared && _sharedRepository != null) {
+      final generation = _scopeGeneration;
+      final loaded = await _sharedRepository.remove(id);
+      if (!_disposed && generation == _scopeGeneration) {
+        _items
+          ..clear()
+          ..addAll(loaded);
+        notifyListeners();
+      }
+      return;
+    }
     await load();
     _items.removeWhere((ShoppingListItem item) => item.id == id);
     await _renumberAndPersist();
   }
 
   Future<void> clearCompleted() async {
-    if(isShared){for(final item in List<ShoppingListItem>.from(_items.where((item)=>item.checked)))await removeItem(item.id);return;}
+    if (isShared) {
+      for (final item in List<ShoppingListItem>.from(
+        _items.where((item) => item.checked),
+      ))
+        await removeItem(item.id);
+      return;
+    }
     await load();
     _items.removeWhere((ShoppingListItem item) => item.checked);
     await _renumberAndPersist();
   }
 
   Future<void> clearAll() async {
-    if(isShared){for(final item in List<ShoppingListItem>.from(_items))await removeItem(item.id);return;}
+    if (isShared) {
+      for (final item in List<ShoppingListItem>.from(_items))
+        await removeItem(item.id);
+      return;
+    }
     await load();
     _items.clear();
     await _persist();
   }
 
   Future<void> resetChecked() async {
-    if(isShared&&_sharedRepository!=null){for(final item in List<ShoppingListItem>.from(_items.where((item)=>item.checked)))await toggleChecked(item.id);return;}
+    if (isShared && _sharedRepository != null) {
+      for (final item in List<ShoppingListItem>.from(
+        _items.where((item) => item.checked),
+      ))
+        await toggleChecked(item.id);
+      return;
+    }
     await load();
     final DateTime now = DateTime.now();
     for (int index = 0; index < _items.length; index++) {
@@ -221,10 +334,30 @@ class ShoppingListProvider extends ChangeNotifier {
   }
 
   Future<void> reorder(int oldIndex, int newIndex) async {
+    final generation = _scopeGeneration;
+    final sessionId = _sharedSessionId;
     await load();
+    if (!_isCurrentScope(generation, sessionId)) return;
     if (newIndex > oldIndex) newIndex--;
-    final ShoppingListItem item = _items.removeAt(oldIndex);
-    _items.insert(newIndex, item);
+    final reordered = List<ShoppingListItem>.from(_items);
+    final item = reordered.removeAt(oldIndex);
+    reordered.insert(newIndex, item);
+    if (sessionId != null) {
+      final repository = _sharedRepository;
+      if (repository == null) return;
+      final loaded = await repository.reorder(
+        reordered.map((item) => item.id).toList(),
+      );
+      if (!_isCurrentScope(generation, sessionId)) return;
+      _items
+        ..clear()
+        ..addAll(loaded);
+      notifyListeners();
+      return;
+    }
+    _items
+      ..clear()
+      ..addAll(reordered);
     await _renumberAndPersist();
   }
 
@@ -233,7 +366,9 @@ class ShoppingListProvider extends ChangeNotifier {
     ShoppingListItem Function(ShoppingListItem item) update,
   ) async {
     await load();
-    final int index = _items.indexWhere((ShoppingListItem item) => item.id == id);
+    final int index = _items.indexWhere(
+      (ShoppingListItem item) => item.id == id,
+    );
     if (index < 0) return;
     _items[index] = update(_items[index]);
     await _persist();
@@ -247,8 +382,16 @@ class ShoppingListProvider extends ChangeNotifier {
   }
 
   Future<void> _persist() async {
-    await _storage.save(_items);
-    notifyListeners();
+    if (_disposed || isShared) return;
+    await _storage.save(List<ShoppingListItem>.from(_items));
+    if (!_disposed) notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _scopeGeneration++;
+    super.dispose();
   }
 
   static String _normalize(String value) => value.trim().toLowerCase();

@@ -1,80 +1,87 @@
 import { domainRepositories } from '../../../infrastructure/repositories/domainRepositories';
 import { loadMongoDishesInPostgresOrder } from '../../../shared/db/dishIdMapping';
 import { toDishDto } from '../../dishes/dto/dishDto';
-import { getPostgresPool } from '../../../shared/db/postgresClient';
+import { queryPostgres } from '../../../shared/db/postgresClient';
 import { AppError } from '../../../core/errors/AppError';
 import { requirePremiumFeature } from '../../entitlements/services/featureAccessService';
 
 type HistoryRow = {
-  session_id: string;
-  started_at: Date;
-  completed_at: Date | null;
-  session_status: string;
-  partner_name?: string | null;
-  dish_ids: string[];
+  session_id: string; started_at: Date; completed_at: Date | null;
+  session_status: string; partner_name?: string | null;
+  dish_count: number | string; dish_ids: string[];
 };
+interface Dependencies {
+  query: typeof queryPostgres;
+  hydrateDishes: (ids: string[]) => Promise<ReturnType<typeof toDishDto>[]>;
+  requireHistoryAccess: (userId: string) => Promise<void>;
+}
+
+// Count every result, but select only preview IDs for list hydration. Detail
+// queries preserve ownership predicates and load IDs for one requested session.
+function soloQuery(detail: boolean) {
+  return `select s.id session_id,s.created_at started_at,s.completed_at,s.status session_status,
+    (select count(*) from swipes w where w.solo_session_id=s.id and w.user_id=$1 and w.mode='solo' and w.direction='like') dish_count,
+    array(select w.dish_id from swipes w where w.solo_session_id=s.id and w.user_id=$1 and w.mode='solo' and w.direction='like'
+      order by w.created_at desc,w.id ${detail ? '' : 'limit 3'}) dish_ids
+    from solo_swipe_sessions s where s.user_id=$1 ${detail ? 'and s.id=$2' : ''}
+    order by coalesce(s.completed_at,s.updated_at) desc ${detail ? 'limit 1' : ''}`;
+}
+function pairQuery(detail: boolean) {
+  return `select c.id session_id,c.created_at started_at,c.closed_at completed_at,c.status session_status,partner.display_name partner_name,
+    (select count(*) from matches m where m.couple_session_id=c.id and m.mode='paired') dish_count,
+    array(select m.dish_id from matches m where m.couple_session_id=c.id and m.mode='paired'
+      order by m.created_at desc,m.id ${detail ? '' : 'limit 3'}) dish_ids
+    from couple_sessions c left join lateral (
+      select p.display_name from profiles p where p.id=any(c.member_ids) and p.id<>$1 limit 1
+    ) partner on true where $1=any(c.member_ids) ${detail ? 'and c.id=$2' : ''}
+    order by coalesce(c.closed_at,c.updated_at) desc ${detail ? 'limit 1' : ''}`;
+}
 
 export class MatchService {
+  private readonly dependencies: Dependencies;
+  constructor(dependencies: Partial<Dependencies> = {}) {
+    this.dependencies = {
+      query: queryPostgres,
+      hydrateDishes: async (ids) => (await loadMongoDishesInPostgresOrder(ids)).map(toDishDto).filter(Boolean),
+      requireHistoryAccess: (userId) => requirePremiumFeature(userId, 'session_history', 'PREMIUM_SESSION_HISTORY_REQUIRED'),
+      ...dependencies,
+    };
+  }
   async listForCouple(coupleId:string){const matches=await domainRepositories.matches.listForCouple(coupleId);const dishes=await loadMongoDishesInPostgresOrder(matches.map(m=>m.dishId));return matches.map((m,i)=>({id:m.id,coupleId:m.coupleSessionId,users:[],createdAt:m.createdAt,dish:toDishDto(dishes[i])})).filter(x=>x.dish);}
 
   async historyForUser(userId: string) {
-    await requirePremiumFeature(userId,'session_history','PREMIUM_SESSION_HISTORY_REQUIRED');
+    await this.dependencies.requireHistoryAccess(userId);
     const [soloRows, pairRows] = await Promise.all([
-      getPostgresPool().query<HistoryRow>(
-        `select s.id session_id, s.created_at started_at, s.status session_status,
-                s.completed_at, coalesce(array_agg(w.dish_id order by w.created_at desc) filter(where w.dish_id is not null),'{}') dish_ids
-           from solo_swipe_sessions s
-           left join swipes w on w.solo_session_id=s.id and w.user_id=$1
-             and w.mode='solo' and w.direction='like'
-          where s.user_id=$1
-          group by s.id, s.status
-          order by coalesce(s.completed_at,s.updated_at) desc`,
-        [userId],
-      ),
-      getPostgresPool().query<HistoryRow>(
-        `select c.id session_id, c.created_at started_at, c.status session_status,
-                c.closed_at completed_at, partner.display_name partner_name,
-                coalesce(array_agg(m.dish_id order by m.created_at desc) filter(where m.dish_id is not null),'{}') dish_ids
-           from couple_sessions c
-           left join matches m on m.couple_session_id=c.id and m.mode='paired'
-           left join lateral (
-             select p.display_name from profiles p
-              where p.id=any(c.member_ids) and p.id<>$1 limit 1
-           ) partner on true
-          where $1=any(c.member_ids)
-          group by c.id, c.status, partner.display_name
-          order by coalesce(c.closed_at,c.updated_at) desc`,
-        [userId],
-      ),
+      this.dependencies.query<HistoryRow>(soloQuery(false), [userId]),
+      this.dependencies.query<HistoryRow>(pairQuery(false), [userId]),
     ]);
-    return {
-      solo: await Promise.all(soloRows.rows.map((row) => this.historyDto(row))),
-      pair: await Promise.all(pairRows.rows.map((row) => this.historyDto(row, row.partner_name))),
-    };
+    const previewIds = [...new Set([...soloRows.rows, ...pairRows.rows].flatMap((row) => row.dish_ids.slice(0, 3)))];
+    const dishes = previewIds.length ? await this.dependencies.hydrateDishes(previewIds) : [];
+    const byId = new Map(dishes.filter(Boolean).map((dish) => [String(dish!.id), dish]));
+    const dto = (row: HistoryRow) => ({
+      ...this.metadata(row), previewDishes: row.dish_ids.slice(0, 3).map((id) => byId.get(id)).filter(Boolean),
+    });
+    return { solo: soloRows.rows.map(dto), pair: pairRows.rows.map(dto) };
   }
 
-  async historySessionForUser(userId:string,sessionId:string){
-    const history=await this.historyForUser(userId);
-    const solo=history.solo.find(session=>session.sessionId===sessionId);
-    if(solo)return{...solo,mode:'solo'};
-    const pair=history.pair.find(session=>session.sessionId===sessionId);
-    if(pair)return{...pair,mode:'pair'};
-    throw new AppError('Historical session not found.',404,'SESSION_HISTORY_NOT_FOUND');
+  async historySessionForUser(userId: string, sessionId: string) {
+    await this.dependencies.requireHistoryAccess(userId);
+    const solo = await this.dependencies.query<HistoryRow>(soloQuery(true), [userId, sessionId]);
+    let row = solo.rows[0];
+    let mode = 'solo';
+    if (!row) {
+      const pair = await this.dependencies.query<HistoryRow>(pairQuery(true), [userId, sessionId]);
+      row = pair.rows[0];
+      mode = 'pair';
+    }
+    if (!row) throw new AppError('Historical session not found.', 404, 'SESSION_HISTORY_NOT_FOUND');
+    const dishes = row.dish_ids.length ? await this.dependencies.hydrateDishes(row.dish_ids) : [];
+    return { ...this.metadata(row), mode, previewDishes: dishes.slice(0, 3), dishes };
   }
-
-  private async historyDto(row: HistoryRow, partnerName?: string | null) {
-    const dishes = (await loadMongoDishesInPostgresOrder(row.dish_ids))
-      .map(toDishDto)
-      .filter(Boolean);
+  private metadata(row: HistoryRow) {
     return {
-      sessionId: row.session_id,
-      startedAt: row.started_at,
-      completedAt: row.completed_at,
-      status: row.session_status,
-      partnerName: partnerName ?? null,
-      dishCount: dishes.length,
-      previewDishes: dishes.slice(0, 3),
-      dishes,
+      sessionId: row.session_id, startedAt: row.started_at, completedAt: row.completed_at,
+      status: row.session_status, partnerName: row.partner_name ?? null, dishCount: Number(row.dish_count),
     };
   }
 }
