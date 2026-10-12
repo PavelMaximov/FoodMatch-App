@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
 import '../animations/app_motion.dart';
 import 'app_route_transitions.dart';
@@ -19,6 +20,9 @@ import '../../features/favorites/presentation/screens/favorites_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/profile/presentation/screens/profile_detail_screens.dart';
 import '../../features/premium/presentation/premium_screen.dart';
+import '../../features/premium/domain/effective_entitlements.dart';
+import '../../features/premium/domain/premium_entry_point.dart';
+import '../../features/premium/logic/premium_provider.dart';
 import '../../features/recipes/presentation/screens/recipes_screen.dart';
 import '../../features/shopping_list/presentation/screens/shopping_list_screen.dart';
 import '../../features/swipes/presentation/screens/swipes_screen.dart';

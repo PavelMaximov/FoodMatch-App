@@ -5,8 +5,9 @@ import { EffectiveEntitlements, PremiumFeature, RewardedGrantRecord, Subscriptio
 export interface EntitlementRepository { findSubscription(userId:string):Promise<SubscriptionRecord|null>; findActiveGrants(userId:string,now:Date):Promise<RewardedGrantRecord[]> }
 
 export class PostgresEntitlementRepository implements EntitlementRepository {
-  async findSubscription(userId:string){const r=await queryPostgres<any>('select tier,status,provider,product_id,current_period_start,expires_at,trial_ends_at,updated_at from user_subscriptions where user_id=$1',[userId]);const x=r.rows[0];return x?{tier:x.tier,status:x.status,provider:x.provider,productId:x.product_id,currentPeriodStart:x.current_period_start,expiresAt:x.expires_at,trialEndsAt:x.trial_ends_at,updatedAt:x.updated_at}:null;}
-  async findActiveGrants(userId:string,now:Date){const r=await queryPostgres<any>("select feature,created_at,expires_at,consumed_at,status from rewarded_feature_grants where user_id=$1 and status='active' and consumed_at is null and expires_at>$2",[userId,now]);return r.rows.map(x=>({feature:x.feature,createdAt:x.created_at,expiresAt:x.expires_at,consumedAt:x.consumed_at,status:x.status}));}
+  constructor(private readonly query: typeof queryPostgres = queryPostgres) {}
+  async findSubscription(userId:string){const r=await this.query<any>('select tier,status,provider,product_id,current_period_start,expires_at,trial_ends_at,updated_at from user_subscriptions where user_id=$1',[userId]);const x=r.rows[0];return x?{tier:x.tier,status:x.status,provider:x.provider,productId:x.product_id,currentPeriodStart:x.current_period_start,expiresAt:x.expires_at,trialEndsAt:x.trial_ends_at,updatedAt:x.updated_at}:null;}
+  async findActiveGrants(userId:string,now:Date){const r=await this.query<any>("select feature,created_at,expires_at,consumed_at,status from rewarded_feature_grants where user_id=$1 and status='active' and consumed_at is null and expires_at>$2",[userId,now]);return r.rows.map(x=>({feature:x.feature,createdAt:x.created_at,expiresAt:x.expires_at,consumedAt:x.consumed_at,status:x.status}));}
 }
 
 const premiumFeatures = {adFree:true,advancedFilters:true,unlimitedCustomDishes:true,sessionHistory:true,shoppingList:true,sharedShoppingList:true,smartDeck:true,recipeImport:true,favoriteCollections:true,servingScaling:true};
@@ -14,17 +15,41 @@ const freeFeatures = {adFree:false,advancedFilters:false,unlimitedCustomDishes:f
 
 export class EntitlementService {
   constructor(private readonly repository:EntitlementRepository=new PostgresEntitlementRepository()){}
+  async resolveEffectiveEntitlements(userId: string, now = new Date()): Promise<EffectiveEntitlements> {
+    const subscription = await this.repository.findSubscription(userId);
+    const grants = await this.repository.findActiveGrants(userId, now);
+    return this.compute(subscription, grants, now);
+  }
   async getEffectiveEntitlements(userId:string,now=new Date()):Promise<EffectiveEntitlements>{
-    // Fail closed: callers receive Free if entitlement storage is unavailable.
-    try { return this.compute(await this.repository.findSubscription(userId),await this.repository.findActiveGrants(userId,now),now); }
+    // Authorization may deny access on failure, but client resolution must use
+    // the strict path so an outage is never mistaken for confirmed Free.
+    try { return await this.resolveEffectiveEntitlements(userId, now); }
     catch(error){console.error('[Entitlements] resolution failed; denying Premium',error);return this.compute(null,[],now);}
   }
   compute(subscription:SubscriptionRecord|null,grants:RewardedGrantRecord[]=[],now=new Date()):EffectiveEntitlements{
     const status=subscription?.status??'none';
-    const validStatus=status==='active'||status==='trialing';
-    const notExpired=!subscription?.expiresAt||subscription.expiresAt.getTime()>now.getTime();
+    const validStatus = status === 'active' || status === 'trialing' || status === 'grace_period' || status === 'cancelled';
+    const expiry = subscription?.expiresAt ?? (status === 'trialing' ? subscription?.trialEndsAt : null);
+    const notExpired = expiry !== null && expiry !== undefined && expiry.getTime() > now.getTime();
     const isPremium=subscription?.tier==='premium'&&validStatus&&notExpired;
     return {tier:isPremium?'premium':'free',isPremium,subscription:{status,productId:subscription?.productId??null,expiresAt:subscription?.expiresAt?.toISOString()??null,trialEndsAt:subscription?.trialEndsAt?.toISOString()??null},features:{...(isPremium?premiumFeatures:freeFeatures)},limits:{customDishes:isPremium?null:3},rewardedGrants:Object.fromEntries(grants.filter(g=>g.status==='active'&&!g.consumedAt&&g.expiresAt>now).map(g=>[g.feature,g.expiresAt.toISOString()]))};
+  }
+  async canUseFeature(userId: string, feature: PremiumFeature, now = new Date()): Promise<boolean> {
+    const value = await this.getEffectiveEntitlements(userId, now);
+    const featureNames: Record<PremiumFeature, keyof EffectiveEntitlements['features']> = {
+      ad_free: 'adFree', advanced_filters: 'advancedFilters', unlimited_custom_dishes: 'unlimitedCustomDishes',
+      session_history: 'sessionHistory', shopping_list: 'shoppingList', shared_shopping_list: 'sharedShoppingList',
+      smart_deck: 'smartDeck', recipe_import: 'recipeImport', favorite_collections: 'favoriteCollections', serving_scaling: 'servingScaling',
+    };
+    if (value.features[featureNames[feature]]) return true;
+    const grants = { advanced_filters: 'advanced_filters_once', shopping_list: 'shopping_list_once', session_history: 'session_history_once', smart_deck: 'smart_deck_once' } as const;
+    const grant = grants[feature as keyof typeof grants];
+    const expiresAt = grant ? value.rewardedGrants[grant] : undefined;
+    return expiresAt !== undefined && new Date(expiresAt).getTime() > now.getTime();
+  }
+  async resolvePairSharedShoppingList(session: Pick<CoupleSessionRecord, 'memberIds'>, now = new Date()): Promise<boolean> {
+    const members = await Promise.all(session.memberIds.map((id) => this.resolveEffectiveEntitlements(id, now)));
+    return members.some((value) => value.features.sharedShoppingList);
   }
   async canPairUseFeature(session:Pick<CoupleSessionRecord,'memberIds'>,feature:PremiumFeature){if(feature!=='shared_shopping_list')return false;const members=await Promise.all(session.memberIds.map(id=>this.getEffectiveEntitlements(id)));return members.some(x=>x.features.sharedShoppingList);}
 }

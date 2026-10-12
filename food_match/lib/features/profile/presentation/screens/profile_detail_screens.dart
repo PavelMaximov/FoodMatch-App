@@ -120,7 +120,7 @@ class _MatchHistorySessionScreenState extends State<MatchHistorySessionScreen> {
   void initState() {
     super.initState();
     _session = widget.initialSession;
-    if (_session == null) _load();
+    _load();
   }
 
   Future<void> _load() async {
@@ -146,7 +146,7 @@ class _MatchHistorySessionScreenState extends State<MatchHistorySessionScreen> {
     if (oldWidget.sessionId == widget.sessionId) return;
     _requestGeneration++;
     _session = widget.initialSession;
-    if (_session == null) _load();
+    _load();
   }
 
   @override

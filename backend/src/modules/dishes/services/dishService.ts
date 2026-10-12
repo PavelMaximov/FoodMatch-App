@@ -1,19 +1,46 @@
 import { AppError } from '../../../core/errors/AppError';
-import { postgresDishes } from '../../../infrastructure/postgres/repositories/PostgresCatalogRepositories';
+import { postgresDishes, PostgresDishRepository } from '../../../infrastructure/postgres/repositories/PostgresCatalogRepositories';
 import { toDishDto } from '../dto/dishDto';
-import { entitlementService } from '../../entitlements/services/entitlementService';
+import { EntitlementService, PostgresEntitlementRepository } from '../../entitlements/services/entitlementService';
+import { queryPostgres, withPostgresAdvisoryLock } from '../../../shared/db/postgresClient';
 
 export interface DishListFilters { search?:string;cuisine?:string[];type?:string[];mood?:string[];diet?:string[];effort?:string;popular?:boolean;source?:string;season?:string[];mealType?:string[];maxCookTime?:number;maxTotalTime?:number;timeTier?:string[];maxIngredients?:number;minCalories?:number;maxCalories?:number }
 export interface DishListOptions extends DishListFilters { limit:number;offset:number;sort?:string }
 export interface PaginatedDishResult {items:any[];total:number;limit:number;offset:number;hasMore:boolean}
 interface CreateCustomDishInput {name:string;cuisine:string;mood:string|string[];dishRegister:string;type?:string;description?:string;diet?:string[];source?:string[];season?:string[];ingredients:Array<{name:string;quantity?:string;unit?:string}>;cookTime:number;servings:string;steps:Array<{step:number;text:string}>;imageUrl?:string;imagePublicId?:string}
+interface CustomDishDependencies {
+  withLock: typeof withPostgresAdvisoryLock;
+  entitlements: (query: typeof queryPostgres) => Pick<EntitlementService, 'getEffectiveEntitlements'>;
+  dishes: (query: typeof queryPostgres) => Pick<PostgresDishRepository, 'countMyCustomDishes' | 'createCustomDish'>;
+}
 export class DishService {
+ private readonly custom: CustomDishDependencies;
+ constructor(custom: Partial<CustomDishDependencies> = {}) {
+   this.custom = {
+     withLock: withPostgresAdvisoryLock,
+     entitlements: (query) => new EntitlementService(new PostgresEntitlementRepository(query)),
+     dishes: (query) => new PostgresDishRepository(query),
+     ...custom,
+   };
+ }
  async listDishes(userId:string,query?:string,returnAll=false){let rows=await postgresDishes.listLightweight(userId);if(query)rows=this.filter(rows,{search:query});return rows.slice(0,returnAll?undefined:50).map(toDishDto).filter(Boolean);}
  async listDishesPage(userId:string,o:DishListOptions):Promise<PaginatedDishResult>{let rows=this.filter(await postgresDishes.listLightweight(userId),o);if(o.sort==='cookTime')rows.sort((a,b)=>(a.cookTime??0)-(b.cookTime??0)||a.name.localeCompare(b.name));const total=rows.length,items=rows.slice(o.offset,o.offset+o.limit).map(toDishDto).filter(Boolean);return{items,total,limit:o.limit,offset:o.offset,hasMore:o.offset+items.length<total};}
  async searchDishes(userId:string,q:string){return this.listDishes(userId,q);}
  async getDishById(userId:string,id:string){const d=await postgresDishes.getByPublicId(id.trim());if(!d||!this.visible(d,userId))throw new AppError('Dish not found',404,'DISH_NOT_FOUND');return toDishDto(d);}
  async getRandomDish(userId:string){const all=await postgresDishes.list(userId);if(!all.length)throw new AppError('Dish not found',404,'DISH_NOT_FOUND');return toDishDto(all[Math.floor(Math.random()*all.length)]);}
- async createCustomDish(userId:string,input:CreateCustomDishInput){const entitlement=await entitlementService.getEffectiveEntitlements(userId);const count=await postgresDishes.countMyCustomDishes(userId);if(entitlement.limits.customDishes!==null&&count>=entitlement.limits.customDishes)throw new AppError('Premium is required to create more custom dishes.',403,'PREMIUM_CUSTOM_DISH_LIMIT',{limit:entitlement.limits.customDishes});return toDishDto(await postgresDishes.createCustomDish(userId,this.clean(input)));}
+ async createCustomDish(userId: string, input: CreateCustomDishInput) {
+   return this.custom.withLock(`custom-dish-limit:${userId}`, async (query) => {
+     // Resolution, count and all creation queries use the locked transaction's
+     // client. Other requests for this user must wait for its commit/rollback.
+     const entitlement = await this.custom.entitlements(query).getEffectiveEntitlements(userId);
+     const dishes = this.custom.dishes(query);
+     const count = await dishes.countMyCustomDishes(userId);
+     if (entitlement.limits.customDishes !== null && count >= entitlement.limits.customDishes) {
+       throw new AppError('Premium is required to create more custom dishes.', 403, 'PREMIUM_CUSTOM_DISH_LIMIT', {limit: entitlement.limits.customDishes});
+     }
+     return toDishDto(await dishes.createCustomDish(userId, this.clean(input)));
+   });
+ }
  async updateMyCustomDish(userId:string,id:string,input:CreateCustomDishInput){const result=await postgresDishes.updateCustomDish(userId,id,this.clean(input));if(result==='forbidden')throw new AppError('You can only edit your own dishes.',403,'CUSTOM_DISH_FORBIDDEN');if(!result)throw new AppError('Custom dish not found',404,'CUSTOM_DISH_NOT_FOUND');return toDishDto(result);}
  async listMyCustomDishes(userId:string){return (await postgresDishes.listMyCustomDishes(userId)).map(toDishDto).filter(Boolean);}
  async deleteMyCustomDish(userId:string,id:string){const result=await postgresDishes.deleteCustomDish(userId,id);if(result==='forbidden')throw new AppError('You can only delete your own dishes.',403,'CUSTOM_DISH_FORBIDDEN');if(result==='missing')throw new AppError('Custom dish not found',404,'CUSTOM_DISH_NOT_FOUND');return{deleted:true};}

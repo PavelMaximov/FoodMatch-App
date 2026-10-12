@@ -20,6 +20,7 @@ import '../../../../data/services/api_service.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../couple/logic/couple_provider.dart';
 import '../../../premium/logic/premium_provider.dart';
+import '../../../premium/domain/effective_entitlements.dart';
 import '../../../../shared/widgets/media/safe_avatar_image.dart';
 import '../widgets/profile_premium_banner.dart';
 
