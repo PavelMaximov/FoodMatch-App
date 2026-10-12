@@ -38,11 +38,11 @@ class ShoppingListIngredientInput {
 }
 
 class ShoppingListProvider extends ChangeNotifier {
-  ShoppingListProvider({ShoppingListStorage? storage,SharedShoppingListDataSource? sharedRepository})
+  ShoppingListProvider({ShoppingListStorage? storage,SharedShoppingListRepository? sharedRepository})
       : _storage = storage ?? ShoppingListStorage(),_sharedRepository=sharedRepository;
 
   final ShoppingListStorage _storage;
-  final SharedShoppingListDataSource? _sharedRepository;
+  final SharedShoppingListRepository? _sharedRepository;
   String? _sharedSessionId;
   int _scopeGeneration=0;
   bool get isShared=>_sharedSessionId!=null;

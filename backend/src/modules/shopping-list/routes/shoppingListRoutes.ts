@@ -7,7 +7,6 @@ const router=Router(),service=new SharedShoppingListService();
 router.use(authMiddleware,noStore);
 router.get('/shared',asyncHandler(async(req:AuthRequest,res)=>{res.json(await service.list(req.user!.id));}));
 router.post('/shared/items',asyncHandler(async(req:AuthRequest,res)=>{res.status(201).json(await service.add(req.user!.id,req.body??{}));}));
-router.patch('/shared/reorder',asyncHandler(async(req:AuthRequest,res)=>{res.json(await service.reorder(req.user!.id,req.body?.itemIds));}));
 router.patch('/shared/items/:id',asyncHandler(async(req:AuthRequest,res)=>{res.json(await service.update(req.user!.id,String(req.params.id),req.body??{}));}));
 router.delete('/shared/items/:id',asyncHandler(async(req:AuthRequest,res)=>{res.json(await service.remove(req.user!.id,String(req.params.id)));}));
 export default router;

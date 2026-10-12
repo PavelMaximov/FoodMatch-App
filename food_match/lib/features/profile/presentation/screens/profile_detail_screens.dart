@@ -129,7 +129,9 @@ class _MatchHistorySessionScreenState extends State<MatchHistorySessionScreen> {
     final int generation = ++_requestGeneration;
     setState(() => _isLoading = true);
     try {
-      final MatchHistorySession? session = await (widget.loader?.call(widget.sessionId) ?? context.read<MatchHistoryRepository>().getSession(widget.sessionId));
+      final MatchHistorySession? session = await context
+          .read<MatchHistoryRepository>()
+          .getSession(widget.sessionId);
       if (!mounted || generation != _requestGeneration) return;
       setState(() => _session = session);
     } catch (_) {

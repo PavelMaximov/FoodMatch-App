@@ -9,9 +9,9 @@ export function hasAdvancedFilters(payload:unknown):boolean{
   return ADVANCED_FILTER_KEYS.some(key=>Array.isArray(value[key])?value[key]!.length>0:value[key]!==undefined&&value[key]!==null&&value[key]!=='');
 }
 
-export async function requireAdvancedFilterAccess(userId:string,payload:unknown,access:Pick<typeof entitlementService,'canUseFeature'>=entitlementService):Promise<void>{
+export async function requireAdvancedFilterAccess(userId:string,payload:unknown):Promise<void>{
   if(!hasAdvancedFilters(payload))return;
-  if(!await access.canUseFeature(userId,'advanced_filters'))throw new AppError('FoodMatch Premium is required for advanced filters.',403,'PREMIUM_ADVANCED_FILTERS_REQUIRED',{feature:'advanced_filters'});
+  if(!await entitlementService.canUseFeature(userId,'advanced_filters'))throw new AppError('FoodMatch Premium is required for advanced filters.',403,'PREMIUM_ADVANCED_FILTERS_REQUIRED',{feature:'advanced_filters'});
 }
 
 export async function requirePremiumFeature(userId:string,feature:'shopping_list'|'session_history',code:string):Promise<void>{
