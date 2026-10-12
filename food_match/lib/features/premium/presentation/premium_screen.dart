@@ -1,75 +1,52 @@
 import 'package:flutter/material.dart';
-import '../../../core/theme/theme_extensions.dart';
-import '../domain/premium_entry_point.dart';
 
-class PremiumScreen extends StatelessWidget {
+import '../domain/premium_entry_point.dart';
+import 'premium_plan_presentation.dart';
+import 'widgets/premium_widgets.dart';
+
+class PremiumScreen extends StatefulWidget {
   const PremiumScreen({
     super.key,
     this.entryPoint = PremiumEntryPoint.overview,
   });
+
   final PremiumEntryPoint entryPoint;
+
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Premium')),
-    body: ListView(
-      padding: const EdgeInsets.all(24),
-      children: <Widget>[
-        Icon(
-          Icons.workspace_premium_rounded,
-          size: 72,
-          color: context.fmColors.primary,
-        ),
-        const SizedBox(height: 16),
-        Text(
-          entryPoint.title,
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 12),
-        Text(entryPoint.subtitle, textAlign: TextAlign.center),
-        const SizedBox(height: 20),
-        for (final item in const [
-          'No ads',
-          'Advanced filters',
-          'Unlimited custom dishes',
-          'Session history',
-          'Shopping lists',
-        ])
-          ListTile(
-            leading: const Icon(Icons.check_circle_outline),
-            title: Text(item),
-          ),
-        const SizedBox(height: 16),
-        const _Plan(title: 'Monthly', price: '€3.99 / month'),
-        const SizedBox(height: 12),
-        const _Plan(
-          title: 'Yearly',
-          price: '€29.99 / year',
-          detail: '7 days free',
-        ),
-        const SizedBox(height: 20),
-        // TODO(IAP): Replace fallback prices and offer text with localized store product metadata.
-        const FilledButton(
-          onPressed: null,
-          child: Text('Subscriptions coming soon'),
-        ),
-      ],
-    ),
-  );
+  State<PremiumScreen> createState() => _PremiumScreenState();
 }
 
-class _Plan extends StatelessWidget {
-  const _Plan({required this.title, required this.price, this.detail});
-  final String title, price;
-  final String? detail;
+class _PremiumScreenState extends State<PremiumScreen> {
+  PremiumPlanSelection _selection = PremiumPlanSelection.yearly;
+
   @override
-  Widget build(BuildContext context) => Card(
-    child: ListTile(
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-      subtitle: detail == null ? null : Text(detail!),
-      trailing: Text(
-        price,
-        style: const TextStyle(fontWeight: FontWeight.w700),
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: PremiumPalette.background,
+    body: SafeArea(
+      child: SingleChildScrollView(
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+              child: Column(
+                children: [
+                  PremiumHero(entryPoint: widget.entryPoint),
+                  const SizedBox(height: 28),
+                  const PremiumBenefitsCard(),
+                  const SizedBox(height: 20),
+                  PremiumPlansSection(
+                    selection: _selection,
+                    onSelected: (value) => setState(() => _selection = value),
+                  ),
+                  const SizedBox(height: 28),
+                  const PremiumLegalDisclaimer(),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     ),
   );
