@@ -15,9 +15,15 @@ const freeFeatures = {adFree:false,advancedFilters:false,unlimitedCustomDishes:f
 
 export class EntitlementService {
   constructor(private readonly repository:EntitlementRepository=new PostgresEntitlementRepository()){}
+  async resolveEffectiveEntitlements(userId: string, now = new Date()): Promise<EffectiveEntitlements> {
+    const subscription = await this.repository.findSubscription(userId);
+    const grants = await this.repository.findActiveGrants(userId, now);
+    return this.compute(subscription, grants, now);
+  }
   async getEffectiveEntitlements(userId:string,now=new Date()):Promise<EffectiveEntitlements>{
-    // Fail closed: callers receive Free if entitlement storage is unavailable.
-    try { return this.compute(await this.repository.findSubscription(userId),await this.repository.findActiveGrants(userId,now),now); }
+    // Authorization may deny access on failure, but client resolution must use
+    // the strict path so an outage is never mistaken for confirmed Free.
+    try { return await this.resolveEffectiveEntitlements(userId, now); }
     catch(error){console.error('[Entitlements] resolution failed; denying Premium',error);return this.compute(null,[],now);}
   }
   compute(subscription:SubscriptionRecord|null,grants:RewardedGrantRecord[]=[],now=new Date()):EffectiveEntitlements{
@@ -40,6 +46,10 @@ export class EntitlementService {
     const grant = grants[feature as keyof typeof grants];
     const expiresAt = grant ? value.rewardedGrants[grant] : undefined;
     return expiresAt !== undefined && new Date(expiresAt).getTime() > now.getTime();
+  }
+  async resolvePairSharedShoppingList(session: Pick<CoupleSessionRecord, 'memberIds'>, now = new Date()): Promise<boolean> {
+    const members = await Promise.all(session.memberIds.map((id) => this.resolveEffectiveEntitlements(id, now)));
+    return members.some((value) => value.features.sharedShoppingList);
   }
   async canPairUseFeature(session:Pick<CoupleSessionRecord,'memberIds'>,feature:PremiumFeature){if(feature!=='shared_shopping_list')return false;const members=await Promise.all(session.memberIds.map(id=>this.getEffectiveEntitlements(id)));return members.some(x=>x.features.sharedShoppingList);}
 }
