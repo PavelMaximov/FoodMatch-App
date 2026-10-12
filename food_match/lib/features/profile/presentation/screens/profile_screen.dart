@@ -232,8 +232,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const _SectionLabel('Your FoodMatch'),
             _NavigationGroup(children: <Widget>[
               _DashboardRow(icon: Icons.bookmark_border_rounded, label: 'Favorites', onTap: () => context.push('/favorites')),
-              _DashboardRow(icon: Icons.shopping_basket_outlined, label: 'Grocery List', onTap: () => context.push('/shopping-list')),
-              _DashboardRow(icon: Icons.history_rounded, label: 'Match History', onTap: () => context.push('/profile/match-history')),
+              _DashboardRow(icon: Icons.shopping_basket_outlined, label: 'Shopping List', locked: !(context.watch<PremiumProvider>().canUse(PremiumFeature.shoppingList) || context.watch<PremiumProvider>().canUse(PremiumFeature.sharedShoppingList)), onTap: () => context.push('/shopping-list')),
+              _DashboardRow(icon: Icons.history_rounded, label: 'Session History', locked: !context.watch<PremiumProvider>().canUse(PremiumFeature.sessionHistory), onTap: () => context.push('/profile/match-history')),
             ]),
             const SizedBox(height: 24),
             const _SectionLabel('App & Support'),
@@ -349,7 +349,8 @@ class _NavigationGroup extends StatelessWidget {
 }
 
 class _DashboardRow extends StatelessWidget {
-  const _DashboardRow({required this.icon, required this.label, required this.onTap});
+  const _DashboardRow({required this.icon, required this.label, required this.onTap, this.locked = false});
+  final bool locked;
   final IconData icon;
   final String label;
   final VoidCallback onTap;
@@ -357,7 +358,7 @@ class _DashboardRow extends StatelessWidget {
   Widget build(BuildContext context) => ListTile(
     leading: Icon(icon, color: context.fmColors.textPrimary),
     title: Text(label, style: GoogleFonts.nunito(fontWeight: FontWeight.w700, color: context.fmColors.textPrimary)),
-    trailing: const Icon(Icons.chevron_right_rounded),
+    trailing: Icon(locked ? Icons.lock_outline_rounded : Icons.chevron_right_rounded),
     onTap: onTap,
   );
 }

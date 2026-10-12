@@ -19,6 +19,14 @@ export interface DeckRecommendationFilters {
   moods: string[];
   diet: string[];
   exclusions: string[];
+  maxCookTime?: number;
+  maxTotalTime?: number;
+  minCalories?: number;
+  maxCalories?: number;
+  calories?: string[];
+  effort?: string[];
+  ingredients?: string[];
+  season?: string[];
 }
 
 export interface DeckRecommendationHistoryEntry {
@@ -107,7 +115,7 @@ export function buildRecommendedDeck(input: BuildRecommendedDeckInput): BuildRec
     if (matched) excludedByExclusionsCount += 1;
     return !matched;
   });
-  const candidates = afterExclusions.filter((dish) => matchesStrictDiet(dish, filters.diet));
+  const candidates = afterExclusions.filter((dish) => matchesStrictDiet(dish, filters.diet)&&matchesAdvancedFilters(dish,filters));
   const excludedByDietCount = afterExclusions.length - candidates.length;
 
   const initialScores = candidates.map((dish) => weightedPreferenceScore(dish, filters, recencyScore(dish, recentlySeenDishIds)));
@@ -187,7 +195,7 @@ export function buildPairSharedRecommendedDeck(input: BuildPairRecommendedDeckIn
     if (matched) excludedByExclusionsCount += 1;
     return !matched;
   });
-  const candidates = afterExclusions.filter((dish) => matchesStrictDiet(dish, hardFilters.diet));
+  const candidates = afterExclusions.filter((dish) => matchesStrictDiet(dish, hardFilters.diet)&&matchesAdvancedFilters(dish,hardFilters));
   const excludedByDietCount = afterExclusions.length - candidates.length;
 
   const strongCandidateCount = candidates.filter((dish) => input.users.every((user) => weightedPreferenceScore(dish, normalizeFilters(user.filters), 1) >= MIN_STRONG_SCORE)).length;
@@ -512,7 +520,29 @@ function normalizeFilters(filters: DeckRecommendationFilters): DeckRecommendatio
     moods: normalizeList(filters.moods),
     diet: normalizeList(filters.diet),
     exclusions: normalizeList(filters.exclusions).map((value) => value.replace(/ /g, '_'))
+    ,maxCookTime: filters.maxCookTime
+    ,maxTotalTime: filters.maxTotalTime
+    ,minCalories: filters.minCalories
+    ,maxCalories: filters.maxCalories
+    ,calories: normalizeList(filters.calories)
+    ,effort: normalizeList(filters.effort)
+    ,ingredients: normalizeList(filters.ingredients)
+    ,season: normalizeList(filters.season)
   };
+}
+
+function matchesAdvancedFilters(dish:DishDocument,filters:DeckRecommendationFilters){
+  const cook=Number(dish.cookTime??dish.cook_time_minutes??0),total=Number(dish.totalTime??dish.total_time_minutes??cook);
+  if(filters.maxCookTime!==undefined&&cook>filters.maxCookTime)return false;
+  if(filters.maxTotalTime!==undefined&&total>filters.maxTotalTime)return false;
+  if(filters.calories?.length&&!filters.calories.includes(normalize(String(dish.calories??dish.calories_level??''))))return false;
+  const numericCalories=Number(dish.caloriesValue??dish.calories_value);
+  if(filters.minCalories!==undefined&&(!Number.isFinite(numericCalories)||numericCalories<filters.minCalories))return false;
+  if(filters.maxCalories!==undefined&&(!Number.isFinite(numericCalories)||numericCalories>filters.maxCalories))return false;
+  if(filters.effort?.length&&!filters.effort.includes(normalize(String(dish.effort??''))))return false;
+  if(filters.season?.length&&!normalizeList(dish.season).some(value=>filters.season!.includes(value)||value==='all'))return false;
+  if(filters.ingredients?.length){const haystack=normalizeList(dish.ingredients).join(' ');if(!filters.ingredients.every(value=>haystack.includes(value)))return false;}
+  return true;
 }
 
 function normalizeList(values?: string[]) {

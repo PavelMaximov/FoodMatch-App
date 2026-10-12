@@ -87,7 +87,9 @@ class AppRouter {
                 key: state.pageKey,
                 transitionDuration: const Duration(milliseconds: 380),
                 reverseTransitionDuration: const Duration(milliseconds: 300),
-                child: const ShoppingListScreen(),
+                child: (context.watch<PremiumProvider>().canUse(PremiumFeature.shoppingList) || context.watch<PremiumProvider>().canUse(PremiumFeature.sharedShoppingList))
+                    ? const ShoppingListScreen()
+                    : const PremiumScreen(entryPoint: PremiumEntryPoint.shoppingList),
                 transitionsBuilder: slideFromRightFadeTransition,
               ),
             ),
@@ -168,19 +170,19 @@ class AppRouter {
                         GoRoute(path: 'premium', builder: (_, __) => const PremiumScreen()),
                         GoRoute(
                           path: 'match-history',
-                          builder: (_, __) => const MatchHistoryScreen(),
+                          builder: (BuildContext context, __) => context.watch<PremiumProvider>().canUse(PremiumFeature.sessionHistory) ? const MatchHistoryScreen() : const PremiumScreen(entryPoint: PremiumEntryPoint.sessionHistory),
                           routes: <RouteBase>[
                             GoRoute(
                               path: 'session/:sessionId',
-                              builder: (_, GoRouterState state) =>
-                                  MatchHistorySessionScreen(
+                              builder: (BuildContext context, GoRouterState state) =>
+                                  context.watch<PremiumProvider>().canUse(PremiumFeature.sessionHistory) ? MatchHistorySessionScreen(
                                     sessionId:
                                         state.pathParameters['sessionId']!,
                                     initialSession:
                                         state.extra is MatchHistorySession
                                         ? state.extra! as MatchHistorySession
                                         : null,
-                                  ),
+                                  ) : const PremiumScreen(entryPoint: PremiumEntryPoint.sessionHistory),
                             ),
                           ],
                         ),

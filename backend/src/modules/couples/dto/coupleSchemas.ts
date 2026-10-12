@@ -17,6 +17,14 @@ const rawCoupleFilterChoicesSchema = z.object({
   moods: stringList.max(50).optional(),
   diet: stringList.max(50).optional(),
   exclusions: stringList.max(50).optional()
+  ,maxCookTime: z.number().int().nonnegative().optional()
+  ,maxTotalTime: z.number().int().nonnegative().optional()
+  ,minCalories: z.number().int().nonnegative().optional()
+  ,maxCalories: z.number().int().nonnegative().optional()
+  ,calories: stringList.max(10).optional()
+  ,effort: stringList.max(10).optional()
+  ,ingredients: stringList.max(30).optional()
+  ,season: stringList.max(10).optional()
 }).strict();
 
 function normalizedList(values: unknown): string[] {
@@ -47,7 +55,15 @@ export const coupleFilterChoicesSchema = rawCoupleFilterChoicesSchema.transform(
     cuisines: selectedCuisines,
     moods: normalizedList(value.moods),
     diet: normalizedList(value.diet),
-    exclusions: normalizedList(value.exclusions)
+    exclusions: normalizedList(value.exclusions),
+    maxCookTime: value.maxCookTime,
+    maxTotalTime: value.maxTotalTime,
+    minCalories: value.minCalories,
+    maxCalories: value.maxCalories,
+    calories: normalizedList(value.calories),
+    effort: normalizedList(value.effort),
+    ingredients: normalizedList(value.ingredients),
+    season: normalizedList(value.season)
   };
 });
 

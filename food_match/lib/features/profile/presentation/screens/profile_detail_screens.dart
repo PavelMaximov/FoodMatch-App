@@ -114,6 +114,7 @@ class MatchHistorySessionScreen extends StatefulWidget {
 class _MatchHistorySessionScreenState extends State<MatchHistorySessionScreen> {
   MatchHistorySession? _session;
   bool _isLoading = false;
+  int _requestGeneration = 0;
 
   @override
   void initState() {
@@ -123,19 +124,29 @@ class _MatchHistorySessionScreenState extends State<MatchHistorySessionScreen> {
   }
 
   Future<void> _load() async {
+    final int generation = ++_requestGeneration;
     setState(() => _isLoading = true);
     try {
       final MatchHistorySession? session = await context
           .read<MatchHistoryRepository>()
           .getSession(widget.sessionId);
-      if (!mounted) return;
+      if (!mounted || generation != _requestGeneration) return;
       setState(() => _session = session);
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || generation != _requestGeneration) return;
       setState(() => _session = null);
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted && generation == _requestGeneration) setState(() => _isLoading = false);
     }
+  }
+
+  @override
+  void didUpdateWidget(covariant MatchHistorySessionScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.sessionId == widget.sessionId) return;
+    _requestGeneration++;
+    _session = widget.initialSession;
+    if (_session == null) _load();
   }
 
   @override
@@ -179,6 +190,7 @@ class _MatchHistorySessionScreenState extends State<MatchHistorySessionScreen> {
                   ? 'Liked dish'
                   : 'Mutual match',
             ),
+            onTap: () => context.push('/recipe-detail/${dish.id}', extra: dish),
           ),
       ]),
     ],
