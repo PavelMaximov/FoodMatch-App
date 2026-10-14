@@ -53,7 +53,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   mainAxisSize: fallback ? MainAxisSize.min : MainAxisSize.max,
-                  spacing: compact ? 10 : 16,
+                  spacing: compact ? (scale > 1.1 ? 2 : 10) : 16,
                   children: [
                     PremiumHero(crownHeight: compact ? 72 : 90),
                     const PremiumBenefitsCard(),

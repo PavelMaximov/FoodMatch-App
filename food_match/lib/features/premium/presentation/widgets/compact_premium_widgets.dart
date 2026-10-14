@@ -73,7 +73,7 @@ class PremiumBenefitsCard extends StatelessWidget {
   const PremiumBenefitsCard({super.key});
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(12),
+    padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
       color: context.fmColors.card,
       border: Border.all(color: context.fmColors.border),
@@ -92,7 +92,7 @@ class PremiumBenefitsCard extends StatelessWidget {
                 description: 'Enjoy a clean and focused experience.',
               ),
             ),
-            SizedBox(width: 12),
+            SizedBox(width: 14),
             Expanded(
               child: PremiumBenefit(
                 icon: Icons.history,
@@ -112,7 +112,7 @@ class PremiumBenefitsCard extends StatelessWidget {
                 description: 'Turn recipes into organized shopping lists.',
               ),
             ),
-            SizedBox(width: 12),
+            SizedBox(width: 14),
             Expanded(
               child: PremiumBenefit(
                 icon: Icons.restaurant_menu,
@@ -139,7 +139,7 @@ class PremiumBenefit extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
-    spacing: 5,
+    spacing: 6,
     children: [
       Row(
         children: [
@@ -154,18 +154,18 @@ class PremiumBenefit extends StatelessWidget {
               child: Icon(icon, size: 18, color: context.fmColors.primary),
             ),
           ),
-          const SizedBox(width: 7),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               title,
-              style: premiumText(context, 13, weight: FontWeight.w800),
+              style: premiumText(context, 14, weight: FontWeight.w800),
             ),
           ),
         ],
       ),
       Text(
         description,
-        style: premiumText(context, 12, color: context.fmColors.textSecondary),
+        style: premiumText(context, 13, color: context.fmColors.textSecondary),
       ),
     ],
   );
@@ -247,10 +247,10 @@ class PremiumPlanCard extends StatelessWidget {
             child: InkWell(
               onTap: onSelected,
               child: Padding(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(14),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  spacing: 8,
+                  spacing: 9,
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Row(

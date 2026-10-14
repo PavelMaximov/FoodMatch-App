@@ -22,11 +22,11 @@ class PremiumFoodBackground extends StatelessWidget {
               fit: StackFit.expand,
               clipBehavior: Clip.none,
               children: [
-                // Both food objects end above the hero heading. The tomato
-                // peeks around the close control; the bowl shows about a third.
+                // Recognizable cropped food stays in the corners, clear of the
+                // heading; the tomato begins below the status-bar inset.
                 Positioned(
-                  left: -tomatoSize * .46,
-                  top: top - tomatoSize * .18,
+                  left: -tomatoSize * .23,
+                  top: top,
                   child: _FoodAsset(
                     'tomato',
                     size: tomatoSize,
@@ -34,13 +34,13 @@ class PremiumFoodBackground extends StatelessWidget {
                   ),
                 ),
                 Positioned(
-                  right: -bowlSize * .70,
-                  top: top - bowlSize * .62,
+                  right: -bowlSize * .48,
+                  top: top - bowlSize * .52,
                   child: _FoodAsset('bowl', size: bowlSize, opacity: opacity),
                 ),
                 // Herbs hug the outer edges and the gap above the plan cards.
                 Positioned(
-                  left: -leafSize * .72,
+                  left: -leafSize * .25,
                   top: constraints.maxHeight * .30,
                   child: Transform.rotate(
                     angle: -.35,
@@ -52,7 +52,7 @@ class PremiumFoodBackground extends StatelessWidget {
                   ),
                 ),
                 Positioned(
-                  right: -leafSize * .20,
+                  right: -leafSize * .10,
                   top: constraints.maxHeight * .50,
                   child: Transform.rotate(
                     angle: 2.6,
