@@ -38,6 +38,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/empty_states/
+    - assets/premium/
     - assets/profile/
     - assets/media/
     - assets/icons/

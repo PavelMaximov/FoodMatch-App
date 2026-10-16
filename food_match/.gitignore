@@ -17,3 +17,5 @@ build/
 /.flutter-plugins-dependencies
 /linux/flutter/ephemeral/
 /macos/Flutter/ephemeral/
+
+/backend/tmp/supabase-export/

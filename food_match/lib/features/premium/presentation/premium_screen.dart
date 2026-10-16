@@ -1,76 +1,110 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/theme_extensions.dart';
+import '../../../core/theme/notification_theme.dart';
+import '../../../core/utils/food_match_notifications.dart';
 import '../domain/premium_entry_point.dart';
+import 'premium_plan_presentation.dart';
+import 'widgets/compact_premium_widgets.dart';
+import 'widgets/premium_food_background.dart';
 
-class PremiumScreen extends StatelessWidget {
+class PremiumScreen extends StatefulWidget {
   const PremiumScreen({
     super.key,
     this.entryPoint = PremiumEntryPoint.overview,
   });
   final PremiumEntryPoint entryPoint;
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Premium')),
-    body: ListView(
-      padding: const EdgeInsets.all(24),
-      children: <Widget>[
-        Icon(
-          Icons.workspace_premium_rounded,
-          size: 72,
-          color: context.fmColors.primary,
-        ),
-        const SizedBox(height: 16),
-        Text(
-          entryPoint.title,
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 12),
-        Text(entryPoint.subtitle, textAlign: TextAlign.center),
-        const SizedBox(height: 20),
-        for (final item in const [
-          'No ads',
-          'Advanced filters',
-          'Unlimited custom dishes',
-          'Session history',
-          'Shopping lists',
-        ])
-          ListTile(
-            leading: const Icon(Icons.check_circle_outline),
-            title: Text(item),
-          ),
-        const SizedBox(height: 16),
-        const _Plan(title: 'Monthly', price: '€3.99 / month'),
-        const SizedBox(height: 12),
-        const _Plan(
-          title: 'Yearly',
-          price: '€29.99 / year',
-          detail: '7 days free',
-        ),
-        const SizedBox(height: 20),
-        // TODO(IAP): Replace fallback prices and offer text with localized store product metadata.
-        const FilledButton(
-          onPressed: null,
-          child: Text('Subscriptions coming soon'),
-        ),
-      ],
-    ),
-  );
+  State<PremiumScreen> createState() => _PremiumScreenState();
 }
 
-class _Plan extends StatelessWidget {
-  const _Plan({required this.title, required this.price, this.detail});
-  final String title, price;
-  final String? detail;
+class _PremiumScreenState extends State<PremiumScreen> {
+  PremiumPlanSelection _selection = PremiumPlanSelection.yearly;
+
+  void _comingSoon() {
+    // TODO(IAP): Delegate purchase and restore to the real purchase coordinator.
+    FoodMatchNotifications.show(
+      context,
+      type: FoodMatchNotificationType.info,
+      title: 'Subscriptions coming soon',
+    );
+  }
+
   @override
-  Widget build(BuildContext context) => Card(
-    child: ListTile(
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-      subtitle: detail == null ? null : Text(detail!),
-      trailing: Text(
-        price,
-        style: const TextStyle(fontWeight: FontWeight.w700),
-      ),
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: context.fmColors.background,
+    body: Stack(
+      fit: StackFit.expand,
+      children: [
+        const PremiumFoodBackground(),
+        SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final scale = MediaQuery.textScalerOf(context).scale(14) / 14;
+              final compact = constraints.maxHeight < 820;
+              final fallback =
+                  constraints.maxHeight < 640 ||
+                  (scale > 1.3 && constraints.maxHeight < 800) ||
+                  scale > 1.6;
+              final content = Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  mainAxisSize: fallback ? MainAxisSize.min : MainAxisSize.max,
+                  spacing: compact ? (scale > 1.1 ? 2 : 10) : 16,
+                  children: [
+                    PremiumHero(crownHeight: compact ? 110 : 120),
+                    const PremiumBenefitsCard(),
+                    PremiumPlansSection(
+                      selection: _selection,
+                      onSelected: (value) => setState(() => _selection = value),
+                    ),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        key: const ValueKey('premium-cta'),
+                        onPressed: _comingSoon,
+                        style: FilledButton.styleFrom(
+                          backgroundColor:
+                              context.fmColors.buttonPrimaryBackground,
+                          foregroundColor: context.fmColors.buttonPrimaryText,
+                          minimumSize: const Size(44, 48),
+                          textStyle: premiumText(
+                            context,
+                            17,
+                            weight: FontWeight.w800,
+                          ),
+                          shape: const StadiumBorder(),
+                        ),
+                        child: Text(
+                          _selection == PremiumPlanSelection.yearly
+                              ? PremiumPlanPresentation.yearly.cta
+                              : PremiumPlanPresentation.monthly.cta,
+                        ),
+                      ),
+                    ),
+                    PremiumFooter(onRestore: _comingSoon),
+                  ],
+                ),
+              );
+              return Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 480),
+                  child: fallback
+                      ? SingleChildScrollView(
+                          key: const ValueKey('premium-accessibility-scroll'),
+                          child: content,
+                        )
+                      : SizedBox(height: constraints.maxHeight, child: content),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     ),
   );
 }
