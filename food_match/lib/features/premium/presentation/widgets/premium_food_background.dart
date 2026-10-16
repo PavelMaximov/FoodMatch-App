@@ -12,10 +12,10 @@ class PremiumFoodBackground extends StatelessWidget {
           final width = constraints.maxWidth;
           final top = MediaQuery.paddingOf(context).top;
           final isDark = Theme.of(context).brightness == Brightness.dark;
-          final tomatoSize = (width * .23).clamp(70.0, 100.0);
-          final bowlSize = (width * .43).clamp(130.0, 190.0);
-          final leafSize = (width * .105).clamp(30.0, 50.0);
-          final opacity = isDark ? .68 : .38;
+          final tomatoSize = (width * .33).clamp(70.0, 100.0);
+          final bowlSize = (width * .63).clamp(130.0, 190.0);
+          final leafSize = (width * .125).clamp(30.0, 50.0);
+          final opacity = isDark ? .68 : .78;
 
           return ClipRect(
             child: Stack(
@@ -25,7 +25,7 @@ class PremiumFoodBackground extends StatelessWidget {
                 // Recognizable cropped food stays in the corners, clear of the
                 // heading; the tomato begins below the status-bar inset.
                 Positioned(
-                  left: -tomatoSize * .23,
+                  left: -tomatoSize * .10,
                   top: top,
                   child: _FoodAsset(
                     'tomato',
@@ -34,13 +34,13 @@ class PremiumFoodBackground extends StatelessWidget {
                   ),
                 ),
                 Positioned(
-                  right: -bowlSize * .48,
-                  top: top - bowlSize * .52,
+                  right: -bowlSize * .28,
+                  top: top - bowlSize * .45,
                   child: _FoodAsset('bowl', size: bowlSize, opacity: opacity),
                 ),
                 // Herbs hug the outer edges and the gap above the plan cards.
                 Positioned(
-                  left: -leafSize * .25,
+                  left: -leafSize * .20,
                   top: constraints.maxHeight * .30,
                   child: Transform.rotate(
                     angle: -.35,

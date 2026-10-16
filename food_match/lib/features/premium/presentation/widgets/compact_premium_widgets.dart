@@ -27,11 +27,30 @@ class PremiumHero extends StatelessWidget {
         child: Stack(
           children: [
             Center(
-              child: ExcludeSemantics(
-                child: Image.asset(
-                  'assets/profile/premium_crown_icon.png',
-                  height: crownHeight,
-                ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Container(
+                    width: crownHeight * .9,
+                    height: crownHeight * .5,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: context.fmColors.accent.withValues(alpha: .32),
+                          blurRadius: 28,
+                          spreadRadius: 8,
+                        ),
+                      ],
+                    ),
+                  ),
+                  ExcludeSemantics(
+                    child: Image.asset(
+                      'assets/profile/premium_crown_stars.png',
+                      height: crownHeight,
+                    ),
+                  ),
+                ],
               ),
             ),
             Align(
@@ -57,13 +76,13 @@ class PremiumHero extends StatelessWidget {
         child: Text(
           'Unlock Premium',
           textAlign: TextAlign.center,
-          style: premiumText(context, 29, weight: FontWeight.w900),
+          style: premiumText(context, 35, weight: FontWeight.w900),
         ),
       ),
       Text(
         'Get more powerful tools for smarter\nmeal planning.',
         textAlign: TextAlign.center,
-        style: premiumText(context, 14, color: context.fmColors.textSecondary),
+        style: premiumText(context, 16, color: context.fmColors.textSecondary),
       ),
     ],
   );
@@ -73,14 +92,14 @@ class PremiumBenefitsCard extends StatelessWidget {
   const PremiumBenefitsCard({super.key});
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(14),
+    padding: const EdgeInsets.all(17),
     decoration: BoxDecoration(
       color: context.fmColors.card,
       border: Border.all(color: context.fmColors.border),
       borderRadius: BorderRadius.circular(18),
     ),
     child: const Column(
-      spacing: 12,
+      spacing: 18,
       children: [
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -88,6 +107,8 @@ class PremiumBenefitsCard extends StatelessWidget {
             Expanded(
               child: PremiumBenefit(
                 icon: Icons.block,
+                iconColor: Color.fromRGBO(252, 252, 252, 1),
+                iconBackgroundColor: Color.fromRGBO(248, 87, 34, 1),
                 title: 'No ads',
                 description: 'Enjoy a clean and focused experience.',
               ),
@@ -96,6 +117,8 @@ class PremiumBenefitsCard extends StatelessWidget {
             Expanded(
               child: PremiumBenefit(
                 icon: Icons.history,
+                iconColor: Color.fromRGBO(252, 252, 252, 1),
+                iconBackgroundColor: Color.fromRGBO(223, 66, 85, 1),
                 title: 'Session history',
                 description: 'Revisit your previous FoodMatch sessions.',
               ),
@@ -108,6 +131,8 @@ class PremiumBenefitsCard extends StatelessWidget {
             Expanded(
               child: PremiumBenefit(
                 icon: Icons.shopping_cart_outlined,
+                iconColor: Color.fromRGBO(252, 252, 252, 1),
+                iconBackgroundColor: Color.fromRGBO(121, 184, 54, 1),
                 title: 'Shopping lists',
                 description: 'Turn recipes into organized shopping lists.',
               ),
@@ -116,6 +141,8 @@ class PremiumBenefitsCard extends StatelessWidget {
             Expanded(
               child: PremiumBenefit(
                 icon: Icons.restaurant_menu,
+                iconColor: Color.fromRGBO(252, 252, 252, 1),
+                iconBackgroundColor: Color.fromRGBO(254, 169, 53, 1),
                 title: 'Unlimited custom dishes',
                 description: 'Create and save your own dishes without limits.',
               ),
@@ -133,9 +160,13 @@ class PremiumBenefit extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.description,
+    this.iconColor,
+    this.iconBackgroundColor,
   });
   final IconData icon;
   final String title, description;
+  final Color? iconColor;
+  final Color? iconBackgroundColor;
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -145,20 +176,24 @@ class PremiumBenefit extends StatelessWidget {
         children: [
           ExcludeSemantics(
             child: Container(
-              width: 28,
-              height: 28,
+              width: 34,
+              height: 34,
               decoration: BoxDecoration(
-                color: context.fmColors.primarySoft,
+                color: iconBackgroundColor ?? context.fmColors.primarySoft,
                 borderRadius: BorderRadius.circular(9),
               ),
-              child: Icon(icon, size: 18, color: context.fmColors.primary),
+              child: Icon(
+                icon,
+                size: 20,
+                color: iconColor ?? context.fmColors.primary,
+              ),
             ),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               title,
-              style: premiumText(context, 14, weight: FontWeight.w800),
+              style: premiumText(context, 16, weight: FontWeight.w800),
             ),
           ),
         ],
@@ -250,7 +285,7 @@ class PremiumPlanCard extends StatelessWidget {
                 padding: const EdgeInsets.all(14),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  spacing: 9,
+                  spacing: 12,
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Row(

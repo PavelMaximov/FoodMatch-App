@@ -55,7 +55,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                   mainAxisSize: fallback ? MainAxisSize.min : MainAxisSize.max,
                   spacing: compact ? (scale > 1.1 ? 2 : 10) : 16,
                   children: [
-                    PremiumHero(crownHeight: compact ? 72 : 90),
+                    PremiumHero(crownHeight: compact ? 110 : 120),
                     const PremiumBenefitsCard(),
                     PremiumPlansSection(
                       selection: _selection,
