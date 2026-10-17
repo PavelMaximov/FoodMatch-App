@@ -302,6 +302,62 @@ void main() {
     expect(badgeController.badgeCount, 1);
     expect(badgeController.bumpToken, bumpToken);
   });
+
+  test('next card is available before the first response; writes stay ordered', () async {
+    await provider.loadDeck();
+    fakeSwipeRepo.holdSwipes = true;
+    final first = provider.like();
+    expect(provider.currentIndex, 1);
+    expect(provider.canAcceptSwipe, isTrue);
+    expect(provider.canUndo, isFalse);
+    final second = provider.dislike();
+    expect(provider.currentIndex, 2);
+    await Future<void>.delayed(Duration.zero);
+    expect(fakeSwipeRepo.sentSwipes, <(String, String)>[('1', 'like')]);
+    fakeSwipeRepo.requests.first.complete(<String, dynamic>{});
+    await first;
+    await Future<void>.delayed(Duration.zero);
+    expect(fakeSwipeRepo.sentSwipes, <(String, String)>[('1', 'like'), ('2', 'dislike')]);
+    fakeSwipeRepo.requests.last.complete(<String, dynamic>{});
+    await second;
+    expect(provider.isSendingSwipe, isFalse);
+    expect(provider.canUndo, isTrue);
+  });
+
+  test('failed write restores its card and cancels queued writes', () async {
+    await provider.loadDeck();
+    fakeSwipeRepo.holdSwipes = true;
+    final first = provider.like();
+    final second = provider.dislike();
+    await Future<void>.delayed(Duration.zero);
+    fakeSwipeRepo.requests.first.completeError(const ApiException('Rejected', statusCode: 400));
+    await Future.wait([first, second]);
+    expect(provider.currentIndex, 0);
+    expect(provider.isSendingSwipe, isFalse);
+    expect(provider.error, isNotNull);
+    expect(fakeSwipeRepo.sentSwipes, hasLength(1));
+    final retry = provider.like();
+    await Future<void>.delayed(Duration.zero);
+    fakeSwipeRepo.requests.last.complete(<String, dynamic>{});
+    await retry;
+    expect(provider.currentIndex, 1);
+  });
+
+  test('deck reset drops queued writes and ignores the old response', () async {
+    await provider.loadDeck();
+    fakeSwipeRepo.holdSwipes = true;
+    final first = provider.like();
+    final second = provider.dislike();
+    await Future<void>.delayed(Duration.zero);
+    provider.clearForLogout();
+    fakeSwipeRepo.requests.first.complete(<String, dynamic>{});
+    await Future.wait([first, second]);
+    expect(provider.deck, isEmpty);
+    expect(provider.currentIndex, 0);
+    expect(provider.canUndo, isFalse);
+    expect(fakeSwipeRepo.sentSwipes, hasLength(1));
+  });
+
 }
 
 class _FakeDishRepository extends DishRepository {
@@ -324,6 +380,8 @@ class _FakeSwipeRepository extends SwipeRepository {
   List<Dish> soloSessionDishes = <Dish>[];
   dynamic swipeResult = <String, dynamic>{};
   Completer<dynamic>? pendingUndo;
+  bool holdSwipes = false;
+  final requests = <Completer<dynamic>>[];
   dynamic undoResult = <String, dynamic>{};
 
   @override
@@ -347,6 +405,11 @@ class _FakeSwipeRepository extends SwipeRepository {
     String? soloSessionId,
   }) async {
     sentSwipes.add((dishId, direction));
+    if (holdSwipes) {
+      final completer = Completer<dynamic>();
+      requests.add(completer);
+      return completer.future;
+    }
     return swipeResult;
   }
 

@@ -17,6 +17,7 @@ class SwipeDeckView extends StatelessWidget {
     required this.onUndo,
     required this.onInfoTap,
     required this.onSwipe,
+    required this.onTransitionChanged,
   });
 
   final SwipeProvider provider;
@@ -27,24 +28,27 @@ class SwipeDeckView extends StatelessWidget {
   final VoidCallback onUndo;
   final void Function(BuildContext context, Dish dish) onInfoTap;
   final ValueChanged<SwipeDirection> onSwipe;
+  final ValueChanged<bool> onTransitionChanged;
 
   @override
   Widget build(BuildContext context) {
     return SwipeableStack(
       key: stackKey,
-      itemCount: provider.deck.length - provider.currentIndex,
+      onTransitionChanged: onTransitionChanged,
+      itemCount: provider.deck.length,
+      currentIndex: provider.currentIndex,
       canSwipe: !provider.isLoading &&
-          !provider.isSendingSwipe &&
+          provider.canAcceptSwipe &&
           !isCardActionInProgress,
       cardBuilder: (BuildContext context, int index) {
-        final dish = provider.deck[provider.currentIndex + index];
+        final dish = provider.deck[index];
         return SwipeCardWidget(
           key: ValueKey<String>(dish.id),
           dish: dish,
-          onLike: provider.isLoading || provider.isSendingSwipe || isCardActionInProgress
+          onLike: !provider.canAcceptSwipe || isCardActionInProgress
               ? null
               : onLike,
-          onDislike: provider.isLoading || provider.isSendingSwipe || isCardActionInProgress
+          onDislike: !provider.canAcceptSwipe || isCardActionInProgress
               ? null
               : onDislike,
           onBack: provider.canUndo && !provider.isSendingSwipe && !isCardActionInProgress
