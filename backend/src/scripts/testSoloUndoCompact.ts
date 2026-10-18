@@ -1,9 +1,14 @@
+import * as postgres from '../shared/db/postgresClient';
 import assert from 'assert';
 import { domainRepositories } from '../infrastructure/repositories/domainRepositories';
 import { postgresDishes } from '../infrastructure/postgres/repositories/PostgresCatalogRepositories';
 import { SoloSwipeService } from '../modules/solo-swipes/services/soloSwipeService';
 
 async function main() {
+  const originalTransaction = postgres.withPostgresTransaction;
+  const originalQuery = postgres.queryPostgres;
+  (postgres as any).withPostgresTransaction = async (task:()=>Promise<unknown>) => task();
+  (postgres as any).queryPostgres = async () => ({rows:[]});
   const session = { id: 'session', userId: 'user', status: 'active', currentIndex: 1, deckDishIds: ['dish', 'next'], filters: {}, meta: {} };
   const sessions = domainRepositories.soloSessions;
   const swipes = domainRepositories.swipes;
@@ -15,7 +20,7 @@ async function main() {
     sessions.findByIdForUser = async () => session as any;
     sessions.update = async () => ({ ...session, currentIndex: 0 }) as any;
     swipes.deleteLatest = async () => ({ id: 'swipe', dishId: 'dish', direction: 'like' }) as any;
-    swipes.listForUserSession = async () => [];
+    swipes.listForUserSession = async () => [{id:'swipe',dishId:'dish',direction:'like'}] as any;
     matches.listForSoloSession = async () => removed ? [] : [{ id: 'match', dishId: 'dish' }] as any;
     matches.deleteSolo = async () => { removed = true; };
     postgresDishes.getByIds = async () => { hydrated++; return []; };
@@ -36,6 +41,8 @@ async function main() {
     assert(Array.isArray((noOp.session as any).dishes), 'unsuccessful undo must reconcile the deck');
     console.log('PASS compact undo skips hydration; legacy and no-op responses retain full decks');
   } finally {
+    (postgres as any).withPostgresTransaction = originalTransaction;
+    (postgres as any).queryPostgres = originalQuery;
     [sessions.findByIdForUser, sessions.update, swipes.deleteLatest, swipes.listForUserSession, matches.listForSoloSession, matches.deleteSolo, postgresDishes.getByIds] = originals;
   }
 }

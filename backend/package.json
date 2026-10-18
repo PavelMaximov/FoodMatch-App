@@ -6,7 +6,7 @@
   "scripts": {
     "test:solo-undo-compact": "SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_SERVICE_ROLE_KEY=test-only ts-node src/scripts/testSoloUndoCompact.ts",
     "test:entitlements": "SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_SERVICE_ROLE_KEY=test-only ts-node src/scripts/testEntitlements.ts",
-    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "dev": "node --watch -r ts-node/register/transpile-only src/server.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "lint": "tsc --noEmit",
@@ -78,14 +78,15 @@
     "supabase:rls:check": "ts-node scripts/checkSupabaseRls.ts",
     "test:production-readiness": "ts-node src/scripts/testProductionReadiness.ts",
     "test:env-validation": "ts-node src/scripts/testEnvironmentValidation.ts",
-    "check:backend": "npm run build && npm run lint && npm run audit:no-mongo-runtime && npm run audit:secrets && npm run test:catalog-regressions && npm run test:solo-undo-compact",
+    "check:backend": "npm run build && npm run lint && npm run audit:no-mongo-runtime && npm run audit:secrets && npm run test:catalog-regressions && npm run test:solo-undo-compact && npm run test:audit-hardening",
     "test:premium-features": "SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_SERVICE_ROLE_KEY=test-only ts-node src/scripts/testPremiumFeatureGates.ts",
-    "test:premium-services": "SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_SERVICE_ROLE_KEY=test-only ts-node src/scripts/testPremiumServices.ts"
+    "test:premium-services": "SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_SERVICE_ROLE_KEY=test-only ts-node src/scripts/testPremiumServices.ts",
+    "test:audit-hardening": "SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_SERVICE_ROLE_KEY=test-only ts-node src/scripts/testAuditHardening.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.109.0",
     "cloudinary": "^2.10.0",
-    "compression": "^1.8.1",
+    "compression": "^1.8.2",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.2",
@@ -109,7 +110,6 @@
     "mongoose": "^8.24.4",
     "supabase": "^2.114.0",
     "ts-node": "^10.9.2",
-    "ts-node-dev": "^2.0.0",
     "typescript": "^5.8.2"
   },
   "overrides": {
