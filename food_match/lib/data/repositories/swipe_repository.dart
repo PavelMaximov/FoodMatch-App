@@ -13,6 +13,7 @@ class SwipeRepository {
     required String dishId,
     required String direction,
     String? soloSessionId,
+    String? coupleSessionId,
   }) async {
     if (soloSessionId != null) {
       return _apiService.post(ApiConstants.soloSwipe(soloSessionId), {
@@ -21,6 +22,7 @@ class SwipeRepository {
       });
     }
     return _apiService.post(ApiConstants.swipes, {
+      if (coupleSessionId != null) 'coupleSessionId': coupleSessionId,
       'dishId': dishId,
       'direction': direction,
     });
