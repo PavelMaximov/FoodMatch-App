@@ -1,3 +1,4 @@
+import '../../domain/premium_purchase.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/theme_extensions.dart';
@@ -211,7 +212,9 @@ class PremiumPlansSection extends StatelessWidget {
     super.key,
     required this.selection,
     required this.onSelected,
+    this.products = const [],
   });
+  final List<PremiumStoreProduct> products;
   final PremiumPlanSelection selection;
   final ValueChanged<PremiumPlanSelection> onSelected;
   @override
@@ -229,7 +232,10 @@ class PremiumPlansSection extends StatelessWidget {
               const SizedBox(width: 10),
             Expanded(
               child: PremiumPlanCard(
-                plan: plan,
+                plan: PremiumPlanPresentation.forSelection(
+                  plan.selection,
+                  products,
+                ),
                 selected: selection == plan.selection,
                 onSelected: () => onSelected(plan.selection),
               ),

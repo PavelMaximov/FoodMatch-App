@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../domain/premium_purchase.dart';
+import '../logic/premium_purchase_coordinator.dart';
+import '../logic/premium_provider.dart';
 import '../../../core/theme/theme_extensions.dart';
 import '../../../core/theme/notification_theme.dart';
 import '../../../core/utils/food_match_notifications.dart';
@@ -11,8 +15,10 @@ class PremiumScreen extends StatefulWidget {
   const PremiumScreen({
     super.key,
     this.entryPoint = PremiumEntryPoint.overview,
+    this.purchaseCoordinator = const UnavailablePremiumPurchaseCoordinator(),
   });
   final PremiumEntryPoint entryPoint;
+  final PremiumPurchaseCoordinator purchaseCoordinator;
   @override
   State<PremiumScreen> createState() => _PremiumScreenState();
 }
@@ -20,12 +26,39 @@ class PremiumScreen extends StatefulWidget {
 class _PremiumScreenState extends State<PremiumScreen> {
   PremiumPlanSelection _selection = PremiumPlanSelection.yearly;
 
-  void _comingSoon() {
-    // TODO(IAP): Delegate purchase and restore to the real purchase coordinator.
+  late final PremiumPurchaseController _purchases = PremiumPurchaseController(
+    coordinator: widget.purchaseCoordinator,
+    refreshEntitlements: () => context.read<PremiumProvider>().forceRefresh(),
+  );
+  List<PremiumStoreProduct> _products = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProducts();
+  }
+
+  Future<void> _loadProducts() async {
+    try {
+      final products = await widget.purchaseCoordinator.loadProducts();
+      if (mounted) setState(() => _products = products);
+    } catch (_) {
+      // Store outages keep the marketing fallback visible.
+    }
+  }
+
+  Future<void> _operate({bool restore = false}) async {
+    _purchases.selection = _selection == PremiumPlanSelection.monthly
+        ? PremiumProduct.monthly
+        : PremiumProduct.yearly;
+    final result = await (restore
+        ? _purchases.restore()
+        : _purchases.purchase());
+    if (!mounted || result.message == null) return;
     FoodMatchNotifications.show(
       context,
       type: FoodMatchNotificationType.info,
-      title: 'Subscriptions coming soon',
+      title: result.message!,
     );
   }
 
@@ -59,13 +92,14 @@ class _PremiumScreenState extends State<PremiumScreen> {
                     const PremiumBenefitsCard(),
                     PremiumPlansSection(
                       selection: _selection,
+                      products: _products,
                       onSelected: (value) => setState(() => _selection = value),
                     ),
                     SizedBox(
                       width: double.infinity,
                       child: FilledButton(
                         key: const ValueKey('premium-cta'),
-                        onPressed: _comingSoon,
+                        onPressed: () => _operate(),
                         style: FilledButton.styleFrom(
                           backgroundColor:
                               context.fmColors.buttonPrimaryBackground,
@@ -79,13 +113,14 @@ class _PremiumScreenState extends State<PremiumScreen> {
                           shape: const StadiumBorder(),
                         ),
                         child: Text(
-                          _selection == PremiumPlanSelection.yearly
-                              ? PremiumPlanPresentation.yearly.cta
-                              : PremiumPlanPresentation.monthly.cta,
+                          PremiumPlanPresentation.forSelection(
+                            _selection,
+                            _products,
+                          ).cta,
                         ),
                       ),
                     ),
-                    PremiumFooter(onRestore: _comingSoon),
+                    PremiumFooter(onRestore: () => _operate(restore: true)),
                   ],
                 ),
               );

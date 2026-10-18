@@ -14,6 +14,8 @@ import shoppingListRoutes from '../modules/shopping-list/routes/shoppingListRout
 import { env } from '../config/env';
 import { getConfigHealthResponse, isConfigHealthEnabled } from '../modules/dev/configHealth';
 
+import purchaseRoutes from '../modules/purchases/purchaseRoutes';
+
 const router = Router();
 
 router.get('/health', (_req, res) => {
@@ -34,6 +36,7 @@ router.use('/uploads', uploadRoutes);
 router.use('/solo-swipes', soloSwipeRoutes);
 router.use('/filters', filterRoutes);
 router.use('/entitlements', entitlementRoutes);
+router.use('/purchases', purchaseRoutes);
 router.use('/shopping-list', shoppingListRoutes);
 
 export default router;

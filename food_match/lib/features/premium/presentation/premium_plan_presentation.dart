@@ -1,3 +1,5 @@
+import '../domain/premium_purchase.dart';
+
 /// Display selection only; never an entitlement or purchase state.
 enum PremiumPlanSelection { monthly, yearly }
 
@@ -14,6 +16,45 @@ class PremiumPlanPresentation {
   final PremiumPlanSelection selection;
   final String title, price, suffix, detail, cta;
   final String? badge;
+
+  static PremiumPlanPresentation forSelection(
+    PremiumPlanSelection selection,
+    List<PremiumStoreProduct> products,
+  ) {
+    final fallback = selection == PremiumPlanSelection.monthly
+        ? monthly
+        : yearly;
+    final product = selection == PremiumPlanSelection.monthly
+        ? PremiumProduct.monthly
+        : PremiumProduct.yearly;
+    for (final value in products) {
+      if (value.product == product &&
+          value.availability == StoreAvailability.available) {
+        return fallback.withStoreProduct(value);
+      }
+    }
+    return fallback;
+  }
+
+  PremiumPlanPresentation withStoreProduct(PremiumStoreProduct? product) {
+    if (product == null ||
+        product.availability != StoreAvailability.available) {
+      return this;
+    }
+    final intro = product.introOffer;
+    // Real price and trial eligibility must come from store metadata.
+    final trial = intro != null && intro.eligible == true;
+    return PremiumPlanPresentation(
+      selection: selection,
+      title: title,
+      price: product.localizedPrice,
+      suffix: suffix,
+      detail: intro != null && intro.eligible == true
+          ? '${intro.period} introductory offer: ${intro.localizedPrice}'
+          : 'Cancel any time',
+      cta: trial ? 'Continue with $title offer' : 'Continue with $title',
+    );
+  }
 
   // TODO(IAP): Replace marketing fallbacks with localized store metadata,
   // introductory-offer eligibility, and calculated savings.
