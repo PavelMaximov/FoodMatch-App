@@ -21,7 +21,7 @@ async function test(name: string, fn: () => Promise<void>) { await fn(); passed+
 // Exercise the real repository SQL/control flow with a transactional test double.
 // Live PostgreSQL constraint tests also live in supabase/tests/premium_store.sql.
 function fixture() {
-  let owners = new Map<string, string>();
+  let owners = new Map<string, string | null>();
   let records = new Map<string, StoreTransaction>();
   let projections = new Map<string, string>();
   let before: [typeof owners, typeof records, typeof projections];
@@ -35,7 +35,7 @@ function fixture() {
       if (!owners.has(key)) owners.set(key, String(args[3]));
     } else if (sql.includes('select user_id from public.store_purchase_identities')) {
       const owner = owners.get(args.slice(0, 3).join(':'));
-      if (owner) rows = [{ user_id: owner }];
+      if (owners.has(args.slice(0, 3).join(':'))) rows = [{ user_id: owner }];
     } else if (sql.includes('insert into public.store_purchase_transactions')) {
       if (writesFail) throw Error('database error containing SECRET_PURCHASE_EVIDENCE');
       assert.ok(sql.includes('on conflict(provider,external_transaction_id) do update'));
@@ -79,6 +79,19 @@ async function run() {
     await assert.rejects(f.service.verifyAndSync('attacker', evidence), fails('STORE_PURCHASE_ACCOUNT_CONFLICT'));
     await assert.rejects(f.repository.persistAndProject('attacker', { ...purchase, externalTransactionId: 'renewal' }, f.projector), fails('STORE_PURCHASE_ACCOUNT_CONFLICT'));
     assert.equal(f.state().records.size, 1); assert.equal(f.state().projections.has('attacker'), false);
+  });
+  await test('deleted account identities remain reserved and cannot project Premium', async () => {
+    const f = fixture();
+    await f.repository.persistAndProject('owner', purchase, f.projector);
+    for (const key of f.state().owners.keys()) f.state().owners.set(key, null);
+    f.state().records.clear();
+    f.state().projections.clear();
+    assert.deepEqual(await f.repository.findByIdentity(purchaseIdentities(purchase)[0]), { userId: null });
+    await assert.rejects(f.repository.persistAndProject('new-account', purchase, f.projector), fails('STORE_PURCHASE_ACCOUNT_CONFLICT'));
+    await assert.rejects(f.repository.persistAndProject('new-account', { ...purchase, externalTransactionId: 'renewal-after-deletion' }, f.projector), fails('STORE_PURCHASE_ACCOUNT_CONFLICT'));
+    assert.equal(f.state().records.size, 0);
+    assert.equal(f.state().projections.size, 0);
+    assert.ok([...f.state().owners.values()].every(owner => owner === null));
   });
   await test('Google token hash globally owns multiple renewal IDs', async () => {
     const f = fixture();
