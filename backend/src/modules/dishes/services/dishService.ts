@@ -2,7 +2,7 @@ import { AppError } from '../../../core/errors/AppError';
 import { postgresDishes, PostgresDishRepository } from '../../../infrastructure/postgres/repositories/PostgresCatalogRepositories';
 import { toDishDto } from '../dto/dishDto';
 import { EntitlementService, PostgresEntitlementRepository } from '../../entitlements/services/entitlementService';
-import { queryPostgres, withPostgresAdvisoryLock } from '../../../shared/db/postgresClient';
+import { queryPostgres, withPostgresAdvisoryLock, withPostgresTransaction } from '../../../shared/db/postgresClient';
 
 export interface DishListFilters { search?:string;cuisine?:string[];type?:string[];mood?:string[];diet?:string[];effort?:string;popular?:boolean;source?:string;season?:string[];mealType?:string[];maxCookTime?:number;maxTotalTime?:number;timeTier?:string[];maxIngredients?:number;minCalories?:number;maxCalories?:number }
 export interface DishListOptions extends DishListFilters { limit:number;offset:number;sort?:string }
@@ -41,10 +41,12 @@ export class DishService {
      return toDishDto(await dishes.createCustomDish(userId, this.clean(input)));
    });
  }
- async updateMyCustomDish(userId:string,id:string,input:CreateCustomDishInput){const result=await postgresDishes.updateCustomDish(userId,id,this.clean(input));if(result==='forbidden')throw new AppError('You can only edit your own dishes.',403,'CUSTOM_DISH_FORBIDDEN');if(!result)throw new AppError('Custom dish not found',404,'CUSTOM_DISH_NOT_FOUND');return toDishDto(result);}
+ async updateMyCustomDish(userId:string,id:string,input:CreateCustomDishInput){return withPostgresTransaction(async()=>{await queryPostgres('select id from dishes where id::text=$1 or legacy_mongo_id=$1 for update',[id]);return this.updateMyCustomDishLocked(userId,id,input);});}
+ private async updateMyCustomDishLocked(userId:string,id:string,input:CreateCustomDishInput){const result=await postgresDishes.updateCustomDish(userId,id,this.clean(input));if(result==='forbidden')throw new AppError('You can only edit your own dishes.',403,'CUSTOM_DISH_FORBIDDEN');if(!result)throw new AppError('Custom dish not found',404,'CUSTOM_DISH_NOT_FOUND');return toDishDto(result);}
  async listMyCustomDishes(userId:string){return (await postgresDishes.listMyCustomDishes(userId)).map(toDishDto).filter(Boolean);}
  async deleteMyCustomDish(userId:string,id:string){const result=await postgresDishes.deleteCustomDish(userId,id);if(result==='forbidden')throw new AppError('You can only delete your own dishes.',403,'CUSTOM_DISH_FORBIDDEN');if(result==='missing')throw new AppError('Custom dish not found',404,'CUSTOM_DISH_NOT_FOUND');return{deleted:true};}
  private clean(i:CreateCustomDishInput){return{...i,name:i.name.trim(),cuisine:i.cuisine.trim(),mood:(Array.isArray(i.mood)?i.mood:[i.mood]).map(x=>x.trim()).filter(Boolean),dishRegister:i.dishRegister.trim().toLowerCase(),ingredients:i.ingredients.map(x=>({...x,name:x.name.trim()})).filter(x=>x.name),steps:i.steps.map((x,n)=>({step:x.step??n+1,text:x.text.trim()})).filter(x=>x.text),cookTime:Math.max(0,Math.trunc(i.cookTime||0)),servings:i.servings.trim()};}
  private visible(d:any,u:string){return d.status==='approved'&&(d.visibility==='public'||d.ownerId===u);}
  private filter(rows:any[],f:DishListFilters){const includes=(v:any,x?:string[])=>!x?.length||x.map(y=>y.toLowerCase()).includes(String(v??'').toLowerCase());return rows.filter(d=>(!f.search||`${d.name} ${d.description??''} ${(d.ingredients??[]).join(' ')}`.toLowerCase().includes(f.search.toLowerCase()))&&includes(d.cuisine,f.cuisine)&&includes(d.type,f.type)&&(!f.diet?.length||f.diet.every(x=>(d.diet??[]).map((y:string)=>y.toLowerCase()).includes(x.toLowerCase())))&&(f.popular===undefined||d.popular===f.popular)&&(!f.maxCookTime||(d.cookTime??0)<=f.maxCookTime));}
 }
+

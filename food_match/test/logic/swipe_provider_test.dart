@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:food_match/data/local/cache_service.dart';
 import 'package:food_match/data/local/user_profile_hive_service.dart';
 import 'package:food_match/data/models/dish.dart';
@@ -26,6 +27,7 @@ void main() {
   ];
 
   setUp(() {
+    SharedPreferences.setMockInitialValues({});
     fakeDishRepo = _FakeDishRepository()..dishes = testDishes;
     fakeSwipeRepo = _FakeSwipeRepository();
     fakeCacheService = _FakeCacheService();
@@ -40,6 +42,23 @@ void main() {
       badgeController: badgeController,
     );
     provider.currentSwipeMode = 'solo';
+  });
+
+  test('offline replay keeps failed tail and routes only the current solo scope', () async {
+    provider.setActiveUser('user');
+    provider.currentSwipeMode = 'solo';
+    provider.activeSoloSessionId = 'session';
+    await fakeCacheService.queueSwipe('wrong-user', 'like', userId: 'other', mode: 'solo', sessionId: 'session');
+    await fakeCacheService.queueSwipe('wrong-session', 'like', userId: 'user', mode: 'solo', sessionId: 'old');
+    await fakeCacheService.queueSwipe('first', 'like', userId: 'user', mode: 'solo', sessionId: 'session');
+    await fakeCacheService.queueSwipe('fail', 'dislike', userId: 'user', mode: 'solo', sessionId: 'session');
+    await fakeCacheService.queueSwipe('tail', 'like', userId: 'user', mode: 'solo', sessionId: 'session');
+    fakeSwipeRepo.failDishId = 'fail';
+    await provider.syncPendingSwipes();
+    expect(fakeSwipeRepo.sentSwipes.map((e) => e.$1), ['first', 'fail']);
+    expect(fakeSwipeRepo.sentSoloScopes, ['session', 'session']);
+    final pending = await fakeCacheService.getPendingSwipes();
+    expect(pending.map((e) => e['dishId']), ['wrong-user', 'wrong-session', 'fail', 'tail']);
   });
 
   test('loadDeck loads dishes', () async {
@@ -374,6 +393,8 @@ class _FakeCoupleRepository extends CoupleRepository {
 }
 
 class _FakeSwipeRepository extends SwipeRepository {
+  String? failDishId;
+  final List<String?> sentSoloScopes = [];
   _FakeSwipeRepository() : super(ApiService());
 
   final List<(String, String)> sentSwipes = <(String, String)>[];
@@ -403,8 +424,11 @@ class _FakeSwipeRepository extends SwipeRepository {
     required String dishId,
     required String direction,
     String? soloSessionId,
+    String? coupleSessionId,
   }) async {
     sentSwipes.add((dishId, direction));
+    sentSoloScopes.add(soloSessionId);
+    if (dishId == failDishId) throw StateError("Network unavailable");
     if (holdSwipes) {
       final completer = Completer<dynamic>();
       requests.add(completer);

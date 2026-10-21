@@ -39,14 +39,15 @@ export function purchaseIdentities(purchase: VerifiedStorePurchase): StorePurcha
   return identities.sort((a, b) => a.kind.localeCompare(b.kind));
 }
 export interface StorePurchaseRepository {
-  findByIdentity(identity: StorePurchaseIdentity): Promise<{ userId: string } | null>;
+  // A row with userId=null is reserved after deletion; only a missing row is unclaimed.
+  findByIdentity(identity: StorePurchaseIdentity): Promise<{ userId: string | null } | null>;
   persistAndProject(userId: string, purchase: VerifiedStorePurchase,
     projector: VerifiedEntitlementProjector): Promise<StoreTransaction>;
 }
 export class PostgresStorePurchaseRepository implements StorePurchaseRepository {
   constructor(private readonly pool = getPostgresPool) {}
   async findByIdentity(identity: StorePurchaseIdentity) {
-    const result = await this.pool().query<{ user_id: string }>(
+    const result = await this.pool().query<{ user_id: string | null }>(
       'select user_id from public.store_purchase_identities where provider=$1 and identity_kind=$2 and identity_value=$3',
       [identity.provider, identity.kind, identity.value]);
     return result.rows[0] ? { userId: result.rows[0].user_id } : null;
@@ -61,7 +62,7 @@ export class PostgresStorePurchaseRepository implements StorePurchaseRepository 
       for (const identity of identities) {
         await client.query(`insert into public.store_purchase_identities(provider,identity_kind,identity_value,user_id)
           values($1,$2,$3,$4) on conflict do nothing`, [identity.provider, identity.kind, identity.value, userId]);
-        const owner = await client.query<{ user_id: string }>(`select user_id from public.store_purchase_identities
+        const owner = await client.query<{ user_id: string | null }>(`select user_id from public.store_purchase_identities
           where provider=$1 and identity_kind=$2 and identity_value=$3 for update`, [identity.provider, identity.kind, identity.value]);
         if (owner.rows[0]?.user_id !== userId) throw new AppError('Purchase belongs to another account.', 409, 'STORE_PURCHASE_ACCOUNT_CONFLICT');
       }

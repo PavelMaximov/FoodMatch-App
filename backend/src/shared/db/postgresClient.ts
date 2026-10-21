@@ -1,7 +1,9 @@
-import { Pool, QueryResult, QueryResultRow } from 'pg';
+import { AsyncLocalStorage } from 'async_hooks';
+import { PoolClient, Pool, QueryResult, QueryResultRow } from 'pg';
 import { requireSupabaseDatabaseUrl } from '../../config/supabase';
 
 let pool: Pool | undefined;
+const transaction = new AsyncLocalStorage<PoolClient>();
 
 export function getPostgresPool(): Pool {
   pool ??= new Pool({ connectionString: requireSupabaseDatabaseUrl(), max: 10 });
@@ -9,7 +11,7 @@ export function getPostgresPool(): Pool {
 }
 
 export function queryPostgres<T extends QueryResultRow>(text: string, values: readonly unknown[] = []): Promise<QueryResult<T>> {
-  return getPostgresPool().query<T>(text, [...values]);
+  return (transaction.getStore() ?? getPostgresPool()).query<T>(text, [...values]);
 }
 
 export async function closePostgresPool(): Promise<void> {
@@ -35,4 +37,20 @@ export async function withPostgresAdvisoryLock<T>(
   } finally {
     client.release();
   }
+}
+
+
+/** Nested domain calls share one connection and roll back as a unit. */
+export async function withPostgresTransaction<T>(task: () => Promise<T>): Promise<T> {
+  if (transaction.getStore()) return task();
+  const client = await getPostgresPool().connect();
+  try {
+    await client.query('begin');
+    const result = await transaction.run(client, task);
+    await client.query('commit');
+    return result;
+  } catch (error) {
+    await client.query('rollback');
+    throw error;
+  } finally { client.release(); }
 }

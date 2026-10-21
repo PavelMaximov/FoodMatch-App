@@ -81,7 +81,17 @@ class CacheService {
     return prefs.containsKey(_dishesKey);
   }
 
-  Future<void> queueSwipe(String dishId, String action) async {
+  static Future<void> _queueTail = Future<void>.value();
+
+  Future<void> _mutateQueue(Future<void> Function() task) {
+    final next = _queueTail.then((_) => task());
+    _queueTail = next.then<void>((_) {}, onError: (Object _, StackTrace __) {});
+    return next;
+  }
+
+  Future<void> queueSwipe(String dishId, String action, {
+    required String userId, required String mode, required String sessionId,
+  }) => _mutateQueue(() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final String? existing = prefs.getString(_pendingSwipesKey);
     final List<Map<String, dynamic>> swipes = <Map<String, dynamic>>[];
@@ -96,6 +106,10 @@ class CacheService {
     }
 
     swipes.add(<String, dynamic>{
+      'id': '${DateTime.now().microsecondsSinceEpoch}:$userId:$sessionId:$dishId',
+      'userId': userId,
+      'mode': mode,
+      'sessionId': sessionId,
       'dishId': dishId,
       'action': action,
       'createdAt': DateTime.now().toIso8601String(),
@@ -103,7 +117,14 @@ class CacheService {
 
     await prefs.setString(_pendingSwipesKey, jsonEncode(swipes));
     AppLogger.info('CacheService: queued swipe $action on $dishId');
-  }
+  });
+
+  Future<void> acknowledgeSwipe(String id) => _mutateQueue(() async {
+    final prefs = await SharedPreferences.getInstance();
+    final pending = await getPendingSwipes();
+    pending.removeWhere((entry) => entry['id'] == id);
+    await prefs.setString(_pendingSwipesKey, jsonEncode(pending));
+  });
 
   Future<List<Map<String, dynamic>>> getPendingSwipes() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -120,11 +141,11 @@ class CacheService {
         .toList();
   }
 
-  Future<void> clearPendingSwipes() async {
+  Future<void> clearPendingSwipes() => _mutateQueue(() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.remove(_pendingSwipesKey);
     AppLogger.info('CacheService: cleared pending swipes');
-  }
+  });
 
   Future<int> get pendingSwipeCount async {
     final List<Map<String, dynamic>> swipes = await getPendingSwipes();
@@ -214,7 +235,7 @@ class CacheService {
     await prefs.remove(_matchesKey);
     await prefs.remove(_matchesCachedAtKey);
     await prefs.remove(_matchesCoupleIdKey);
-    await prefs.remove(_pendingSwipesKey);
+    await clearPendingSwipes();
     await prefs.remove(_userDisplayNameKey);
     await prefs.remove(_userEmailKey);
     await prefs.remove(_userCoupleIdKey);
@@ -231,7 +252,7 @@ class CacheService {
     await prefs.remove(_matchesKey);
     await prefs.remove(_matchesCachedAtKey);
     await prefs.remove(_matchesCoupleIdKey);
-    await prefs.remove(_pendingSwipesKey);
+    await clearPendingSwipes();
     await prefs.remove(_userDisplayNameKey);
     await prefs.remove(_userEmailKey);
     await prefs.remove(_userCoupleIdKey);
