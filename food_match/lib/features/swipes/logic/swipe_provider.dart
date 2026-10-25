@@ -743,10 +743,13 @@ class SwipeProvider extends ChangeNotifier {
   ) async {
     dynamic result;
     try {
+      await _syncPendingSwipesOrThrow();
+      if (!isCurrent()) return null;
       result = await _swipeRepository.sendSwipe(
         dishId: dish.id,
         direction: direction,
         soloSessionId: activeSoloSessionId,
+        coupleSessionId: isSoloMode ? null : _badgeController?.sessionId,
       );
       if (!isCurrent()) return null;
       final Map<String, dynamic>? response = result is Map<String, dynamic>
@@ -839,7 +842,12 @@ class SwipeProvider extends ChangeNotifier {
       var queuedOffline = false;
       if (_shouldQueueOffline(e)) {
         try {
-          await _cacheService.queueSwipe(dish.id, direction);
+          final scope = isSoloMode ? activeSoloSessionId : _badgeController?.sessionId;
+          if (_activeUserId == null || scope == null) {
+            throw StateError('Cannot queue a swipe without its owner and session');
+          }
+          await _cacheService.queueSwipe(dish.id, direction,
+            userId: _activeUserId!, mode: isSoloMode ? 'solo' : 'paired', sessionId: scope);
           queuedOffline = true;
         } catch (queueError) {
           AppLogger.error('SwipeProvider: offline queue failed', queueError);
@@ -934,6 +942,8 @@ class SwipeProvider extends ChangeNotifier {
       _isSendingSwipe = true;
       notifyListeners();
       try {
+        await _syncPendingSwipesOrThrow();
+        if (!isCurrentUndoScope()) return;
         final dynamic data = await _swipeRepository.undoSoloSwipe(
           undoSessionId,
         );
@@ -1029,32 +1039,41 @@ class SwipeProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void>? _pendingSync;
+
   Future<void> syncPendingSwipes() async {
-    final List<Map<String, dynamic>> pending = await _cacheService
-        .getPendingSwipes();
-    if (pending.isEmpty) {
-      return;
-    }
+    try { await _syncPendingSwipesOrThrow(); }
+    catch (e) { AppLogger.error('SwipeProvider: background sync deferred', e); }
+  }
 
-    AppLogger.info('SwipeProvider: syncing ${pending.length} pending swipes');
-    int synced = 0;
+  Future<void> _syncPendingSwipesOrThrow() {
+    return _pendingSync ??= _syncPendingSwipes().whenComplete(() { _pendingSync = null; });
+  }
 
-    for (int i = 0; i < pending.length; i++) {
+  Future<void> _syncPendingSwipes() async {
+    final userId = _activeUserId;
+    final mode = isSoloMode ? 'solo' : 'paired';
+    final sessionId = isSoloMode ? activeSoloSessionId : _badgeController?.sessionId;
+    if (userId == null || sessionId == null) return;
+    final pending = await _cacheService.getPendingSwipes();
+    for (final entry in pending) {
+      // Legacy entries cannot be safely attributed: retain them, never guess a scope.
+      if (entry['id'] is! String || entry['userId'] != userId ||
+          entry['mode'] != mode || entry['sessionId'] != sessionId) continue;
+      if (_activeUserId != userId || (isSoloMode ? 'solo' : 'paired') != mode ||
+          (isSoloMode ? activeSoloSessionId : _badgeController?.sessionId) != sessionId) return;
       try {
         await _swipeRepository.sendSwipe(
-          dishId: pending[i]['dishId'] as String,
-          direction: pending[i]['action'] as String,
+          dishId: entry['dishId'] as String,
+          direction: entry['action'] as String,
+          soloSessionId: mode == 'solo' ? sessionId : null,
+          coupleSessionId: mode == 'paired' ? sessionId : null,
         );
-        synced++;
+        await _cacheService.acknowledgeSwipe(entry['id'] as String);
       } catch (e) {
-        AppLogger.error('SwipeProvider: sync failed for swipe $i', e);
-        break;
+        AppLogger.error('SwipeProvider: pending swipe retained after sync failure', e);
+        rethrow;
       }
-    }
-
-    if (synced > 0) {
-      await _cacheService.clearPendingSwipes();
-      AppLogger.info('SwipeProvider: synced $synced swipes');
     }
   }
 
@@ -1124,3 +1143,4 @@ class SwipeProvider extends ChangeNotifier {
     }
   }
 }
+

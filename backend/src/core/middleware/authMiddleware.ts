@@ -7,6 +7,7 @@ import { supabaseConfig } from '../../config/supabase';
 
 export interface AuthRequest extends Request {
   userId?: string;
+  accessToken?: string;
   authUser?: User;
   profile?: SupabaseProfile;
   user?: {
@@ -33,6 +34,7 @@ export async function authMiddleware(req: AuthRequest, _res: Response, next: Nex
     console.info(`[Auth] Supabase token verified user=${authUser.id}`);
     const profile = await supabaseProfileService.ensureProfile(authUser);
     req.userId = profile.id;
+    req.accessToken = token;
     req.authUser = authUser;
     req.profile = profile;
     req.user = {

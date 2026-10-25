@@ -14,8 +14,8 @@ export class SwipeController {
         Boolean(req.body?.dishId)
       );
     }
-    const { dishId, direction } = req.body;
-    const swipe = await swipeService.createSwipe(req.user!.id, dishId, direction);
+    const { dishId, direction, coupleSessionId } = req.body;
+    const swipe = await swipeService.createSwipe(req.user!.id, dishId, direction, coupleSessionId);
     res.status(201).json({ swipe });
   }
 
