@@ -11,7 +11,9 @@ import '../helpers/dish_test_data.dart';
 void main() {
   test('ignores a stale load response after the active user changes', () async {
     final _FakeDishRepository repository = _FakeDishRepository();
-    final FavoritesProvider provider = FavoritesProvider(repository: repository);
+    final FavoritesProvider provider = FavoritesProvider(
+      repository: repository,
+    );
     final Dish dishA = buildTestDish(id: 'a', name: 'A');
     final Dish dishB = buildTestDish(id: 'b', name: 'B');
 
@@ -29,7 +31,9 @@ void main() {
 
   test('failed toggle rolls back only its own dish', () async {
     final _FakeDishRepository repository = _FakeDishRepository();
-    final FavoritesProvider provider = FavoritesProvider(repository: repository);
+    final FavoritesProvider provider = FavoritesProvider(
+      repository: repository,
+    );
     final Dish dishA = buildTestDish(id: 'a', name: 'A');
     final Dish dishB = buildTestDish(id: 'b', name: 'B');
     provider.setActiveUser('user');
@@ -48,7 +52,9 @@ void main() {
 
   test('pending load does not remove a successfully added favorite', () async {
     final _FakeDishRepository repository = _FakeDishRepository();
-    final FavoritesProvider provider = FavoritesProvider(repository: repository);
+    final FavoritesProvider provider = FavoritesProvider(
+      repository: repository,
+    );
     final Dish dishA = buildTestDish(id: 'a', name: 'A');
     provider.setActiveUser('user');
 
@@ -61,27 +67,34 @@ void main() {
     expect(provider.savedDishIds, <String>{'a'});
   });
 
-  test('pending load does not restore a successfully removed favorite', () async {
-    final _FakeDishRepository repository = _FakeDishRepository();
-    final FavoritesProvider provider = FavoritesProvider(repository: repository);
-    final Dish dishA = buildTestDish(id: 'a', name: 'A');
-    provider.setActiveUser('user');
-    provider.toggleFavorite(dishA);
-    repository.saves['a']!.complete();
-    await Future<void>.delayed(Duration.zero);
+  test(
+    'pending load does not restore a successfully removed favorite',
+    () async {
+      final _FakeDishRepository repository = _FakeDishRepository();
+      final FavoritesProvider provider = FavoritesProvider(
+        repository: repository,
+      );
+      final Dish dishA = buildTestDish(id: 'a', name: 'A');
+      provider.setActiveUser('user');
+      provider.toggleFavorite(dishA);
+      repository.saves['a']!.complete();
+      await Future<void>.delayed(Duration.zero);
 
-    final Future<void> remove = provider.toggleFavorite(dishA);
-    repository.unsaves['a']!.complete();
-    await remove;
-    repository.loads.single.complete(<Dish>[dishA]);
-    await Future<void>.delayed(Duration.zero);
+      final Future<void> remove = provider.toggleFavorite(dishA);
+      repository.unsaves['a']!.complete();
+      await remove;
+      repository.loads.single.complete(<Dish>[dishA]);
+      await Future<void>.delayed(Duration.zero);
 
-    expect(provider.savedDishIds, isEmpty);
-  });
+      expect(provider.savedDishIds, isEmpty);
+    },
+  );
 
   test('failed add during load reverts only that dish', () async {
     final _FakeDishRepository repository = _FakeDishRepository();
-    final FavoritesProvider provider = FavoritesProvider(repository: repository);
+    final FavoritesProvider provider = FavoritesProvider(
+      repository: repository,
+    );
     final Dish dishA = buildTestDish(id: 'a', name: 'A');
     final Dish dishB = buildTestDish(id: 'b', name: 'B');
     provider.setActiveUser('user');
@@ -97,7 +110,9 @@ void main() {
 
   test('failed remove during load restores only that dish', () async {
     final _FakeDishRepository repository = _FakeDishRepository();
-    final FavoritesProvider provider = FavoritesProvider(repository: repository);
+    final FavoritesProvider provider = FavoritesProvider(
+      repository: repository,
+    );
     final Dish dishA = buildTestDish(id: 'a', name: 'A');
     final Dish dishB = buildTestDish(id: 'b', name: 'B');
     provider.setActiveUser('user');
@@ -113,7 +128,9 @@ void main() {
 
   test('user switch invalidates stale toggle completion', () async {
     final _FakeDishRepository repository = _FakeDishRepository();
-    final FavoritesProvider provider = FavoritesProvider(repository: repository);
+    final FavoritesProvider provider = FavoritesProvider(
+      repository: repository,
+    );
     final Dish dishA = buildTestDish(id: 'a', name: 'A');
     provider.setActiveUser('old');
     final Future<void> toggle = provider.toggleFavorite(dishA);
@@ -123,6 +140,56 @@ void main() {
     await toggle;
     await Future<void>.delayed(Duration.zero);
     expect(provider.savedDishIds, isEmpty);
+  });
+  test('read started after an optimistic add cannot erase it', () async {
+    final repository = _FakeDishRepository();
+    final provider = FavoritesProvider(repository: repository);
+    provider.setActiveUser('user');
+    repository.loads.single.complete([]);
+    await provider.loadFavorites();
+    final toggle = provider.toggleFavorite(buildTestDish(id: 'a', name: 'A'));
+    final refresh = provider.loadFavorites(force: true);
+    repository.loads.last.complete([]);
+    await refresh;
+    expect(provider.isFavorite('a'), isTrue);
+    repository.saves['a']!.complete();
+    await toggle;
+    expect(provider.isFavorite('a'), isTrue);
+  });
+
+  test(
+    'mutation completed during read stays ahead of stale response',
+    () async {
+      final repository = _FakeDishRepository();
+      final provider = FavoritesProvider(repository: repository);
+      provider.setActiveUser('user');
+      repository.loads.single.complete([]);
+      await provider.loadFavorites();
+      final toggle = provider.toggleFavorite(buildTestDish(id: 'a', name: 'A'));
+      final refresh = provider.loadFavorites(force: true);
+      repository.saves['a']!.complete();
+      await toggle;
+      repository.loads.last.complete([]);
+      await refresh;
+      expect(provider.isFavorite('a'), isTrue);
+    },
+  );
+
+  test('load listener can join without starting a recursive request', () async {
+    final repository = _FakeDishRepository();
+    final provider = FavoritesProvider(repository: repository);
+    provider.setActiveUser('user');
+    repository.loads.single.complete([]);
+    await provider.loadFavorites();
+    Future<void>? joined;
+    provider.addListener(() {
+      if (provider.isLoading) joined = provider.loadFavorites(force: true);
+    });
+    final load = provider.loadFavorites(force: true);
+    expect(repository.loads, hasLength(2));
+    expect(identical(load, joined), isTrue);
+    repository.loads.last.complete([]);
+    await load;
   });
 }
 

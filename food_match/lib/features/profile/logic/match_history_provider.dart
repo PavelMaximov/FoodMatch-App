@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../core/async/single_flight.dart';
+
 import '../../../data/models/match_history.dart';
 import '../../../data/repositories/match_history_repository.dart';
 
@@ -21,23 +23,27 @@ class MatchHistoryProvider extends ChangeNotifier {
   bool isLoading = false;
   String? error;
   bool _disposed = false;
-  int _requestId = 0;
+  final _load = SingleFlight<void>();
 
-  Future<void> load() async {
-    final int requestId = ++_requestId;
-    if (_disposed) return;
+  Future<void> load() {
+    if (_disposed) return Future<void>.value();
+    return _load.run(_loadOnce);
+  }
+
+  Future<void> _loadOnce() async {
+    final generation = _load.generation;
     isLoading = true;
     error = null;
     _safeNotifyListeners();
     try {
       final MatchHistory loaded = await _loadHistory();
-      if (_disposed || requestId != _requestId) return;
+      if (_disposed || !_load.isCurrent(generation)) return;
       history = loaded;
     } catch (_) {
-      if (_disposed || requestId != _requestId) return;
+      if (_disposed || !_load.isCurrent(generation)) return;
       error = 'Unable to load match history.';
     } finally {
-      if (!_disposed && requestId == _requestId) {
+      if (!_disposed && _load.isCurrent(generation)) {
         isLoading = false;
         _safeNotifyListeners();
       }
@@ -51,7 +57,7 @@ class MatchHistoryProvider extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
-    _requestId++;
+    _load.invalidate();
     super.dispose();
   }
 }
