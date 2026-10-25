@@ -24,8 +24,11 @@ class MatchItem {
     final Map<String, dynamic> dishJson = rawDish is Map
         ? Map<String, dynamic>.from(rawDish)
         : Map<String, dynamic>.from(json);
-    final String mode = json['mode']?.toString() == 'paired' ? 'paired' : 'solo';
-    final String matchType = json['matchType']?.toString() ??
+    final String mode = json['mode']?.toString() == 'paired'
+        ? 'paired'
+        : 'solo';
+    final String matchType =
+        json['matchType']?.toString() ??
         (mode == 'paired' ? 'pair_match' : 'solo_pick');
     return MatchItem(
       id: json['_id']?.toString() ?? json['id']?.toString(),
@@ -37,6 +40,16 @@ class MatchItem {
       createdAt: _parseDate(json['createdAt']),
     );
   }
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'id': id,
+    'dish': dish.toJson(),
+    'mode': mode,
+    'matchType': matchType,
+    'sessionId': sessionId,
+    'coupleId': coupleId,
+    'createdAt': createdAt?.toIso8601String(),
+  };
 
   factory MatchItem.fromCachedDish(Dish dish, String mode) {
     final String normalizedMode = mode == 'paired' ? 'paired' : 'solo';
