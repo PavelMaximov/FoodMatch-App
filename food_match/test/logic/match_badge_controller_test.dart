@@ -2,6 +2,66 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:food_match/shell/logic/match_badge_controller.dart';
 
 void main() {
+  test('optimistic like confirms without double increment or animation', () {
+    final badge = MatchBadgeController();
+    badge.initializeBaseline(userId: 'u', mode: 'solo', sessionId: 's', matchIds: ['old']);
+    badge.beginOptimisticOperation(userId: 'u', sessionId: 's', operationId: 'like', delta: 1);
+    expect(badge.badgeCount, 2);
+    expect(badge.bumpToken, 1);
+    badge.applySwipeBadgeResult(userId: 'u', mode: 'solo', sessionId: 's',
+      badgeCount: 2, badgeDelta: 1, matchId: 'new', reason: 'test', optimisticOperationId: 'like');
+    expect(badge.badgeCount, 2);
+    expect(badge.bumpToken, 1);
+    badge.dispose();
+  });
+
+  test('Undo cancels visual like immediately while requests are pending', () {
+    final badge = MatchBadgeController();
+    badge.initializeBaseline(userId: 'u', mode: 'solo', sessionId: 's', matchIds: ['old']);
+    badge.beginOptimisticOperation(userId: 'u', sessionId: 's', operationId: 'like', delta: 1);
+    badge.beginOptimisticOperation(userId: 'u', sessionId: 's', operationId: 'undo', delta: -1);
+    expect(badge.badgeCount, 1);
+    badge.applySwipeBadgeResult(userId: 'u', mode: 'solo', sessionId: 's',
+      badgeCount: 2, badgeDelta: 1, matchId: 'new', reason: 'test', optimisticOperationId: 'like');
+    expect(badge.badgeCount, 1);
+    badge.applyUndoBadgeResult(userId: 'u', mode: 'solo', sessionId: 's',
+      badgeCount: 1, badgeDelta: -1, removedMatchId: 'new', reason: 'test', optimisticOperationId: 'undo');
+    expect(badge.badgeCount, 1);
+    expect(badge.bumpToken, 1);
+    badge.dispose();
+  });
+
+  test('failed optimistic operations roll back without another animation', () {
+    final badge = MatchBadgeController();
+    badge.initializeBaseline(userId: 'u', mode: 'solo', sessionId: 's', matchIds: ['old']);
+    badge.beginOptimisticOperation(userId: 'u', sessionId: 's', operationId: 'like', delta: 1);
+    badge.cancelOptimisticOperation('like');
+    expect(badge.badgeCount, 1);
+    badge.beginOptimisticOperation(userId: 'u', sessionId: 's', operationId: 'undo', delta: -1);
+    expect(badge.badgeCount, 0);
+    badge.cancelOptimisticOperation('undo');
+    expect(badge.badgeCount, 1);
+    expect(badge.bumpToken, 1);
+    badge.dispose();
+  });
+
+  test('old fetch cannot overwrite a confirmed optimistic result', () {
+    final badge = MatchBadgeController();
+    badge.initializeBaseline(userId: 'u', mode: 'solo', sessionId: 's', matchIds: ['old']);
+    final version = badge.mutationVersion;
+    badge.beginOptimisticOperation(userId: 'u', sessionId: 's', operationId: 'like', delta: 1);
+    badge.applyFetchedMatches(userId: 'u', mode: 'solo', sessionId: 's',
+      matchIds: ['old', 'new'], reason: 'shell_poll');
+    expect(badge.badgeCount, 2);
+    badge.applySwipeBadgeResult(userId: 'u', mode: 'solo', sessionId: 's',
+      badgeCount: 2, badgeDelta: 1, matchId: 'new', reason: 'test', optimisticOperationId: 'like');
+    badge.applyFetchedMatches(userId: 'u', mode: 'solo', sessionId: 's',
+      matchIds: ['old'], reason: 'shell_poll', requestVersion: version);
+    expect(badge.badgeCount, 2);
+    expect(badge.bumpToken, 1);
+    badge.dispose();
+  });
+
   test('notifies without an initialized WidgetsBinding', () {
     final MatchBadgeController controller = MatchBadgeController();
     int notifications = 0;

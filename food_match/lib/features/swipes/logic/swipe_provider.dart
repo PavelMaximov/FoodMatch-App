@@ -40,6 +40,7 @@ class SwipeProvider extends ChangeNotifier {
   final Set<String> _sentSwipeDishIds = <String>{};
   bool _isSendingSwipe = false;
   bool _undoInProgress = false;
+  final Set<String> _optimisticBadgeOperations = {};
   int _swipeEpoch = 0;
   int _pendingSwipeCount = 0;
   Future<void> _swipeTail = Future<void>.value();
@@ -49,6 +50,10 @@ class SwipeProvider extends ChangeNotifier {
       (!_isSendingSwipe || _pendingSwipeCount > 0) && currentDish != null;
 
   void _cancelPendingSwipes() {
+    for (final operation in _optimisticBadgeOperations) {
+      _badgeController?.cancelOptimisticOperation(operation);
+    }
+    _optimisticBadgeOperations.clear();
     _swipeEpoch++;
     _undoInProgress = false;
     _pendingSwipeCount = 0;
@@ -704,6 +709,24 @@ class SwipeProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  String _badgeOperationId(int index, String dishId) =>
+      '$_swipeEpoch:$index:$dishId';
+
+  void _beginBadgeOperation(String id, int delta) {
+    final user = _activeUserId;
+    final session = activeSoloSessionId;
+    if (!isSoloMode || user == null || session == null) return;
+    _optimisticBadgeOperations.add(id);
+    _badgeController?.beginOptimisticOperation(
+      userId: user, sessionId: session, operationId: id, delta: delta,
+    );
+  }
+
+  void _cancelBadgeOperation(String id) {
+    _optimisticBadgeOperations.remove(id);
+    _badgeController?.cancelOptimisticOperation(id);
+  }
+
   Future<dynamic> swipe(String direction) {
     final dish = currentDish;
     if (dish == null || !canAcceptSwipe ||
@@ -730,6 +753,7 @@ class SwipeProvider extends ChangeNotifier {
       _lastSwipedDirection = direction;
     }
     if (isSoloMode) _soloRemainingCount = deck.length - currentIndex;
+    if (direction == 'like') _beginBadgeOperation(_badgeOperationId(index, dish.id), 1);
     final request = _swipeTail.then((_) async {
       if (!isCurrent()) return null;
       try {
@@ -752,6 +776,7 @@ class SwipeProvider extends ChangeNotifier {
     Dish dish, int index, String direction, bool Function() isCurrent,
   ) async {
     dynamic result;
+    final badgeOperation = _badgeOperationId(index, dish.id);
     try {
       await _syncPendingSwipesOrThrow();
       if (!isCurrent()) return null;
@@ -810,7 +835,9 @@ class SwipeProvider extends ChangeNotifier {
           badgeDelta: safeDelta,
           matchId: matchId,
           reason: 'swipe_response',
+          optimisticOperationId: badgeOperation,
         );
+        _optimisticBadgeOperations.remove(badgeOperation);
         if (kDebugMode) {
           if (!matchCreated &&
               safeDelta == 0 &&
@@ -827,13 +854,17 @@ class SwipeProvider extends ChangeNotifier {
           );
         }
       } else if (confirmedLike && matchCreated && matchId != null && validScope) {
+        final wasOptimistic = _optimisticBadgeOperations.contains(badgeOperation);
+        _cancelBadgeOperation(badgeOperation);
         _badgeController?.registerNewMatch(
           matchId: matchId,
           source: 'swipe_result_legacy',
+          animate: !wasOptimistic,
           mode: mode,
           sessionId: sessionId,
         );
       }
+      if (responseBadgeCount == null) _cancelBadgeOperation(badgeOperation);
       if (responseBadgeCount != null || matchCreated) {
         final String refreshReason = matchCreated
             ? 'swipe_match_created'
@@ -849,6 +880,7 @@ class SwipeProvider extends ChangeNotifier {
       }
     } catch (e) {
       if (!isCurrent()) return null;
+      _cancelBadgeOperation(badgeOperation);
       var queuedOffline = false;
       if (_shouldQueueOffline(e)) {
         try {
@@ -944,6 +976,8 @@ class SwipeProvider extends ChangeNotifier {
       '[Undo] requested mode=$currentSwipeMode hasSession=${activeSoloSessionId != null} currentIndex=$currentIndex',
     );
     if (isSoloMode && activeSoloSessionId != null) {
+      final undoBadgeOperation = 'undo:${_badgeOperationId(_lastSwipedIndex!, _lastSwipedDish!.id)}';
+      if (_lastSwipedDirection == 'like') _beginBadgeOperation(undoBadgeOperation, -1);
       final int undoEpoch = _swipeEpoch;
       final Future<void> acceptedSwipes = _swipeTail;
       final String undoSessionId = activeSoloSessionId!;
@@ -992,7 +1026,9 @@ class SwipeProvider extends ChangeNotifier {
             badgeDelta: badgeDelta,
             removedMatchId: removedMatchId,
             reason: 'undo_response',
+            optimisticOperationId: undoBadgeOperation,
           );
+          _optimisticBadgeOperations.remove(undoBadgeOperation);
           if (kDebugMode) {
             debugPrint(
               '[UndoBadgeFast] apply count=$badgeCount delta=$badgeDelta '
@@ -1053,6 +1089,7 @@ class SwipeProvider extends ChangeNotifier {
         // may replace the deck, so use epoch/user/session rather than identity.
         if (_swipeEpoch == undoEpoch && _activeUserId == undoUserId &&
             activeSoloSessionId == undoSessionId) {
+          _cancelBadgeOperation(undoBadgeOperation);
           _undoInProgress = false;
           _isSendingSwipe = _pendingSwipeCount > 0;
           notifyListeners();

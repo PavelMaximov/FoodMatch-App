@@ -15,6 +15,8 @@ class MatchBadgeController extends ChangeNotifier {
   String _mode = 'solo';
   String? _sessionId;
   int _bumpToken = 0;
+  int _mutationVersion = 0;
+  int get mutationVersion => _mutationVersion;
   String? _lastAnimationEventId;
   MatchBadgeRefresh? _refresh;
   bool _notifyScheduled = false;
@@ -139,6 +141,7 @@ class MatchBadgeController extends ChangeNotifier {
     required String source,
     String? mode,
     String? sessionId,
+    bool animate = true,
   }) {
     final String normalizedId = matchId.trim();
     if (normalizedId.isEmpty) return false;
@@ -151,8 +154,10 @@ class MatchBadgeController extends ChangeNotifier {
     scope.authoritativeCount++;
     scope.pendingImmediateIds.add(normalizedId);
     scope.initialized = true;
-    _bumpToken++;
-    _lastAnimationEventId = '${_scopeKey()}:$normalizedId';
+    if (animate) {
+      _bumpToken++;
+      _lastAnimationEventId = '${_scopeKey()}:$normalizedId';
+    }
     if (kDebugMode) {
       debugPrint(
         '[MatchBadge] new source=$source matchId=$normalizedId '
@@ -163,6 +168,35 @@ class MatchBadgeController extends ChangeNotifier {
     return true;
   }
 
+  void beginOptimisticOperation({
+    required String userId,
+    required String sessionId,
+    required String operationId,
+    required int delta,
+  }) {
+    _activate(userId: userId, mode: 'solo', sessionId: sessionId);
+    final scope = _scopeForActive();
+    if (scope.optimisticDeltas.containsKey(operationId)) return;
+    scope.optimisticDeltas[operationId] = delta;
+    _mutationVersion++;
+    if (delta > 0) {
+      _bumpToken++;
+      _lastAnimationEventId = '${_scopeKey()}:optimistic:$operationId:$_bumpToken';
+    }
+    _notifySafely('optimistic_operation');
+  }
+
+  void cancelOptimisticOperation(String operationId) {
+    var changed = false;
+    for (final scope in _scopes.values) {
+      changed = scope.optimisticDeltas.remove(operationId) != null || changed;
+    }
+    if (changed) {
+      _mutationVersion++;
+      _notifySafely('optimistic_rollback');
+    }
+  }
+
   void applySwipeBadgeResult({
     required String userId,
     required String mode,
@@ -171,9 +205,12 @@ class MatchBadgeController extends ChangeNotifier {
     required int badgeDelta,
     String? matchId,
     required String reason,
+    String? optimisticOperationId,
   }) {
     _activate(userId: userId, mode: mode, sessionId: sessionId);
     final _MatchBadgeScope scope = _scopeForActive();
+    final wasOptimistic = scope.optimisticDeltas.remove(optimisticOperationId) != null;
+    _mutationVersion++;
     final String? normalizedMatchId = _normalize(matchId);
     final bool isNewRealMatch =
         badgeDelta > 0 &&
@@ -185,7 +222,7 @@ class MatchBadgeController extends ChangeNotifier {
       scope.pendingImmediateIds.add(normalizedMatchId);
     }
     scope.initialized = true;
-    if (isNewRealMatch) {
+    if (isNewRealMatch && !wasOptimistic) {
       _bumpToken++;
       _lastAnimationEventId = '${_scopeKey()}:$normalizedMatchId';
     }
@@ -207,9 +244,12 @@ class MatchBadgeController extends ChangeNotifier {
     required int badgeDelta,
     String? removedMatchId,
     required String reason,
+    String? optimisticOperationId,
   }) {
     _activate(userId: userId, mode: mode, sessionId: sessionId);
     final _MatchBadgeScope scope = _scopeForActive();
+    scope.optimisticDeltas.remove(optimisticOperationId);
+    _mutationVersion++;
     final String? normalizedMatchId = _normalize(removedMatchId);
     scope.authoritativeCount = badgeCount < 0 ? 0 : badgeCount;
     if (badgeDelta < 0 && normalizedMatchId != null) {
@@ -235,9 +275,12 @@ class MatchBadgeController extends ChangeNotifier {
     required Iterable<String> matchIds,
     required String reason,
     bool? animateNew,
+    int? requestVersion,
   }) {
+    if (requestVersion != null && requestVersion != _mutationVersion) return;
     _activate(userId: userId, mode: mode, sessionId: sessionId);
     final _MatchBadgeScope scope = _scopeForActive();
+    if (scope.optimisticDeltas.isNotEmpty) return;
     final Set<String> fetchedIds = _normalizeIds(matchIds);
     if (!scope.initialized) {
       initializeBaseline(
@@ -392,8 +435,12 @@ class _MatchBadgeScope {
   final Set<String> pendingImmediateIds = <String>{};
   bool initialized = false;
   int authoritativeCount = 0;
+  final Map<String, int> optimisticDeltas = {};
 
-  int get badgeCount => authoritativeCount > authoritativeMatchIds.length
-      ? authoritativeCount
-      : authoritativeMatchIds.length;
+  int get badgeCount {
+    final base = authoritativeCount > authoritativeMatchIds.length
+        ? authoritativeCount : authoritativeMatchIds.length;
+    final value = base + optimisticDeltas.values.fold<int>(0, (sum, delta) => sum + delta);
+    return value < 0 ? 0 : value;
+  }
 }

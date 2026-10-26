@@ -166,7 +166,7 @@ void main() {
     await provider.like();
 
     expect(badgeController.badgeCount, 0);
-    expect(badgeController.bumpToken, 0);
+    expect(badgeController.bumpToken, 1); // Immediate feedback; no second server bump.
   });
 
   test('created solo session requests authoritative match refresh', () async {
@@ -203,7 +203,7 @@ void main() {
     expect(refreshReason, 'swipe_match_created');
   });
 
-  test('like without a created match does not update badge', () async {
+  test('like without a new match reconciles the optimistic badge', () async {
     provider.setActiveUser('user-a');
     fakeSwipeRepo.soloSessionDishes = testDishes;
     await provider.createSoloSession(
@@ -226,7 +226,7 @@ void main() {
     await provider.like();
 
     expect(badgeController.badgeCount, 3);
-    expect(badgeController.bumpToken, 0);
+    expect(badgeController.bumpToken, 1); // Immediate feedback; no second server bump.
   });
 
   test('solo Undo is available before swipe response and waits in server order', () async {
@@ -239,8 +239,12 @@ void main() {
     fakeSwipeRepo.holdSwipes = true;
     final swipe = provider.like();
     expect(provider.canUndo, isTrue);
+    expect(badgeController.badgeCount, 1);
+    expect(badgeController.bumpToken, 1);
     fakeSwipeRepo.pendingUndo = Completer<dynamic>();
     final undo = provider.undo();
+    expect(badgeController.badgeCount, 0);
+    expect(badgeController.bumpToken, 1);
     expect(provider.currentDish?.id, '1');
     expect(provider.canAcceptSwipe, isFalse);
     expect(provider.canUndo, isFalse);
