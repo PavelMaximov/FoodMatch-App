@@ -17,8 +17,9 @@ TextStyle premiumText(
 );
 
 class PremiumHero extends StatelessWidget {
-  const PremiumHero({super.key, required this.crownHeight});
+  const PremiumHero({super.key, required this.crownHeight, this.compact = false});
   final double crownHeight;
+  final bool compact;
   @override
   Widget build(BuildContext context) => Column(
     spacing: 6,
@@ -77,31 +78,32 @@ class PremiumHero extends StatelessWidget {
         child: Text(
           'Unlock Premium',
           textAlign: TextAlign.center,
-          style: premiumText(context, 35, weight: FontWeight.w900),
+          style: premiumText(context, compact ? 28 : 35, weight: FontWeight.w900),
         ),
       ),
       Text(
         'Get more powerful tools for smarter\nmeal planning.',
         textAlign: TextAlign.center,
-        style: premiumText(context, 16, color: context.fmColors.textSecondary),
+        style: premiumText(context, compact ? 14 : 16, color: context.fmColors.textSecondary),
       ),
     ],
   );
 }
 
 class PremiumBenefitsCard extends StatelessWidget {
-  const PremiumBenefitsCard({super.key});
+  const PremiumBenefitsCard({super.key, this.compact = false});
+  final bool compact;
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(17),
+    padding: EdgeInsets.all(compact ? 10 : 17),
     decoration: BoxDecoration(
       color: context.fmColors.card,
       border: Border.all(color: context.fmColors.border),
       borderRadius: BorderRadius.circular(18),
     ),
-    child: const Column(
-      spacing: 18,
-      children: [
+    child: Column(
+      spacing: compact ? 10 : 18,
+      children: const [
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
