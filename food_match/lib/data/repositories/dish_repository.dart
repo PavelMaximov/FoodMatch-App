@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../../core/constants/api_constants.dart';
+import '../../core/async/single_flight.dart';
 import '../../core/utils/logger.dart';
 import '../local/cache_policy.dart';
 import '../models/dish.dart';
@@ -29,15 +30,20 @@ class DishRepository {
 
   List<Dish> _catalogCache = <Dish>[];
   DateTime? _catalogLoadedAt;
-  Future<List<Dish>>? _catalogLoadFuture;
+  final _catalogLoad = SingleFlight<List<Dish>>();
+  int? _authBoundaryVersion;
 
-  bool get _hasCatalogCache =>
-      _catalogCache.isNotEmpty && _catalogLoadedAt != null;
+  void handleAuthBoundary(int version) {
+    if (_authBoundaryVersion == version) return;
+    _authBoundaryVersion = version;
+    invalidateCatalogCache(reason: 'auth-boundary');
+  }
+
+  bool get _hasCatalogCache => _catalogLoadedAt != null;
   bool get _hasFreshCatalogCache {
     final DateTime? loadedAt = _catalogLoadedAt;
     return loadedAt != null &&
-        DateTime.now().difference(loadedAt) < CachePolicy.catalogDishesTtl &&
-        _catalogCache.isNotEmpty;
+        DateTime.now().difference(loadedAt) < CachePolicy.catalogDishesTtl;
   }
 
   Future<List<Dish>> getDishes({String? cuisine}) async {
@@ -186,33 +192,25 @@ class DishRepository {
       return List<Dish>.unmodifiable(_catalogCache);
     }
 
-    final Future<List<Dish>>? inFlight = _catalogLoadFuture;
-    if (inFlight != null) {
-      AppLogger.info('[RequestDedup] catalog load skipped: already in flight');
-      return inFlight;
-    }
-
-    AppLogger.info(
-      force ? '[Cache] catalog force refresh' : '[Cache] catalog miss',
-    );
-    _catalogLoadFuture = _loadCatalogFromApi();
-    try {
-      return await _catalogLoadFuture!;
-    } catch (e) {
-      if (_hasCatalogCache) {
-        AppLogger.error(
-          '[Cache] catalog refresh failed; returning stale cache',
-          e,
-        );
-        return List<Dish>.unmodifiable(_catalogCache);
+    return _catalogLoad.run(() async {
+      final generation = _catalogLoad.generation;
+      try {
+        return await _loadCatalogFromApi(generation);
+      } catch (e) {
+        if (!_catalogLoad.isCurrent(generation)) rethrow;
+        if (_hasCatalogCache) {
+          AppLogger.error(
+            '[Cache] catalog refresh failed; returning stale cache',
+            e,
+          );
+          return List<Dish>.unmodifiable(_catalogCache);
+        }
+        rethrow;
       }
-      rethrow;
-    } finally {
-      _catalogLoadFuture = null;
-    }
+    });
   }
 
-  Future<List<Dish>> _loadCatalogFromApi() async {
+  Future<List<Dish>> _loadCatalogFromApi(int generation) async {
     final data = await _apiService.get(ApiConstants.dishesCatalog);
     final List<dynamic> list = data is Map<String, dynamic>
         ? (data['dishes'] as List<dynamic>? ?? <dynamic>[])
@@ -221,6 +219,9 @@ class DishRepository {
     final List<Dish> dishes = list
         .map((item) => Dish.fromJson(Map<String, dynamic>.from(item as Map)))
         .toList();
+    if (!_catalogLoad.isCurrent(generation)) {
+      throw StateError('Catalog request invalidated');
+    }
     _catalogCache = List<Dish>.from(dishes);
     _catalogLoadedAt = DateTime.now();
     debugPrint(
@@ -232,7 +233,7 @@ class DishRepository {
   void invalidateCatalogCache({String reason = 'manual'}) {
     _catalogCache = <Dish>[];
     _catalogLoadedAt = null;
-    _catalogLoadFuture = null;
+    _catalogLoad.invalidate();
     AppLogger.info('[Cache] catalog invalidated reason=$reason');
   }
 

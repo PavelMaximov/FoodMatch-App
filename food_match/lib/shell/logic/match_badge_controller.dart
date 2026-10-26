@@ -28,12 +28,16 @@ class MatchBadgeController extends ChangeNotifier {
   String? get lastAnimationEventId => _lastAnimationEventId;
   bool get hasValidScope => _userId != null && _sessionId != null;
   Set<String> get authoritativeMatchIds => Set<String>.unmodifiable(
-        _activeScope?.authoritativeMatchIds ?? <String>{},
-      );
+    _activeScope?.authoritativeMatchIds ?? <String>{},
+  );
   Set<String> get knownMatchIds =>
       Set<String>.unmodifiable(_activeScope?.knownMatchIds ?? <String>{});
 
   void attachRefreshHandler(MatchBadgeRefresh refresh) => _refresh = refresh;
+
+  void detachRefreshHandler(MatchBadgeRefresh refresh) {
+    if (_refresh == refresh) _refresh = null;
+  }
 
   Future<void> requestAuthoritativeRefresh({
     required String mode,
@@ -79,7 +83,9 @@ class MatchBadgeController extends ChangeNotifier {
     _sessionId = null;
     _lastAnimationEventId = null;
     if (kDebugMode) {
-      debugPrint('[MatchBadge] reset reason=$reason user=${normalized ?? 'none'}');
+      debugPrint(
+        '[MatchBadge] reset reason=$reason user=${normalized ?? 'none'}',
+      );
     }
     _notifySafely('set_active_user:$reason');
   }
@@ -169,7 +175,8 @@ class MatchBadgeController extends ChangeNotifier {
     _activate(userId: userId, mode: mode, sessionId: sessionId);
     final _MatchBadgeScope scope = _scopeForActive();
     final String? normalizedMatchId = _normalize(matchId);
-    final bool isNewRealMatch = badgeDelta > 0 &&
+    final bool isNewRealMatch =
+        badgeDelta > 0 &&
         normalizedMatchId != null &&
         scope.knownMatchIds.add(normalizedMatchId);
     scope.authoritativeCount = badgeCount < 0 ? 0 : badgeCount;
@@ -256,20 +263,19 @@ class MatchBadgeController extends ChangeNotifier {
     }
     final Set<String> previousKnown = Set<String>.from(scope.knownMatchIds);
     final Set<String> newIds = fetchedIds.difference(previousKnown);
-    final bool handledByFastPath = scope.pendingImmediateIds.isNotEmpty &&
-        reason == 'swipe_match_created';
+    final bool handledByFastPath =
+        scope.pendingImmediateIds.isNotEmpty && reason == 'swipe_match_created';
     scope.authoritativeMatchIds
       ..clear()
       ..addAll(fetchedIds);
     scope.authoritativeCount = fetchedIds.length;
     scope.knownMatchIds.addAll(fetchedIds);
     scope.pendingImmediateIds.clear();
-    final bool shouldAnimate = !handledByFastPath &&
-        (animateNew ?? _reasonAllowsAnimation(reason));
+    final bool shouldAnimate =
+        !handledByFastPath && (animateNew ?? _reasonAllowsAnimation(reason));
     if (shouldAnimate && newIds.isNotEmpty) {
       _bumpToken++;
-      _lastAnimationEventId =
-          '${_scopeKey()}:fetch:${newIds.toList()..sort()}';
+      _lastAnimationEventId = '${_scopeKey()}:fetch:${newIds.toList()..sort()}';
     }
     if (kDebugMode) {
       debugPrint(
@@ -313,8 +319,7 @@ class MatchBadgeController extends ChangeNotifier {
     setScope(mode: mode, sessionId: sessionId);
   }
 
-  String _scopeKey() =>
-      '${_userId ?? 'none'}:${_mode}:${_sessionId ?? 'none'}';
+  String _scopeKey() => '${_userId ?? 'none'}:${_mode}:${_sessionId ?? 'none'}';
 
   Set<String> _normalizeIds(Iterable<String> ids) => ids
       .map((String id) => id.trim())
@@ -322,18 +327,18 @@ class MatchBadgeController extends ChangeNotifier {
       .toSet();
 
   bool _reasonAllowsAnimation(String reason) => <String>{
-        'swipe_match_created',
-        'swipe_match_created_scope_unresolved',
-        'swipe_match_created_no_match_id',
-        'shell_poll',
-        'app_resume',
-      }.contains(reason);
+    'swipe_match_created',
+    'swipe_match_created_scope_unresolved',
+    'swipe_match_created_no_match_id',
+    'shell_poll',
+    'app_resume',
+  }.contains(reason);
 
   bool _isSwipeMatchReason(String reason) => <String>{
-        'swipe_match_created',
-        'swipe_match_created_scope_unresolved',
-        'swipe_match_created_no_match_id',
-      }.contains(reason);
+    'swipe_match_created',
+    'swipe_match_created_scope_unresolved',
+    'swipe_match_created_no_match_id',
+  }.contains(reason);
 
   void _notifySafely(String reason) {
     if (_disposed) return;

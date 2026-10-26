@@ -4,12 +4,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/utils/logger.dart';
 import '../models/dish.dart';
+import '../models/match_item.dart';
 
 class CacheService {
   static const Duration _cacheExpiry = Duration(hours: 24);
 
   static const String _dishesKey = 'cached_dishes';
   static const String _dishesCachedAtKey = 'dishes_cached_at';
+  static const String _matchSnapshotKey = 'cached_match_snapshot_v2';
   static const String _matchesKey = 'cached_matches';
   static const String _matchesCachedAtKey = 'matches_cached_at';
   static const String _matchesCoupleIdKey = 'matches_couple_id';
@@ -41,8 +43,9 @@ class CacheService {
 
   Future<void> cacheDishes(List<Dish> dishes) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final List<Map<String, dynamic>> jsonList =
-        dishes.map((Dish d) => d.toJson()).toList();
+    final List<Map<String, dynamic>> jsonList = dishes
+        .map((Dish d) => d.toJson())
+        .toList();
     await prefs.setString(_dishesKey, jsonEncode(jsonList));
     await prefs.setString(_dishesCachedAtKey, DateTime.now().toIso8601String());
     AppLogger.info('CacheService: cached ${dishes.length} dishes');
@@ -57,8 +60,10 @@ class CacheService {
       return <Dish>[];
     }
 
-    final Duration age = DateTime.now().difference(DateTime.parse(cachedAt));
-    if (age > _cacheExpiry) {
+    final timestamp = DateTime.tryParse(cachedAt);
+    if (timestamp == null) return <Dish>[];
+    final Duration age = DateTime.now().difference(timestamp);
+    if (age.isNegative || age > _cacheExpiry) {
       AppLogger.info('CacheService: dish cache expired');
       return <Dish>[];
     }
@@ -89,8 +94,12 @@ class CacheService {
     return next;
   }
 
-  Future<void> queueSwipe(String dishId, String action, {
-    required String userId, required String mode, required String sessionId,
+  Future<void> queueSwipe(
+    String dishId,
+    String action, {
+    required String userId,
+    required String mode,
+    required String sessionId,
   }) => _mutateQueue(() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final String? existing = prefs.getString(_pendingSwipesKey);
@@ -106,7 +115,8 @@ class CacheService {
     }
 
     swipes.add(<String, dynamic>{
-      'id': '${DateTime.now().microsecondsSinceEpoch}:$userId:$sessionId:$dishId',
+      'id':
+          '${DateTime.now().microsecondsSinceEpoch}:$userId:$sessionId:$dishId',
       'userId': userId,
       'mode': mode,
       'sessionId': sessionId,
@@ -152,64 +162,73 @@ class CacheService {
     return swipes.length;
   }
 
-  Future<void> cacheMatches(List<Dish> matches, {String? coupleId}) async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final List<Map<String, dynamic>> jsonList =
-        matches.map((Dish d) => d.toJson()).toList();
-    await prefs.setString(_matchesKey, jsonEncode(jsonList));
-    await prefs.setString(_matchesCachedAtKey, DateTime.now().toIso8601String());
-    if (coupleId != null) {
-      await prefs.setString(_matchesCoupleIdKey, coupleId);
-    } else {
-      await prefs.remove(_matchesCoupleIdKey);
-    }
-    AppLogger.info('CacheService: cached ${matches.length} matches');
+  static Future<void> _matchCacheTail = Future<void>.value();
+
+  Future<T> _withMatchCache<T>(Future<T> Function() task) {
+    final next = _matchCacheTail.then((_) => task());
+    _matchCacheTail = next.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace __) {},
+    );
+    return next;
   }
 
-  Future<List<Dish>> getCachedMatches({String? coupleId}) async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final String? jsonStr = prefs.getString(_matchesKey);
-    final String? cachedAt = prefs.getString(_matchesCachedAtKey);
-    final String? cachedCoupleId = prefs.getString(_matchesCoupleIdKey);
-
-    if (jsonStr == null || cachedAt == null) {
-      return <Dish>[];
-    }
-
-    if (coupleId != cachedCoupleId) {
-      AppLogger.info('CacheService: cached matches scope mismatch, ignoring');
-      return <Dish>[];
-    }
-
-    final Duration age = DateTime.now().difference(DateTime.parse(cachedAt));
-    if (age > _cacheExpiry) {
-      return <Dish>[];
-    }
-
-    try {
-      final List<dynamic> list = jsonDecode(jsonStr) as List<dynamic>;
-      return list
-          .map((dynamic j) => Dish.fromJson(j as Map<String, dynamic>))
-          .toList();
-    } catch (e) {
-      AppLogger.error('CacheService: failed to parse matches', e);
-      return <Dish>[];
-    }
+  Future<void> cacheMatchItems(
+    List<MatchItem> matches, {
+    required String scopeKey,
+  }) {
+    // One envelope prevents a payload from being paired with another user's key.
+    final snapshot = jsonEncode(<String, dynamic>{
+      'scope': scopeKey,
+      'cachedAt': DateTime.now().toIso8601String(),
+      'items': matches.map((item) => item.toJson()).toList(),
+    });
+    return _withMatchCache(() async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_matchSnapshotKey, snapshot);
+    });
   }
 
-  Future<void> clearCachedMatches() async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
+  Future<List<MatchItem>> getCachedMatchItems({required String scopeKey}) =>
+      _withMatchCache(() async {
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          final raw = prefs.getString(_matchSnapshotKey);
+          if (raw == null) return <MatchItem>[];
+          final snapshot = jsonDecode(raw) as Map<String, dynamic>;
+          if (snapshot['scope'] != scopeKey) return <MatchItem>[];
+          final cachedAt = DateTime.tryParse(
+            snapshot['cachedAt'] as String? ?? '',
+          );
+          if (cachedAt == null) return <MatchItem>[];
+          final age = DateTime.now().difference(cachedAt);
+          if (age.isNegative || age > _cacheExpiry) return <MatchItem>[];
+          return (snapshot['items'] as List<dynamic>)
+              .map(
+                (item) =>
+                    MatchItem.fromJson(Map<String, dynamic>.from(item as Map)),
+              )
+              .toList();
+        } catch (e) {
+          AppLogger.error('CacheService: failed to read match snapshot', e);
+          return <MatchItem>[];
+        }
+      });
+
+  Future<void> clearCachedMatches() => _withMatchCache(() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_matchSnapshotKey);
+    // Remove the old dish-only cache; it cannot preserve match identity.
     await prefs.remove(_matchesKey);
     await prefs.remove(_matchesCachedAtKey);
     await prefs.remove(_matchesCoupleIdKey);
-    AppLogger.info('CacheService: cleared cached matches');
-  }
+  });
 
   Future<void> cacheUserData({
     required String displayName,
     required String email,
     String? coupleId,
-  }) async {
+  }) => _withMatchCache(() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString(_userDisplayNameKey, displayName);
     await prefs.setString(_userEmailKey, email);
@@ -218,7 +237,14 @@ class CacheService {
     } else {
       await prefs.remove(_userCoupleIdKey);
     }
-  }
+  });
+
+  Future<void> _clearCachedUser() => _withMatchCache(() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_userDisplayNameKey);
+    await prefs.remove(_userEmailKey);
+    await prefs.remove(_userCoupleIdKey);
+  });
 
   Future<String?> get cachedDisplayName async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -232,13 +258,9 @@ class CacheService {
 
   Future<void> clearAuthBoundaryTransient() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_matchesKey);
-    await prefs.remove(_matchesCachedAtKey);
-    await prefs.remove(_matchesCoupleIdKey);
+    await clearCachedMatches();
     await clearPendingSwipes();
-    await prefs.remove(_userDisplayNameKey);
-    await prefs.remove(_userEmailKey);
-    await prefs.remove(_userCoupleIdKey);
+    await _clearCachedUser();
     for (final String key in _authBoundaryRouteKeys) {
       await prefs.remove(key);
     }
@@ -249,13 +271,9 @@ class CacheService {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.remove(_dishesKey);
     await prefs.remove(_dishesCachedAtKey);
-    await prefs.remove(_matchesKey);
-    await prefs.remove(_matchesCachedAtKey);
-    await prefs.remove(_matchesCoupleIdKey);
+    await clearCachedMatches();
     await clearPendingSwipes();
-    await prefs.remove(_userDisplayNameKey);
-    await prefs.remove(_userEmailKey);
-    await prefs.remove(_userCoupleIdKey);
+    await _clearCachedUser();
     AppLogger.info('CacheService: cleared all cache');
   }
 }

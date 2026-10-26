@@ -22,7 +22,7 @@ void main() {
     expect(notifications, 1);
   });
 
-  test('a newer overlapping load wins', () async {
+  test('overlapping loads share one request', () async {
     final List<Completer<MatchHistory>> requests = <Completer<MatchHistory>>[];
     final MatchHistoryProvider provider = MatchHistoryProvider.withLoader(() {
       final Completer<MatchHistory> request = Completer<MatchHistory>();
@@ -32,10 +32,10 @@ void main() {
 
     final Future<void> first = provider.load();
     final Future<void> second = provider.load();
-    requests[1].complete(const MatchHistory(solo: [], pair: []));
-    await second;
+    expect(requests, hasLength(1));
+    expect(identical(first, second), isTrue);
     requests[0].complete(const MatchHistory(solo: [], pair: []));
-    await first;
+    await Future.wait([first, second]);
 
     expect(provider.isLoading, isFalse);
     expect(provider.error, isNull);

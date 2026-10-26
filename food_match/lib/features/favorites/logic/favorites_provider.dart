@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../core/async/single_flight.dart';
+
 import '../../../core/errors/error_messages.dart';
 import '../../../core/utils/logger.dart';
 import '../../../data/local/cache_policy.dart';
@@ -8,7 +10,8 @@ import '../../../data/repositories/dish_repository.dart';
 import '../../../data/services/api_service.dart';
 
 class FavoritesProvider extends ChangeNotifier {
-  FavoritesProvider({required DishRepository repository}) : _repository = repository;
+  FavoritesProvider({required DishRepository repository})
+    : _repository = repository;
 
   final DishRepository _repository;
 
@@ -17,7 +20,7 @@ class FavoritesProvider extends ChangeNotifier {
   final Set<String> _updatingDishIds = <String>{};
   String? _activeUserId;
   DateTime? _favoritesLoadedAt;
-  Future<void>? _favoritesLoadFuture;
+  final _favoritesLoad = SingleFlight<void>();
   int _requestGeneration = 0;
   int _userGeneration = 0;
   int _favoritesMutationGeneration = 0;
@@ -39,7 +42,9 @@ class FavoritesProvider extends ChangeNotifier {
   }
 
   void setActiveUser(String? userId) {
-    final String? normalized = userId?.trim().isEmpty == true ? null : userId?.trim();
+    final String? normalized = userId?.trim().isEmpty == true
+        ? null
+        : userId?.trim();
     if (normalized == _activeUserId) {
       return;
     }
@@ -53,7 +58,7 @@ class FavoritesProvider extends ChangeNotifier {
     _favoritesMutationGeneration = 0;
     _localMutations.clear();
     _favoritesLoadedAt = null;
-    _favoritesLoadFuture = null;
+    _favoritesLoad.invalidate();
     error = null;
     isLoading = false;
     notifyListeners();
@@ -67,29 +72,26 @@ class FavoritesProvider extends ChangeNotifier {
   bool isUpdating(String dishId) => _updatingDishIds.contains(dishId);
 
   Future<void> loadFavorites({bool force = false}) {
-    if (_activeUserId == null) {
+    if (_disposed || _activeUserId == null) {
       return Future<void>.value();
     }
     if (!force && _hasFreshFavoritesCache) {
       final int age = DateTime.now().difference(_favoritesLoadedAt!).inSeconds;
-      AppLogger.info('[Cache] favorites hit count=${_savedDishes.length} age=${age}s');
+      AppLogger.info(
+        '[Cache] favorites hit count=${_savedDishes.length} age=${age}s',
+      );
       return Future<void>.value();
     }
-    final Future<void>? inFlight = _favoritesLoadFuture;
-    if (inFlight != null) {
-      AppLogger.info('[RequestDedup] favorites load skipped: already in flight');
-      return inFlight;
-    }
-
-    _favoritesLoadFuture = _loadFavoritesFromApi(force: force);
-    return _favoritesLoadFuture!;
+    return _favoritesLoad.run(() => _loadFavoritesFromApi(force: force));
   }
 
   Future<void> _loadFavoritesFromApi({required bool force}) async {
     final String userId = _activeUserId!;
     final int generation = ++_requestGeneration;
     final int mutationGeneration = _favoritesMutationGeneration;
-    AppLogger.info(force ? '[Cache] favorites force refresh' : '[Cache] favorites miss');
+    AppLogger.info(
+      force ? '[Cache] favorites force refresh' : '[Cache] favorites miss',
+    );
     isLoading = true;
     error = null;
     notifyListeners();
@@ -97,7 +99,10 @@ class FavoritesProvider extends ChangeNotifier {
     try {
       final List<Dish> dishes = await _repository.getSavedDishes();
       if (!_isCurrentRequest(userId, generation)) return;
-      dishes.sort((Dish a, Dish b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      dishes.sort(
+        (Dish a, Dish b) =>
+            a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+      );
       final Map<String, Dish> reconciled = <String, Dish>{
         for (final Dish dish in dishes)
           if (dish.id.isNotEmpty) dish.id: dish,
@@ -105,7 +110,9 @@ class FavoritesProvider extends ChangeNotifier {
       for (final MapEntry<String, _LocalFavoriteMutation> entry
           in _localMutations.entries) {
         final _LocalFavoriteMutation mutation = entry.value;
-        if (mutation.generation <= mutationGeneration) continue;
+        if (mutation.generation <= mutationGeneration &&
+            !_updatingDishIds.contains(entry.key))
+          continue;
         if (mutation.shouldBeSaved) {
           reconciled[entry.key] = mutation.dish;
         } else {
@@ -113,11 +120,15 @@ class FavoritesProvider extends ChangeNotifier {
         }
       }
       _localMutations.removeWhere(
-        (String _, _LocalFavoriteMutation mutation) =>
-            mutation.generation <= mutationGeneration,
+        (String id, _LocalFavoriteMutation mutation) =>
+            mutation.generation <= mutationGeneration &&
+            !_updatingDishIds.contains(id),
       );
       _savedDishes = reconciled.values.toList()
-        ..sort((Dish a, Dish b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+        ..sort(
+          (Dish a, Dish b) =>
+              a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+        );
       _savedDishIds = reconciled.keys.toSet();
       _favoritesLoadedAt = DateTime.now();
       error = null;
@@ -127,7 +138,6 @@ class FavoritesProvider extends ChangeNotifier {
     } finally {
       if (_isCurrentRequest(userId, generation)) {
         isLoading = false;
-        _favoritesLoadFuture = null;
         notifyListeners();
       }
     }
@@ -143,7 +153,7 @@ class FavoritesProvider extends ChangeNotifier {
     _favoritesMutationGeneration = 0;
     _localMutations.clear();
     _favoritesLoadedAt = null;
-    _favoritesLoadFuture = null;
+    _favoritesLoad.invalidate();
     error = null;
     isLoading = false;
     AppLogger.info('[Cache] favorites invalidated reason=logout');
@@ -154,7 +164,10 @@ class FavoritesProvider extends ChangeNotifier {
 
   Future<void> toggleFavorite(Dish dish) async {
     final String dishId = dish.id;
-    if (dishId.isEmpty || _updatingDishIds.contains(dishId)) {
+    if (_disposed ||
+        _activeUserId == null ||
+        dishId.isEmpty ||
+        _updatingDishIds.contains(dishId)) {
       return;
     }
 
@@ -176,7 +189,10 @@ class FavoritesProvider extends ChangeNotifier {
       _savedDishIds.add(dishId);
       if (!_savedDishes.any((Dish savedDish) => savedDish.id == dishId)) {
         _savedDishes = <Dish>[..._savedDishes, dish]
-          ..sort((Dish a, Dish b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+          ..sort(
+            (Dish a, Dish b) =>
+                a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+          );
       }
     }
     error = null;
@@ -191,17 +207,29 @@ class FavoritesProvider extends ChangeNotifier {
         AppLogger.info('[Cache] favorites invalidated reason=save');
       }
       if (!_isCurrentUser(userId, userGeneration)) return;
+      _localMutations[dishId] = _LocalFavoriteMutation(
+        generation: ++_favoritesMutationGeneration,
+        dish: dish,
+        shouldBeSaved: !wasSaved,
+      );
       _favoritesLoadedAt = DateTime.now();
     } catch (e) {
       if (!_isCurrentUser(userId, userGeneration)) return;
       if (_localMutations[dishId]?.generation == mutationGeneration) {
-        _localMutations.remove(dishId);
+        _localMutations[dishId] = _LocalFavoriteMutation(
+          generation: ++_favoritesMutationGeneration,
+          dish: dish,
+          shouldBeSaved: wasSaved,
+        );
       }
       if (wasSaved) {
         _savedDishIds.add(dishId);
         if (!_savedDishes.any((Dish savedDish) => savedDish.id == dishId)) {
           _savedDishes = <Dish>[..._savedDishes, dish]
-            ..sort((Dish a, Dish b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+            ..sort(
+              (Dish a, Dish b) =>
+                  a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+            );
         }
       } else {
         _savedDishIds.remove(dishId);
@@ -217,9 +245,7 @@ class FavoritesProvider extends ChangeNotifier {
   }
 
   bool _isCurrentRequest(String? userId, int generation) =>
-      !_disposed &&
-      generation == _requestGeneration &&
-      userId == _activeUserId;
+      !_disposed && generation == _requestGeneration && userId == _activeUserId;
 
   bool _isCurrentUser(String? userId, int generation) =>
       !_disposed && generation == _userGeneration && userId == _activeUserId;
@@ -227,6 +253,7 @@ class FavoritesProvider extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _favoritesLoad.invalidate();
     _requestGeneration++;
     _userGeneration++;
     super.dispose();

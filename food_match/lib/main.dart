@@ -94,7 +94,6 @@ Future<void> main() async {
   runApp(
     MultiProvider(
       providers: [
-        Provider<DishRepository>.value(value: dishRepo),
         Provider<CoupleRepository>.value(value: coupleRepo),
         Provider<SwipeRepository>.value(value: swipeRepo),
         Provider<MatchHistoryRepository>.value(value: matchHistoryRepo),
@@ -117,6 +116,13 @@ Future<void> main() async {
             cacheService: cacheService,
           ),
         ),
+        ProxyProvider<AuthProvider, DishRepository>(
+          lazy: false,
+          update: (_, auth, __) {
+            dishRepo.handleAuthBoundary(auth.authBoundaryVersion);
+            return dishRepo;
+          },
+        ),
         ChangeNotifierProxyProvider<AuthProvider, CoupleProvider>(
           create: (_) => CoupleProvider(repository: coupleRepo),
           update:
@@ -131,14 +137,32 @@ Future<void> main() async {
                 return provider;
               },
         ),
-        ChangeNotifierProxyProvider2<AuthProvider, CoupleProvider, PremiumProvider>(
-          create: (_) => PremiumProvider(repository: ApiPremiumRepository(apiService)),
-          update: (_, AuthProvider auth, CoupleProvider couple, PremiumProvider? premium) {
-            final provider = premium ?? PremiumProvider(repository: ApiPremiumRepository(apiService));
-            provider.setAuthenticatedUser(auth.currentUser?.id, isAuthenticated: auth.isAuthenticated);
-            provider.handlePairContext(couple.currentCouple?.id);
-            return provider;
-          },
+        ChangeNotifierProxyProvider2<
+          AuthProvider,
+          CoupleProvider,
+          PremiumProvider
+        >(
+          create: (_) =>
+              PremiumProvider(repository: ApiPremiumRepository(apiService)),
+          update:
+              (
+                _,
+                AuthProvider auth,
+                CoupleProvider couple,
+                PremiumProvider? premium,
+              ) {
+                final provider =
+                    premium ??
+                    PremiumProvider(
+                      repository: ApiPremiumRepository(apiService),
+                    );
+                provider.setAuthenticatedUser(
+                  auth.currentUser?.id,
+                  isAuthenticated: auth.isAuthenticated,
+                );
+                provider.handlePairContext(couple.currentCouple?.id);
+                return provider;
+              },
         ),
         ChangeNotifierProxyProvider<AuthProvider, PreSwipeProvider>(
           create: (BuildContext context) => PreSwipeProvider(
@@ -183,23 +207,23 @@ Future<void> main() async {
                 AuthProvider authProvider,
                 SwipeProvider? swipeProvider,
               ) {
-            final SwipeProvider provider =
-                swipeProvider ??
-                SwipeProvider(
-                  dishRepository: dishRepo,
-                  swipeRepository: swipeRepo,
-                  coupleRepository: coupleRepo,
-                  cacheService: cacheService,
-                  userProfileService: userProfileService,
-                  badgeController: context.read<MatchBadgeController>(),
-                );
-            provider.handleAuthBoundary(authProvider.authBoundaryVersion);
-            final String? userId = authProvider.currentUser?.id;
-            if (userId != null || !authProvider.isAuthenticated) {
-              provider.setActiveUser(userId);
-            }
-            return provider;
-          },
+                final SwipeProvider provider =
+                    swipeProvider ??
+                    SwipeProvider(
+                      dishRepository: dishRepo,
+                      swipeRepository: swipeRepo,
+                      coupleRepository: coupleRepo,
+                      cacheService: cacheService,
+                      userProfileService: userProfileService,
+                      badgeController: context.read<MatchBadgeController>(),
+                    );
+                provider.handleAuthBoundary(authProvider.authBoundaryVersion);
+                final String? userId = authProvider.currentUser?.id;
+                if (userId != null || !authProvider.isAuthenticated) {
+                  provider.setActiveUser(userId);
+                }
+                return provider;
+              },
         ),
         ChangeNotifierProxyProvider<AuthProvider, FavoritesProvider>(
           create: (_) => FavoritesProvider(repository: dishRepo),
@@ -238,8 +262,7 @@ Future<void> main() async {
                     MatchProvider(
                       swipeRepository: swipeRepo,
                       cacheService: cacheService,
-                      badgeController:
-                          context.read<MatchBadgeController>(),
+                      badgeController: context.read<MatchBadgeController>(),
                     );
                 provider.handleAuthBoundary(authProvider.authBoundaryVersion);
                 final String? userId = authProvider.currentUser?.id;
@@ -247,9 +270,9 @@ Future<void> main() async {
                   provider.setActiveUser(userId);
                 }
                 if (!authProvider.isAuthenticated) {
-                  context
-                      .read<MatchBadgeController>()
-                      .resetForUserChange(reason: 'logout');
+                  context.read<MatchBadgeController>().resetForUserChange(
+                    reason: 'logout',
+                  );
                   provider.clearForLogout(notify: false);
                   return provider;
                 }
@@ -260,16 +283,37 @@ Future<void> main() async {
                 return provider;
               },
         ),
-        ChangeNotifierProvider<RecipeProvider>(
+        ChangeNotifierProxyProvider<AuthProvider, RecipeProvider>(
           create: (_) => RecipeProvider(repository: dishRepo),
+          update: (_, auth, previous) {
+            final provider = previous ?? RecipeProvider(repository: dishRepo);
+            provider.handleAuthBoundary(auth.authBoundaryVersion);
+            return provider;
+          },
         ),
-        ChangeNotifierProxyProvider3<AuthProvider, CoupleProvider, PremiumProvider, ShoppingListProvider>(
-          create: (_) => ShoppingListProvider(sharedRepository: SharedShoppingListRepository(apiService)),
+        ChangeNotifierProxyProvider3<
+          AuthProvider,
+          CoupleProvider,
+          PremiumProvider,
+          ShoppingListProvider
+        >(
+          create: (_) => ShoppingListProvider(
+            sharedRepository: SharedShoppingListRepository(apiService),
+          ),
           update: (_, auth, couple, premium, previous) {
-            final provider=previous??ShoppingListProvider(sharedRepository: SharedShoppingListRepository(apiService));
-            final shared=auth.isAuthenticated&&premium.canUse(PremiumFeature.sharedShoppingList)?couple.currentCouple?.id:null;
+            final provider =
+                previous ??
+                ShoppingListProvider(
+                  sharedRepository: SharedShoppingListRepository(apiService),
+                );
+            final shared =
+                auth.isAuthenticated &&
+                    premium.canUse(PremiumFeature.sharedShoppingList)
+                ? couple.currentCouple?.id
+                : null;
             provider.setSharedSession(shared);
-            if(shared==null&&premium.canUse(PremiumFeature.shoppingList))provider.load();
+            if (shared == null && premium.canUse(PremiumFeature.shoppingList))
+              provider.load();
             return provider;
           },
         ),
@@ -292,11 +336,20 @@ class _MissingConfigurationApp extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                Text('Missing app configuration', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                Text(
+                  'Missing app configuration',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
                 SizedBox(height: 16),
-                Text('Run the app with SUPABASE_URL, SUPABASE_ANON_KEY and API_BASE_URL.', textAlign: TextAlign.center),
+                Text(
+                  'Run the app with SUPABASE_URL, SUPABASE_ANON_KEY and API_BASE_URL.',
+                  textAlign: TextAlign.center,
+                ),
                 SizedBox(height: 16),
-                SelectableText('flutter run --dart-define=SUPABASE_URL=https://<project-ref>.supabase.co --dart-define=SUPABASE_ANON_KEY=<anon-key> --dart-define=API_BASE_URL=http://<backend-host>:4000', textAlign: TextAlign.center),
+                SelectableText(
+                  'flutter run --dart-define=SUPABASE_URL=https://<project-ref>.supabase.co --dart-define=SUPABASE_ANON_KEY=<anon-key> --dart-define=API_BASE_URL=http://<backend-host>:4000',
+                  textAlign: TextAlign.center,
+                ),
               ],
             ),
           ),

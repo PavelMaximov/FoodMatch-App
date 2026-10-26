@@ -17,9 +17,9 @@ class MatchProvider extends ChangeNotifier {
     required SwipeRepository swipeRepository,
     CacheService? cacheService,
     MatchBadgeController? badgeController,
-  })  : _swipeRepository = swipeRepository,
-        _cacheService = cacheService ?? CacheService(),
-        _badgeController = badgeController {
+  }) : _swipeRepository = swipeRepository,
+       _cacheService = cacheService ?? CacheService(),
+       _badgeController = badgeController {
     badgeController?.attachRefreshHandler(_refreshForBadgeEvent);
   }
 
@@ -40,6 +40,8 @@ class MatchProvider extends ChangeNotifier {
   final Map<String, MatchItem> _optimisticSoloMatches = <String, MatchItem>{};
   bool _hasSeededPairedMatchNotifications = false;
   int _authBoundaryVersion = -1;
+  bool _disposed = false;
+  int _successfulLoadVersion = 0;
 
   List<MatchItem> matches = <MatchItem>[];
   bool isLoading = false;
@@ -72,7 +74,8 @@ class MatchProvider extends ChangeNotifier {
     final String key = '$sessionId:$eventId';
     if (!_optimisticSoloMatchKeys.add(key)) return false;
     final bool alreadyPresent = matches.any(
-      (MatchItem item) => item.sessionId == sessionId && item.dish.id == dish.id,
+      (MatchItem item) =>
+          item.sessionId == sessionId && item.dish.id == dish.id,
     );
     if (!alreadyPresent) {
       final MatchItem optimisticMatch = MatchItem(
@@ -107,17 +110,23 @@ class MatchProvider extends ChangeNotifier {
     _badgeController?.setActiveUser(normalized);
     _optimisticSoloMatchKeys.clear();
     _optimisticSoloMatches.clear();
-    matches = <MatchItem>[];
-    error = null;
-    _matchesLoadedAt = null;
-    _invalidateMatchesLoad();
+    _clearPairNotificationState();
+    _resetLoadedMatches();
     _cacheService.clearCachedMatches();
     AppLogger.info('[Cache] matches invalidated reason=account-change');
   }
+
   bool get _hasFreshMatchesCache {
     final DateTime? loadedAt = _matchesLoadedAt;
     return loadedAt != null &&
         DateTime.now().difference(loadedAt) < CachePolicy.matchesTtl;
+  }
+
+  void _resetLoadedMatches() {
+    matches = <MatchItem>[];
+    error = null;
+    _matchesLoadedAt = null;
+    _invalidateMatchesLoad();
   }
 
   void _invalidateMatchesLoad() {
@@ -134,14 +143,20 @@ class MatchProvider extends ChangeNotifier {
     final requestKey = _cacheKey;
     final completer = Completer<void>();
     _queuedRefresh = completer.future;
-    completer.complete(inFlight.then((_) async {
-      if (generation != _loadGeneration || requestKey != _cacheKey) return;
-      // New mutations during the follow-up may schedule one more refresh.
-      _queuedRefresh = null;
-      await loadMatches(force: true, reason: reason);
-    }).whenComplete(() {
-      if (identical(_queuedRefresh, completer.future)) _queuedRefresh = null;
-    }));
+    completer.complete(
+      inFlight
+          .then((_) async {
+            if (generation != _loadGeneration || requestKey != _cacheKey)
+              return;
+            // New mutations during the follow-up may schedule one more refresh.
+            _queuedRefresh = null;
+            await loadMatches(force: true, reason: reason);
+          })
+          .whenComplete(() {
+            if (identical(_queuedRefresh, completer.future))
+              _queuedRefresh = null;
+          }),
+    );
     return completer.future;
   }
 
@@ -150,8 +165,9 @@ class MatchProvider extends ChangeNotifier {
     String? mode,
     String? soloSessionId,
     String? reason,
+    bool queueAfterCurrent = true,
   }) {
-    if (_activeUserId == null || _activeUserId!.isEmpty) {
+    if (_disposed || _activeUserId == null || _activeUserId!.isEmpty) {
       AppLogger.info(
         '[MatchProvider] loadMatches skipped reason=user_unresolved',
       );
@@ -177,12 +193,14 @@ class MatchProvider extends ChangeNotifier {
     }
     if (!force && _hasFreshMatchesCache) {
       final int age = DateTime.now().difference(_matchesLoadedAt!).inSeconds;
-      AppLogger.info('[MatchProvider] cache hit=true count=${matches.length} age=${age}s key=$_cacheKey');
+      AppLogger.info(
+        '[MatchProvider] cache hit=true count=${matches.length} age=${age}s key=$_cacheKey',
+      );
       return Future<void>.value();
     }
     final Future<void>? inFlight = _matchesLoadFuture;
     if (inFlight != null) {
-      if (force) {
+      if (force && queueAfterCurrent) {
         AppLogger.info(
           '[RequestDedup] matches force refresh queued reason=${reason ?? 'refresh'}',
         );
@@ -193,16 +211,20 @@ class MatchProvider extends ChangeNotifier {
     }
 
     final String requestKey = _cacheKey;
-    AppLogger.info('[MatchProvider] loadMatches user=${_activeUserId ?? 'none'} mode=$_mode scope=${_mode == 'solo' ? 'current' : 'all'} sessionId=${_activeSoloSessionId ?? _activeCoupleId ?? 'none'} force=$force');
+    AppLogger.info(
+      '[MatchProvider] loadMatches user=${_activeUserId ?? 'none'} mode=$_mode scope=${_mode == 'solo' ? 'current' : 'all'} sessionId=${_activeSoloSessionId ?? _activeCoupleId ?? 'none'} force=$force',
+    );
     AppLogger.info('[MatchProvider] cache hit=false count=0 key=$requestKey');
     final completer = Completer<void>();
     _matchesLoadFuture = completer.future;
-    completer.complete(_loadMatchesFromApi(
-      generation: _loadGeneration,
-      force: force,
-      requestKey: requestKey,
-      reason: reason ?? (force ? 'refresh' : 'initial_load'),
-    ));
+    completer.complete(
+      _loadMatchesFromApi(
+        generation: _loadGeneration,
+        force: force,
+        requestKey: requestKey,
+        reason: reason ?? (force ? 'refresh' : 'initial_load'),
+      ),
+    );
     return completer.future;
   }
 
@@ -212,11 +234,12 @@ class MatchProvider extends ChangeNotifier {
     required String requestKey,
     required String reason,
   }) async {
-    bool isCurrent() => generation == _loadGeneration && requestKey == _cacheKey;
+    bool isCurrent() =>
+        !_disposed && generation == _loadGeneration && requestKey == _cacheKey;
+    AppLogger.info('[PageLoad] start page=Matches reason=$reason');
     AppLogger.info(
-      '[PageLoad] start page=Matches reason=$reason',
+      force ? '[Cache] matches force refresh' : '[Cache] matches miss',
     );
-    AppLogger.info(force ? '[Cache] matches force refresh' : '[Cache] matches miss');
     isLoading = true;
     error = null;
     notifyListeners();
@@ -255,7 +278,9 @@ class MatchProvider extends ChangeNotifier {
         );
       }
       if (!isCurrent()) {
-        AppLogger.info('[MatchProvider] stale response ignored requestKey=$requestKey currentKey=$_cacheKey');
+        AppLogger.info(
+          '[MatchProvider] stale response ignored requestKey=$requestKey currentKey=$_cacheKey',
+        );
         return;
       }
       if (_mode == 'solo') {
@@ -275,7 +300,13 @@ class MatchProvider extends ChangeNotifier {
         matches = result;
       }
       _matchesLoadedAt = DateTime.now();
-      await _cacheService.cacheMatches(matches.map((MatchItem item) => item.dish).toList(), coupleId: requestKey);
+      _successfulLoadVersion++;
+      try {
+        await _cacheService.cacheMatchItems(matches, scopeKey: requestKey);
+      } catch (e) {
+        // A disk failure must not discard a successful server response.
+        AppLogger.error('MatchProvider: cache write failed', e);
+      }
       if (!isCurrent()) return;
       AppLogger.info('[MatchProvider] cache key=$requestKey');
       AppLogger.info('MatchProvider: loaded ${matches.length} matches');
@@ -284,9 +315,7 @@ class MatchProvider extends ChangeNotifier {
         _badgeController?.applyFetchedMatches(
           userId: badgeUserId,
           mode: _mode,
-          sessionId: _mode == 'solo'
-              ? _activeSoloSessionId
-              : _activeCoupleId,
+          sessionId: _mode == 'solo' ? _activeSoloSessionId : _activeCoupleId,
           matchIds: fetchedMatchIds,
           reason: reason,
         );
@@ -298,10 +327,9 @@ class MatchProvider extends ChangeNotifier {
       );
     } catch (e) {
       if (!isCurrent()) return;
-      final List<MatchItem> cached =
-          (await _cacheService.getCachedMatches(coupleId: requestKey))
-          .map((Dish dish) => MatchItem.fromCachedDish(dish, _mode))
-          .toList();
+      final List<MatchItem> cached = matches.isNotEmpty
+          ? List<MatchItem>.from(matches)
+          : await _cacheService.getCachedMatchItems(scopeKey: requestKey);
       if (!isCurrent()) return;
       if (_mode == 'solo') {
         final Set<String> cachedDishIds = cached
@@ -322,7 +350,6 @@ class MatchProvider extends ChangeNotifier {
         error = _mapError(e);
         AppLogger.info('[PageLoad] error page=Matches error=$error');
       } else {
-        _matchesLoadedAt ??= DateTime.now();
         AppLogger.info('MatchProvider: loaded ${matches.length} from cache');
       }
     } finally {
@@ -340,7 +367,13 @@ class MatchProvider extends ChangeNotifier {
     required String reason,
     String? removedMatchId,
   }) async {
-    if (_activeUserId == null) {
+    final activeSession = _mode == 'solo'
+        ? _activeSoloSessionId
+        : _activeCoupleId;
+    if (_disposed ||
+        _activeUserId == null ||
+        mode != _mode ||
+        sessionId != activeSession) {
       if (kDebugMode) {
         debugPrint('[SwipeBadge] action=force_refresh skipped=user_unresolved');
       }
@@ -363,6 +396,7 @@ class MatchProvider extends ChangeNotifier {
       mode: mode,
       soloSessionId: mode == 'solo' ? sessionId : null,
       reason: reason,
+      queueAfterCurrent: reason != 'shell_poll' && reason != 'app_resume',
     );
     if (kDebugMode) {
       debugPrint(
@@ -386,7 +420,10 @@ class MatchProvider extends ChangeNotifier {
     }
     if (_mode == 'paired') {
       return items
-          .where((MatchItem item) => item.mode == 'paired' && item.matchType == 'pair_match')
+          .where(
+            (MatchItem item) =>
+                item.mode == 'paired' && item.matchType == 'pair_match',
+          )
           .toList();
     }
     return items;
@@ -433,11 +470,7 @@ class MatchProvider extends ChangeNotifier {
     _mode = 'paired';
     _badgeController?.setScope(mode: 'paired', sessionId: normalized);
     _sessionStateVersion = nextVersion;
-    matches = <MatchItem>[];
-    error = null;
-    isLoading = false;
-    _matchesLoadedAt = null;
-    _invalidateMatchesLoad();
+    _resetLoadedMatches();
     notifyListeners();
     _cacheService.clearCachedMatches();
     _clearPairNotificationState();
@@ -459,11 +492,7 @@ class MatchProvider extends ChangeNotifier {
     _optimisticSoloMatches.clear();
     _mode = 'solo';
     _badgeController?.setScope(mode: 'solo', sessionId: normalized);
-    matches = <MatchItem>[];
-    error = null;
-    isLoading = false;
-    _matchesLoadedAt = null;
-    _invalidateMatchesLoad();
+    _resetLoadedMatches();
     _cacheService.clearCachedMatches();
     _clearPairNotificationState();
     notifyListeners();
@@ -484,20 +513,15 @@ class MatchProvider extends ChangeNotifier {
       _optimisticSoloMatchKeys.clear();
       _optimisticSoloMatches.clear();
     }
-    matches = <MatchItem>[];
-    error = null;
-    isLoading = false;
-    _matchesLoadedAt = null;
-    _invalidateMatchesLoad();
+    _resetLoadedMatches();
     _cacheService.clearCachedMatches();
     notifyListeners();
   }
 
   void clearMatches() {
-    matches = <MatchItem>[];
-    error = null;
-    _matchesLoadedAt = null;
-    _invalidateMatchesLoad();
+    _optimisticSoloMatchKeys.clear();
+    _optimisticSoloMatches.clear();
+    _resetLoadedMatches();
     _cacheService.clearCachedMatches();
     _clearPairNotificationState();
     AppLogger.info('[Cache] matches invalidated reason=clear');
@@ -517,7 +541,8 @@ class MatchProvider extends ChangeNotifier {
   }
 
   void clearForLogout({bool notify = true}) {
-    final bool changed = _activeCoupleId != null ||
+    final bool changed =
+        _activeCoupleId != null ||
         _activeSoloSessionId != null ||
         _sessionStateVersion != 0 ||
         matches.isNotEmpty ||
@@ -530,11 +555,7 @@ class MatchProvider extends ChangeNotifier {
     _optimisticSoloMatches.clear();
     _mode = 'solo';
     _sessionStateVersion = 0;
-    matches = <MatchItem>[];
-    error = null;
-    isLoading = false;
-    _matchesLoadedAt = null;
-    _invalidateMatchesLoad();
+    _resetLoadedMatches();
     _cacheService.clearCachedMatches();
     _clearPairNotificationState();
     AppLogger.info('[Cache] matches invalidated reason=logout');
@@ -543,7 +564,6 @@ class MatchProvider extends ChangeNotifier {
     }
   }
 
-
   void markMatchSeen(String matchId) {
     final String normalized = matchId.trim();
     if (normalized.isNotEmpty) {
@@ -551,41 +571,50 @@ class MatchProvider extends ChangeNotifier {
     }
   }
 
-  Future<List<MatchItem>> syncPairedMatchesForNotifications({bool seedOnly = false}) async {
+  Future<List<MatchItem>> syncPairedMatchesForNotifications({
+    bool seedOnly = false,
+  }) async {
     if (_mode != 'paired' || _activeCoupleId == null) {
       return <MatchItem>[];
     }
 
     final generation = _loadGeneration;
     final requestKey = _cacheKey;
-    bool isCurrent() => generation == _loadGeneration && requestKey == _cacheKey;
-    try {
-      final List<MatchItem> latest = _filterForMode(await _swipeRepository.getMatches(mode: 'paired'));
-      if (!isCurrent()) return <MatchItem>[];
-      final Set<String> latestIds = latest
-          .map((MatchItem item) => item.id)
-          .whereType<String>()
-          .where((String id) => id.isNotEmpty)
-          .toSet();
-      final bool shouldSeed = seedOnly || !_hasSeededPairedMatchNotifications;
-      final List<MatchItem> newMatches = shouldSeed
-          ? <MatchItem>[]
-          : latest
-              .where((MatchItem item) => item.id != null && !_knownPairedMatchIds.contains(item.id))
-              .toList();
-
-      _knownPairedMatchIds.addAll(latestIds);
-      _hasSeededPairedMatchNotifications = true;
-      matches = latest;
-      _matchesLoadedAt = DateTime.now();
-      await _cacheService.cacheMatches(matches.map((MatchItem item) => item.dish).toList(), coupleId: requestKey);
-      if (!isCurrent()) return <MatchItem>[];
-      notifyListeners();
-      return newMatches;
-    } catch (e) {
-      AppLogger.error('MatchProvider: paired notification sync failed', e);
+    bool isCurrent() =>
+        !_disposed && generation == _loadGeneration && requestKey == _cacheKey;
+    final previousLoadVersion = _successfulLoadVersion;
+    await loadMatches(
+      force: true,
+      queueAfterCurrent: false,
+      reason: 'pair_notification_poll',
+    );
+    if (!isCurrent() || previousLoadVersion == _successfulLoadVersion)
       return <MatchItem>[];
-    }
+    final latestIds = matches
+        .map((item) => item.id)
+        .whereType<String>()
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    final shouldSeed = seedOnly || !_hasSeededPairedMatchNotifications;
+    final newMatches = shouldSeed
+        ? <MatchItem>[]
+        : matches
+              .where(
+                (item) =>
+                    item.id != null && !_knownPairedMatchIds.contains(item.id),
+              )
+              .toList();
+    _knownPairedMatchIds.addAll(latestIds);
+    _hasSeededPairedMatchNotifications = true;
+    return newMatches;
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _invalidateMatchesLoad();
+    _badgeController?.detachRefreshHandler(_refreshForBadgeEvent);
+    super.dispose();
   }
 
   void _clearPairNotificationState() {

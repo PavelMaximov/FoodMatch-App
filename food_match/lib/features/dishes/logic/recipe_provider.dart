@@ -7,7 +7,8 @@ import '../../../data/services/api_service.dart';
 import '../../../core/utils/logger.dart';
 
 class RecipeProvider extends ChangeNotifier {
-  RecipeProvider({required DishRepository repository}) : _repository = repository;
+  RecipeProvider({required DishRepository repository})
+    : _repository = repository;
 
   final DishRepository _repository;
 
@@ -17,8 +18,16 @@ class RecipeProvider extends ChangeNotifier {
   int _requestGeneration = 0;
   String? _activeDishId;
   bool _disposed = false;
+  int? _authBoundaryVersion;
+
+  void handleAuthBoundary(int version) {
+    if (_authBoundaryVersion == version) return;
+    _authBoundaryVersion = version;
+    clearRecipe(notify: false);
+  }
 
   Future<void> loadRecipeForDish({required String dishId, Dish? dish}) async {
+    if (_disposed) return;
     final int generation = ++_requestGeneration;
     _activeDishId = dishId;
     if (dish != null) {
@@ -62,15 +71,15 @@ class RecipeProvider extends ChangeNotifier {
       dish.steps.isEmpty ||
       !dish.sections
           .expand((DishSection section) => section.components)
-          .any(
-            (DishComponent component) => component.measurements.isNotEmpty,
-          );
+          .any((DishComponent component) => component.measurements.isNotEmpty);
 
-  void clearRecipe() {
+  void clearRecipe({bool notify = true}) {
     _requestGeneration++;
     _activeDishId = null;
     currentDish = null;
-    notifyListeners();
+    isLoading = false;
+    error = null;
+    if (notify && !_disposed) notifyListeners();
   }
 
   bool _isCurrentRequest(String dishId, int generation) =>

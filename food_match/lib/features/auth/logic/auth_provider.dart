@@ -1,6 +1,9 @@
 import 'dart:async';
 
+import '../../../core/async/single_flight.dart';
+
 import 'package:flutter/foundation.dart';
+
 import '../../../core/constants/api_constants.dart';
 import '../../../core/errors/error_messages.dart';
 import '../../../core/utils/logger.dart';
@@ -10,6 +13,7 @@ import '../../../data/models/user.dart';
 import '../../../data/models/measurement_system.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../data/services/api_service.dart';
+
 import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 
 class AuthProvider extends ChangeNotifier {
@@ -34,7 +38,8 @@ class AuthProvider extends ChangeNotifier {
   User? currentUser;
   String? token;
   DateTime? _currentUserLoadedAt;
-  Future<void>? _loadUserFuture;
+  final _userLoad = SingleFlight<void>();
+  bool _disposed = false;
   bool _isClearingAuth = false;
   bool isLoading = false;
   bool profileSetupReady = true;
@@ -53,10 +58,13 @@ class AuthProvider extends ChangeNotifier {
   Future<bool> updateMeasurementSystemPreference(
     MeasurementSystemPreference preference,
   ) async {
+    final version = authBoundaryVersion;
     try {
-      currentUser = await _repository.updateMeasurementSystemPreference(
+      final updated = await _repository.updateMeasurementSystemPreference(
         preference,
       );
+      if (_disposed || version != authBoundaryVersion) return false;
+      currentUser = updated;
       _currentUserLoadedAt = DateTime.now();
       await _cacheUserDataIfAvailable();
       notifyListeners();
@@ -79,6 +87,7 @@ class AuthProvider extends ChangeNotifier {
     String password,
     String displayName,
   ) async {
+    _userLoad.invalidate();
     isLoading = true;
     error = null;
     notifyListeners();
@@ -105,6 +114,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> login(String email, String password) async {
+    _userLoad.invalidate();
     isLoading = true;
     error = null;
     notifyListeners();
@@ -137,37 +147,36 @@ class AuthProvider extends ChangeNotifier {
       AppLogger.info('[Cache] auth user hit age=${age}s');
       return Future<void>.value();
     }
-    final Future<void>? inFlight = _loadUserFuture;
-    if (inFlight != null) {
-      AppLogger.info(
-        '[RequestDedup] auth user refresh skipped: already in flight',
-      );
-      return inFlight;
-    }
-
-    _loadUserFuture = _loadUserFromApi(force: force);
-    return _loadUserFuture!;
+    if (_disposed || _isClearingAuth) return Future<void>.value();
+    return _userLoad.run(() => _loadUserFromApi(force: force));
   }
 
   Future<void> _loadUserFromApi({required bool force}) async {
+    final generation = _userLoad.generation;
+    bool isCurrent() => !_disposed && _userLoad.isCurrent(generation);
     AppLogger.info(
       force ? '[Cache] auth user force refresh' : '[Cache] auth user miss',
     );
     isLoading = true;
     error = null;
     notifyListeners();
+    if (!isCurrent()) return;
 
     try {
       final supabase.Session? session = _repository.currentSession;
       AppLogger.info('[Auth] restore session found=${session != null}');
       if (session == null) {
-        if (currentUser != null || token != null) await _clearAuthState();
+        if (currentUser != null || token != null) {
+          await _clearAuthState();
+          if (!_disposed) notifyListeners();
+        }
         return;
       }
       token = session.accessToken;
       _apiService.setToken(token);
       final String? previousUserId = currentUser?.id;
       final me = await _repository.getMeWithVerificationRequirement();
+      if (!isCurrent()) return;
       currentUser = me.user;
       profileSetupReady = true;
       requireEmailVerification = me.requireEmailVerification;
@@ -177,6 +186,7 @@ class AuthProvider extends ChangeNotifier {
       _currentUserLoadedAt = DateTime.now();
       await _cacheUserDataIfAvailable();
     } on ApiException catch (e) {
+      if (!isCurrent()) return;
       if (e.code == 'SUPABASE_PROFILE_MISSING') {
         profileSetupReady = false;
       }
@@ -190,13 +200,15 @@ class AuthProvider extends ChangeNotifier {
         error = _mapError(e);
       }
     } catch (e) {
+      if (!isCurrent()) return;
       AppLogger.error('loadUser failed', e);
       AppLogger.info('[Auth] retained session reason=network_error');
       error = _mapError(e);
     } finally {
-      isLoading = false;
-      _loadUserFuture = null;
-      notifyListeners();
+      if (isCurrent()) {
+        isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -209,6 +221,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    _userLoad.invalidate();
     isLoading = true;
     error = null;
     notifyListeners();
@@ -250,12 +263,13 @@ class AuthProvider extends ChangeNotifier {
   Future<void> _clearAuthState() async {
     if (_isClearingAuth) return;
     _isClearingAuth = true;
+    _userLoad.invalidate();
+    isLoading = false;
     try {
       await _apiService.clearTokens();
       token = null;
       currentUser = null;
       _currentUserLoadedAt = null;
-      _loadUserFuture = null;
       _apiService.setToken(null);
       requireEmailVerification = false;
       _markAuthBoundaryChanged(reason: 'clearAuthState');
@@ -266,6 +280,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   void _handleAuthStateChange(supabase.AuthState state) {
+    if (_disposed) return;
     switch (state.event) {
       case supabase.AuthChangeEvent.tokenRefreshed:
         token = state.session?.accessToken;
@@ -274,11 +289,16 @@ class AuthProvider extends ChangeNotifier {
         notifyListeners();
       case supabase.AuthChangeEvent.signedOut:
         if (token != null || currentUser != null) {
-          unawaited(_clearAuthState().then((_) => notifyListeners()));
+          unawaited(
+            _clearAuthState().then((_) {
+              if (!_disposed) notifyListeners();
+            }),
+          );
         }
       case supabase.AuthChangeEvent.userUpdated:
         if (state.session != null) unawaited(loadUser(force: true));
       case supabase.AuthChangeEvent.signedIn:
+        _userLoad.invalidate();
         token = state.session?.accessToken;
         _apiService.setToken(token);
       default:
@@ -288,6 +308,11 @@ class AuthProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
+    _userLoad.invalidate();
+    if (_apiService.onUnauthorized == handleSessionExpired) {
+      _apiService.onUnauthorized = null;
+    }
     _authSubscription?.cancel();
     super.dispose();
   }
@@ -339,7 +364,9 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> checkVerificationStatus() async {
+    final version = authBoundaryVersion;
     final me = await _repository.getMeWithVerificationRequirement();
+    if (_disposed || version != authBoundaryVersion) return;
     currentUser = me.user;
     requireEmailVerification = me.requireEmailVerification;
     notifyListeners();

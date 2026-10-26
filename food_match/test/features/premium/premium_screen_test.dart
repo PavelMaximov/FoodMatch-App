@@ -98,7 +98,11 @@ void main() {
       expect(find.text('Subscriptions coming soon'), findsOneWidget);
       ScaffoldMessenger.of(tester.element(cta)).clearSnackBars();
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('premium-restore')));
+      final restore = find.byKey(const ValueKey('premium-restore'));
+      await tester.ensureVisible(restore);
+      await tester.pumpAndSettle();
+      expect(restore.hitTestable(), findsOneWidget);
+      await tester.tap(restore);
       await tester.pump(const Duration(milliseconds: 400));
       expect(find.text('Subscriptions coming soon'), findsOneWidget);
       expect(provider.entitlements, same(entitlement));
@@ -149,6 +153,12 @@ void main() {
           expect(rect.top, greaterThan(0));
           expect(rect.bottom, lessThanOrEqualTo(size.height - 24));
           expect(cta.hitTestable(), findsOneWidget);
+          final restore = find.byKey(const ValueKey('premium-restore'));
+          expect(restore.hitTestable(), findsOneWidget);
+          expect(
+            tester.getRect(find.byType(PremiumFooter)).bottom,
+            lessThanOrEqualTo(size.height - 24),
+          );
           expect(
             tester.getSize(plan('monthly')),
             tester.getSize(plan('yearly')),

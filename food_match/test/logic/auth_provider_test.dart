@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:food_match/data/local/cache_service.dart';
 import 'package:food_match/data/models/auth_response.dart';
@@ -106,32 +108,85 @@ void main() {
     },
   );
 
-  test('profile setup failure retains session and suppresses domain startup', () async {
+  test(
+    'profile setup failure retains session and suppresses domain startup',
+    () async {
+      fakeRepo.session = supabase.Session(
+        accessToken: 'current-access-token',
+        refreshToken: 'current-refresh-token',
+        tokenType: 'bearer',
+        user: const supabase.User(
+          id: 'supabase-user',
+          appMetadata: <String, dynamic>{},
+          userMetadata: <String, dynamic>{},
+          aud: 'authenticated',
+          email: 'test@test.com',
+          createdAt: '2026-08-20T00:00:00Z',
+        ),
+      );
+      fakeRepo.meError = const ApiException(
+        'User profile is not ready',
+        statusCode: 500,
+        code: 'SUPABASE_PROFILE_MISSING',
+      );
+      provider.token = 'current-access-token';
+
+      await provider.loadUser(force: true);
+
+      expect(provider.isAuthenticated, isTrue);
+      expect(provider.profileSetupReady, isFalse);
+      expect(
+        provider.error,
+        'Your profile is not ready yet. Please try again.',
+      );
+    },
+  );
+  test('profile response after logout cannot restore the old user', () async {
     fakeRepo.session = supabase.Session(
-      accessToken: 'current-access-token',
-      refreshToken: 'current-refresh-token',
+      accessToken: 'old-token',
       tokenType: 'bearer',
       user: const supabase.User(
-        id: 'supabase-user',
-        appMetadata: <String, dynamic>{},
-        userMetadata: <String, dynamic>{},
+        id: 'old',
+        appMetadata: {},
+        userMetadata: {},
         aud: 'authenticated',
-        email: 'test@test.com',
-        createdAt: '2026-08-20T00:00:00Z',
+        createdAt: '2026-01-01T00:00:00Z',
       ),
     );
-    fakeRepo.meError = const ApiException(
-      'User profile is not ready',
-      statusCode: 500,
-      code: 'SUPABASE_PROFILE_MISSING',
+    fakeRepo.meRequest =
+        Completer<({User user, bool requireEmailVerification})>();
+    final load = provider.loadUser();
+    await provider.logout();
+    fakeRepo.meRequest!.complete((
+      user: const User(id: 'old', email: 'old@example.com', displayName: 'Old'),
+      requireEmailVerification: false,
+    ));
+    await load;
+    expect(provider.currentUser, isNull);
+    expect(provider.isAuthenticated, isFalse);
+    expect(provider.isLoading, isFalse);
+    expect(fakeCacheService.cachedName, isNull);
+  });
+
+  test('disposed provider ignores a pending profile response', () async {
+    fakeRepo.session = supabase.Session(
+      accessToken: 'old-token',
+      tokenType: 'bearer',
+      user: const supabase.User(
+        id: 'old',
+        appMetadata: {},
+        userMetadata: {},
+        aud: 'authenticated',
+        createdAt: '2026-01-01T00:00:00Z',
+      ),
     );
-    provider.token = 'current-access-token';
-
-    await provider.loadUser(force: true);
-
-    expect(provider.isAuthenticated, isTrue);
-    expect(provider.profileSetupReady, isFalse);
-    expect(provider.error, 'Your profile is not ready yet. Please try again.');
+    fakeRepo.meRequest =
+        Completer<({User user, bool requireEmailVerification})>();
+    final load = provider.loadUser();
+    provider.dispose();
+    fakeRepo.meRequest!.completeError(StateError('offline'));
+    await load;
+    expect(fakeApi.onUnauthorized, isNull);
   });
 }
 
@@ -148,6 +203,7 @@ class _FakeAuthRepository extends AuthRepository {
   AuthResponse? loginResponse;
   Object? loginError;
   Object? meError;
+  Completer<({User user, bool requireEmailVerification})>? meRequest;
   supabase.Session? session;
 
   @override
@@ -172,6 +228,7 @@ class _FakeAuthRepository extends AuthRepository {
   @override
   Future<({User user, bool requireEmailVerification})>
   getMeWithVerificationRequirement() async {
+    if (meRequest != null) return meRequest!.future;
     final Object? failure = meError;
     if (failure != null) throw failure;
     throw StateError('A getMe response was not configured.');
