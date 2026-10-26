@@ -51,7 +51,7 @@ class SwipeDeckView extends StatelessWidget {
           onDislike: !provider.canAcceptSwipe || isCardActionInProgress
               ? null
               : onDislike,
-          onBack: provider.canUndo && !provider.isSendingSwipe && !isCardActionInProgress
+          onBack: provider.canUndo && !isCardActionInProgress
               ? onUndo
               : null,
           onInfoTap: () => onInfoTap(context, dish),
