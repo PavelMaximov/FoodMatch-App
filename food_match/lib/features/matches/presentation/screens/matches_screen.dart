@@ -1,3 +1,4 @@
+import '../../../../shared/logic/favorite_actions.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -31,6 +32,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
       await context.read<CoupleProvider>().loadCouple();
       if (!mounted) return;
       context.read<MatchProvider>().loadMatches();
@@ -45,7 +47,6 @@ class _MatchesScreenState extends State<MatchesScreen> {
     final String? error = context.select<MatchProvider, String?>((MatchProvider p) => p.error);
     final Set<String> savedDishIds = context.select<FavoritesProvider, Set<String>>((FavoritesProvider p) => p.savedDishIds);
     final bool isSoloMode = context.select<MatchProvider, bool>((MatchProvider p) => p.isSoloMode);
-    final bool Function(String) isFavoriteUpdating = context.read<FavoritesProvider>().isUpdating;
     final Couple? currentCouple = context.select<CoupleProvider, Couple?>((CoupleProvider p) => p.currentCouple);
     final String? currentUserId = context.select<AuthProvider, String?>((AuthProvider p) => p.currentUser?.id);
     final CoupleMemberProfile? partner = resolvePartnerProfile(
@@ -74,7 +75,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
                 partnerAvatarUrl: partnerAvatarUrl,
               ),
               const SizedBox(height: AppDimensions.paddingL),
-              Expanded(child: _buildBody(matches, isLoading, error, savedDishIds, isFavoriteUpdating, isSoloMode)),
+              Expanded(child: _buildBody(matches, isLoading, error, savedDishIds, isSoloMode)),
             ],
           ),
         ),
@@ -82,7 +83,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
     );
   }
 
-  Widget _buildBody(List<MatchItem> matches, bool isLoading, String? error, Set<String> savedDishIds, bool Function(String) isFavoriteUpdating, bool isSoloMode) {
+  Widget _buildBody(List<MatchItem> matches, bool isLoading, String? error, Set<String> savedDishIds, bool isSoloMode) {
     if (isLoading && matches.isEmpty) {
       return ListView.builder(
         itemCount: 4,
@@ -131,12 +132,15 @@ class _MatchesScreenState extends State<MatchesScreen> {
           final dish = matches[index].dish;
           return Padding(
             padding: const EdgeInsets.only(bottom: AppDimensions.paddingS),
-            child: DishCompactCard(
-              key: ValueKey<String>(dish.id),
-              dish: dish,
-              isSaved: savedDishIds.contains(dish.id),
-              onTap: () => context.push('/recipe-detail/${dish.id}', extra: dish),
-              onFavoriteTap: isFavoriteUpdating(dish.id) ? null : () => context.read<FavoritesProvider>().toggleFavorite(dish),
+            child: Selector<FavoritesProvider, bool>(
+              selector: (_, provider) => provider.isUpdating(dish.id),
+              builder: (context, updating, _) => DishCompactCard(
+                key: ValueKey<String>(dish.id),
+                dish: dish,
+                isSaved: savedDishIds.contains(dish.id),
+                onTap: () => context.push('/recipe-detail/${dish.id}', extra: dish),
+                onFavoriteTap: updating ? null : () => toggleDishFavorite(context, dish),
+              ),
             ),
           );
         },

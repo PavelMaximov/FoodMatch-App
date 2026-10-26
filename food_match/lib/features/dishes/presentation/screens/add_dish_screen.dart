@@ -24,26 +24,14 @@ import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/dish_compact_card.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../domain/dish_taxonomy.dart';
+import '../../logic/custom_dishes_controller.dart';
+import '../../../../shared/widgets/error_state.dart';
 
 class AddDishScreen extends StatefulWidget {
   const AddDishScreen({super.key});
 
   @override
   State<AddDishScreen> createState() => _AddDishScreenState();
-}
-
-class _PendingDeletedDish {
-  _PendingDeletedDish({
-    required this.dish,
-    required this.index,
-    required this.repository,
-  });
-
-  final Dish dish;
-  int index;
-  final DishRepository repository;
-  Timer? timer;
-  bool isCommitted = false;
 }
 
 class _AddDishScreenState extends State<AddDishScreen> {
@@ -54,10 +42,13 @@ class _AddDishScreenState extends State<AddDishScreen> {
   final TextEditingController _otherCuisineController = TextEditingController();
 
   bool _isSubmitting = false;
-  bool _isLoadingMyDishes = false;
-  List<Dish> _myDishes = <Dish>[];
-  final Map<String, _PendingDeletedDish> _pendingDeletedDishes =
-      <String, _PendingDeletedDish>{};
+  late final CustomDishesController _customDishes;
+  bool get _isLoadingMyDishes => _customDishes.isLoading;
+  List<Dish> get _myDishes => _customDishes.dishes;
+
+  void _onCustomDishesChanged() {
+    if (mounted) setState(() {});
+  }
 
   String? _selectedCuisine;
   String? _selectedMealFormat;
@@ -88,21 +79,24 @@ class _AddDishScreenState extends State<AddDishScreen> {
   @override
   void initState() {
     super.initState();
+    _customDishes = CustomDishesController(
+      context.read<DishRepository>(),
+      onChanged: _invalidateSwipeDeckCacheIfAvailable,
+      onDeleteError: (message) {
+        if (!mounted) return;
+        FoodMatchNotifications.show(context,
+          type: FoodMatchNotificationType.error,
+          title: 'Could not delete dish', message: message);
+      },
+    )..addListener(_onCustomDishesChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadMyDishes();
+      if (mounted) _loadMyDishes();
     });
   }
 
   @override
   void dispose() {
-    final List<_PendingDeletedDish> pendingDeletes = _pendingDeletedDishes
-        .values
-        .toList(growable: false);
-    _pendingDeletedDishes.clear();
-    for (final _PendingDeletedDish pendingDelete in pendingDeletes) {
-      pendingDelete.timer?.cancel();
-      unawaited(_commitDeleteAfterDispose(pendingDelete));
-    }
+    _customDishes.dispose();
     _titleController.dispose();
     _cookTimeController.dispose();
     _stepInputController.dispose();
@@ -110,22 +104,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
     super.dispose();
   }
 
-  Future<void> _loadMyDishes() async {
-    setState(() => _isLoadingMyDishes = true);
-    try {
-      final DishRepository dishRepository = context.read<DishRepository>();
-      final List<Dish> dishes = await dishRepository.getMyCustomDishes();
-      _myDishes = dishes
-          .where((Dish dish) => !_pendingDeletedDishes.containsKey(dish.id))
-          .toList();
-    } catch (_) {
-      _myDishes = <Dish>[];
-    } finally {
-      if (mounted) {
-        setState(() => _isLoadingMyDishes = false);
-      }
-    }
-  }
+  Future<void> _loadMyDishes() => _customDishes.load();
 
   Future<List<String>> _searchIngredients(String query) async {
     try {
@@ -169,7 +148,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
           ),
         );
 
-    if (ingredient == null) return;
+    if (ingredient == null || !mounted) return;
     setState(() {
       if (index == null) {
         _ingredients.add(ingredient);
@@ -259,6 +238,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
         }
       }
 
+      if (!mounted) return;
       await dishRepository.createCustomDish(
         title: _titleController.text.trim(),
         cuisine: _canonicalCuisine(
@@ -283,6 +263,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
         imagePublicId: imageUpload?.imagePublicId,
       );
 
+      if (!mounted) return;
       _formKey.currentState?.reset();
       _titleController.clear();
       _cookTimeController.clear();
@@ -345,120 +326,14 @@ class _AddDishScreenState extends State<AddDishScreen> {
   }
 
   void _deleteDish(Dish dish) {
-    if (_pendingDeletedDishes.containsKey(dish.id)) return;
-
-    final int index = _myDishes.indexWhere(
-      (Dish currentDish) => currentDish.id == dish.id,
-    );
-    if (index < 0) return;
-
-    int originalIndex = index;
-    for (final _PendingDeletedDish pendingDelete
-        in _pendingDeletedDishes.values) {
-      if (pendingDelete.index <= originalIndex) originalIndex++;
-    }
-
-    final _PendingDeletedDish pendingDelete = _PendingDeletedDish(
-      dish: dish,
-      index: originalIndex,
-      repository: context.read<DishRepository>(),
-    );
-    _pendingDeletedDishes[dish.id] = pendingDelete;
-    pendingDelete.timer = Timer(
-      const Duration(seconds: 6),
-      () => _commitPendingDelete(dish.id),
-    );
-
-    setState(() => _myDishes.removeAt(index));
-
+    if (!_customDishes.deleteDish(dish)) return;
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    FoodMatchNotifications.show(
-      context,
+    FoodMatchNotifications.show(context,
       type: FoodMatchNotificationType.destructive,
-      title: 'Dish deleted',
-      message: '${dish.name} was removed',
+      title: 'Dish deleted', message: '${dish.name} was removed',
       actionLabel: 'Undo',
-      onAction: () => _undoDeleteDish(dish.id),
+      onAction: () => _customDishes.undoDeleteDish(dish.id),
     );
-  }
-
-  void _undoDeleteDish(String dishId) {
-    final _PendingDeletedDish? pendingDelete = _pendingDeletedDishes.remove(
-      dishId,
-    );
-    if (pendingDelete == null || pendingDelete.isCommitted) return;
-
-    pendingDelete.timer?.cancel();
-    if (!mounted || _myDishes.any((Dish dish) => dish.id == dishId)) return;
-
-    setState(() {
-      final int safeIndex = _visibleIndexFor(pendingDelete);
-      _myDishes.insert(safeIndex, pendingDelete.dish);
-    });
-  }
-
-  Future<void> _commitPendingDelete(String dishId) async {
-    final _PendingDeletedDish? pendingDelete = _pendingDeletedDishes[dishId];
-    if (pendingDelete == null || pendingDelete.isCommitted) return;
-
-    pendingDelete.isCommitted = true;
-    pendingDelete.timer?.cancel();
-    try {
-      await pendingDelete.repository.deleteMyDish(dishId);
-      _pendingDeletedDishes.remove(dishId);
-      for (final _PendingDeletedDish other in _pendingDeletedDishes.values) {
-        if (other.index > pendingDelete.index) other.index--;
-      }
-      if (mounted) _invalidateSwipeDeckCacheIfAvailable();
-    } on ApiException catch (e) {
-      _rollbackFailedDelete(
-        pendingDelete,
-        ErrorMessages.fromApiException(e, fallback: 'Please try again.'),
-      );
-    } catch (_) {
-      _rollbackFailedDelete(pendingDelete, 'Please try again.');
-    }
-  }
-
-  void _rollbackFailedDelete(
-    _PendingDeletedDish pendingDelete,
-    String message,
-  ) {
-    _pendingDeletedDishes.remove(pendingDelete.dish.id);
-    if (!mounted) return;
-
-    if (!_myDishes.any((Dish dish) => dish.id == pendingDelete.dish.id)) {
-      setState(() {
-        final int safeIndex = _visibleIndexFor(pendingDelete);
-        _myDishes.insert(safeIndex, pendingDelete.dish);
-      });
-    }
-    FoodMatchNotifications.show(
-      context,
-      type: FoodMatchNotificationType.error,
-      title: 'Could not delete dish',
-      message: message,
-    );
-  }
-
-  Future<void> _commitDeleteAfterDispose(
-    _PendingDeletedDish pendingDelete,
-  ) async {
-    if (pendingDelete.isCommitted) return;
-    pendingDelete.isCommitted = true;
-    try {
-      await pendingDelete.repository.deleteMyDish(pendingDelete.dish.id);
-    } catch (_) {
-      // A failed delete remains on the backend and will reappear on the next load.
-    }
-  }
-
-  int _visibleIndexFor(_PendingDeletedDish pendingDelete) {
-    final int hiddenBefore = _pendingDeletedDishes.values
-        .where((_PendingDeletedDish other) => other.index < pendingDelete.index)
-        .length;
-    final int visibleIndex = pendingDelete.index - hiddenBefore;
-    return visibleIndex < _myDishes.length ? visibleIndex : _myDishes.length;
   }
 
   @override
@@ -832,6 +707,8 @@ class _AddDishScreenState extends State<AddDishScreen> {
                       child: CircularProgressIndicator(color: colors.primary),
                     ),
                   )
+                else if (_customDishes.error != null)
+                  ErrorState(message: _customDishes.error!, onRetry: _loadMyDishes)
                 else if (_myDishes.isEmpty)
                   const Padding(
                     padding: EdgeInsets.only(bottom: AppDimensions.paddingL),
@@ -1117,6 +994,7 @@ class _AddIngredientSheetState extends State<_AddIngredientSheet> {
   List<String> _results = <String>[];
   bool _isSearching = false;
   Timer? _debounce;
+  int _searchGeneration = 0;
 
   @override
   void initState() {
@@ -1140,6 +1018,7 @@ class _AddIngredientSheetState extends State<_AddIngredientSheet> {
   }
 
   Future<void> _onSearchChanged(String value) async {
+    final generation = ++_searchGeneration;
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 250), () async {
       if (!mounted) return;
@@ -1149,7 +1028,7 @@ class _AddIngredientSheetState extends State<_AddIngredientSheet> {
       });
 
       final List<String> searchResults = await widget.searchIngredients(value);
-      if (!mounted) return;
+      if (!mounted || generation != _searchGeneration) return;
 
       setState(() {
         _results = searchResults;
