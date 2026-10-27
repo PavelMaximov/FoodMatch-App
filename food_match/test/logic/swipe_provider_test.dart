@@ -166,7 +166,7 @@ void main() {
     await provider.like();
 
     expect(badgeController.badgeCount, 0);
-    expect(badgeController.bumpToken, 0);
+    expect(badgeController.bumpToken, 1); // Immediate feedback; no second server bump.
   });
 
   test('created solo session requests authoritative match refresh', () async {
@@ -203,7 +203,7 @@ void main() {
     expect(refreshReason, 'swipe_match_created');
   });
 
-  test('like without a created match does not update badge', () async {
+  test('like without a new match reconciles the optimistic badge', () async {
     provider.setActiveUser('user-a');
     fakeSwipeRepo.soloSessionDishes = testDishes;
     await provider.createSoloSession(
@@ -226,7 +226,116 @@ void main() {
     await provider.like();
 
     expect(badgeController.badgeCount, 3);
-    expect(badgeController.bumpToken, 0);
+    expect(badgeController.bumpToken, 1); // Immediate feedback; no second server bump.
+  });
+
+  test('solo Undo is available before swipe response and waits in server order', () async {
+    provider.setActiveUser('user-a');
+    fakeSwipeRepo.soloSessionDishes = testDishes;
+    await provider.createSoloSession(
+      dishRegisters: ['everyday'], includeCustomDishesFirst: false,
+      cuisines: [], moods: [], blocked: [], diet: [],
+    );
+    fakeSwipeRepo.holdSwipes = true;
+    final swipe = provider.like();
+    expect(provider.canUndo, isTrue);
+    expect(badgeController.badgeCount, 1);
+    expect(badgeController.bumpToken, 1);
+    fakeSwipeRepo.pendingUndo = Completer<dynamic>();
+    final undo = provider.undo();
+    expect(badgeController.badgeCount, 0);
+    expect(badgeController.bumpToken, 1);
+    expect(provider.currentDish?.id, '1');
+    expect(provider.canAcceptSwipe, isFalse);
+    expect(provider.canUndo, isFalse);
+    await Future<void>.delayed(Duration.zero);
+    expect(fakeSwipeRepo.undoCalls, 0);
+    fakeSwipeRepo.requests.single.complete(<String, dynamic>{});
+    await swipe;
+    await Future<void>.delayed(Duration.zero);
+    expect(fakeSwipeRepo.undoCalls, 1);
+    expect(provider.isSendingSwipe, isTrue);
+    fakeSwipeRepo.pendingUndo!.complete({
+      'undo': {'success': true},
+      'session': {'sessionId': 'solo-new', 'status': 'active',
+        'deckUnchanged': true, 'restoredDishId': '1', 'matchedCount': 0},
+    });
+    await undo;
+    expect(provider.currentDish?.id, '1');
+    expect(provider.canAcceptSwipe, isTrue);
+    expect(provider.canUndo, isFalse);
+  });
+
+  test('queued Undo targets newest gesture rather than oldest response', () async {
+    provider.setActiveUser('user-a');
+    fakeSwipeRepo.soloSessionDishes = testDishes;
+    await provider.createSoloSession(
+      dishRegisters: ['everyday'], includeCustomDishesFirst: false,
+      cuisines: [], moods: [], blocked: [], diet: [],
+    );
+    fakeSwipeRepo.holdSwipes = true;
+    final first = provider.like();
+    final second = provider.dislike();
+    expect(provider.lastSwipedDish?.id, '2');
+    final undo = provider.undo();
+    expect(provider.currentDish?.id, '2');
+    await Future<void>.delayed(Duration.zero);
+    fakeSwipeRepo.requests.first.complete(<String, dynamic>{});
+    await first;
+    await Future<void>.delayed(Duration.zero);
+    expect(provider.lastSwipedDish?.id, '2');
+    expect(fakeSwipeRepo.undoCalls, 0);
+    fakeSwipeRepo.undoResult = {
+      'undo': {'success': true},
+      'session': {'sessionId': 'solo-new', 'status': 'active',
+        'deckUnchanged': true, 'restoredDishId': '2', 'matchedCount': 1},
+    };
+    fakeSwipeRepo.requests.last.complete(<String, dynamic>{});
+    await second;
+    await undo;
+    expect(fakeSwipeRepo.undoCalls, 1);
+    expect(provider.currentDish?.id, '2');
+  });
+
+  test('failed swipe cancels its queued Undo without undoing an older swipe', () async {
+    provider.setActiveUser('user-a');
+    fakeSwipeRepo.soloSessionDishes = testDishes;
+    await provider.createSoloSession(
+      dishRegisters: ['everyday'], includeCustomDishesFirst: false,
+      cuisines: [], moods: [], blocked: [], diet: [],
+    );
+    fakeSwipeRepo.holdSwipes = true;
+    final swipe = provider.like();
+    final undo = provider.undo();
+    await Future<void>.delayed(Duration.zero);
+    fakeSwipeRepo.requests.single.completeError(const ApiException('Rejected', statusCode: 400));
+    await swipe;
+    await undo;
+    expect(fakeSwipeRepo.undoCalls, 0);
+    expect(provider.currentDish?.id, '1');
+    expect(provider.canUndo, isFalse);
+    expect(provider.canAcceptSwipe, isTrue);
+  });
+
+  test('logout cancels queued Undo and ignores the old swipe completion', () async {
+    provider.setActiveUser('user-a');
+    fakeSwipeRepo.soloSessionDishes = testDishes;
+    await provider.createSoloSession(
+      dishRegisters: ['everyday'], includeCustomDishesFirst: false,
+      cuisines: [], moods: [], blocked: [], diet: [],
+    );
+    fakeSwipeRepo.holdSwipes = true;
+    final swipe = provider.like();
+    final undo = provider.undo();
+    await Future<void>.delayed(Duration.zero);
+    provider.clearForLogout();
+    fakeSwipeRepo.requests.single.complete(<String, dynamic>{});
+    await swipe;
+    await undo;
+    expect(fakeSwipeRepo.undoCalls, 0);
+    expect(provider.deck, isEmpty);
+    expect(provider.isSendingSwipe, isFalse);
+    expect(provider.canUndo, isFalse);
   });
 
   test('undo shows the previous card while pending and rolls back on failure', () async {
@@ -244,6 +353,7 @@ void main() {
     expect(provider.currentDish?.id, '1');
     expect(provider.isSendingSwipe, isTrue);
     expect(provider.canUndo, isFalse);
+    await Future<void>.delayed(Duration.zero);
     fakeSwipeRepo.pendingUndo!.completeError(Exception('offline'));
     await pending;
     expect(provider.currentDish?.id, '2');
@@ -401,6 +511,7 @@ class _FakeSwipeRepository extends SwipeRepository {
   List<Dish> soloSessionDishes = <Dish>[];
   dynamic swipeResult = <String, dynamic>{};
   Completer<dynamic>? pendingUndo;
+  int undoCalls = 0;
   bool holdSwipes = false;
   final requests = <Completer<dynamic>>[];
   dynamic undoResult = <String, dynamic>{};
@@ -438,8 +549,10 @@ class _FakeSwipeRepository extends SwipeRepository {
   }
 
   @override
-  Future<dynamic> undoSoloSwipe(String sessionId) async =>
-      pendingUndo == null ? undoResult : await pendingUndo!.future;
+  Future<dynamic> undoSoloSwipe(String sessionId) async {
+    undoCalls++;
+    return pendingUndo == null ? undoResult : await pendingUndo!.future;
+  }
 }
 
 class _FakeCacheService extends CacheService {

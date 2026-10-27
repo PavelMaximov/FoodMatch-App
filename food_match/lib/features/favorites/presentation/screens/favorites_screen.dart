@@ -1,12 +1,11 @@
+import '../../../../shared/logic/favorite_actions.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../../../../shared/logic/recent_searches_controller.dart';
 
 import '../../../../core/assets/app_empty_state_assets.dart';
-import '../../../../core/theme/notification_theme.dart';
-import '../../../../core/utils/food_match_notifications.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../data/models/dish.dart';
 import '../../../../shared/widgets/empty_state.dart';
@@ -29,7 +28,11 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   String _query = '';
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
-  final List<String> _recentSearches = <String>[];
+  final _history = RecentSearchesController('favorite_recent_searches');
+
+  void _onHistoryChanged() {
+    if (mounted) setState(() {});
+  }
   RecipeListFilters _listFilters = const RecipeListFilters();
   List<Dish>? _lastFavoritesInput;
   String? _lastFilterSignature;
@@ -42,8 +45,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   @override
   void initState() {
     super.initState();
+    _history.addListener(_onHistoryChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadRecentSearches();
+      if (!mounted) return;
+      _history.load();
       _loadFavorites();
     });
   }
@@ -52,18 +57,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     await context.read<FavoritesProvider>().loadFavorites(force: force);
   }
 
-  Future<void> _removeFavorite(Dish dish) async {
-    await context.read<FavoritesProvider>().toggleFavorite(dish);
-    if (!mounted) return;
-    final String? error = context.read<FavoritesProvider>().error;
-    if (error != null) {
-      FoodMatchNotifications.show(
-        context,
-        type: FoodMatchNotificationType.error,
-        title: error,
-      );
-    }
-  }
+  Future<void> _removeFavorite(Dish dish) => toggleDishFavorite(context, dish);
 
   void _activateSearch() {
     if (_isSearching) {
@@ -88,52 +82,12 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     _searchFocusNode.unfocus();
   }
 
-  Future<void> _loadRecentSearches() async {
-    final SharedPreferences preferences = await SharedPreferences.getInstance();
-    if (!mounted) {
-      return;
-    }
-    setState(() {
-      _recentSearches
-        ..clear()
-        ..addAll(
-          preferences.getStringList('favorite_recent_searches') ??
-              const <String>[],
-        );
-    });
-  }
-
-  Future<void> _saveRecentSearches() async {
-    final SharedPreferences preferences = await SharedPreferences.getInstance();
-    await preferences.setStringList(
-      'favorite_recent_searches',
-      _recentSearches,
-    );
-  }
-
-  Future<void> _rememberSearch(String value) async {
-    final String query = value.trim();
-    if (query.isEmpty) {
-      return;
-    }
-    setState(() {
-      _recentSearches.removeWhere(
-        (String item) => item.toLowerCase() == query.toLowerCase(),
-      );
-      _recentSearches.insert(0, query);
-      if (_recentSearches.length > 10) {
-        _recentSearches.removeRange(10, _recentSearches.length);
-      }
-    });
-    await _saveRecentSearches();
-  }
-
   void _submitSearch(String value) {
     final String query = value.trim();
     if (query.isEmpty) {
       return;
     }
-    _rememberSearch(query);
+    _history.remember(query);
   }
 
   void _selectRecentSearch(String value) {
@@ -277,6 +231,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
   @override
   void dispose() {
+    _history.dispose();
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
@@ -322,11 +277,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             ),
             if (_showRecentSearches)
               RecentSearchBlock(
-                searches: _recentSearches,
-                onClear: () {
-                  setState(_recentSearches.clear);
-                  _saveRecentSearches();
-                },
+                searches: _history.items,
+                onClear: _history.clear,
                 onSelected: _selectRecentSearch,
               ),
             if (_hasActiveFilters || _query.trim().isNotEmpty)

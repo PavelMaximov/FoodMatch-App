@@ -236,6 +236,7 @@ class MatchProvider extends ChangeNotifier {
   }) async {
     bool isCurrent() =>
         !_disposed && generation == _loadGeneration && requestKey == _cacheKey;
+    final badgeRequestVersion = _badgeController?.mutationVersion;
     AppLogger.info('[PageLoad] start page=Matches reason=$reason');
     AppLogger.info(
       force ? '[Cache] matches force refresh' : '[Cache] matches miss',
@@ -318,6 +319,7 @@ class MatchProvider extends ChangeNotifier {
           sessionId: _mode == 'solo' ? _activeSoloSessionId : _activeCoupleId,
           matchIds: fetchedMatchIds,
           reason: reason,
+          requestVersion: badgeRequestVersion,
         );
       }
       AppLogger.info(
