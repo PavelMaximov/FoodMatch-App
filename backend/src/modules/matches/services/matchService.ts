@@ -1,14 +1,21 @@
-import { domainRepositories } from '../../../infrastructure/repositories/domainRepositories';
-import { loadMongoDishesInPostgresOrder } from '../../../shared/db/dishIdMapping';
-import { toDishDto } from '../../dishes/dto/dishDto';
-import { queryPostgres } from '../../../shared/db/postgresClient';
 import { AppError } from '../../../core/errors/AppError';
+import { domainRepositories } from '../../../infrastructure/repositories/domainRepositories';
+import {
+  loadDishesById,
+  loadMongoDishesInPostgresOrder,
+} from '../../../shared/db/dishIdMapping';
+import { queryPostgres } from '../../../shared/db/postgresClient';
+import { toDishDto } from '../../dishes/dto/dishDto';
 import { requirePremiumFeature } from '../../entitlements/services/featureAccessService';
 
 type HistoryRow = {
-  session_id: string; started_at: Date; completed_at: Date | null;
-  session_status: string; partner_name?: string | null;
-  dish_count: number | string; dish_ids: string[];
+  session_id: string;
+  started_at: Date;
+  completed_at: Date | null;
+  session_status: string;
+  partner_name?: string | null;
+  dish_count: number | string;
+  dish_ids: string[];
 };
 interface Dependencies {
   query: typeof queryPostgres;
@@ -42,12 +49,32 @@ export class MatchService {
   constructor(dependencies: Partial<Dependencies> = {}) {
     this.dependencies = {
       query: queryPostgres,
-      hydrateDishes: async (ids) => (await loadMongoDishesInPostgresOrder(ids)).map(toDishDto).filter(Boolean),
-      requireHistoryAccess: (userId) => requirePremiumFeature(userId, 'session_history', 'PREMIUM_SESSION_HISTORY_REQUIRED'),
+      hydrateDishes: async (ids) =>
+        (await loadMongoDishesInPostgresOrder(ids))
+          .map(toDishDto)
+          .filter(Boolean),
+      requireHistoryAccess: (userId) =>
+        requirePremiumFeature(
+          userId,
+          'session_history',
+          'PREMIUM_SESSION_HISTORY_REQUIRED',
+        ),
       ...dependencies,
     };
   }
-  async listForCouple(coupleId:string){const matches=await domainRepositories.matches.listForCouple(coupleId);const dishes=await loadMongoDishesInPostgresOrder(matches.map(m=>m.dishId));return matches.map((m,i)=>({id:m.id,coupleId:m.coupleSessionId,users:[],createdAt:m.createdAt,dish:toDishDto(dishes[i])})).filter(x=>x.dish);}
+  async listForCouple(coupleId: string) {
+    const matches = await domainRepositories.matches.listForCouple(coupleId);
+    const dishes = await loadDishesById(matches.map((m) => m.dishId));
+    return matches
+      .map((m) => ({
+        id: m.id,
+        coupleId: m.coupleSessionId,
+        users: [],
+        createdAt: m.createdAt,
+        dish: toDishDto(dishes.get(m.dishId)),
+      }))
+      .filter((x) => x.dish);
+  }
 
   async historyForUser(userId: string) {
     await this.dependencies.requireHistoryAccess(userId);
@@ -55,33 +82,69 @@ export class MatchService {
       this.dependencies.query<HistoryRow>(soloQuery(false), [userId]),
       this.dependencies.query<HistoryRow>(pairQuery(false), [userId]),
     ]);
-    const previewIds = [...new Set([...soloRows.rows, ...pairRows.rows].flatMap((row) => row.dish_ids.slice(0, 3)))];
-    const dishes = previewIds.length ? await this.dependencies.hydrateDishes(previewIds) : [];
-    const byId = new Map(dishes.filter(Boolean).map((dish) => [String(dish!.id), dish]));
+    const previewIds = [
+      ...new Set(
+        [...soloRows.rows, ...pairRows.rows].flatMap((row) =>
+          row.dish_ids.slice(0, 3),
+        ),
+      ),
+    ];
+    const dishes = previewIds.length
+      ? await this.dependencies.hydrateDishes(previewIds)
+      : [];
+    const byId = new Map(
+      dishes.filter(Boolean).map((dish) => [String(dish!.id), dish]),
+    );
     const dto = (row: HistoryRow) => ({
-      ...this.metadata(row), previewDishes: row.dish_ids.slice(0, 3).map((id) => byId.get(id)).filter(Boolean),
+      ...this.metadata(row),
+      previewDishes: row.dish_ids
+        .slice(0, 3)
+        .map((id) => byId.get(id))
+        .filter(Boolean),
     });
     return { solo: soloRows.rows.map(dto), pair: pairRows.rows.map(dto) };
   }
 
   async historySessionForUser(userId: string, sessionId: string) {
     await this.dependencies.requireHistoryAccess(userId);
-    const solo = await this.dependencies.query<HistoryRow>(soloQuery(true), [userId, sessionId]);
+    const solo = await this.dependencies.query<HistoryRow>(soloQuery(true), [
+      userId,
+      sessionId,
+    ]);
     let row = solo.rows[0];
     let mode = 'solo';
     if (!row) {
-      const pair = await this.dependencies.query<HistoryRow>(pairQuery(true), [userId, sessionId]);
+      const pair = await this.dependencies.query<HistoryRow>(pairQuery(true), [
+        userId,
+        sessionId,
+      ]);
       row = pair.rows[0];
       mode = 'pair';
     }
-    if (!row) throw new AppError('Historical session not found.', 404, 'SESSION_HISTORY_NOT_FOUND');
-    const dishes = row.dish_ids.length ? await this.dependencies.hydrateDishes(row.dish_ids) : [];
-    return { ...this.metadata(row), mode, previewDishes: dishes.slice(0, 3), dishes };
+    if (!row)
+      throw new AppError(
+        'Historical session not found.',
+        404,
+        'SESSION_HISTORY_NOT_FOUND',
+      );
+    const dishes = row.dish_ids.length
+      ? await this.dependencies.hydrateDishes(row.dish_ids)
+      : [];
+    return {
+      ...this.metadata(row),
+      mode,
+      previewDishes: dishes.slice(0, 3),
+      dishes,
+    };
   }
   private metadata(row: HistoryRow) {
     return {
-      sessionId: row.session_id, startedAt: row.started_at, completedAt: row.completed_at,
-      status: row.session_status, partnerName: row.partner_name ?? null, dishCount: Number(row.dish_count),
+      sessionId: row.session_id,
+      startedAt: row.started_at,
+      completedAt: row.completed_at,
+      status: row.session_status,
+      partnerName: row.partner_name ?? null,
+      dishCount: Number(row.dish_count),
     };
   }
 }
