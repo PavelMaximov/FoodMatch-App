@@ -1,54 +1,384 @@
-import { AppError } from '../../../core/errors/AppError';import { generateInviteCode } from '../../../core/utils/inviteCode';import { PairFilterStateRecord } from '../../../domain/repositories/CoupleSessionRepository';import { CoupleSessionRecord,JsonMap } from '../../../domain/repositories/types';import { domainRepositories } from '../../../infrastructure/repositories/domainRepositories';import { queryPostgres, withPostgresTransaction } from '../../../shared/db/postgresClient';import { requireAdvancedFilterAccess } from '../../entitlements/services/featureAccessService';
-export type CoupleFilterStatePayload={includeCustomDishesFirst?:boolean;selectedCategories?:string[];dishRegisters?:string[];category?:string;selectedCuisines?:string[];cuisines?:string[];cuisine?:string|string[];moods?:string[];diet?:string[];exclusions?:string[];maxCookTime?:number;maxTotalTime?:number;minCalories?:number;maxCalories?:number;calories?:string[];effort?:string[];ingredients?:string[];season?:string[];choices?:CoupleFilterStatePayload;filter?:CoupleFilterStatePayload;filters?:CoupleFilterStatePayload};
-const list=(v?:string[])=>[...new Set((Array.isArray(v)?v:[]).map(x=>(x??'').trim().toLowerCase()).filter(Boolean))];
-export function normalizeCoupleFilterStatePayload(p:CoupleFilterStatePayload){const s=p.choices??p.filter??p.filters??p,categories=list(s.selectedCategories??s.dishRegisters??(s.category?[s.category]:[])),cuisines=list(s.selectedCuisines??s.cuisines??(typeof s.cuisine==='string'?[s.cuisine]:s.cuisine));return{includeCustomDishesFirst:s.includeCustomDishesFirst===true,selectedCategories:categories,dishRegisters:categories,selectedCuisines:cuisines,cuisines,moods:list(s.moods),diet:list(s.diet),exclusions:list(s.exclusions),maxCookTime:s.maxCookTime,maxTotalTime:s.maxTotalTime,minCalories:s.minCalories,maxCalories:s.maxCalories,calories:list(s.calories),effort:list(s.effort),ingredients:list(s.ingredients),season:list(s.season)}}
-export type JoinSessionOptions={replaceEmptyCurrentSession?:boolean};
-const idle=()=>({requestedBy:[],status:'idle',generation:0,updatedAt:null});
+import { AppError } from '../../../core/errors/AppError';
+import { generateInviteCode } from '../../../core/utils/inviteCode';
+import { PairFilterStateRecord } from '../../../domain/repositories/CoupleSessionRepository';
+import { CoupleSessionRecord } from '../../../domain/repositories/types';
+import { domainRepositories } from '../../../infrastructure/repositories/domainRepositories';
+import {
+  queryPostgres,
+  withPostgresTransaction,
+} from '../../../shared/db/postgresClient';
+import { requireAdvancedFilterAccess } from '../../entitlements/services/featureAccessService';
+import {
+  CoupleFilterStatePayload,
+  normalizeCoupleFilterStatePayload,
+} from '../domain/coupleFilterPolicy';
+export {
+  CoupleFilterStatePayload,
+  normalizeCoupleFilterStatePayload,
+} from '../domain/coupleFilterPolicy';
+export type JoinSessionOptions = { replaceEmptyCurrentSession?: boolean };
+const idle = () => ({
+  requestedBy: [],
+  status: 'idle',
+  generation: 0,
+  updatedAt: null,
+});
 export class CoupleService {
- async getMyActiveSession(userId:string){const s=await domainRepositories.coupleSessions.findActiveForUser(userId);return s?this.dto(s):null;}
- async createSession(userId:string){if(await domainRepositories.soloSessions.findActive(userId))throw new AppError('Please finish or leave your solo session before starting a pair session.',409,'ACTIVE_SOLO_SESSION_EXISTS');if(await domainRepositories.coupleSessions.findActiveForUser(userId))throw new AppError('You already have an active swipe session.',409,'ACTIVE_SESSION_EXISTS');const s=await domainRepositories.coupleSessions.create({inviteCode:await this.code(),createdBy:userId,memberIds:[userId]});return this.dto(s);}
- async joinSession(userId:string,code:string,o:JoinSessionOptions={}){return withPostgresTransaction(async()=>{await queryPostgres('select pg_advisory_xact_lock(hashtext($1))',[`session-user:${userId}`]);await queryPostgres('select id from couple_sessions where invite_code=$1 for update',[code.trim().toUpperCase()]);return this.joinSessionLocked(userId,code,o);});}
- private async joinSessionLocked(userId:string,code:string,o:JoinSessionOptions={}){const target=await domainRepositories.coupleSessions.findByInviteCode(code.trim().toUpperCase());if(!target)throw new AppError('Invalid session code.',404,'INVALID_INVITE_CODE');if(target.status!=='active')throw new AppError('This session is no longer active.',409,'SESSION_INACTIVE');if(target.memberIds.includes(userId))throw new AppError(target.createdBy===userId?'You can’t join your own session.':'You are already in this session.',409,target.createdBy===userId?'CANNOT_JOIN_OWN_SESSION':'ALREADY_IN_TARGET_SESSION');if(target.memberIds.length>=2)throw new AppError('This session is already full.',409,'SESSION_FULL');if(await domainRepositories.soloSessions.findActive(userId))throw new AppError('Please finish or leave your solo session before joining a pair session.',409,'ACTIVE_SOLO_SESSION_EXISTS');const active=await domainRepositories.coupleSessions.findActiveForUser(userId);if(active){if(!o.replaceEmptyCurrentSession)throw new AppError('You already have an active swipe session.',409,'ACTIVE_SESSION_EXISTS');if(active.memberIds.length!==1)throw new AppError('Please leave your current session before joining another one.',409,'ACTIVE_SESSION_HAS_PARTNER');await this.closeForHistory(active);}const members=[...target.memberIds,userId];await domainRepositories.coupleSessions.clearFilterStates(target.id);const s=await domainRepositories.coupleSessions.update(target.id,{memberIds:members,pairKey:members.slice().sort().join('_'),preparedDeckDishIds:[],preparedDeckMeta:{status:'idle'}});return this.dto(s!);}
- async markPartnerDisconnected(userId:string){const s=await domainRepositories.coupleSessions.findActiveForUser(userId);if(!s)return{status:'none'};const generation=Number((s.pairLifecycleState as any).generation??0)+1;await domainRepositories.coupleSessions.clearFilterStates(s.id);await domainRepositories.coupleSessions.update(s.id,{preparedDeckDishIds:[],preparedDeckMeta:{status:'idle'},pairLifecycleState:{status:'needs_resync',reason:'partner_logged_out',changedBy:userId,generation,updatedAt:new Date()},restartState:idle()});return{status:'needs_resync',sessionId:s.id,generation};}
- async markFilterChangeStarted(userId:string){const s=await domainRepositories.coupleSessions.findActiveForUser(userId);return s?{status:'local_editing',sessionId:s.id,generation:(s.pairLifecycleState as any).generation??0}:{status:'none'};}
- async commitFilterChange(userId:string){const s=await this.require(userId),generation=Number((s.pairLifecycleState as any).generation??0)+1;await domainRepositories.coupleSessions.update(s.id,{preparedDeckDishIds:[],preparedDeckMeta:{status:'idle'},pairLifecycleState:{status:'partner_action_required',reason:'filter_change',changedBy:userId,generation,updatedAt:new Date()}});return{status:'partner_action_required',eventId:String(generation),sessionId:s.id,generation};}
- async leaveSession(userId: string) {
-   const session = await domainRepositories.coupleSessions.findActiveForUser(userId);
-   if (!session) return {message: 'No active session', alreadyLeft: true};
-   if (session.memberIds.length === 1) {
-     // A waiting session never had a partner; deleting it retains the existing
-     // abandonment behavior. Two-member sessions become immutable history.
-     await domainRepositories.coupleSessions.delete(session.id);
-     return {message: 'Session deleted because no members remain', left: true, sessionDeleted: true};
-   }
-   await this.closeForHistory(session);
-   return {message: 'Left session', left: true, sessionDeleted: false};
- }
+  async getMyActiveSession(userId: string) {
+    const s = await domainRepositories.coupleSessions.findActiveForUser(userId);
+    return s ? this.dto(s) : null;
+  }
+  async createSession(userId: string) {
+    if (await domainRepositories.soloSessions.findActive(userId))
+      throw new AppError(
+        'Please finish or leave your solo session before starting a pair session.',
+        409,
+        'ACTIVE_SOLO_SESSION_EXISTS',
+      );
+    if (await domainRepositories.coupleSessions.findActiveForUser(userId))
+      throw new AppError(
+        'You already have an active swipe session.',
+        409,
+        'ACTIVE_SESSION_EXISTS',
+      );
+    const s = await domainRepositories.coupleSessions.create({
+      inviteCode: await this.code(),
+      createdBy: userId,
+      memberIds: [userId],
+    });
+    return this.dto(s);
+  }
+  async joinSession(userId: string, code: string, o: JoinSessionOptions = {}) {
+    return withPostgresTransaction(async () => {
+      await queryPostgres('select pg_advisory_xact_lock(hashtext($1))', [
+        `session-user:${userId}`,
+      ]);
+      await queryPostgres(
+        'select id from couple_sessions where invite_code=$1 for update',
+        [code.trim().toUpperCase()],
+      );
+      return this.joinSessionLocked(userId, code, o);
+    });
+  }
+  private async joinSessionLocked(
+    userId: string,
+    code: string,
+    o: JoinSessionOptions = {},
+  ) {
+    const target = await domainRepositories.coupleSessions.findByInviteCode(
+      code.trim().toUpperCase(),
+    );
+    if (!target)
+      throw new AppError('Invalid session code.', 404, 'INVALID_INVITE_CODE');
+    if (target.status !== 'active')
+      throw new AppError(
+        'This session is no longer active.',
+        409,
+        'SESSION_INACTIVE',
+      );
+    if (target.memberIds.includes(userId))
+      throw new AppError(
+        target.createdBy === userId
+          ? 'You can’t join your own session.'
+          : 'You are already in this session.',
+        409,
+        target.createdBy === userId
+          ? 'CANNOT_JOIN_OWN_SESSION'
+          : 'ALREADY_IN_TARGET_SESSION',
+      );
+    if (target.memberIds.length >= 2)
+      throw new AppError('This session is already full.', 409, 'SESSION_FULL');
+    if (await domainRepositories.soloSessions.findActive(userId))
+      throw new AppError(
+        'Please finish or leave your solo session before joining a pair session.',
+        409,
+        'ACTIVE_SOLO_SESSION_EXISTS',
+      );
+    const active =
+      await domainRepositories.coupleSessions.findActiveForUser(userId);
+    if (active) {
+      if (!o.replaceEmptyCurrentSession)
+        throw new AppError(
+          'You already have an active swipe session.',
+          409,
+          'ACTIVE_SESSION_EXISTS',
+        );
+      if (active.memberIds.length !== 1)
+        throw new AppError(
+          'Please leave your current session before joining another one.',
+          409,
+          'ACTIVE_SESSION_HAS_PARTNER',
+        );
+      await this.closeForHistory(active);
+    }
+    const members = [...target.memberIds, userId];
+    await domainRepositories.coupleSessions.clearFilterStates(target.id);
+    const s = await domainRepositories.coupleSessions.update(target.id, {
+      memberIds: members,
+      pairKey: members.slice().sort().join('_'),
+      preparedDeckDishIds: [],
+      preparedDeckMeta: { status: 'idle' },
+    });
+    return this.dto(s!);
+  }
+  async markPartnerDisconnected(userId: string) {
+    const s = await domainRepositories.coupleSessions.findActiveForUser(userId);
+    if (!s) return { status: 'none' };
+    const generation =
+      Number((s.pairLifecycleState as any).generation ?? 0) + 1;
+    await domainRepositories.coupleSessions.clearFilterStates(s.id);
+    await domainRepositories.coupleSessions.update(s.id, {
+      preparedDeckDishIds: [],
+      preparedDeckMeta: { status: 'idle' },
+      pairLifecycleState: {
+        status: 'needs_resync',
+        reason: 'partner_logged_out',
+        changedBy: userId,
+        generation,
+        updatedAt: new Date(),
+      },
+      restartState: idle(),
+    });
+    return { status: 'needs_resync', sessionId: s.id, generation };
+  }
+  async markFilterChangeStarted(userId: string) {
+    const s = await domainRepositories.coupleSessions.findActiveForUser(userId);
+    return s
+      ? {
+          status: 'local_editing',
+          sessionId: s.id,
+          generation: (s.pairLifecycleState as any).generation ?? 0,
+        }
+      : { status: 'none' };
+  }
+  async commitFilterChange(userId: string) {
+    const s = await this.require(userId),
+      generation = Number((s.pairLifecycleState as any).generation ?? 0) + 1;
+    await domainRepositories.coupleSessions.update(s.id, {
+      preparedDeckDishIds: [],
+      preparedDeckMeta: { status: 'idle' },
+      pairLifecycleState: {
+        status: 'partner_action_required',
+        reason: 'filter_change',
+        changedBy: userId,
+        generation,
+        updatedAt: new Date(),
+      },
+    });
+    return {
+      status: 'partner_action_required',
+      eventId: String(generation),
+      sessionId: s.id,
+      generation,
+    };
+  }
+  async leaveSession(userId: string) {
+    const session =
+      await domainRepositories.coupleSessions.findActiveForUser(userId);
+    if (!session) return { message: 'No active session', alreadyLeft: true };
+    if (session.memberIds.length === 1) {
+      // A waiting session never had a partner; deleting it retains the existing
+      // abandonment behavior. Two-member sessions become immutable history.
+      await domainRepositories.coupleSessions.delete(session.id);
+      return {
+        message: 'Session deleted because no members remain',
+        left: true,
+        sessionDeleted: true,
+      };
+    }
+    await this.closeForHistory(session);
+    return { message: 'Left session', left: true, sessionDeleted: false };
+  }
 
- async closeActiveSession(userId: string) {
-   const session = await domainRepositories.coupleSessions.findActiveForUser(userId);
-   if (session) await this.closeForHistory(session);
- }
+  async closeActiveSession(userId: string) {
+    const session =
+      await domainRepositories.coupleSessions.findActiveForUser(userId);
+    if (session) await this.closeForHistory(session);
+  }
 
- private async closeForHistory(session: CoupleSessionRecord) {
-   // Preserve memberIds, pairKey, paired swipes and mutual matches. Current
-   // endpoints resolve status=active; history authorizes the original members.
-   await domainRepositories.coupleSessions.update(session.id, {
-     status: 'closed', closedAt: new Date(), preparedDeckDishIds: [],
-     preparedDeckFiltersHash: null, preparedDeckMeta: {status: 'idle'},
-     restartState: idle(), pairLifecycleState: idle(),
-   });
-   await domainRepositories.coupleSessions.clearFilterStates(session.id);
- }
- async resetSession(userId:string){const s=await this.require(userId);await Promise.all([domainRepositories.swipes.deleteForSession(s.id,'paired'),domainRepositories.matches.deleteForCouple(s.id),domainRepositories.coupleSessions.clearFilterStates(s.id)]);await domainRepositories.coupleSessions.update(s.id,{preparedDeckDishIds:[],preparedDeckMeta:{status:'idle'}});return{message:'Session swipes and matches reset',coupleId:s.id};}
- async getFilterState(userId:string){return this.filterResponse(await this.require(userId),userId);}
- async updateMyFilterState(userId:string,p:CoupleFilterStatePayload){await requireAdvancedFilterAccess(userId,p.choices??p.filter??p.filters??p);const started=Date.now(),s=await this.require(userId),filters=normalizeCoupleFilterStatePayload(p);await domainRepositories.coupleSessions.upsertFilterState(s.id,{userId,filters,confirmed:false,confirmedAt:null});await domainRepositories.coupleSessions.update(s.id,{preparedDeckDishIds:[],preparedDeckMeta:{status:'idle'},restartState:idle()});const response=await this.filterResponse((await domainRepositories.coupleSessions.findById(s.id))!,userId);if(process.env.NODE_ENV!=='production')console.info(`[PairFilterState] save ms=${Date.now()-started}`);return response;}
- async confirmMyFilterState(userId:string){const s=await this.require(userId),states=await domainRepositories.coupleSessions.listFilterStates(s.id),mine=states.find(x=>x.userId===userId);await requireAdvancedFilterAccess(userId,mine?.filters??{});await domainRepositories.coupleSessions.upsertFilterState(s.id,{userId,filters:mine?.filters??{},confirmed:true,confirmedAt:new Date()});return this.filterResponse(s,userId);}
- async resetFilterState(userId:string){const s=await this.require(userId);await domainRepositories.coupleSessions.clearFilterStates(s.id);await domainRepositories.coupleSessions.update(s.id,{preparedDeckDishIds:[],preparedDeckMeta:{status:'idle'}});return this.filterResponse(s,userId);}
- private async filterResponse(s:CoupleSessionRecord,u:string){const states=await domainRepositories.coupleSessions.listFilterStates(s.id),mine=states.find(x=>x.userId===u)??{userId:u,filters:{},confirmed:false,confirmedAt:null},partner=states.find(x=>x.userId!==u),both=Boolean(partner&&mine.confirmed&&partner.confirmed);return{myChoices:{...(mine.filters as any),confirmed:mine.confirmed,updatedAt:mine.confirmedAt},partnerChoices:partner?{...(partner.filters as any),confirmed:partner.confirmed,updatedAt:partner.confirmedAt}:null,bothConfirmed:both,compatibility:this.compat(mine,partner),status:both?'ready':'draft',memberCount:s.memberIds.length,partnerPresent:s.memberIds.some(x=>x!==u),confirmedCount:states.filter(x=>x.confirmed).length,requiredConfirmedCount:s.memberIds.length};}
- private compat(a:PairFilterStateRecord,b?:PairFilterStateRecord){if(!b)return 0;const af=a.filters as any,bf=b.filters as any,score=(x:string[]=[],y:string[]=[],n:number)=>!x.length||!y.length?0:Math.round(x.filter(v=>y.includes(v)).length/Math.max(x.length,y.length)*n);return Math.min(100,score(af.cuisines,bf.cuisines,40)+score(af.moods,bf.moods,30)+20);}
- private async require(u:string){const s=await domainRepositories.coupleSessions.findActiveForUser(u);if(!s)throw new AppError('This pair session is no longer active.',404,'PAIR_SESSION_INACTIVE');return s;}
- private async code(){for(let i=0;i<10;i++){const c=generateInviteCode();if(!await domainRepositories.coupleSessions.findByInviteCode(c))return c;}throw new AppError('Failed to generate unique invite code',500);}
- private async dto(s:CoupleSessionRecord){const profiles=await queryPostgres<any>('select id,email,display_name,avatar_url from profiles where id=any($1::uuid[])',[s.memberIds]);const by=new Map(profiles.rows.map(x=>[x.id,{_id:x.id,id:x.id,email:x.email,displayName:x.display_name,avatarUrl:x.avatar_url}]));return{_id:s.id,id:s.id,inviteCode:s.inviteCode,status:s.status,createdBy:s.createdBy,members:s.memberIds.map(x=>by.get(x)??{_id:x,id:x}),preparedDeck:{status:(s.preparedDeckMeta as any).status??(s.preparedDeckDishIds.length?'ready':'idle'),dishIds:s.preparedDeckDishIds,...s.preparedDeckMeta},restartState:s.restartState,pairLifecycleState:s.pairLifecycleState,createdAt:s.createdAt,updatedAt:s.updatedAt};}
+  private async closeForHistory(session: CoupleSessionRecord) {
+    // Preserve memberIds, pairKey, paired swipes and mutual matches. Current
+    // endpoints resolve status=active; history authorizes the original members.
+    await domainRepositories.coupleSessions.update(session.id, {
+      status: 'closed',
+      closedAt: new Date(),
+      preparedDeckDishIds: [],
+      preparedDeckFiltersHash: null,
+      preparedDeckMeta: { status: 'idle' },
+      restartState: idle(),
+      pairLifecycleState: idle(),
+    });
+    await domainRepositories.coupleSessions.clearFilterStates(session.id);
+  }
+  async resetSession(userId: string) {
+    const s = await this.require(userId);
+    await Promise.all([
+      domainRepositories.swipes.deleteForSession(s.id, 'paired'),
+      domainRepositories.matches.deleteForCouple(s.id),
+      domainRepositories.coupleSessions.clearFilterStates(s.id),
+    ]);
+    await domainRepositories.coupleSessions.update(s.id, {
+      preparedDeckDishIds: [],
+      preparedDeckMeta: { status: 'idle' },
+    });
+    return { message: 'Session swipes and matches reset', coupleId: s.id };
+  }
+  async getFilterState(userId: string) {
+    return this.filterResponse(await this.require(userId), userId);
+  }
+  async updateMyFilterState(userId: string, p: CoupleFilterStatePayload) {
+    await requireAdvancedFilterAccess(
+      userId,
+      p.choices ?? p.filter ?? p.filters ?? p,
+    );
+    const started = Date.now(),
+      s = await this.require(userId),
+      filters = normalizeCoupleFilterStatePayload(p);
+    await domainRepositories.coupleSessions.upsertFilterState(s.id, {
+      userId,
+      filters,
+      confirmed: false,
+      confirmedAt: null,
+    });
+    await domainRepositories.coupleSessions.update(s.id, {
+      preparedDeckDishIds: [],
+      preparedDeckMeta: { status: 'idle' },
+      restartState: idle(),
+    });
+    const response = await this.filterResponse(
+      (await domainRepositories.coupleSessions.findById(s.id))!,
+      userId,
+    );
+    if (process.env.NODE_ENV !== 'production')
+      console.info(`[PairFilterState] save ms=${Date.now() - started}`);
+    return response;
+  }
+  async confirmMyFilterState(userId: string) {
+    const s = await this.require(userId),
+      states = await domainRepositories.coupleSessions.listFilterStates(s.id),
+      mine = states.find((x) => x.userId === userId);
+    await requireAdvancedFilterAccess(userId, mine?.filters ?? {});
+    await domainRepositories.coupleSessions.upsertFilterState(s.id, {
+      userId,
+      filters: mine?.filters ?? {},
+      confirmed: true,
+      confirmedAt: new Date(),
+    });
+    return this.filterResponse(s, userId);
+  }
+  async resetFilterState(userId: string) {
+    const s = await this.require(userId);
+    await domainRepositories.coupleSessions.clearFilterStates(s.id);
+    await domainRepositories.coupleSessions.update(s.id, {
+      preparedDeckDishIds: [],
+      preparedDeckMeta: { status: 'idle' },
+    });
+    return this.filterResponse(s, userId);
+  }
+  private async filterResponse(s: CoupleSessionRecord, u: string) {
+    const states = await domainRepositories.coupleSessions.listFilterStates(
+        s.id,
+      ),
+      mine = states.find((x) => x.userId === u) ?? {
+        userId: u,
+        filters: {},
+        confirmed: false,
+        confirmedAt: null,
+      },
+      partner = states.find((x) => x.userId !== u),
+      both = Boolean(partner && mine.confirmed && partner.confirmed);
+    return {
+      myChoices: {
+        ...(mine.filters as any),
+        confirmed: mine.confirmed,
+        updatedAt: mine.confirmedAt,
+      },
+      partnerChoices: partner
+        ? {
+            ...(partner.filters as any),
+            confirmed: partner.confirmed,
+            updatedAt: partner.confirmedAt,
+          }
+        : null,
+      bothConfirmed: both,
+      compatibility: this.compat(mine, partner),
+      status: both ? 'ready' : 'draft',
+      memberCount: s.memberIds.length,
+      partnerPresent: s.memberIds.some((x) => x !== u),
+      confirmedCount: states.filter((x) => x.confirmed).length,
+      requiredConfirmedCount: s.memberIds.length,
+    };
+  }
+  private compat(a: PairFilterStateRecord, b?: PairFilterStateRecord) {
+    if (!b) return 0;
+    const af = a.filters as any,
+      bf = b.filters as any,
+      score = (x: string[] = [], y: string[] = [], n: number) =>
+        !x.length || !y.length
+          ? 0
+          : Math.round(
+              (x.filter((v) => y.includes(v)).length /
+                Math.max(x.length, y.length)) *
+                n,
+            );
+    return Math.min(
+      100,
+      score(af.cuisines, bf.cuisines, 40) + score(af.moods, bf.moods, 30) + 20,
+    );
+  }
+  private async require(u: string) {
+    const s = await domainRepositories.coupleSessions.findActiveForUser(u);
+    if (!s)
+      throw new AppError(
+        'This pair session is no longer active.',
+        404,
+        'PAIR_SESSION_INACTIVE',
+      );
+    return s;
+  }
+  private async code() {
+    for (let i = 0; i < 10; i++) {
+      const c = generateInviteCode();
+      if (!(await domainRepositories.coupleSessions.findByInviteCode(c)))
+        return c;
+    }
+    throw new AppError('Failed to generate unique invite code', 500);
+  }
+  private async dto(s: CoupleSessionRecord) {
+    const profiles = await queryPostgres<any>(
+      'select id,email,display_name,avatar_url from profiles where id=any($1::uuid[])',
+      [s.memberIds],
+    );
+    const by = new Map(
+      profiles.rows.map((x) => [
+        x.id,
+        {
+          _id: x.id,
+          id: x.id,
+          email: x.email,
+          displayName: x.display_name,
+          avatarUrl: x.avatar_url,
+        },
+      ]),
+    );
+    return {
+      _id: s.id,
+      id: s.id,
+      inviteCode: s.inviteCode,
+      status: s.status,
+      createdBy: s.createdBy,
+      members: s.memberIds.map((x) => by.get(x) ?? { _id: x, id: x }),
+      preparedDeck: {
+        status:
+          (s.preparedDeckMeta as any).status ??
+          (s.preparedDeckDishIds.length ? 'ready' : 'idle'),
+        dishIds: s.preparedDeckDishIds,
+        ...s.preparedDeckMeta,
+      },
+      restartState: s.restartState,
+      pairLifecycleState: s.pairLifecycleState,
+      createdAt: s.createdAt,
+      updatedAt: s.updatedAt,
+    };
+  }
 }
-

@@ -1,17 +1,25 @@
 import { AsyncLocalStorage } from 'async_hooks';
-import { PoolClient, Pool, QueryResult, QueryResultRow } from 'pg';
+import { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg';
 import { requireSupabaseDatabaseUrl } from '../../config/supabase';
 
 let pool: Pool | undefined;
 const transaction = new AsyncLocalStorage<PoolClient>();
 
 export function getPostgresPool(): Pool {
-  pool ??= new Pool({ connectionString: requireSupabaseDatabaseUrl(), max: 10 });
+  pool ??= new Pool({
+    connectionString: requireSupabaseDatabaseUrl(),
+    max: 10,
+  });
   return pool;
 }
 
-export function queryPostgres<T extends QueryResultRow>(text: string, values: readonly unknown[] = []): Promise<QueryResult<T>> {
-  return (transaction.getStore() ?? getPostgresPool()).query<T>(text, [...values]);
+export function queryPostgres<T extends QueryResultRow>(
+  text: string,
+  values: readonly unknown[] = [],
+): Promise<QueryResult<T>> {
+  return (transaction.getStore() ?? getPostgresPool()).query<T>(text, [
+    ...values,
+  ]);
 }
 
 export async function closePostgresPool(): Promise<void> {
@@ -22,35 +30,39 @@ export async function closePostgresPool(): Promise<void> {
 export async function withPostgresAdvisoryLock<T>(
   key: string,
   task: (query: typeof queryPostgres) => Promise<T>,
-  pool: Pick<Pool, 'connect'> = getPostgresPool(),
+  connectionPool?: Pick<Pool, 'connect'>,
 ): Promise<T> {
-  const client = await pool.connect();
-  try {
-    await client.query('begin');
-    await client.query('select pg_advisory_xact_lock(hashtext($1))', [key]);
-    const result = await task((text, values = []) => client.query(text, [...values]));
-    await client.query('commit');
-    return result;
-  } catch (error) {
-    await client.query('rollback');
-    throw error;
-  } finally {
-    client.release();
-  }
+  return withPostgresTransaction(async () => {
+    await queryPostgres('select pg_advisory_xact_lock(hashtext($1))', [key]);
+    return task(queryPostgres);
+  }, connectionPool);
 }
 
-
 /** Nested domain calls share one connection and roll back as a unit. */
-export async function withPostgresTransaction<T>(task: () => Promise<T>): Promise<T> {
+export async function withPostgresTransaction<T>(
+  task: () => Promise<T>,
+  connectionPool?: Pick<Pool, 'connect'>,
+): Promise<T> {
   if (transaction.getStore()) return task();
-  const client = await getPostgresPool().connect();
+  const client = await (connectionPool ?? getPostgresPool()).connect();
+  let discard: Error | undefined;
   try {
     await client.query('begin');
     const result = await transaction.run(client, task);
     await client.query('commit');
     return result;
   } catch (error) {
-    await client.query('rollback');
+    try {
+      await client.query('rollback');
+    } catch (rollbackError) {
+      // Preserve the operation failure and never reuse a broken connection.
+      discard =
+        rollbackError instanceof Error
+          ? rollbackError
+          : new Error('Rollback failed');
+    }
     throw error;
-  } finally { client.release(); }
+  } finally {
+    client.release(discard);
+  }
 }
