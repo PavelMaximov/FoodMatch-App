@@ -96,13 +96,13 @@ export class CoupleDeckService {
     });
     this.timing('scoring', Date.now() - scoringStarted);
     const prefix = filters.includeCustomDishesFirst
-        ? customFirst(all, filters, choices, runtimeIds)
+        ? customFirst(all, filters, choices, runtimeIds).slice(0, MAX)
         : [],
       seen = new Set(prefix.map((d) => d._id.toString())),
       tail = result.dishes
         .filter((d) => !seen.has(d._id.toString()))
         .slice(0, MAX - prefix.length),
-      final = [...prefix.slice(0, MAX), ...tail],
+      final = [...prefix, ...tail],
       ids = await Promise.all(final.map(postgresDishId)),
       recommendationMeta = {
         ...result.meta,
@@ -158,8 +158,7 @@ export class CoupleDeckService {
     return this.response(s, dishes, filters);
   }
   async resetDeckForActiveSession(userId: string) {
-    const s = await this.require(userId),
-      writeStarted = Date.now();
+    const s = await this.require(userId);
     await domainRepositories.coupleSessions.update(s.id, {
       preparedDeckDishIds: [],
       preparedDeckFiltersHash: null,

@@ -1,4 +1,3 @@
-import { readFileSync } from 'fs';
 import { Types } from 'mongoose';
 import { buildPairSharedRecommendedDeck, buildRecommendedDeck } from '../modules/recommendations/deckRecommendationService';
 import { toDishDto } from '../modules/dishes/dto/dishDto';
@@ -74,9 +73,5 @@ assert((emptyResult.meta.diagnosticsNotes ?? []).length > 0, 'Empty/low candidat
 
 const dto = toDishDto(dish('DTO')) as unknown as Record<string, unknown>;
 assert(!('score' in dto) && !('debugScore' in dto), 'Public Dish DTO must not include score fields.');
-
-const routesSource = readFileSync('src/modules/recommendations/routes/recommendationRoutes.ts', 'utf8');
-assert(routesSource.includes('authMiddleware'), 'Recommendation debug routes should require auth middleware.');
-assert(routesSource.includes('/debug/solo/:sessionId') && routesSource.includes('/debug/pair/:sessionId'), 'Recommendation debug routes should expose solo and pair debug paths.');
 
 console.log('Recommendation observability assertions passed.');

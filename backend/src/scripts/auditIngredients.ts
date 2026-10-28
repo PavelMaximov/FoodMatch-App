@@ -4,7 +4,7 @@ import mongoose from 'mongoose';
 import path from 'path';
 import { DishModel } from '../modules/dishes/models/Dish';
 import { extractDishIngredientTexts, getExclusionTagsForIngredient, getMatchedExclusionReason } from '../shared/ingredients/exclusionMatcher';
-import { isLikelyNoiseIngredient, normalizeIngredientKey, normalizeIngredientText } from '../shared/ingredients/ingredientNormalizer';
+import { isLikelyNoiseIngredient, normalizeIngredientText } from '../shared/ingredients/ingredientNormalizer';
 
 dotenv.config();
 

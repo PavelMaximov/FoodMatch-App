@@ -4,7 +4,6 @@ import { AuthRequest } from '../../core/middleware/authMiddleware';
 import {
   CLOUDINARY_FOLDERS,
   CLOUDINARY_TRANSFORMATIONS,
-  deleteImage,
   uploadImage
 } from './services/cloudinaryService';
 import { requireUploadedImage } from './middleware/uploadMiddleware';
