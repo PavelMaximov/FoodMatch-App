@@ -9,7 +9,10 @@ import {
   loadLightweightDishesInPostgresOrder,
   postgresDishId,
 } from '../../../shared/db/dishIdMapping';
-import { withPostgresAdvisoryLock } from '../../../shared/db/postgresClient';
+import {
+  queryPostgres,
+  withPostgresAdvisoryLock,
+} from '../../../shared/db/postgresClient';
 import { toDishDto } from '../../dishes/dto/dishDto';
 import { buildPairSharedRecommendedDeck } from '../../recommendations/deckRecommendationService';
 import { logRecommendationMeta } from '../../recommendations/recommendationTypes';
@@ -43,6 +46,11 @@ export class CoupleDeckService {
     return result;
   }
   private async computeDeck(userId: string) {
+    const initial = await this.require(userId);
+    await queryPostgres(
+      'select id from couple_sessions where id=$1 for update',
+      [initial.id],
+    );
     const s = await this.require(userId),
       filterStarted = Date.now(),
       choices = await this.choices(s);
@@ -113,6 +121,7 @@ export class CoupleDeckService {
       },
       writeStarted = Date.now();
     await domainRepositories.coupleSessions.update(s.id, {
+      pairLifecycleState: { ...s.pairLifecycleState, status: 'active' },
       preparedDeckDishIds: ids,
       preparedDeckFiltersHash: hash,
       preparedDeckGeneration: s.preparedDeckGeneration + 1,

@@ -54,3 +54,12 @@ Check onboarding progress-button appearance and Pair with custom-first enabled.
 Older source-text scripts for other retired Mongo lifecycle implementations still
 exist outside check:backend; this change replaces only the two deck scripts with
 behavioral equivalents. Their eventual retirement must preserve behavioral coverage.
+
+## Follow-up regression fixes
+
+- Partner-left Start new session leaves the server pair before clearing local flow; a failed leave stays recoverable.
+- Inherited shared-shopping entitlement requires a current pair. Personal Premium/reward entitlement and shared access from a Premium partner remain separate.
+- Recipe pagination prefetches within two viewport heights, renders a footer/retry, builds cards ahead, and bounds image decode width.
+- Updating a prepared pair's filters atomically invalidates both old confirmations. The second member can change or keep filters; preparation locks the same session row and requires both confirmations. Repeated commit requests do not reset consent.
+
+Validation: `npm run check:backend` includes `test:pair-filter-round`. Flutter SDK unavailable in this environment: run `flutter test` and `flutter analyze`, and test both devices for keep/change filters, partner-left navigation, account switching and Recipes fast scrolling. No database migration required. Deploy backend before testing the updated client.
