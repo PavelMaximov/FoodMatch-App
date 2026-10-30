@@ -6,8 +6,7 @@ import {
 } from '../../../infrastructure/postgres/repositories/PostgresCatalogRepositories';
 import { domainRepositories } from '../../../infrastructure/repositories/domainRepositories';
 import {
-  loadMongoDishesInPostgresOrder,
-  mongoDishId,
+  loadDishesInPostgresOrder,
   postgresDishId,
 } from '../../../shared/db/dishIdMapping';
 import {
@@ -129,17 +128,13 @@ export class SoloSwipeService {
         s.id,
         'solo',
       );
-    const oldMongo = await Promise.all(s.deckDishIds.map(mongoDishId));
-    const excluded = new Set(
-      (await Promise.all(swipes.map((x) => mongoDishId(x.dishId)))).filter(
-        (x): x is string => !!x,
-      ),
-    );
+    const previousDeckIds = s.deckDishIds;
+    const excluded = new Set(swipes.map((swipe) => swipe.dishId));
     const result = await this.deckBuilder.buildDeck(
         userId,
         normalized,
         excluded,
-        new Set(oldMongo.filter((x): x is string => !!x)),
+        new Set(previousDeckIds),
       ),
       ids = await Promise.all(result.dishes.map(postgresDishId));
     const updated = await domainRepositories.soloSessions.update(s.id, userId, {
@@ -348,7 +343,7 @@ export class SoloSwipeService {
       badgeDelta = badgeCount - beforeCount,
       matchRemoved = badgeDelta < 0,
       removedMatchId = matchRemoved ? (removedMatch?.id ?? null) : null,
-      dishPublicId = await mongoDishId(swipe.dishId),
+      dishPublicId = swipe.dishId,
       undo = {
         success: true,
         undoneSwipeId: swipe.id,
@@ -409,7 +404,7 @@ export class SoloSwipeService {
     meta?: RecommendedDeckMeta,
   ) {
     const ids = s.deckDishIds.slice(s.currentIndex),
-      dishes = loaded ?? (await loadMongoDishesInPostgresOrder(ids)),
+      dishes = loaded ?? (await loadDishesInPostgresOrder(ids)),
       sessionSwipes = await domainRepositories.swipes.listForUserSession(
         s.userId,
         s.id,

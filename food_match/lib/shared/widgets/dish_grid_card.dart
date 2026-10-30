@@ -34,6 +34,8 @@ class DishGridCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final FoodMatchThemeColors colors = context.fmColors;
     final Widget image = SafeDishImage(
+      cacheWidth: ((width ?? (MediaQuery.sizeOf(context).width - 55) / 2) *
+              MediaQuery.devicePixelRatioOf(context)).round().clamp(1, 1600).toInt(),
       imageUrl: ImageUtils.getImageUrl(dish.imageUrl, usage: ImageUsage.dishCard),
       fit: BoxFit.cover,
       emptyImageAsset: isCustomDishWithoutPhoto(dish)

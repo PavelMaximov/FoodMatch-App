@@ -11,6 +11,7 @@ class SafeNetworkImage extends StatelessWidget {
     this.usage = ImageUsage.original,
     this.width,
     this.height,
+    this.cacheWidth,
     this.placeholderIcon = Icons.image_outlined,
     this.errorIcon = Icons.image_not_supported_outlined,
     this.backgroundColor,
@@ -24,6 +25,7 @@ class SafeNetworkImage extends StatelessWidget {
   final BoxFit fit;
   final double? width;
   final double? height;
+  final int? cacheWidth;
   final IconData placeholderIcon;
   final IconData errorIcon;
   final Color? backgroundColor;
@@ -47,6 +49,7 @@ class SafeNetworkImage extends StatelessWidget {
             )
         : CachedNetworkImage(
             imageUrl: optimizedUrl,
+            memCacheWidth: cacheWidth,
             fit: fit,
             width: width,
             height: height,

@@ -306,12 +306,16 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     if (!mounted || !startNew) {
       return;
     }
-    context.read<SwipeProvider>().resetToModeSelection();
-    context.read<PreSwipeProvider>().clearDraft();
-    setState(() {
-      _sessionResumeChoiceType = null;
-      _showPairConnectionStep = false;
-    });
+    final couple = context.read<CoupleProvider>();
+    await couple.leaveCouple();
+    if (!mounted) return;
+    if (couple.error != null || couple.hasCouple) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(couple.error ?? 'Could not leave the session. Please try again.')),
+      );
+      return;
+    }
+    await _clearActiveSessionAndShowModeSelection();
   }
 
   void _resetPairFilterChangeDialogMarkers({required String reason}) {
@@ -735,23 +739,26 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       return;
     }
     debugPrint('[PairFilterChange] partner committed event=$generation generation=$generation');
-    final bool updateFilters = await showDialog<bool>(
+    final bool? updateFilters = await showDialog<bool>(
           context: context,
           builder: (BuildContext dialogContext) => AlertDialog(
               title: const Text('Partner changed filters'),
               content: const Text(
-                'Your partner updated their filters. Please update yours before you continue swiping together.',
+                'Your partner updated their filters. Change yours or confirm your current choices to prepare one shared deck.',
               ),
               actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext, false),
+                  child: const Text('Keep my filters'),
+                ),
                 ElevatedButton(
                   onPressed: () => Navigator.pop(dialogContext, true),
                   child: const Text('Update filters'),
                 ),
               ],
             ),
-        ) ??
-        false;
-    if (!mounted || !updateFilters) {
+        );
+    if (!mounted || updateFilters == null) {
       return;
     }
     setState(() => _pairFilterUpdateRequired = false);
@@ -759,7 +766,22 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     _pairDeckReadyAutoLoadEnabled = true;
     context.read<SwipeProvider>().clearPreparedDeck();
     context.read<CoupleProvider>().consumeOpenPairFilterChange();
-    await _runPreSwipeFlow(origin: _PreSwipeFlowOrigin.filtersButton);
+    if (updateFilters) {
+      await _runPreSwipeFlow(origin: _PreSwipeFlowOrigin.filtersButton);
+    } else {
+      try {
+        await context.read<CoupleProvider>().confirmMyChoices();
+        if (!mounted) return;
+        await _loadCanonicalPairDeckAndShowSwipe(reason: 'partner_filters_kept');
+      } catch (_) {
+        if (!mounted) return;
+        setState(() => _pairFilterUpdateRequired = true);
+        _shownPairFilterChangeInviteIds.remove(generation.toString());
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not confirm filters. Please try again.')),
+        );
+      }
+    }
   }
 
   Future<void> _startNewFromActiveSession() async {

@@ -152,25 +152,23 @@ export class CoupleService {
       : { status: 'none' };
   }
   async commitFilterChange(userId: string) {
-    const s = await this.require(userId),
-      generation = Number((s.pairLifecycleState as any).generation ?? 0) + 1;
-    await domainRepositories.coupleSessions.update(s.id, {
-      preparedDeckDishIds: [],
-      preparedDeckMeta: { status: 'idle' },
-      pairLifecycleState: {
-        status: 'partner_action_required',
-        reason: 'filter_change',
-        changedBy: userId,
-        generation,
-        updatedAt: new Date(),
-      },
-    });
+    // Saving starts the round; a retry must not reset the partner again.
+    const s = await this.require(userId);
+    const generation = Number(s.pairLifecycleState.generation ?? 0);
     return {
-      status: 'partner_action_required',
+      status: s.pairLifecycleState.status,
       eventId: String(generation),
       sessionId: s.id,
       generation,
     };
+  }
+  private async lockFilterSession(userId: string) {
+    const session = await this.require(userId);
+    await queryPostgres(
+      'select id from couple_sessions where id=$1 for update',
+      [session.id],
+    );
+    return this.require(userId);
   }
   async leaveSession(userId: string) {
     const session =
@@ -231,40 +229,70 @@ export class CoupleService {
       userId,
       p.choices ?? p.filter ?? p.filters ?? p,
     );
-    const started = Date.now(),
-      s = await this.require(userId),
-      filters = normalizeCoupleFilterStatePayload(p);
-    await domainRepositories.coupleSessions.upsertFilterState(s.id, {
-      userId,
-      filters,
-      confirmed: false,
-      confirmedAt: null,
+    return withPostgresTransaction(async () => {
+      const started = Date.now(),
+        s = await this.lockFilterSession(userId),
+        filters = normalizeCoupleFilterStatePayload(p);
+      const states = await domainRepositories.coupleSessions.listFilterStates(
+        s.id,
+      );
+      if (
+        s.preparedDeckMeta.status === 'ready' ||
+        (s.pairLifecycleState.status !== 'partner_action_required' &&
+          states.length === 2 &&
+          states.every((state) => state.confirmed))
+      ) {
+        for (const state of states) {
+          await domainRepositories.coupleSessions.upsertFilterState(s.id, {
+            ...state,
+            confirmed: false,
+            confirmedAt: null,
+          });
+        }
+        await domainRepositories.coupleSessions.update(s.id, {
+          pairLifecycleState: {
+            status: 'partner_action_required',
+            reason: 'filter_change',
+            changedBy: userId,
+            generation: Number(s.pairLifecycleState.generation ?? 0) + 1,
+            updatedAt: new Date(),
+          },
+        });
+      }
+      await domainRepositories.coupleSessions.upsertFilterState(s.id, {
+        userId,
+        filters,
+        confirmed: false,
+        confirmedAt: null,
+      });
+      await domainRepositories.coupleSessions.update(s.id, {
+        preparedDeckDishIds: [],
+        preparedDeckMeta: { status: 'idle' },
+        restartState: idle(),
+      });
+      const response = await this.filterResponse(
+        (await domainRepositories.coupleSessions.findById(s.id))!,
+        userId,
+      );
+      if (process.env.NODE_ENV !== 'production')
+        console.info(`[PairFilterState] save ms=${Date.now() - started}`);
+      return response;
     });
-    await domainRepositories.coupleSessions.update(s.id, {
-      preparedDeckDishIds: [],
-      preparedDeckMeta: { status: 'idle' },
-      restartState: idle(),
-    });
-    const response = await this.filterResponse(
-      (await domainRepositories.coupleSessions.findById(s.id))!,
-      userId,
-    );
-    if (process.env.NODE_ENV !== 'production')
-      console.info(`[PairFilterState] save ms=${Date.now() - started}`);
-    return response;
   }
   async confirmMyFilterState(userId: string) {
-    const s = await this.require(userId),
-      states = await domainRepositories.coupleSessions.listFilterStates(s.id),
-      mine = states.find((x) => x.userId === userId);
-    await requireAdvancedFilterAccess(userId, mine?.filters ?? {});
-    await domainRepositories.coupleSessions.upsertFilterState(s.id, {
-      userId,
-      filters: mine?.filters ?? {},
-      confirmed: true,
-      confirmedAt: new Date(),
+    return withPostgresTransaction(async () => {
+      const s = await this.lockFilterSession(userId),
+        states = await domainRepositories.coupleSessions.listFilterStates(s.id),
+        mine = states.find((x) => x.userId === userId);
+      await requireAdvancedFilterAccess(userId, mine?.filters ?? {});
+      await domainRepositories.coupleSessions.upsertFilterState(s.id, {
+        userId,
+        filters: mine?.filters ?? {},
+        confirmed: true,
+        confirmedAt: new Date(),
+      });
+      return this.filterResponse(s, userId);
     });
-    return this.filterResponse(s, userId);
   }
   async resetFilterState(userId: string) {
     const s = await this.require(userId);

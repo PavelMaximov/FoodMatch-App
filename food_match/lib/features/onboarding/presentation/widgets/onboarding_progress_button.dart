@@ -67,7 +67,7 @@ class _ProgressRingPainter extends CustomPainter {
     final Offset center = size.center(Offset.zero);
     final double radius = (size.shortestSide - 5) / 2;
     final Paint trackPaint = Paint()
-      ..color = color.withOpacity(0.16)
+      ..color = color.withValues(alpha: 0.16)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.5
       ..strokeCap = StrokeCap.round;

@@ -9,7 +9,10 @@ import {
   loadLightweightDishesInPostgresOrder,
   postgresDishId,
 } from '../../../shared/db/dishIdMapping';
-import { withPostgresAdvisoryLock } from '../../../shared/db/postgresClient';
+import {
+  queryPostgres,
+  withPostgresAdvisoryLock,
+} from '../../../shared/db/postgresClient';
 import { toDishDto } from '../../dishes/dto/dishDto';
 import { buildPairSharedRecommendedDeck } from '../../recommendations/deckRecommendationService';
 import { logRecommendationMeta } from '../../recommendations/recommendationTypes';
@@ -43,6 +46,11 @@ export class CoupleDeckService {
     return result;
   }
   private async computeDeck(userId: string) {
+    const initial = await this.require(userId);
+    await queryPostgres(
+      'select id from couple_sessions where id=$1 for update',
+      [initial.id],
+    );
     const s = await this.require(userId),
       filterStarted = Date.now(),
       choices = await this.choices(s);
@@ -96,13 +104,13 @@ export class CoupleDeckService {
     });
     this.timing('scoring', Date.now() - scoringStarted);
     const prefix = filters.includeCustomDishesFirst
-        ? customFirst(all, filters, choices, runtimeIds)
+        ? customFirst(all, filters, choices, runtimeIds).slice(0, MAX)
         : [],
       seen = new Set(prefix.map((d) => d._id.toString())),
       tail = result.dishes
         .filter((d) => !seen.has(d._id.toString()))
         .slice(0, MAX - prefix.length),
-      final = [...prefix.slice(0, MAX), ...tail],
+      final = [...prefix, ...tail],
       ids = await Promise.all(final.map(postgresDishId)),
       recommendationMeta = {
         ...result.meta,
@@ -113,6 +121,7 @@ export class CoupleDeckService {
       },
       writeStarted = Date.now();
     await domainRepositories.coupleSessions.update(s.id, {
+      pairLifecycleState: { ...s.pairLifecycleState, status: 'active' },
       preparedDeckDishIds: ids,
       preparedDeckFiltersHash: hash,
       preparedDeckGeneration: s.preparedDeckGeneration + 1,
@@ -158,8 +167,7 @@ export class CoupleDeckService {
     return this.response(s, dishes, filters);
   }
   async resetDeckForActiveSession(userId: string) {
-    const s = await this.require(userId),
-      writeStarted = Date.now();
+    const s = await this.require(userId);
     await domainRepositories.coupleSessions.update(s.id, {
       preparedDeckDishIds: [],
       preparedDeckFiltersHash: null,
