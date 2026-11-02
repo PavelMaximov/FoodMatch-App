@@ -80,7 +80,11 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
   String? get _error => _results.error;
 
   void _onChanged() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    setState(() {});
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _results.loadMoreError == null) _maybeLoadMore();
+    });
   }
 
   @override
@@ -213,7 +217,7 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
       return;
     }
     final ScrollPosition position = _scrollController.position;
-    if (position.pixels >= position.maxScrollExtent - 360) {
+    if (position.extentAfter < position.viewportDimension * 2) {
       _loadMore();
     }
   }
@@ -413,6 +417,14 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
       onRefresh: () => _loadFirstPage(force: true),
       child: DishGrid(
         controller: _scrollController,
+        footer: _isLoadingMore
+            ? const Padding(
+                padding: EdgeInsets.all(24),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            : _results.loadMoreError != null
+                ? Center(child: TextButton(onPressed: _loadMore, child: const Text('Retry loading recipes')))
+                : null,
         dishes: _dishes,
         savedDishIds: savedDishIds,
         onFavoriteTap: widget.onFavoriteTap,

@@ -1,6 +1,5 @@
 import dotenv from 'dotenv';
 import mongoose, { Types } from 'mongoose';
-import { env } from '../config/env';
 import { CoupleSessionModel } from '../modules/couples/models/CoupleSession';
 import { buildEffectiveFilters } from '../modules/couples/services/coupleDeckService';
 import { SoloSwipeSessionModel } from '../modules/solo-swipes/models/SoloSwipeSession';

@@ -15,6 +15,7 @@ class DishGrid extends StatelessWidget {
     this.physics = const AlwaysScrollableScrollPhysics(),
     this.shrinkWrap = false,
     this.controller,
+    this.footer,
   });
 
   final List<Dish> dishes;
@@ -26,6 +27,7 @@ class DishGrid extends StatelessWidget {
   final ScrollPhysics physics;
   final bool shrinkWrap;
   final ScrollController? controller;
+  final Widget? footer;
 
   static const int columns = 2;
   static const double spacing = 15;
@@ -33,31 +35,38 @@ class DishGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
+    return CustomScrollView(
       controller: controller,
-      padding: padding,
+      cacheExtent: 900,
       physics: physics,
       shrinkWrap: shrinkWrap,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: columns,
-        mainAxisSpacing: spacing,
-        crossAxisSpacing: spacing,
-        childAspectRatio: childAspectRatio,
-      ),
-      itemCount: dishes.length,
-      itemBuilder: (_, int index) {
-        final Dish dish = dishes[index];
-        return RepaintBoundary(
-          key: ValueKey<String>(dish.id),
-          child: DishGridCard(
-            dish: dish,
-            isFavorite: savedDishIds.contains(dish.id),
-            isLoading: isFavoriteUpdating?.call(dish.id) ?? false,
-            onFavoriteTap: () => onFavoriteTap(dish),
-            onTap: () => onDishTap(dish),
+      slivers: <Widget>[
+        SliverPadding(
+          padding: padding,
+          sliver: SliverGrid(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: columns,
+              mainAxisSpacing: spacing,
+              crossAxisSpacing: spacing,
+              childAspectRatio: childAspectRatio,
+            ),
+            delegate: SliverChildBuilderDelegate((_, int index) {
+              final Dish dish = dishes[index];
+              return RepaintBoundary(
+                key: ValueKey<String>(dish.id),
+                child: DishGridCard(
+                  dish: dish,
+                  isFavorite: savedDishIds.contains(dish.id),
+                  isLoading: isFavoriteUpdating?.call(dish.id) ?? false,
+                  onFavoriteTap: () => onFavoriteTap(dish),
+                  onTap: () => onDishTap(dish),
+                ),
+              );
+            }, childCount: dishes.length),
           ),
-        );
-      },
+        ),
+        if (footer != null) SliverToBoxAdapter(child: footer!),
+      ],
     );
   }
 }

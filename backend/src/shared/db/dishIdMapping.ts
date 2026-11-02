@@ -5,11 +5,7 @@ import {
 export async function postgresDishId(dish: CatalogDish) {
   return String(dish.id ?? dish._id);
 }
-/** Backward-compatible name; PR4 IDs are PostgreSQL UUIDs. */
-export async function mongoDishId(postgresId: string) {
-  return postgresId;
-}
-export async function loadMongoDishesInPostgresOrder(
+export async function loadDishesInPostgresOrder(
   ids: string[],
 ): Promise<CatalogDish[]> {
   return postgresDishes.getByIds(ids);

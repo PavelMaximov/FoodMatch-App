@@ -2,7 +2,7 @@ import { AppError } from '../../../core/errors/AppError';
 import { domainRepositories } from '../../../infrastructure/repositories/domainRepositories';
 import {
   loadDishesById,
-  loadMongoDishesInPostgresOrder,
+  loadDishesInPostgresOrder,
 } from '../../../shared/db/dishIdMapping';
 import { queryPostgres } from '../../../shared/db/postgresClient';
 import { toDishDto } from '../../dishes/dto/dishDto';
@@ -50,7 +50,7 @@ export class MatchService {
     this.dependencies = {
       query: queryPostgres,
       hydrateDishes: async (ids) =>
-        (await loadMongoDishesInPostgresOrder(ids))
+        (await loadDishesInPostgresOrder(ids))
           .map(toDishDto)
           .filter(Boolean),
       requireHistoryAccess: (userId) =>

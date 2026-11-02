@@ -95,8 +95,6 @@ interface ScoredDish {
 
 const COLD_WEIGHTS = { country: 0.30, mood: 0.05, dishRegister: 0.30, history: 0.05, popularity: 0.20, recency: 0.10 };
 const WARM_WEIGHTS = { country: 0.18, mood: 0.05, dishRegister: 0.20, history: 0.32, popularity: 0.15, recency: 0.10 };
-const LOW_CANDIDATE_THRESHOLD = 15;
-const CRITICAL_CANDIDATE_THRESHOLD = 5;
 export const PAIR_SCORE_FLOOR = 0.05;
 
 export function buildRecommendedDeck(input: BuildRecommendedDeckInput): BuildRecommendedDeckResult {

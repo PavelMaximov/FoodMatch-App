@@ -23,6 +23,17 @@ const _pairAccess = EffectiveEntitlements(
 Future<void> _flush() => Future<void>.delayed(Duration.zero);
 
 void main() {
+  test('shared permission without a current pair never opens personal grocery', () async {
+    final repository = _Repository();
+    final provider = PremiumProvider(repository: repository);
+    addTearDown(provider.dispose);
+    provider.setAuthenticatedUser('free', isAuthenticated: true);
+    repository.requests.last.complete(_pairAccess);
+    await _flush();
+    expect(provider.canUse(PremiumFeature.sharedShoppingList), isFalse);
+    expect(provider.canUse(PremiumFeature.shoppingList), isFalse);
+  });
+
   test(
     'pair switch invalidates inherited access and rejects old responses',
     () async {
@@ -95,6 +106,7 @@ void main() {
       final provider = PremiumProvider(repository: repository);
       addTearDown(provider.dispose);
       provider.setAuthenticatedUser('user', isAuthenticated: true);
+      provider.handlePairContext('pair-a');
       final first = repository.requests.last;
       provider.forceRefresh();
       repository.requests.last.complete(_pairAccess);

@@ -12,6 +12,7 @@ class SafeDishImage extends StatelessWidget {
     required this.fit,
     this.width,
     this.height,
+    this.cacheWidth,
     this.borderRadius,
     this.emptyImageAsset,
     super.key,
@@ -22,6 +23,7 @@ class SafeDishImage extends StatelessWidget {
   final BoxFit fit;
   final double? width;
   final double? height;
+  final int? cacheWidth;
   final BorderRadius? borderRadius;
   final String? emptyImageAsset;
 
@@ -45,6 +47,7 @@ class SafeDishImage extends StatelessWidget {
     );
     final Widget networkImage = SafeNetworkImage(
       imageUrl: imageUrl,
+      cacheWidth: cacheWidth,
       usage: usage,
       fit: fit,
       width: width,
