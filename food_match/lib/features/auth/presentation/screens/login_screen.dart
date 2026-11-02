@@ -39,12 +39,13 @@ class _LoginScreenState extends State<LoginScreen> {
     if (authError != null && authError != _lastShownAuthError) {
       _lastShownAuthError = authError;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted)
+        if (mounted) {
           FoodMatchNotifications.show(
             context,
             type: FoodMatchNotificationType.error,
             title: authError,
           );
+        }
       });
     }
   }

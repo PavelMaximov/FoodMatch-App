@@ -372,8 +372,9 @@ class _AddDishScreenState extends State<AddDishScreen> {
                   controller: _titleController,
                   hint: 'Name of the dish',
                   validator: (String? value) {
-                    if ((value ?? '').trim().isEmpty)
+                    if ((value ?? '').trim().isEmpty) {
                       return 'Dish name is required.';
+                    }
                     return null;
                   },
                 ),
@@ -383,7 +384,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
                 _AppSelect<String>(
                   value: _selectedCuisine,
                   hint: 'Cuisine',
-                  items: <String>[...DishTaxonomy.cuisines, 'other'],
+                  items: const <String>[...DishTaxonomy.cuisines, 'other'],
                   itemLabel: (String value) =>
                       value == 'other' ? 'Other' : DishTaxonomy.labelFor(value),
                   onChanged: (String? value) =>

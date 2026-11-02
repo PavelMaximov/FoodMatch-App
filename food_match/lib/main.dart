@@ -312,8 +312,9 @@ Future<void> main() async {
                 ? couple.currentCouple?.id
                 : null;
             provider.setSharedSession(shared);
-            if (shared == null && premium.canUse(PremiumFeature.shoppingList))
+            if (shared == null && premium.canUse(PremiumFeature.shoppingList)) {
               provider.load();
+            }
             return provider;
           },
         ),

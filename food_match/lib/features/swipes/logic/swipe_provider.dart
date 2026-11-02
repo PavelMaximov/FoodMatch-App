@@ -715,7 +715,9 @@ class SwipeProvider extends ChangeNotifier {
   void _beginBadgeOperation(String id, int delta) {
     final user = _activeUserId;
     final session = activeSoloSessionId;
-    if (!isSoloMode || user == null || session == null) return;
+    if (!isSoloMode || user == null || session == null) {
+      return;
+    }
     _optimisticBadgeOperations.add(id);
     _badgeController?.beginOptimisticOperation(
       userId: user, sessionId: session, operationId: id, delta: delta,
@@ -731,7 +733,9 @@ class SwipeProvider extends ChangeNotifier {
     final dish = currentDish;
     if (dish == null || !canAcceptSwipe ||
         _sentSwipeDishIds.contains(dish.id) ||
-        _pendingSwipeIds.contains(dish.id)) return Future<dynamic>.value();
+        _pendingSwipeIds.contains(dish.id)) {
+          return Future<dynamic>.value();
+        }
     final index = currentIndex;
     final epoch = _swipeEpoch;
     final activeDeck = deck;
@@ -755,7 +759,9 @@ class SwipeProvider extends ChangeNotifier {
     if (isSoloMode) _soloRemainingCount = deck.length - currentIndex;
     if (direction == 'like') _beginBadgeOperation(_badgeOperationId(index, dish.id), 1);
     final request = _swipeTail.then((_) async {
-      if (!isCurrent()) return null;
+      if (!isCurrent()) {
+        return null;
+      }
       try {
         return await _sendAcceptedSwipe(dish, index, direction, isCurrent);
       } finally {
@@ -779,14 +785,18 @@ class SwipeProvider extends ChangeNotifier {
     final badgeOperation = _badgeOperationId(index, dish.id);
     try {
       await _syncPendingSwipesOrThrow();
-      if (!isCurrent()) return null;
+      if (!isCurrent()) {
+        return null;
+      }
       result = await _swipeRepository.sendSwipe(
         dishId: dish.id,
         direction: direction,
         soloSessionId: activeSoloSessionId,
         coupleSessionId: isSoloMode ? null : _badgeController?.sessionId,
       );
-      if (!isCurrent()) return null;
+      if (!isCurrent()) {
+        return null;
+      }
       final Map<String, dynamic>? response = result is Map<String, dynamic>
           ? result
           : null;
@@ -879,7 +889,9 @@ class SwipeProvider extends ChangeNotifier {
         );
       }
     } catch (e) {
-      if (!isCurrent()) return null;
+      if (!isCurrent()) {
+        return null;
+      }
       _cancelBadgeOperation(badgeOperation);
       var queuedOffline = false;
       if (_shouldQueueOffline(e)) {
@@ -895,7 +907,9 @@ class SwipeProvider extends ChangeNotifier {
           AppLogger.error('SwipeProvider: offline queue failed', queueError);
         }
       }
-      if (!isCurrent()) return null;
+      if (!isCurrent()) {
+        return null;
+      }
       if (!queuedOffline) {
         // Keep the failed card and discard later unconfirmed actions.
         currentIndex = index;
@@ -910,7 +924,9 @@ class SwipeProvider extends ChangeNotifier {
       }
     }
 
-    if (!isCurrent()) return null;
+    if (!isCurrent()) {
+      return null;
+    }
     if (!isSoloMode || activeSoloSessionId == null) {
       _lastSwipedDish = dish;
       _lastSwipedIndex = index;
@@ -923,7 +939,9 @@ class SwipeProvider extends ChangeNotifier {
     }
     try {
       await _persistLearning(dish, direction, result, isCurrent: isCurrent);
-      if (!isCurrent()) return null;
+      if (!isCurrent()) {
+        return null;
+      }
       if (_pendingSwipeCount == 1) await _cleanupSessionChoicesIfDone(isCurrent: isCurrent);
     } catch (e) {
       AppLogger.error('SwipeProvider: local swipe persistence failed', e);
@@ -958,13 +976,17 @@ class SwipeProvider extends ChangeNotifier {
     ];
     for (final dynamic candidate in candidates) {
       final String value = candidate?.toString().trim() ?? '';
-      if (value.isNotEmpty) return value;
+      if (value.isNotEmpty) {
+        return value;
+      }
     }
     return null;
   }
 
   int? _intValue(dynamic value) {
-    if (value is int) return value;
+    if (value is int) {
+      return value;
+    }
     return int.tryParse(value?.toString() ?? '');
   }
 
@@ -999,13 +1021,19 @@ class SwipeProvider extends ChangeNotifier {
         // The server cancels its latest swipe. Never send Undo before the
         // accepted gesture queue is drained (including any offline replay).
         await acceptedSwipes;
-        if (!isCurrentUndoScope()) return;
+        if (!isCurrentUndoScope()) {
+          return;
+        }
         await _syncPendingSwipesOrThrow();
-        if (!isCurrentUndoScope()) return;
+        if (!isCurrentUndoScope()) {
+          return;
+        }
         final dynamic data = await _swipeRepository.undoSoloSwipe(
           undoSessionId,
         );
-        if (!isCurrentUndoScope()) return;
+        if (!isCurrentUndoScope()) {
+          return;
+        }
         final Map<String, dynamic>? response = data is Map<String, dynamic>
             ? data
             : null;
@@ -1073,13 +1101,17 @@ class SwipeProvider extends ChangeNotifier {
           '[Undo] backend undo success currentIndex=$currentIndex currentDish=$currentDishId',
         );
       } on ApiException catch (e) {
-        if (!isCurrentUndoScope()) return;
+        if (!isCurrentUndoScope()) {
+          return;
+        }
         currentIndex = previousIndex;
         _soloRemainingCount = deck.length - currentIndex;
         debugPrint('[Undo] backend undo failed code=${e.code ?? e.statusCode}');
         error = _mapSwipeError(e);
       } catch (e) {
-        if (!isCurrentUndoScope()) return;
+        if (!isCurrentUndoScope()) {
+          return;
+        }
         currentIndex = previousIndex;
         _soloRemainingCount = deck.length - currentIndex;
         debugPrint('[Undo] backend undo failed code=unknown');
@@ -1123,14 +1155,20 @@ class SwipeProvider extends ChangeNotifier {
     final userId = _activeUserId;
     final mode = isSoloMode ? 'solo' : 'paired';
     final sessionId = isSoloMode ? activeSoloSessionId : _badgeController?.sessionId;
-    if (userId == null || sessionId == null) return;
+    if (userId == null || sessionId == null) {
+      return;
+    }
     final pending = await _cacheService.getPendingSwipes();
     for (final entry in pending) {
       // Legacy entries cannot be safely attributed: retain them, never guess a scope.
       if (entry['id'] is! String || entry['userId'] != userId ||
-          entry['mode'] != mode || entry['sessionId'] != sessionId) continue;
+          entry['mode'] != mode || entry['sessionId'] != sessionId) {
+            continue;
+          }
       if (_activeUserId != userId || (isSoloMode ? 'solo' : 'paired') != mode ||
-          (isSoloMode ? activeSoloSessionId : _badgeController?.sessionId) != sessionId) return;
+          (isSoloMode ? activeSoloSessionId : _badgeController?.sessionId) != sessionId) {
+            return;
+          }
       try {
         await _swipeRepository.sendSwipe(
           dishId: entry['dishId'] as String,
@@ -1204,7 +1242,9 @@ class SwipeProvider extends ChangeNotifier {
     if (userId != null && userId.isNotEmpty) {
       await _userProfileService.clearSessionChoices(userId);
     }
-    if (isCurrent?.call() == false) return;
+    if (isCurrent?.call() == false) {
+      return;
+    }
     _hasPreparedDeck = false;
     if (currentSwipeMode == 'solo') {
       _soloSessionCompleted = true;
