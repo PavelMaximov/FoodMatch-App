@@ -51,6 +51,35 @@ void main() {
     expect(fakeRepo.didLeave, isTrue);
   });
 
+  test('leave during background refresh does not restore the old session', () async {
+    provider.currentCouple = couple;
+    final response = Completer<Couple?>();
+    fakeRepo.coupleResponse = response.future;
+    final refresh = provider.loadCouple(force: true);
+    expect(provider.isLoading, isTrue);
+
+    await provider.leaveCouple();
+    expect(fakeRepo.didLeave, isTrue);
+    expect(provider.hasCouple, isFalse);
+
+    response.complete(couple);
+    await refresh;
+    expect(provider.hasCouple, isFalse);
+    expect(provider.error, isNull);
+  });
+
+  test('failed leave keeps the session available for retry', () async {
+    provider.currentCouple = couple;
+    fakeRepo.leaveError = const ApiException('offline', statusCode: 503);
+    await provider.leaveCouple();
+    expect(provider.hasCouple, isTrue);
+    expect(provider.error, isNotNull);
+
+    fakeRepo.leaveError = null;
+    await provider.leaveCouple();
+    expect(provider.hasCouple, isFalse);
+  });
+
   test('loadCouple loads current couple', () async {
     await provider.loadCouple();
 
@@ -119,6 +148,8 @@ class _FakeCoupleRepository extends CoupleRepository {
 
   Couple? currentCouple;
   bool didLeave = false;
+  Future<Couple?>? coupleResponse;
+  Object? leaveError;
   Object? invitationError;
   String invitationStatus = 'pending';
 
@@ -162,11 +193,14 @@ class _FakeCoupleRepository extends CoupleRepository {
       currentCouple!;
 
   @override
-  Future<Couple?> getMyCouple() async => currentCouple;
+  Future<Couple?> getMyCouple() async => coupleResponse != null
+      ? await coupleResponse!
+      : currentCouple;
 
   @override
   Future<void> leave() async {
     didLeave = true;
+    if (leaveError != null) throw leaveError!;
   }
 
   @override

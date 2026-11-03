@@ -201,6 +201,7 @@ class CoupleProvider extends ChangeNotifier {
       clearSessionStateForLogout(notify: false);
       return;
     }
+    if (_leaveInFlight) return;
     if (_isRefreshingCurrentCouple) {
       AppLogger.info(
         '[RequestDedup] couple/me refresh skipped: already in flight',
@@ -253,6 +254,7 @@ class CoupleProvider extends ChangeNotifier {
         _handleSessionEndedIfNeeded(previouslyHadSession: previouslyHadSession);
       }
     } catch (e) {
+      if (!_isCurrentSession(requestVersion, requestUserId)) return;
       if (e is ApiException && e.statusCode == 404) {
         _handleSessionEndedIfNeeded(
           previouslyHadSession: previouslyHadSession,
@@ -263,7 +265,7 @@ class CoupleProvider extends ChangeNotifier {
       }
     } finally {
       _isRefreshingCurrentCouple = false;
-      isLoading = false;
+      isLoading = _leaveInFlight;
       _safeNotify();
     }
   }
@@ -404,7 +406,10 @@ class CoupleProvider extends ChangeNotifier {
   }
 
   Future<void> leaveCouple() async {
-    if (isLoading || _leaveInFlight) return;
+    if (_leaveInFlight || (isLoading && !_isRefreshingCurrentCouple)) return;
+    // Leaving must not be skipped by a background /me refresh. Invalidate
+    // in-flight reads so their late responses cannot restore the old session.
+    _sessionStateVersion++;
     _leaveInFlight = true;
     isLoading = true;
     error = null;
@@ -417,6 +422,7 @@ class CoupleProvider extends ChangeNotifier {
       if (!_isCurrentSession(requestVersion, requestUserId)) return;
       _clearSessionState();
     } catch (e) {
+      if (!_isCurrentSession(requestVersion, requestUserId)) return;
       if (e is ApiException && e.statusCode == 404) {
         _clearSessionState();
       } else {

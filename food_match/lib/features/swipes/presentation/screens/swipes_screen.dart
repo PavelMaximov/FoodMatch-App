@@ -822,8 +822,8 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
               if (choiceType == _SessionResumeChoiceType.paired) {
                 if (coupleProvider.hasCouple) {
                   await coupleProvider.leaveCouple();
-                  if (coupleProvider.error != null) {
-                    throw StateError(coupleProvider.error!);
+                  if (coupleProvider.error != null || coupleProvider.hasCouple) {
+                    throw StateError(coupleProvider.error ?? 'Pair session is still active.');
                   }
                 }
               }
