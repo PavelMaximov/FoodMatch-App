@@ -129,15 +129,23 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
     context.read<MatchProvider>().clearMatches();
   }
 
-  Future<void> _leaveSession(CoupleProvider provider) async {
+  Future<bool> _leaveSession(CoupleProvider provider) async {
     await provider.leaveCouple();
-    if (!mounted) return;
+    if (!mounted) return false;
+    if (provider.error != null || provider.hasCouple) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(provider.error ?? 'Could not leave the session. Please try again.')),
+      );
+      return false;
+    }
     context.read<SwipeProvider>().clearPreparedDeck();
     context.read<PreSwipeProvider>().clearDraft();
     context.read<MatchProvider>().clearMatches();
+    return true;
   }
 
   Future<void> _handleBack(CoupleProvider provider) async {
+    if (provider.isLoading) return;
     final bool hasSession =
         provider.currentCouple != null &&
         provider.currentCouple!.inviteCode.trim().isNotEmpty;
@@ -178,8 +186,8 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
     if (!leave || !mounted) {
       return;
     }
-    await _leaveSession(provider);
-    if (mounted) {
+    final bool left = await _leaveSession(provider);
+    if (mounted && left) {
       widget.onBack();
     }
   }
@@ -218,7 +226,9 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
               Row(
                 children: <Widget>[
                   IconButton(
-                    onPressed: () => _handleBack(coupleProvider),
+                    onPressed: coupleProvider.isLoading
+                        ? null
+                        : () => _handleBack(coupleProvider),
                     icon: Icon(Icons.arrow_back, color: colors.textPrimary),
                     padding: EdgeInsets.zero,
                     alignment: Alignment.centerLeft,

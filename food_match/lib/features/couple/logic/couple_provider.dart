@@ -235,9 +235,14 @@ class CoupleProvider extends ChangeNotifier {
       currentCouple = loadedCouple;
       if (previousCoupleId != null && previousCoupleId != currentCouple?.id) {
         hiddenInvitationIds.clear();
-        outgoingContinuationInvite = null;
+        // Continuing creates a new one-member session on the server. Keep its
+        // invitation while polling catches up with that intentional transition.
+        if (outgoingContinuationInvite?.newCoupleSessionId == null ||
+            outgoingContinuationInvite!.newCoupleSessionId != currentCouple?.id) {
+          outgoingContinuationInvite = null;
+        }
         AppLogger.info(
-          '[PairInvitation] cleared local invitation state reason=session_changed',
+          '[PairInvitation] reconciled local invitation state reason=session_changed',
         );
       }
       _currentCoupleLoadedAt = DateTime.now();
@@ -764,9 +769,14 @@ class CoupleProvider extends ChangeNotifier {
           }
           if (status.status == 'declined' || status.status == 'expired' || status.status == 'cancelled') declinedInvite = status;
           if (status.isPending) outgoingContinuationInvite = status;
-        } catch (_) {
-          outgoingContinuationInvite = null;
-          AppLogger.info('[PairInvite] cleared stale active marker reason=status_unavailable');
+        } catch (e) {
+          // A temporary network failure does not cancel an invitation.
+          if (e is ApiException && e.statusCode == 404 &&
+              outgoingContinuationInvite?.id == activeOutgoing.id) {
+            outgoingContinuationInvite = null;
+            shouldReturnToResumeAfterContinuationDeclined = true;
+          }
+          AppLogger.info('[PairInvite] outgoing status unavailable');
         }
       }
       if (acceptedInvite != null &&

@@ -617,8 +617,8 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     }
     setState(() => _pairFilterUpdateRequired = false);
     _suppressPreviousChoiceAutoOpen = false;
-    setState(() => _sessionResumeChoiceType = null);
     if (choiceType == _SessionResumeChoiceType.solo) {
+      setState(() => _sessionResumeChoiceType = null);
       debugPrint('[ResumeChoice] continue selected mode=solo');
       final CoupleProvider coupleProvider = context.read<CoupleProvider>();
       coupleProvider.beginSoloResumeIsolation();
@@ -682,6 +682,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       '[ResumeChoice] pair continuation invite sent id=${invitation.id}',
     );
     debugPrint('[ResumeChoice] waiting_for_partner');
+    setState(() => _sessionResumeChoiceType = null);
     coupleProvider.startInvitationPolling(reason: 'session_resume_continue_pair');
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Your invitation was sent.')),
@@ -1738,8 +1739,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                       return PairConnectionStepScreen(
                         onBack: () {
                           _appFlow.logCloseX();
-                          context.read<SwipeProvider>().resetToModeSelection();
-                          setState(() => _showPairConnectionStep = false);
+                          unawaited(_clearActiveSessionAndShowModeSelection());
                         },
                         onPairConnected: () async {
                           if (!mounted) {
