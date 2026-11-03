@@ -44,7 +44,7 @@ Iterable<GoRoute> _routes(Iterable<RouteBase> routes) sync* {
 }
 
 void main() {
-  for (final access in ['free', 'premium', 'pair']) {
+  for (final access in ['free', 'premium', 'pair', 'pair-without-session']) {
     testWidgets(
       '$access selects production Shopping List and history destinations',
       (tester) async {
@@ -65,6 +65,9 @@ void main() {
               );
         final premium = PremiumProvider(repository: _Repository(value));
         premium.setAuthenticatedUser('user', isAuthenticated: true);
+        if (access == 'pair') {
+          premium.handlePairContext('active-pair');
+        }
         await tester.pump();
         final auth = _Auth();
         final router = AppRouter(authProvider: auth).router;
@@ -105,7 +108,7 @@ void main() {
             ),
           ),
         );
-        if (access == 'free') {
+        if (access == 'free' || access == 'pair-without-session') {
           expect(shoppingDestination, isA<PremiumScreen>());
           expect(
             (shoppingDestination as PremiumScreen).entryPoint,
