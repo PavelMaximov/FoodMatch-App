@@ -95,6 +95,9 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
   }
   bool _showPairConnectionStep = false;
   bool _isHandlingSessionEnded = false;
+  bool _isWaitingForDepartedPartner = false;
+  bool _isPairResyncDialogOpen = false;
+  bool _isSendingPairContinuation = false;
   CoupleProvider? _coupleProvider;
   bool _isLoadingInitialSession = false;
   String? _initialSessionError;
@@ -166,6 +169,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     setState(() {
       _showPairConnectionStep = false;
       _isHandlingSessionEnded = false;
+      _isWaitingForDepartedPartner = false;
       _initialSessionError = null;
       _pairFilterUpdateRequired = false;
       _sessionResumeChoiceType = null;
@@ -256,6 +260,9 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     _stopPairMatchPolling();
     _stopPairMatchBurstPolling();
     _stopPairRestartPolling();
+    _pairDeckLoadGeneration++;
+    _pairDeckReadyAutoLoadEnabled = false;
+    _isPairDeckReadyLoading = false;
     context.read<SwipeProvider>().clearPreparedDeck();
     context.read<PreSwipeProvider>().clearDraft();
     context.read<MatchProvider>().clearMatches();
@@ -265,54 +272,59 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       _isPairRestartWaiting = false;
       _isPairRestartLoading = false;
       _pairRestartError = null;
+      _pairFilterUpdateRequired = false;
       _sessionResumeChoiceType = _SessionResumeChoiceType.paired;
     });
     debugPrint('[PairLifecycle] partnerChanged -> SessionResumeChoiceScreen');
-    await _showPairResyncDialog(
-      message: coupleProvider.pairNeedsResyncMessage,
-    );
+    await _showPairResyncDialog();
   }
 
-  Future<void> _showPairResyncDialog({String? message}) async {
-    if (!mounted) {
-      return;
-    }
-    final bool isPartnerLeft = message == null ||
-        message.contains('partner left') ||
-        message.contains('Partner left');
-    final String title = isPartnerLeft
-        ? 'Partner left the session'
-        : 'Session needs to be refreshed';
-    final String body = isPartnerLeft
-        ? 'Your partner left this session. You can wait for them to continue or start a new session.'
-        : 'Your pair session changed. Please continue together or start a new session.';
-    final bool startNew = await showDialog<bool>(
-          context: context,
-          builder: (BuildContext dialogContext) => AlertDialog(
-            title: Text(title),
-            content: Text(body),
-            actions: <Widget>[
+  Future<void> _showPairResyncDialog() async {
+    if (!mounted || _isPairResyncDialogOpen) return;
+    final auth = context.read<AuthProvider>();
+    final authVersion = auth.authBoundaryVersion;
+    _isPairResyncDialogOpen = true;
+    bool startNew;
+    try {
+      startNew = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => PopScope(
+          canPop: false,
+          child: AlertDialog(
+            title: const Text('Partner left the session'),
+            content: const Text('Your partner left this session. You can wait for them to continue or start a new session.'),
+            actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext, false),
-                child: Text(isPartnerLeft ? 'Wait here' : 'OK'),
+                child: const Text('Wait here'),
               ),
-              if (isPartnerLeft)
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(dialogContext, true),
-                  child: const Text('Start new session'),
-                ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Start new session'),
+              ),
             ],
           ),
-        ) ??
-        false;
-    if (!mounted || !startNew) {
+        ),
+      ) ?? false;
+    } finally {
+      _isPairResyncDialogOpen = false;
+    }
+    if (!mounted || !auth.isCurrentAuthBoundary(authVersion)) return;
+    if (!startNew) {
+      setState(() {
+        _isWaitingForDepartedPartner = true;
+        _sessionResumeChoiceType = null;
+        _showPairConnectionStep = false;
+        _pairDeckReadyAutoLoadEnabled = false;
+      });
+      context.read<CoupleProvider>().endSoloResumeIsolation();
+      context.read<CoupleProvider>().startInvitationPolling(reason: 'waiting_for_departed_partner');
       return;
     }
     final couple = context.read<CoupleProvider>();
-    await couple.leaveCouple();
-    if (!mounted) {
-      return;
-    }
+    if (couple.hasCouple) await couple.leaveCouple();
+    if (!mounted || !auth.isCurrentAuthBoundary(authVersion)) return;
     if (couple.error != null || couple.hasCouple) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(couple.error ?? 'Could not leave the session. Please try again.')),
@@ -441,56 +453,47 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
   }
 
   Future<void> _showCoupleSessionEndedDialog() async {
-    final CoupleProvider? coupleProvider = _coupleProvider;
-    final String? message = coupleProvider?.sessionEndedMessage;
-    if (!mounted || coupleProvider == null || message == null || _isHandlingSessionEnded) {
+    final couple = _coupleProvider;
+    if (!mounted || couple == null || couple.sessionEndedMessage == null ||
+        _isHandlingSessionEnded) {
       return;
     }
     _isHandlingSessionEnded = true;
-    final SwipeProvider swipeProvider = context.read<SwipeProvider>();
-    swipeProvider.resetToModeSelection();
-    swipeProvider.clearPreparedDeck();
-    context.read<PreSwipeProvider>().clearDraft();
-    _stopPairMatchPolling();
-    _stopPairRestartPolling();
-    context.read<MatchProvider>().clearMatches();
-    setState(() {
-      _sessionResumeChoiceType = null;
-      _showPairConnectionStep = false;
-      _isOpeningPreSwipe = false;
-      _isPairRestartWaiting = false;
-      _isPairRestartLoading = false;
-      _pairRestartError = null;
-      _isPairRestartWaiting = false;
-      _isPairRestartLoading = false;
-      _pairRestartError = null;
-    });
-
-    await showDialog<void>(
-      context: context,
-      builder: (BuildContext dialogContext) => AlertDialog(
-        title: const Text('Session ended'),
-        content: const Text('Your partner has left this session. You can start a new session or join another one.'),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-    if (mounted) {
-      Navigator.of(context).popUntil((Route<dynamic> route) => route.isFirst);
-    }
-    coupleProvider.clearSessionEndedMessage();
-    if (mounted) {
-      setState(() => _isHandlingSessionEnded = false);
-    } else {
+    couple.clearSessionEndedMessage();
+    try {
+      // Continuation closes the old session before creating the replacement.
+      // Keep waiting for its invite instead of resetting the recipient's route.
+      if (_isWaitingForDepartedPartner || _isPairResyncDialogOpen ||
+          _isSendingPairContinuation ||
+          couple.outgoingContinuationInvite?.isPending == true ||
+          couple.shouldAcquireDeckAfterContinuationInvite) {
+        return;
+      }
+      _pairDeckLoadGeneration++;
+      _stopPairLifecyclePolling();
+      _stopPairMatchPolling();
+      _stopPairRestartPolling();
+      context.read<SwipeProvider>().clearPreparedDeck();
+      context.read<PreSwipeProvider>().clearDraft();
+      context.read<MatchProvider>().clearMatches();
+      setState(() {
+        _sessionResumeChoiceType = null;
+        _showPairConnectionStep = false;
+        _isOpeningPreSwipe = false;
+        _pairDeckReadyAutoLoadEnabled = false;
+        _isPairDeckReadyLoading = false;
+      });
+      await _showPairResyncDialog();
+    } finally {
       _isHandlingSessionEnded = false;
     }
   }
 
   Future<void> _loadExistingBackendDeckOrStart() async {
+    if (_isWaitingForDepartedPartner) {
+      await context.read<CoupleProvider>().handleAppResumed();
+      return;
+    }
     if (_isPreSwipeRouteActive) {
       debugPrint(
         '[AppFlow] startup resolution skipped reason=pre_filter_active',
@@ -662,32 +665,40 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
   }
 
   Future<void> _sendPairContinuationInvite(CoupleProvider coupleProvider) async {
-    final invitation = await coupleProvider.createContinueAsBeforeInvite();
-    if (!mounted) {
-      return;
-    }
-    if (invitation == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(coupleProvider.error ?? 'Could not invite your partner.')),
-      );
+    if (_isSendingPairContinuation) return;
+    final auth = context.read<AuthProvider>();
+    final version = auth.authBoundaryVersion;
+    _isSendingPairContinuation = true;
+    try {
+      final invitation = await coupleProvider.createContinueAsBeforeInvite();
+      if (!mounted || !auth.isCurrentAuthBoundary(version)) {
+        return;
+      }
+      if (invitation == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(coupleProvider.error ?? 'Could not invite your partner.')),
+        );
+        _pairDeckReadyAutoLoadEnabled = false;
+        setState(() {
+          _sessionResumeChoiceType = _SessionResumeChoiceType.paired;
+        });
+        return;
+      }
+      _suppressPreviousChoiceAutoOpen = false;
       _pairDeckReadyAutoLoadEnabled = false;
-      setState(() {
-        _sessionResumeChoiceType = _SessionResumeChoiceType.paired;
-      });
-      return;
+      debugPrint(
+        '[ResumeChoice] pair continuation invite sent id=${invitation.id}',
+      );
+      debugPrint('[ResumeChoice] waiting_for_partner');
+      setState(() => _sessionResumeChoiceType = null);
+      coupleProvider.startInvitationPolling(reason: 'session_resume_continue_pair');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Your invitation was sent.')),
+      );
+      setState(() {});
+    } finally {
+      _isSendingPairContinuation = false;
     }
-    _suppressPreviousChoiceAutoOpen = false;
-    _pairDeckReadyAutoLoadEnabled = false;
-    debugPrint(
-      '[ResumeChoice] pair continuation invite sent id=${invitation.id}',
-    );
-    debugPrint('[ResumeChoice] waiting_for_partner');
-    setState(() => _sessionResumeChoiceType = null);
-    coupleProvider.startInvitationPolling(reason: 'session_resume_continue_pair');
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Your invitation was sent.')),
-    );
-    setState(() {});
   }
 
   Widget _buildContinuationInviteWaiting(CoupleProvider coupleProvider) {
@@ -986,6 +997,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     context.read<MatchProvider>().clearMatches();
     setState(() {
       _sessionResumeChoiceType = null;
+      _isWaitingForDepartedPartner = false;
       _showPairConnectionStep = false;
       _isOpeningPreSwipe = false;
       _pairDeckReadyAutoLoadEnabled = false;
@@ -1555,6 +1567,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
         }
         debugPrint('[PairDeck] continuation accepted; acquiring canonical deck');
         _sessionResumeChoiceType = null;
+        _isWaitingForDepartedPartner = false;
         _showPairConnectionStep = false;
         _suppressPreviousChoiceAutoOpen = true;
         _pairDeckReadyAutoLoadEnabled = true;
@@ -1663,6 +1676,13 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                       return ErrorState(
                         message: _initialSessionError!,
                         onRetry: _loadExistingBackendDeckOrStart,
+                      );
+                    }
+
+                    if (!provider.isSoloMode &&
+                        (_isWaitingForDepartedPartner || inviteCoupleProvider.isWaitingForPartnerReturn)) {
+                      return SwipeContinuationWaiting(
+                        onBack: () => unawaited(_showPairResyncDialog()),
                       );
                     }
 

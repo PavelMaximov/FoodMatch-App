@@ -74,8 +74,8 @@ class CoupleProvider extends ChangeNotifier {
   bool shouldOpenSessionResumeForResync = false;
   bool shouldOpenPairFilterChange = false;
   String? pairNeedsResyncMessage;
-  final Set<int> _handledLifecycleGenerations = <int>{};
-  final Set<int> _handledFilterChangeGenerations = <int>{};
+  final Set<String> _handledLifecycleGenerations = <String>{};
+  final Set<String> _handledFilterChangeGenerations = <String>{};
   final Set<String> _consumedAcceptedInviteIds = <String>{};
   final Set<String> _consumedDeclinedInviteIds = <String>{};
   int _authBoundaryVersion = -1;
@@ -100,6 +100,10 @@ class CoupleProvider extends ChangeNotifier {
   bool get isLeaving => _leaveInFlight;
   bool get hasActiveSessionConflict => error == activeSessionMessage;
   bool get needsPairResync => shouldOpenSessionResumeForResync;
+  bool get isWaitingForPartnerReturn =>
+      currentCouple?.pairLifecycleStatus == 'needs_resync' &&
+      currentCouple?.lifecycleChangedBy != null &&
+      currentCouple?.lifecycleChangedBy != _activeUserId;
   bool get needsPairFilterChange => shouldOpenPairFilterChange;
   bool get hasPendingContinuation =>
       nextIncomingInvitation != null || outgoingContinuationInvite != null;
@@ -134,7 +138,7 @@ class CoupleProvider extends ChangeNotifier {
     for (final CoupleInvitation invitation in pendingInvitations) {
       if (invitation.isIncoming &&
           invitation.isPending &&
-          !hiddenInvitationIds.contains(invitation.id)) {
+          !hiddenInvitationIds.contains(invitation.deliveryKey)) {
         return invitation;
       }
     }
@@ -238,6 +242,8 @@ class CoupleProvider extends ChangeNotifier {
       final String? previousCoupleId = currentCouple?.id;
       currentCouple = loadedCouple;
       if (previousCoupleId != null && previousCoupleId != currentCouple?.id) {
+        shouldOpenSessionResumeForResync = false;
+        pairNeedsResyncMessage = null;
         hiddenInvitationIds.clear();
         // Continuing creates a new one-member session on the server. Keep its
         // invitation while polling catches up with that intentional transition.
@@ -810,7 +816,7 @@ class CoupleProvider extends ChangeNotifier {
       if (acceptedInvite != null &&
           _consumedAcceptedInviteIds.add(acceptedInvite.id)) {
         // A sheet dismissal is local only. An accepted continuation always wins.
-        hiddenInvitationIds.remove(acceptedInvite.id);
+        hiddenInvitationIds.remove(acceptedInvite.deliveryKey);
         outgoingContinuationInvite = null;
         shouldOpenPreviousChoiceAfterInvite = false;
         previousChoiceAfterInviteWasUserAccepted = false;
@@ -827,7 +833,7 @@ class CoupleProvider extends ChangeNotifier {
       }
       if (declinedInvite != null &&
           _consumedDeclinedInviteIds.add(declinedInvite.id)) {
-        hiddenInvitationIds.add(declinedInvite.id);
+        hiddenInvitationIds.add(declinedInvite.deliveryKey);
         outgoingContinuationInvite = null;
         shouldReturnToResumeAfterContinuationDeclined = true;
         shouldAcquireDeckAfterContinuationInvite = false;
@@ -843,8 +849,11 @@ class CoupleProvider extends ChangeNotifier {
 
   Future<CoupleInvitation?> createContinueAsBeforeInvite() async {
     _suppressContinuationForSoloResume = false;
-    if (outgoingContinuationInvite?.isPending == true) {
-      return outgoingContinuationInvite;
+    final pending = outgoingContinuationInvite;
+    if (pending != null && pending.isPending && pending.sessionActive &&
+        (pending.expiresAt == null || pending.expiresAt!.isAfter(DateTime.now())) &&
+        pending.newCoupleSessionId == currentCouple?.id) {
+      return pending;
     }
     final requestVersion = _sessionStateVersion;
     final requestUserId = _activeUserId;
@@ -859,7 +868,7 @@ class CoupleProvider extends ChangeNotifier {
           : null;
       if (invite.status == 'accepted' &&
           _consumedAcceptedInviteIds.add(invite.id)) {
-        hiddenInvitationIds.remove(invite.id);
+        hiddenInvitationIds.remove(invite.deliveryKey);
         outgoingContinuationInvite = null;
         shouldOpenPreviousChoiceAfterInvite = false;
         previousChoiceAfterInviteWasUserAccepted = false;
@@ -922,7 +931,7 @@ class CoupleProvider extends ChangeNotifier {
     if (!_isCurrentSession(requestVersion, requestUserId)) return;
     currentCouple = loadedCouple;
     _currentCoupleLoadedAt = DateTime.now();
-    hiddenInvitationIds.add(invitation.id);
+    hiddenInvitationIds.add(invitation.deliveryKey);
     pendingInvitations = pendingInvitations
         .where((CoupleInvitation item) => item.id != invitation.id)
         .toList();
@@ -948,7 +957,7 @@ class CoupleProvider extends ChangeNotifier {
     final requestUserId = _activeUserId;
     await _repository.declineInvitation(invitation.id);
     if (!_isCurrentSession(requestVersion, requestUserId)) return;
-    hiddenInvitationIds.add(invitation.id);
+    hiddenInvitationIds.add(invitation.deliveryKey);
     pendingInvitations = pendingInvitations
         .where((CoupleInvitation item) => item.id != invitation.id)
         .toList();
@@ -1016,7 +1025,7 @@ class CoupleProvider extends ChangeNotifier {
   }
 
   void hideInvitationLocally(CoupleInvitation invitation) {
-    hiddenInvitationIds.add(invitation.id);
+    hiddenInvitationIds.add(invitation.deliveryKey);
     if (outgoingContinuationInvite?.id == invitation.id) {
       outgoingContinuationInvite = null;
     }
@@ -1048,7 +1057,7 @@ class CoupleProvider extends ChangeNotifier {
       final String? changedBy = couple.lifecycleChangedBy;
       if (changedBy != null &&
           changedBy != _activeUserId &&
-          _handledFilterChangeGenerations.add(couple.lifecycleGeneration)) {
+          _handledFilterChangeGenerations.add('${couple.id}:${couple.lifecycleGeneration}')) {
         shouldOpenPairFilterChange = true;
         AppLogger.info(
           '[PairFilterChange] partner committed event=${couple.lifecycleGeneration} generation=${couple.lifecycleGeneration}',
@@ -1062,11 +1071,12 @@ class CoupleProvider extends ChangeNotifier {
     if (couple.pairLifecycleStatus != 'needs_resync') {
       return;
     }
+    shouldOpenPairFilterChange = false;
     final String? changedBy = couple.lifecycleChangedBy;
     if (changedBy == null || changedBy == _activeUserId) {
       return;
     }
-    if (!_handledLifecycleGenerations.add(couple.lifecycleGeneration)) {
+    if (!_handledLifecycleGenerations.add('${couple.id}:${couple.lifecycleGeneration}')) {
       return;
     }
     shouldOpenSessionResumeForResync = true;
@@ -1188,6 +1198,7 @@ class CoupleProvider extends ChangeNotifier {
     continuationFlowOrigin = PairContinuationFlowOrigin.none;
     shouldOpenPairFilterChange = false;
     _handledFilterChangeGenerations.clear();
+    _handledLifecycleGenerations.clear();
     _currentCoupleLoadedAt = null;
     _clearFilterState();
     _filterStateRefreshFuture = null;

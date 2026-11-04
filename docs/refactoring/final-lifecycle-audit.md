@@ -83,3 +83,24 @@ No dependencies, API routes, SQL migrations or production databases were changed
 After Flutter/manual acceptance, the refactoring phase can be closed. Release
 signing/IDs, production domain/mail, store adapters and publication materials remain
 separate work; this pass does not certify release readiness or audit deployed RLS.
+
+## Follow-up: repeated partner departure and continuation
+
+- Lifecycle/filter notifications are deduplicated by session ID plus generation,
+  rather than a generation integer shared by unrelated sessions.
+- Partner departure offers Start new session -> explicit Solo/Pair choice, or Wait
+  here -> the continuation waiting screen. Waiting survives the old pair closing
+  when the returning user requests continuation; filter setup cannot take over.
+- Pending invitation rows can be refreshed/reused. Delivery identity includes the
+  target session and server updatedAt, so dismissing one delivery does not hide a
+  later request. The shell uses the same identity and rejects stale scheduled sheets.
+- Added a backend behavioral regression that repeats logout/continue/incoming/accept
+  three times and checks refreshed pending metadata. It is included in check:backend
+  and passed with controlled persistence substitutes. Added Flutter regressions for
+  equal generations in different sessions and repeat invitation deliveries; Flutter
+  tests still need local execution.
+
+Restart/deploy the backend before device testing to expose invitation updatedAt.
+No SQL migration is required. On two accounts, repeat the complete flow at least
+three times, checking both Wait here and Start new session. Also retry a dismissed
+pending invitation and test logout while a continuation request is still in flight.

@@ -224,6 +224,7 @@ export class CoupleInvitationService {
       mutualMatchCount: i.mutualMatchCount,
       previousFilterPresetId: i.previousFilterPresetId,
       createdAt: i.createdAt,
+      updatedAt: i.updatedAt,
       expiresAt: i.expiresAt,
       sessionActive: s?.status === 'active',
       fromUser: user(i.fromUserId),

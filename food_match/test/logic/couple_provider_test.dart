@@ -108,6 +108,58 @@ void main() {
     expect(provider.hiddenInvitationIds, isEmpty);
   });
 
+  test('partner departure is handled once per session and generation', () async {
+    Couple disconnected(String id, int generation) => Couple.fromJson({
+      'id': id,
+      'inviteCode': 'ABC123',
+      'members': ['u1', 'u2'],
+      'pairLifecycleState': {
+        'status': 'needs_resync', 'changedBy': 'u2', 'generation': generation,
+      },
+    });
+    fakeRepo.currentCouple = disconnected('first', 1);
+    await provider.loadCouple(force: true);
+    expect(provider.consumeOpenSessionResumeForResync(), isTrue);
+    expect(provider.isWaitingForPartnerReturn, isTrue);
+    await provider.loadCouple(force: true);
+    expect(provider.consumeOpenSessionResumeForResync(), isFalse);
+    fakeRepo.currentCouple = disconnected('second', 1);
+    await provider.loadCouple(force: true);
+    expect(provider.consumeOpenSessionResumeForResync(), isTrue);
+    fakeRepo.currentCouple = disconnected('second', 2);
+    await provider.loadCouple(force: true);
+    expect(provider.consumeOpenSessionResumeForResync(), isTrue);
+  });
+
+  test('returning user is offered continuation rather than waiting for themselves', () async {
+    fakeRepo.currentCouple = Couple.fromJson({
+      'id': 'pair', 'inviteCode': 'ABC123', 'members': ['u1', 'u2'],
+      'pairLifecycleState': {'status': 'needs_resync', 'changedBy': 'u1', 'generation': 1},
+    });
+    await provider.loadCouple(force: true);
+    expect(provider.isWaitingForPartnerReturn, isFalse);
+    expect(provider.needsPairResync, isFalse);
+  });
+
+  test('a refreshed pending delivery is visible after the old one was dismissed', () async {
+    CoupleInvitation incoming(String session, String updated) => CoupleInvitation.fromJson({
+      'id': 'same-pending-row', 'fromUserId': 'u2', 'toUserId': 'u1',
+      'direction': 'incoming', 'status': 'pending',
+      'newCoupleSessionId': session, 'updatedAt': updated,
+    });
+    final old = incoming('first', '2026-11-04T10:00:00Z');
+    provider.pendingInvitations = [old];
+    provider.hideInvitationLocally(old);
+    expect(provider.nextIncomingInvitation, isNull);
+    final next = incoming('second', '2026-11-04T10:01:00Z');
+    provider.pendingInvitations = [next];
+    expect(provider.nextIncomingInvitation?.deliveryKey, next.deliveryKey);
+    expect(next.deliveryKey, isNot(old.deliveryKey));
+    final refreshed = incoming('first', '2026-11-04T10:02:00Z');
+    provider.pendingInvitations = [refreshed];
+    expect(provider.nextIncomingInvitation?.deliveryKey, refreshed.deliveryKey);
+  });
+
   test('create sets couple', () async {
     await provider.createCouple();
 

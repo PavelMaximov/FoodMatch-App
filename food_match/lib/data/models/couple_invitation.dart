@@ -27,6 +27,7 @@ class CoupleInvitation {
     this.expiresAt,
     this.sessionActive = false,
     this.newCoupleSessionId,
+    this.updatedAt,
   });
 
   final String id;
@@ -42,6 +43,10 @@ class CoupleInvitation {
   final DateTime? expiresAt;
   final bool sessionActive;
   final String? newCoupleSessionId;
+  final DateTime? updatedAt;
+
+  // The backend may refresh a pending row for a replacement session.
+  String get deliveryKey => '$id:${newCoupleSessionId ?? ''}:${updatedAt?.toIso8601String() ?? ''}';
 
   bool get isIncoming => direction == 'incoming';
   bool get isOutgoing => direction == 'outgoing';
@@ -61,5 +66,6 @@ class CoupleInvitation {
         expiresAt: DateTime.tryParse(json['expiresAt']?.toString() ?? ''),
         sessionActive: json['sessionActive'] == true,
         newCoupleSessionId: json['newCoupleSessionId']?.toString(),
+        updatedAt: DateTime.tryParse(json['updatedAt']?.toString() ?? ''),
       );
 }
