@@ -658,8 +658,8 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
           coupleProvider.currentCouple?.id,
           sessionStateVersion: coupleProvider.sessionStateVersion,
         );
-    _startPairLifecyclePolling();
-    _startPairMatchPolling();
+    _stopPairLifecyclePolling();
+    _stopPairMatchPolling();
     debugPrint('[ResumeChoice] route=pair_continuation');
     await _sendPairContinuationInvite(coupleProvider);
   }
@@ -692,6 +692,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       debugPrint('[ResumeChoice] waiting_for_partner');
       setState(() => _sessionResumeChoiceType = null);
       coupleProvider.startInvitationPolling(reason: 'session_resume_continue_pair');
+      _startPairLifecyclePolling();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Your invitation was sent.')),
       );

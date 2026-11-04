@@ -51,6 +51,7 @@ class CoupleProvider extends ChangeNotifier {
   bool _joinInFlight = false;
   bool _leaveInFlight = false;
   bool _isRefreshingCurrentCouple = false;
+  Object? _continuationCreation;
   bool _isRefreshingFilterState = false;
   Future<CoupleFilterState?>? _filterStateRefreshFuture;
   DateTime? _currentCoupleLoadedAt;
@@ -208,7 +209,7 @@ class CoupleProvider extends ChangeNotifier {
       clearSessionStateForLogout(notify: false);
       return;
     }
-    if (_leaveInFlight) return;
+    if (_leaveInFlight || _continuationCreation != null) return;
     if (_isRefreshingCurrentCouple) {
       AppLogger.info(
         '[RequestDedup] couple/me refresh skipped: already in flight',
@@ -531,6 +532,7 @@ class CoupleProvider extends ChangeNotifier {
   }
 
   Future<CoupleFilterState?> refreshFilterState({String reason = 'manual'}) {
+    if (_continuationCreation != null) return Future<CoupleFilterState?>.value(null);
     if (!_isAuthenticated || (_activeUserId?.isEmpty ?? true)) {
       stopFilterStatePolling(reason: 'unauthenticated');
       return Future<CoupleFilterState?>.value(null);
@@ -612,6 +614,7 @@ class CoupleProvider extends ChangeNotifier {
       _restartPollingIfIntervalChanged();
       return nextState;
     } on ApiException catch (e) {
+      if (!_isCurrentSession(requestVersion, requestUserId, coupleId: requestCoupleId)) return null;
       _pollErrorStreak++;
       if (_isPairSessionInactive(e)) {
         AppLogger.info(
@@ -626,14 +629,17 @@ class CoupleProvider extends ChangeNotifier {
       _restartPollingIfNeeded(reason: 'error_backoff');
       return null;
     } catch (e) {
+      if (!_isCurrentSession(requestVersion, requestUserId, coupleId: requestCoupleId)) return null;
       _pollErrorStreak++;
       error = _syncErrorMessage(e);
       AppLogger.error('[SessionSync] refresh failed', e);
       _restartPollingIfNeeded(reason: 'error_backoff');
       return null;
     } finally {
-      _isRefreshingFilterState = false;
-      _filterStateRefreshFuture = null;
+      if (_isCurrentSession(requestVersion, requestUserId, coupleId: requestCoupleId)) {
+        _isRefreshingFilterState = false;
+      }
+      // refreshFilterState owns clearing the future by identity.
     }
   }
 
@@ -855,6 +861,15 @@ class CoupleProvider extends ChangeNotifier {
         pending.newCoupleSessionId == currentCouple?.id) {
       return pending;
     }
+    if (_continuationCreation != null) return null;
+    final operation = Object();
+    _continuationCreation = operation;
+    // Replacement intentionally closes the old session. Its outstanding reads
+    // must not interpret that transient 404 as a separate partner departure.
+    _sessionStateVersion++;
+    _invitationRefresh.invalidate();
+    _filterStateRefreshFuture = null;
+    _isRefreshingFilterState = false;
     final requestVersion = _sessionStateVersion;
     final requestUserId = _activeUserId;
     try {
@@ -863,6 +878,8 @@ class CoupleProvider extends ChangeNotifier {
           _suppressContinuationForSoloResume) {
         return null;
       }
+      if (identical(_continuationCreation, operation)) _continuationCreation = null;
+      error = null;
       outgoingContinuationInvite = invite.isOutgoing && invite.isPending
           ? invite
           : null;
@@ -890,6 +907,8 @@ class CoupleProvider extends ChangeNotifier {
       error = _mapError(e);
       _safeNotify();
       return null;
+    } finally {
+      if (identical(_continuationCreation, operation)) _continuationCreation = null;
     }
   }
 
@@ -1187,6 +1206,7 @@ class CoupleProvider extends ChangeNotifier {
     bool clearEndedMessage = true,
   }) {
     _invitationRefresh.invalidate();
+    _continuationCreation = null;
     stopFilterStatePolling(reason: 'session_clear');
     currentCouple = null;
     hiddenInvitationIds.clear();

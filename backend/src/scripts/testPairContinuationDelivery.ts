@@ -74,13 +74,23 @@ async function main() {
       assert.deepEqual(active?.memberIds, ['a', 'b']);
       assert.deepEqual(await delivery.getPending('b'), []);
     }
+    // A pending invitation holds an FK to the one-member replacement.
+    repos.coupleSessions.delete = async () => { throw new Error('23503: invitation target is still referenced'); };
     await couples.markPartnerDisconnected('a');
+    const abandoned = await delivery.createContinueAsBeforeInvite('a');
+    const abandonedSession = abandoned.newCoupleSessionId!;
+    const leave = await couples.leaveSession('a');
+    assert.equal(leave.sessionDeleted, false);
+    assert.equal(sessions.get(abandonedSession)?.status, 'closed');
+    assert(invitations.has(abandoned.id), 'Keep the invitation and its target for history');
+    assert.deepEqual(await delivery.getPending('b'), []);
     const first = await delivery.createContinueAsBeforeInvite('a');
+    assert.notEqual(first.newCoupleSessionId, abandonedSession);
     const refreshed = await delivery.createContinueAsBeforeInvite('a');
     assert.equal(first.id, refreshed.id);
     assert.notEqual(first.updatedAt.getTime(), refreshed.updatedAt.getTime());
     assert.equal((await delivery.getPending('b'))[0].updatedAt, refreshed.updatedAt);
-    console.log('PASS three logout/continue/accept rounds and refreshed pending delivery metadata');
+    console.log('PASS three logout/continue/accept rounds refreshed pending delivery metadata, FK-safe abandonment and retry');
   } finally {
     await pool.end();
   }

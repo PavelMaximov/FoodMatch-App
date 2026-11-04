@@ -160,6 +160,24 @@ void main() {
     expect(provider.nextIncomingInvitation?.deliveryKey, refreshed.deliveryKey);
   });
 
+  test('old filter 404 cannot discard a successful continuation invitation', () async {
+    await provider.loadCouple();
+    final filters = Completer<CoupleFilterState>();
+    fakeRepo.filterResponse = filters.future;
+    final oldRead = provider.refreshFilterState();
+    final invitation = Completer<CoupleInvitation>();
+    fakeRepo.continueResponse = invitation.future;
+    final continuation = provider.createContinueAsBeforeInvite();
+    filters.completeError(const ApiException('Old session closed', statusCode: 404, code: 'PAIR_SESSION_INACTIVE'));
+    await oldRead;
+    expect(provider.sessionEndedMessage, isNull);
+    invitation.complete(fakeRepo.invitation);
+    final result = await continuation;
+    expect(result?.id, 'invite-1');
+    expect(provider.outgoingContinuationInvite?.id, 'invite-1');
+    expect(provider.sessionEndedMessage, isNull);
+  });
+
   test('create sets couple', () async {
     await provider.createCouple();
 
@@ -280,6 +298,7 @@ class _FakeCoupleRepository extends CoupleRepository {
   Couple? currentCouple;
   bool didLeave = false;
   Future<Couple?>? coupleResponse;
+  Future<CoupleFilterState>? filterResponse;
   Object? leaveError;
   Object? invitationError;
   String invitationStatus = 'pending';
@@ -354,5 +373,6 @@ class _FakeCoupleRepository extends CoupleRepository {
   }
 
   @override
-  Future<CoupleFilterState> getFilterState() async => _filterState;
+  Future<CoupleFilterState> getFilterState() async =>
+      filterResponse == null ? _filterState : await filterResponse!;
 }

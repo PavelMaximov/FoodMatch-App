@@ -174,16 +174,8 @@ export class CoupleService {
     const session =
       await domainRepositories.coupleSessions.findActiveForUser(userId);
     if (!session) return { message: 'No active session', alreadyLeft: true };
-    if (session.memberIds.length === 1) {
-      // A waiting session never had a partner; deleting it retains the existing
-      // abandonment behavior. Two-member sessions become immutable history.
-      await domainRepositories.coupleSessions.delete(session.id);
-      return {
-        message: 'Session deleted because no members remain',
-        left: true,
-        sessionDeleted: true,
-      };
-    }
+    // Continuation invitations may reference even a one-member waiting session.
+    // Closing releases its active slot without breaking those foreign keys.
     await this.closeForHistory(session);
     return { message: 'Left session', left: true, sessionDeleted: false };
   }

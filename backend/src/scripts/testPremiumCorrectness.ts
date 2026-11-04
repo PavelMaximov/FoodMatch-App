@@ -74,10 +74,12 @@ async function testLeaveHistory() {
     }
     assert.equal(currentMatchReads, 0, 'Current Matches must not query a closed pair');
     assert.deepEqual(await new CoupleService().leaveSession('A'), {message: 'No active session', alreadyLeft: true});
-    // Waiting abandonment is still allowed to delete its never-paired session.
+    // A waiting continuation can already have invitation references.
     session.status = 'active'; session.memberIds = ['A'];
-    await new CoupleService().leaveSession('A'); assert.equal(deleted, true);
-    console.log('PASS pair leave preserves membership/swipes/matches, both former members can access history, outsiders/current Matches cannot; waiting abandonment retained');
+    await new CoupleService().leaveSession('A');
+    assert.equal(deleted, false);
+    assert.equal(session.status, 'closed');
+    console.log('PASS pair leave preserves membership/swipes/matches, both former members can access history, outsiders/current Matches cannot; waiting abandonment closes without deleting invitation targets');
   } finally {
     [sessions.findActiveForUser, sessions.update, sessions.clearFilterStates, sessions.delete,
       swipes.deleteForSession, matches.deleteForCouple, matches.listForCouple] = originals;

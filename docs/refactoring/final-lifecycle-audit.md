@@ -104,3 +104,21 @@ Restart/deploy the backend before device testing to expose invitation updatedAt.
 No SQL migration is required. On two accounts, repeat the complete flow at least
 three times, checking both Wait here and Start new session. Also retry a dismissed
 pending invitation and test logout while a continuation request is still in flight.
+
+## Follow-up: abandoning a continuation with invitation references
+
+The supplied device log showed two independent failures: an old filter-state 404
+cleared local state while continue-as-before was replacing the session, causing
+its successful 201 invitation response to be rejected; then leaving the new
+one-member session tried to delete an invitation FK target (Postgres 23503).
+
+All pair abandonment now closes sessions, including one-member continuation
+sessions. References/history remain valid, and closed sessions release the active
+slot. No FK weakening or SQL repair is required. Regression coverage rejects any
+physical delete and exercises abandon -> new continuation; Premium history tests
+now expect closed waiting sessions too.
+
+Continuation creation invalidates old reads and temporarily defers session/filter
+polls. Old filter errors validate their original scope before clearing state, and
+old cleanup cannot detach a newer read. Screen lifecycle polling starts after the
+invitation is created. Added a Flutter regression for 404-during-continuation.
