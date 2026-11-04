@@ -362,7 +362,7 @@ class MatchBadgeController extends ChangeNotifier {
     setScope(mode: mode, sessionId: sessionId);
   }
 
-  String _scopeKey() => '${_userId ?? 'none'}:${_mode}:${_sessionId ?? 'none'}';
+  String _scopeKey() => '${_userId ?? 'none'}:$_mode:${_sessionId ?? 'none'}';
 
   Set<String> _normalizeIds(Iterable<String> ids) => ids
       .map((String id) => id.trim())

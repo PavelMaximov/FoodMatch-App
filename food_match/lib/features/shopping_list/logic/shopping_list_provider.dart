@@ -295,8 +295,9 @@ class ShoppingListProvider extends ChangeNotifier {
     if (isShared) {
       for (final item in List<ShoppingListItem>.from(
         _items.where((item) => item.checked),
-      ))
+      )) {
         await removeItem(item.id);
+      }
       return;
     }
     await load();
@@ -306,8 +307,9 @@ class ShoppingListProvider extends ChangeNotifier {
 
   Future<void> clearAll() async {
     if (isShared) {
-      for (final item in List<ShoppingListItem>.from(_items))
+      for (final item in List<ShoppingListItem>.from(_items)) {
         await removeItem(item.id);
+      }
       return;
     }
     await load();
@@ -319,8 +321,9 @@ class ShoppingListProvider extends ChangeNotifier {
     if (isShared && _sharedRepository != null) {
       for (final item in List<ShoppingListItem>.from(
         _items.where((item) => item.checked),
-      ))
+      )) {
         await toggleChecked(item.id);
+      }
       return;
     }
     await load();

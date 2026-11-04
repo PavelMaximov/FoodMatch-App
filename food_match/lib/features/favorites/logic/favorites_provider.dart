@@ -111,8 +111,9 @@ class FavoritesProvider extends ChangeNotifier {
           in _localMutations.entries) {
         final _LocalFavoriteMutation mutation = entry.value;
         if (mutation.generation <= mutationGeneration &&
-            !_updatingDishIds.contains(entry.key))
+            !_updatingDishIds.contains(entry.key)) {
           continue;
+        }
         if (mutation.shouldBeSaved) {
           reconciled[entry.key] = mutation.dish;
         } else {

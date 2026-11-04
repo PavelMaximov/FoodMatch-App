@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:food_match/data/models/couple.dart';
+import 'package:food_match/data/models/couple_invitation.dart';
 import 'package:food_match/data/models/couple_filter_state.dart';
 import 'package:food_match/data/repositories/couple_repository.dart';
 import 'package:food_match/data/services/api_service.dart';
@@ -25,6 +27,8 @@ void main() {
     provider.setAuthenticatedUser('u1', isAuthenticated: true);
   });
 
+  tearDown(() => provider.dispose());
+
   test('create sets couple', () async {
     await provider.createCouple();
 
@@ -47,11 +51,96 @@ void main() {
     expect(fakeRepo.didLeave, isTrue);
   });
 
+  test('leave during background refresh does not restore the old session', () async {
+    provider.currentCouple = couple;
+    final response = Completer<Couple?>();
+    fakeRepo.coupleResponse = response.future;
+    final refresh = provider.loadCouple(force: true);
+    expect(provider.isLoading, isTrue);
+
+    await provider.leaveCouple();
+    expect(fakeRepo.didLeave, isTrue);
+    expect(provider.hasCouple, isFalse);
+
+    response.complete(couple);
+    await refresh;
+    expect(provider.hasCouple, isFalse);
+    expect(provider.error, isNull);
+  });
+
+  test('failed leave keeps the session available for retry', () async {
+    provider.currentCouple = couple;
+    fakeRepo.leaveError = const ApiException('offline', statusCode: 503);
+    await provider.leaveCouple();
+    expect(provider.hasCouple, isTrue);
+    expect(provider.error, isNotNull);
+
+    fakeRepo.leaveError = null;
+    await provider.leaveCouple();
+    expect(provider.hasCouple, isFalse);
+  });
+
   test('loadCouple loads current couple', () async {
     await provider.loadCouple();
 
     expect(provider.currentCouple?.id, 'c1');
   });
+
+  test('continuation survives polling into its newly created session', () async {
+    await provider.loadCouple();
+    final invitation = await provider.createContinueAsBeforeInvite();
+    expect(invitation?.newCoupleSessionId, 'continued');
+
+    // The server closes c1 and creates a one-member session for the invite.
+    fakeRepo.currentCouple = const Couple(
+      id: 'continued', inviteCode: 'NEW123', members: ['u1'],
+      memberProfiles: [CoupleMemberProfile(id: 'u1')],
+    );
+    await provider.loadCouple(force: true);
+    await provider.refreshInvitations();
+
+    expect(provider.hasPartner, isFalse);
+    expect(provider.outgoingContinuationInvite?.id, invitation?.id);
+    expect(provider.hasPendingContinuation, isTrue);
+    expect(provider.shouldAcquireDeckAfterContinuationInvite, isFalse);
+  });
+
+  test('unrelated session change clears the old continuation', () async {
+    await provider.loadCouple();
+    await provider.createContinueAsBeforeInvite();
+    fakeRepo.currentCouple = const Couple(
+      id: 'unrelated', inviteCode: 'OTHER1', members: ['u1'],
+      memberProfiles: [CoupleMemberProfile(id: 'u1')],
+    );
+    await provider.loadCouple(force: true);
+    expect(provider.outgoingContinuationInvite, isNull);
+  });
+
+  test('temporary status failure keeps waiting and acceptance still resumes', () async {
+    await provider.createContinueAsBeforeInvite();
+    fakeRepo.invitationError = TimeoutException('offline');
+    await provider.refreshInvitations();
+    expect(provider.outgoingContinuationInvite?.id, 'invite-1');
+
+    fakeRepo.invitationError = null;
+    fakeRepo.invitationStatus = 'accepted';
+    await provider.refreshInvitations();
+    expect(provider.outgoingContinuationInvite, isNull);
+    expect(provider.shouldAcquireDeckAfterContinuationInvite, isTrue);
+    expect(provider.consumeContinuationDeckAcquisition(),
+        PairContinuationFlowOrigin.previousSessionInviteSender);
+    await provider.refreshInvitations();
+    expect(provider.shouldAcquireDeckAfterContinuationInvite, isFalse);
+  });
+
+  test('missing invitation returns to resume instead of pair creation', () async {
+    await provider.createContinueAsBeforeInvite();
+    fakeRepo.invitationError = const ApiException('gone', statusCode: 404);
+    await provider.refreshInvitations();
+    expect(provider.outgoingContinuationInvite, isNull);
+    expect(provider.shouldReturnToResumeAfterContinuationDeclined, isTrue);
+  });
+
 }
 
 class _FakeCoupleRepository extends CoupleRepository {
@@ -59,6 +148,32 @@ class _FakeCoupleRepository extends CoupleRepository {
 
   Couple? currentCouple;
   bool didLeave = false;
+  Future<Couple?>? coupleResponse;
+  Object? leaveError;
+  Object? invitationError;
+  String invitationStatus = 'pending';
+
+  CoupleInvitation get invitation => CoupleInvitation.fromJson({
+    'id': 'invite-1',
+    'fromUserId': 'u1',
+    'toUserId': 'u2',
+    'direction': 'outgoing',
+    'status': invitationStatus,
+    'newCoupleSessionId': 'continued',
+    'sessionActive': true,
+  });
+
+  @override
+  Future<CoupleInvitation> continueAsBefore() async => invitation;
+
+  @override
+  Future<List<CoupleInvitation>> getPendingInvitations() async => [];
+
+  @override
+  Future<CoupleInvitation> getInvitation(String id) async {
+    if (invitationError != null) throw invitationError!;
+    return invitation;
+  }
 
   static const CoupleFilterState _filterState = CoupleFilterState(
     myChoices: CoupleFilterChoices(),
@@ -78,11 +193,14 @@ class _FakeCoupleRepository extends CoupleRepository {
       currentCouple!;
 
   @override
-  Future<Couple?> getMyCouple() async => currentCouple;
+  Future<Couple?> getMyCouple() async => coupleResponse != null
+      ? await coupleResponse!
+      : currentCouple;
 
   @override
   Future<void> leave() async {
     didLeave = true;
+    if (leaveError != null) throw leaveError!;
   }
 
   @override

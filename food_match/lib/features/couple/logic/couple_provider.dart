@@ -201,6 +201,7 @@ class CoupleProvider extends ChangeNotifier {
       clearSessionStateForLogout(notify: false);
       return;
     }
+    if (_leaveInFlight) return;
     if (_isRefreshingCurrentCouple) {
       AppLogger.info(
         '[RequestDedup] couple/me refresh skipped: already in flight',
@@ -235,9 +236,14 @@ class CoupleProvider extends ChangeNotifier {
       currentCouple = loadedCouple;
       if (previousCoupleId != null && previousCoupleId != currentCouple?.id) {
         hiddenInvitationIds.clear();
-        outgoingContinuationInvite = null;
+        // Continuing creates a new one-member session on the server. Keep its
+        // invitation while polling catches up with that intentional transition.
+        if (outgoingContinuationInvite?.newCoupleSessionId == null ||
+            outgoingContinuationInvite!.newCoupleSessionId != currentCouple?.id) {
+          outgoingContinuationInvite = null;
+        }
         AppLogger.info(
-          '[PairInvitation] cleared local invitation state reason=session_changed',
+          '[PairInvitation] reconciled local invitation state reason=session_changed',
         );
       }
       _currentCoupleLoadedAt = DateTime.now();
@@ -248,6 +254,7 @@ class CoupleProvider extends ChangeNotifier {
         _handleSessionEndedIfNeeded(previouslyHadSession: previouslyHadSession);
       }
     } catch (e) {
+      if (!_isCurrentSession(requestVersion, requestUserId)) return;
       if (e is ApiException && e.statusCode == 404) {
         _handleSessionEndedIfNeeded(
           previouslyHadSession: previouslyHadSession,
@@ -258,7 +265,7 @@ class CoupleProvider extends ChangeNotifier {
       }
     } finally {
       _isRefreshingCurrentCouple = false;
-      isLoading = false;
+      isLoading = _leaveInFlight;
       _safeNotify();
     }
   }
@@ -399,7 +406,10 @@ class CoupleProvider extends ChangeNotifier {
   }
 
   Future<void> leaveCouple() async {
-    if (isLoading || _leaveInFlight) return;
+    if (_leaveInFlight || (isLoading && !_isRefreshingCurrentCouple)) return;
+    // Leaving must not be skipped by a background /me refresh. Invalidate
+    // in-flight reads so their late responses cannot restore the old session.
+    _sessionStateVersion++;
     _leaveInFlight = true;
     isLoading = true;
     error = null;
@@ -412,6 +422,7 @@ class CoupleProvider extends ChangeNotifier {
       if (!_isCurrentSession(requestVersion, requestUserId)) return;
       _clearSessionState();
     } catch (e) {
+      if (!_isCurrentSession(requestVersion, requestUserId)) return;
       if (e is ApiException && e.statusCode == 404) {
         _clearSessionState();
       } else {
@@ -713,8 +724,9 @@ class CoupleProvider extends ChangeNotifier {
   }
 
   void startInvitationPolling({String reason = 'manual'}) {
-    if (!_isAuthenticated || (_activeUserId?.isEmpty ?? true) || !_isAppActive)
+    if (!_isAuthenticated || (_activeUserId?.isEmpty ?? true) || !_isAppActive) {
       return;
+    }
     _invitationPollTimer?.cancel();
     AppLogger.info(
       '[PairInvite] poll pending start interval=1500ms reason=$reason',
@@ -730,8 +742,9 @@ class CoupleProvider extends ChangeNotifier {
     final bool hadTimer = _invitationPollTimer != null;
     _invitationPollTimer?.cancel();
     _invitationPollTimer = null;
-    if (hadTimer)
+    if (hadTimer) {
       AppLogger.info('[InvitationSync] polling stopped reason=$reason');
+    }
   }
 
   Future<void> refreshInvitations() async {
@@ -762,9 +775,14 @@ class CoupleProvider extends ChangeNotifier {
           }
           if (status.status == 'declined' || status.status == 'expired' || status.status == 'cancelled') declinedInvite = status;
           if (status.isPending) outgoingContinuationInvite = status;
-        } catch (_) {
-          outgoingContinuationInvite = null;
-          AppLogger.info('[PairInvite] cleared stale active marker reason=status_unavailable');
+        } catch (e) {
+          // A temporary network failure does not cancel an invitation.
+          if (e is ApiException && e.statusCode == 404 &&
+              outgoingContinuationInvite?.id == activeOutgoing.id) {
+            outgoingContinuationInvite = null;
+            shouldReturnToResumeAfterContinuationDeclined = true;
+          }
+          AppLogger.info('[PairInvite] outgoing status unavailable');
         }
       }
       if (acceptedInvite != null &&
@@ -961,8 +979,9 @@ class CoupleProvider extends ChangeNotifier {
     if (_pollErrorStreak > 0) return const Duration(seconds: 10);
     if (!hasPartner) return const Duration(seconds: 3);
     if (bothConfirmed) return const Duration(seconds: 20);
-    if (isMyChoicesConfirmed && !isPartnerReady)
+    if (isMyChoicesConfirmed && !isPartnerReady) {
       return const Duration(seconds: 3);
+    }
     return const Duration(seconds: 5);
   }
 
@@ -1020,8 +1039,9 @@ class CoupleProvider extends ChangeNotifier {
     if (_pollingSuspendedForDeckPrepare ||
         !_pollingWanted ||
         !_canPollFilterState ||
-        _pollTimer == null)
+        _pollTimer == null) {
       return;
+    }
     if (_activePollInterval != _pollInterval) {
       _stopPollingTimer(reason: 'interval_change');
       startFilterStatePolling(reason: 'interval_change');
@@ -1210,8 +1230,9 @@ class CoupleProvider extends ChangeNotifier {
     if (e is ApiException && _isPairSessionInactive(e)) {
       return partnerLeftSessionMessage;
     }
-    if (e is ApiException && e.statusCode == 404)
+    if (e is ApiException && e.statusCode == 404) {
       return 'Create or join a session';
+    }
     if (e is ApiException &&
         (e.message.toLowerCase().contains('timeout') ||
             e.message.toLowerCase().contains('internet'))) {

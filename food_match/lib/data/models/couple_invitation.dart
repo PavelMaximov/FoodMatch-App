@@ -26,6 +26,7 @@ class CoupleInvitation {
     this.mutualMatchCount,
     this.expiresAt,
     this.sessionActive = false,
+    this.newCoupleSessionId,
   });
 
   final String id;
@@ -40,6 +41,7 @@ class CoupleInvitation {
   final int? mutualMatchCount;
   final DateTime? expiresAt;
   final bool sessionActive;
+  final String? newCoupleSessionId;
 
   bool get isIncoming => direction == 'incoming';
   bool get isOutgoing => direction == 'outgoing';
@@ -58,5 +60,6 @@ class CoupleInvitation {
         mutualMatchCount: (json['mutualMatchCount'] as num?)?.toInt(),
         expiresAt: DateTime.tryParse(json['expiresAt']?.toString() ?? ''),
         sessionActive: json['sessionActive'] == true,
+        newCoupleSessionId: json['newCoupleSessionId']?.toString(),
       );
 }

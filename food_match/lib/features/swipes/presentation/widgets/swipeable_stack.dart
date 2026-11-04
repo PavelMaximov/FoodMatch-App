@@ -4,7 +4,6 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
-import 'package:flutter/scheduler.dart' show TickerCanceled;
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -79,8 +78,9 @@ class SwipeableStackState extends State<SwipeableStack>
       Offset(_safeDouble(offset.dx), _safeDouble(offset.dy));
 
   void _recoverFromInvalidSwipeState(String reason) {
-    if (kDebugMode)
+    if (kDebugMode) {
       debugPrint('[SwipeStack] recovered invalid state reason=$reason');
+    }
     _snapBackController.stop();
     if (!mounted) return;
     setState(() {
@@ -283,8 +283,9 @@ class SwipeableStackState extends State<SwipeableStack>
       // Reset or disposal cancels the visual return, but must release the action.
     } finally {
       if (mounted) {
-        if (kDebugMode)
+        if (kDebugMode) {
           debugPrint('[UndoAnim] complete direction=${direction.name}');
+        }
         setState(() {
           _isUndoReturnAnimating = false;
           _undoReturnDirection = null;
@@ -314,8 +315,9 @@ class SwipeableStackState extends State<SwipeableStack>
   void _onPanUpdate(DragUpdateDetails details) {
     if (!_isDragging ||
         _isAnimating ||
-        !widget.canSwipe)
+        !widget.canSwipe) {
       return;
+    }
     final Offset nextOffset = _safeOffset(
       Offset(_dragOffset.dx + details.delta.dx, 0),
     );

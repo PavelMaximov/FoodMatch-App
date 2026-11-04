@@ -59,6 +59,7 @@ class _FoodMatchAppState extends State<FoodMatchApp>
         _hasLoadedOnboardingState = true;
       }
 
+      if (!mounted) return;
       final auth = context.read<AuthProvider>();
       await auth.loadUser();
       AppLogger.info(

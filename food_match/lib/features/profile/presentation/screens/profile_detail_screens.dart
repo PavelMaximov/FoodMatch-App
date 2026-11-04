@@ -204,7 +204,7 @@ class _MatchHistoryEmptyState extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(top: 72),
     child: Column(children: <Widget>[
-      FoodMatchEmptyStateImage(
+      const FoodMatchEmptyStateImage(
         assetPath: AppEmptyStateAssets.emptyMatchHistory,
         size: 180,
         fallback: FoodMatchEmptyStateImage(
@@ -314,16 +314,16 @@ class ProfileSettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => _DetailScaffold(title: 'Settings', children: <Widget>[
     const _Header('Subscription'),
-    _ActionCard(children: <Widget>[
-      const ListTile(
+    const _ActionCard(children: <Widget>[
+      ListTile(
         leading: Icon(Icons.workspace_premium_outlined),
         title: Text('No active subscription'),
         subtitle: Text('Use the Premium banner on your Profile to learn more.'),
       ),
     ]),
     const _Header('Notifications'),
-    _ActionCard(children: <Widget>[
-      SwitchListTile(value: false, onChanged: null, secondary: const Icon(Icons.notifications_outlined), title: const Text('Push Notifications'), subtitle: const Text('Notification controls are coming soon.')),
+    const _ActionCard(children: <Widget>[
+      SwitchListTile(value: false, onChanged: null, secondary: Icon(Icons.notifications_outlined), title: Text('Push Notifications'), subtitle: Text('Notification controls are coming soon.')),
     ]),
     const _Header('General'),
     _ActionCard(children: <Widget>[
@@ -345,25 +345,33 @@ class ProfileSettingsScreen extends StatelessWidget {
   Future<void> _showUnits(BuildContext context) async {
     final auth = context.read<AuthProvider>();
     final value = auth.measurementSystemPreference;
-    await showModalBottomSheet<void>(context: context, builder: (sheetContext) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: <Widget>[
-      const ListTile(title: Text('Units', style: TextStyle(fontWeight: FontWeight.w800))),
-      for (final option in MeasurementSystemPreference.values)
-        RadioListTile<MeasurementSystemPreference>(value: option, groupValue: value, title: Text(option.label), onChanged: (selected) async {
-          if (selected == null) return;
-          final bool success =
-              await auth.updateMeasurementSystemPreference(selected);
-          if (!sheetContext.mounted) return;
-          if (success) {
-            Navigator.pop(sheetContext);
-          } else {
-            FoodMatchNotifications.show(
-              sheetContext,
-              type: FoodMatchNotificationType.error,
-              title: 'Could not update units. Please try again.',
-            );
-          }
-        }),
-    ])));
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: RadioGroup<MeasurementSystemPreference>(
+          groupValue: value,
+          onChanged: (selected) async {
+            if (selected == null) return;
+            final success = await auth.updateMeasurementSystemPreference(selected);
+            if (!sheetContext.mounted) return;
+            if (success) {
+              Navigator.pop(sheetContext);
+            } else {
+              FoodMatchNotifications.show(
+                sheetContext,
+                type: FoodMatchNotificationType.error,
+                title: 'Could not update units. Please try again.',
+              );
+            }
+          },
+          child: Column(mainAxisSize: MainAxisSize.min, children: <Widget>[
+            const ListTile(title: Text('Units', style: TextStyle(fontWeight: FontWeight.w800))),
+            for (final option in MeasurementSystemPreference.values)
+              RadioListTile<MeasurementSystemPreference>(value: option, title: Text(option.label)),
+          ]),
+        ),
+      ),
+    );
   }
 
   Future<void> _showTheme(BuildContext context) async {

@@ -48,11 +48,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _localAvatarPreview = previewFile;
       _isUploadingAvatar = true;
     });
+    final auth = context.read<AuthProvider>();
     try {
       final AvatarUploadResult result = await context
           .read<UploadRepository>()
           .uploadAvatar(previewFile);
-      await context.read<AuthProvider>().updateCurrentUserAvatar(
+      await auth.updateCurrentUserAvatar(
         avatarUrl: result.avatarUrl,
         avatarPublicId: result.avatarPublicId,
       );
@@ -106,9 +107,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _removeAvatar() async {
     if (_isUploadingAvatar) return;
     setState(() => _isUploadingAvatar = true);
+    final auth = context.read<AuthProvider>();
     try {
       await context.read<UploadRepository>().deleteAvatar();
-      await context.read<AuthProvider>().clearCurrentUserAvatar();
+      await auth.clearCurrentUserAvatar();
       if (!mounted) return;
       setState(() => _localAvatarPreview = null);
       FoodMatchNotifications.show(
@@ -267,9 +269,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
-void _notice(BuildContext context, String message) {
-  FoodMatchNotifications.show(context, type: FoodMatchNotificationType.info, title: message);
-}
 
 class _ProfileCard extends StatelessWidget {
   const _ProfileCard({required this.name, required this.email, required this.avatarUrl, required this.localAvatarPreview, required this.isUploadingAvatar, required this.onAvatarTap, required this.onEdit});

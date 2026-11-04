@@ -1,3 +1,7 @@
+import 'package:food_match/core/theme/theme_controller.dart';
+import 'dart:async';
+import 'package:food_match/features/auth/logic/auth_provider.dart';
+import 'package:food_match/data/models/measurement_system.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:food_match/features/profile/presentation/screens/profile_detail_screens.dart';
@@ -10,6 +14,23 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../helpers/dish_test_data.dart';
+
+class _UnitsAuth extends ChangeNotifier implements AuthProvider {
+  final completion = Completer<bool>();
+  MeasurementSystemPreference? selected;
+
+  @override
+  MeasurementSystemPreference get measurementSystemPreference => MeasurementSystemPreference.auto;
+
+  @override
+  Future<bool> updateMeasurementSystemPreference(MeasurementSystemPreference value) {
+    selected = value;
+    return completion.future;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 void main() {
   Widget testApp(Widget screen, {ThemeMode themeMode = ThemeMode.light}) {
@@ -34,6 +55,31 @@ void main() {
           child: const MatchHistoryContent(),
         ),
       );
+
+  testWidgets('units selection survives dismissing the sheet while saving', (tester) async {
+    final auth = _UnitsAuth();
+    addTearDown(auth.dispose);
+    await tester.pumpWidget(testApp(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<AuthProvider>.value(value: auth),
+          ChangeNotifierProvider<ThemeController>(create: (_) => ThemeController()),
+        ],
+        child: const ProfileSettingsScreen(),
+      ),
+    ));
+    await tester.ensureVisible(find.text('Units'));
+    await tester.tap(find.text('Units'));
+    await tester.pumpAndSettle();
+    expect(find.byType(RadioGroup<MeasurementSystemPreference>), findsOneWidget);
+    await tester.tap(find.text('Imperial'));
+    await tester.pump();
+    expect(auth.selected, MeasurementSystemPreference.imperial);
+    await tester.pumpWidget(const SizedBox.shrink());
+    auth.completion.complete(true);
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('About FoodMatch groups product and legal information',
       (WidgetTester tester) async {

@@ -146,15 +146,17 @@ class MatchProvider extends ChangeNotifier {
     completer.complete(
       inFlight
           .then((_) async {
-            if (generation != _loadGeneration || requestKey != _cacheKey)
+            if (generation != _loadGeneration || requestKey != _cacheKey) {
               return;
+            }
             // New mutations during the follow-up may schedule one more refresh.
             _queuedRefresh = null;
             await loadMatches(force: true, reason: reason);
           })
           .whenComplete(() {
-            if (identical(_queuedRefresh, completer.future))
+            if (identical(_queuedRefresh, completer.future)) {
               _queuedRefresh = null;
+            }
           }),
     );
     return completer.future;
@@ -590,8 +592,9 @@ class MatchProvider extends ChangeNotifier {
       queueAfterCurrent: false,
       reason: 'pair_notification_poll',
     );
-    if (!isCurrent() || previousLoadVersion == _successfulLoadVersion)
+    if (!isCurrent() || previousLoadVersion == _successfulLoadVersion) {
       return <MatchItem>[];
+    }
     final latestIds = matches
         .map((item) => item.id)
         .whereType<String>()

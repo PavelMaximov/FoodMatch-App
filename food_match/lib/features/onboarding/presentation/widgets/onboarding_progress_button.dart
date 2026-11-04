@@ -38,14 +38,14 @@ class OnboardingProgressButton extends StatelessWidget {
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: onPressed,
-          child: SizedBox.square(
+          child: const SizedBox.square(
             dimension: 58,
             child: DecoratedBox(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: accent,
                 shape: BoxShape.circle,
               ),
-              child: const Center(
+              child: Center(
                 child: Icon(Icons.arrow_forward_rounded, color: Colors.white),
               ),
             ),

@@ -195,7 +195,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         } catch (error) {
           debugPrint('[PreSwipe] initial profile resolution failed $error');
         }
-        if (isCurrent()) {
+        if (mounted && isCurrent()) {
           setState(() {
             _favoriteCuisines = profile?.favoriteCuisines.toSet() ?? <String>{};
             _showIntro =
@@ -203,7 +203,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
           });
         }
       }
-      if (!isCurrent()) {
+      if (!mounted || !isCurrent()) {
         return;
       }
 
@@ -211,15 +211,15 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         _coupleProvider.startFilterStatePolling(reason: 'pre_swipe_init');
         await _coupleProvider.refreshFilterState(reason: 'pre_swipe_init');
       }
-      if (!isCurrent()) {
+      if (!mounted || !isCurrent()) {
         return;
       }
       final LastFilterPreset? backendPreset =
           await _loadBackendLastFilterPreset();
-      if (isCurrent()) {
+      if (mounted && isCurrent()) {
         setState(() => _lastFilterPreset = backendPreset);
       }
-      if (!isCurrent()) {
+      if (!mounted || !isCurrent()) {
         return;
       }
       if (widget.mode == 'paired' &&
@@ -235,6 +235,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         _startWaitingPolling();
         return;
       }
+      if (!mounted) return;
       final PreSwipeProvider preSwipeProvider = context
           .read<PreSwipeProvider>();
       List<Dish> dishes = <Dish>[];
@@ -245,7 +246,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       } catch (error) {
         debugPrint('[PreSwipe] initial catalog resolution failed $error');
       }
-      if (!isCurrent()) {
+      if (!mounted || !isCurrent()) {
         return;
       }
       setState(() {
@@ -798,7 +799,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         operation: _confirmCurrentFiltersOperation,
       );
     } on TimeoutException {
-      if (!isCurrent()) return;
+      if (!mounted || !isCurrent()) return;
       _flowGeneration++;
       context.read<PreSwipeProvider>().clearDraft();
       if (widget.mode == 'paired') {
@@ -817,7 +818,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       );
     } catch (error) {
       debugPrint('[PreSwipe] filter confirmation failed $error');
-      if (!isCurrent()) return;
+      if (!mounted || !isCurrent()) return;
       setState(() {
         _loading = false;
         _isApplyingFilters = false;
@@ -892,7 +893,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
               blocked: _blocked.toList(),
               diet: _diet.toList(),
             );
-      if (!isCurrent()) return;
+      if (!mounted || !isCurrent()) return;
       if (ready) {
         debugPrint(
           '[PreFilterSubmit] success sessionId='
@@ -903,7 +904,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
           swipeProvider.activeSoloSessionId,
         );
         await _saveBackendLastFilterPreset(matchedLastTime);
-        if (!isCurrent()) return;
+        if (!mounted || !isCurrent()) return;
         debugPrint('[PreFilterSubmit] navigating=swipes');
         Navigator.pop(
           context,
@@ -939,7 +940,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     if (userId == null && authProvider.isAuthenticated) {
       debugPrint('[PreFilterSubmit] resolving authenticated user');
       await authProvider.loadUser();
-      if (!isCurrent()) return;
+      if (!mounted || !isCurrent()) return;
       userId = authProvider.currentUser?.id;
     }
     if (userId == null) {
@@ -958,13 +959,13 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       blocked: _blocked.toList(),
       diet: _diet.toList(),
     );
-    if (!isCurrent()) return;
+    if (!mounted || !isCurrent()) return;
     await _saveBackendLastFilterPreset(matchedLastTime);
-    if (!isCurrent()) return;
+    if (!mounted || !isCurrent()) return;
     if (widget.commitPairFilterChange) {
       final bool committed = await coupleProvider.commitPairFilterChange();
       if (!committed) {
-        if (!isCurrent()) return;
+        if (!mounted || !isCurrent()) return;
         setState(() {
           _loading = false;
           _isApplyingFilters = false;
@@ -980,12 +981,12 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       }
     }
 
-    if (!isCurrent()) {
+    if (!mounted || !isCurrent()) {
       return;
     }
     await coupleProvider.refreshFilterState(reason: 'after_confirm_filters');
 
-    if (!isCurrent()) {
+    if (!mounted || !isCurrent()) {
       return;
     }
 
@@ -1165,7 +1166,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         diet: _diet.toList(),
         exclusions: _blocked.toList(),
       );
-      if (!isCurrent()) return;
+      if (!mounted || !isCurrent()) return;
       _coupleProvider.stopFilterStatePolling(reason: 'waiting_back_to_filters');
       setState(() {
         _waitingForPartner = false;
@@ -1177,7 +1178,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         _isGoingBack = true;
       });
     } catch (_) {
-      if (!isCurrent()) return;
+      if (!mounted || !isCurrent()) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Could not reopen filters. Please try again.'),
@@ -1207,7 +1208,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     _hasStartedPrepareAfterBothConfirmed = true;
     final isCurrent = _captureScope(includePairGeneration: true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!isCurrent() || !_waitingForPartner || _isPreparingSharedDeck ||
+      if (!mounted || !isCurrent() || !_waitingForPartner || _isPreparingSharedDeck ||
           _isReturningFromWaiting || !coupleProvider.bothConfirmed) {
         return;
       }
@@ -1250,7 +1251,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         result = await preSwipeProvider.preparePairDeckWithRetry(
           isCurrent: isCurrent,
         );
-        if (!isCurrent()) return;
+        if (!mounted || !isCurrent()) return;
         if (result.status == PreparedDeckStatus.cancelled) {
           setState(() {
             _loading = false;
@@ -1262,7 +1263,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         }
         deckPrepareSucceeded = true;
       } finally {
-        if (!isCurrent() && mounted && flowGeneration == _flowGeneration) {
+        if (mounted && !isCurrent() && flowGeneration == _flowGeneration) {
           setState(() {
             _loading = false;
             _isApplyingFilters = false;
@@ -1272,7 +1273,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
             _sharedDeckError = 'Your session changed. Go back and reopen filters.';
           });
         }
-        if (isCurrent()) {
+        if (mounted && isCurrent()) {
           if (deckPrepareSucceeded) {
             coupleProvider.stopFilterStatePolling(reason: 'pair_deck_ready');
           } else {
@@ -1283,12 +1284,12 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         }
       }
     } catch (e) {
-      if (!isCurrent()) return;
+      if (!mounted || !isCurrent()) return;
       if (e is ApiException && e.code == 'PAIR_WAITING_FOR_PARTNER_FILTERS') {
         debugPrint(
           '[PairFilterChange] waiting for partner filters generation=${coupleProvider.currentCouple?.lifecycleGeneration ?? 0}',
         );
-        if (!isCurrent()) return;
+        if (!mounted || !isCurrent()) return;
         setState(() {
           _loading = false;
           _isApplyingFilters = false;
@@ -1305,13 +1306,13 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
           '[PairLifecycle] deckPrepare blocked -> PAIR_SESSION_NEEDS_RESYNC',
         );
         coupleProvider.markPairNeedsResyncFromDeckError();
-        if (isCurrent()) {
+        if (mounted && isCurrent()) {
           Navigator.pop(context);
         }
         return;
       }
       debugPrint('[PairDeck] canonical prepare blocked without fallback $e');
-      if (!isCurrent()) {
+      if (!mounted || !isCurrent()) {
         return;
       }
       setState(() {
@@ -1325,7 +1326,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       return;
     }
 
-    if (!isCurrent()) {
+    if (!mounted || !isCurrent()) {
       return;
     }
     setState(() {

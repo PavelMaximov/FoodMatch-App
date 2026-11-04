@@ -149,11 +149,9 @@ class InlineDeckEndRestartCard extends StatelessWidget {
 class _DeckStatusIcon extends StatelessWidget {
   const _DeckStatusIcon({
     required this.colors,
-    this.icon = Icons.hourglass_empty_rounded,
   });
 
   final FoodMatchThemeColors colors;
-  final IconData icon;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -163,6 +161,6 @@ class _DeckStatusIcon extends StatelessWidget {
       color: colors.primarySoft,
       shape: BoxShape.circle,
     ),
-    child: Icon(icon, color: colors.primary, size: 44),
+    child: Icon(Icons.hourglass_empty_rounded, color: colors.primary, size: 44),
   );
 }
