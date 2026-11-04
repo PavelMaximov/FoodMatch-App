@@ -26,6 +26,39 @@ void main() {
     );
   });
 
+  test('old avatar completion cannot change the next account', () async {
+    final version = provider.authBoundaryVersion;
+    provider.currentUser = const User(id: 'old', email: 'old@example.com', displayName: 'Old');
+    await provider.logout();
+    provider.currentUser = const User(id: 'new', email: 'new@example.com', displayName: 'New', avatarUrl: 'new-photo');
+    await provider.updateCurrentUserAvatar(
+      avatarUrl: 'old-photo', expectedAuthBoundaryVersion: version,
+    );
+    await provider.clearCurrentUserAvatar(expectedAuthBoundaryVersion: version);
+    expect(provider.currentUser?.avatarUrl, 'new-photo');
+  });
+
+  test('current account avatar update and removal remain available', () async {
+    provider.currentUser = const User(id: 'owner', email: 'owner@example.com', displayName: 'Owner');
+    final version = provider.authBoundaryVersion;
+    await provider.updateCurrentUserAvatar(
+      avatarUrl: 'photo', expectedAuthBoundaryVersion: version,
+    );
+    expect(provider.currentUser?.avatarUrl, 'photo');
+    await provider.clearCurrentUserAvatar(expectedAuthBoundaryVersion: version);
+    expect(provider.currentUser?.avatarUrl, isNull);
+  });
+
+  test('disposed auth ignores an avatar completion', () async {
+    final version = provider.authBoundaryVersion;
+    provider.currentUser = const User(id: 'owner', email: 'owner@example.com', displayName: 'Owner');
+    provider.dispose();
+    await provider.updateCurrentUserAvatar(
+      avatarUrl: 'photo', expectedAuthBoundaryVersion: version,
+    );
+    expect(provider.currentUser?.avatarUrl, isNull);
+  });
+
   test('login successful sets user and token', () async {
     const User user = User(
       id: '1',

@@ -29,6 +29,85 @@ void main() {
 
   tearDown(() => provider.dispose());
 
+  test('invitation polls share one request and ignore previous account results', () async {
+    final pending = Completer<List<CoupleInvitation>>();
+    fakeRepo.pendingResponse = pending.future;
+    final first = provider.refreshInvitations();
+    final second = provider.refreshInvitations();
+    expect(fakeRepo.pendingLoads, 1);
+    provider.setAuthenticatedUser('u3', isAuthenticated: true);
+    pending.complete([fakeRepo.invitation]);
+    await Future.wait([first, second]);
+    expect(provider.pendingInvitations, isEmpty);
+  });
+
+  test('new account can refresh before the old poll completes', () async {
+    final pending = Completer<List<CoupleInvitation>>();
+    fakeRepo.pendingResponse = pending.future;
+    final old = provider.refreshInvitations();
+    provider.setAuthenticatedUser('u3', isAuthenticated: true);
+    fakeRepo.pendingResponse = null;
+    await provider.refreshInvitations();
+    expect(fakeRepo.pendingLoads, 2);
+    pending.complete([fakeRepo.invitation]);
+    await old;
+    expect(provider.pendingInvitations, isEmpty);
+  });
+
+  test('late accepted outgoing status cannot resume after logout', () async {
+    provider.outgoingContinuationInvite = fakeRepo.invitation;
+    final status = Completer<CoupleInvitation>();
+    fakeRepo.statusResponse = status.future;
+    final refresh = provider.refreshInvitations();
+    await Future<void>.delayed(Duration.zero);
+    provider.setAuthenticatedUser(null, isAuthenticated: false);
+    fakeRepo.invitationStatus = 'accepted';
+    status.complete(fakeRepo.invitation);
+    await refresh;
+    expect(provider.outgoingContinuationInvite, isNull);
+    expect(provider.currentCouple, isNull);
+    expect(provider.shouldAcquireDeckAfterContinuationInvite, isFalse);
+  });
+
+  test('late continuation creation cannot attach to the next account', () async {
+    final response = Completer<CoupleInvitation>();
+    fakeRepo.continueResponse = response.future;
+    final create = provider.createContinueAsBeforeInvite();
+    provider.setAuthenticatedUser('u3', isAuthenticated: true);
+    response.complete(fakeRepo.invitation);
+    expect(await create, isNull);
+    expect(provider.outgoingContinuationInvite, isNull);
+  });
+
+  test('late accept cannot restore a session after account switch', () async {
+    final response = Completer<Couple?>();
+    fakeRepo.acceptResponse = response.future;
+    final accept = provider.acceptInvitation(fakeRepo.invitation);
+    provider.setAuthenticatedUser('u3', isAuthenticated: true);
+    response.complete(couple);
+    await accept;
+    expect(provider.currentCouple, isNull);
+    expect(provider.shouldAcquireDeckAfterContinuationInvite, isFalse);
+  });
+
+  test('accepting for the current account still acquires the shared deck', () async {
+    await provider.acceptInvitation(fakeRepo.invitation);
+    expect(provider.currentCouple?.id, 'c1');
+    expect(provider.shouldAcquireDeckAfterContinuationInvite, isTrue);
+    expect(provider.consumeContinuationDeckAcquisition(),
+        PairContinuationFlowOrigin.previousSessionInviteAccepter);
+  });
+
+  test('late decline cannot hide invitations in the next account', () async {
+    final response = Completer<void>();
+    fakeRepo.declineResponse = response.future;
+    final decline = provider.declineInvitation(fakeRepo.invitation);
+    provider.setAuthenticatedUser('u3', isAuthenticated: true);
+    response.complete();
+    await decline;
+    expect(provider.hiddenInvitationIds, isEmpty);
+  });
+
   test('create sets couple', () async {
     await provider.createCouple();
 
@@ -152,6 +231,21 @@ class _FakeCoupleRepository extends CoupleRepository {
   Object? leaveError;
   Object? invitationError;
   String invitationStatus = 'pending';
+  Future<List<CoupleInvitation>>? pendingResponse;
+  Future<CoupleInvitation>? statusResponse;
+  Future<CoupleInvitation>? continueResponse;
+  Future<Couple?>? acceptResponse;
+  Future<void>? declineResponse;
+  int pendingLoads = 0;
+
+  @override
+  Future<Couple?> acceptInvitation(String id) async =>
+      acceptResponse == null ? currentCouple : await acceptResponse!;
+
+  @override
+  Future<void> declineInvitation(String id) async {
+    if (declineResponse != null) await declineResponse!;
+  }
 
   CoupleInvitation get invitation => CoupleInvitation.fromJson({
     'id': 'invite-1',
@@ -164,15 +258,19 @@ class _FakeCoupleRepository extends CoupleRepository {
   });
 
   @override
-  Future<CoupleInvitation> continueAsBefore() async => invitation;
+  Future<CoupleInvitation> continueAsBefore() async =>
+      continueResponse == null ? invitation : await continueResponse!;
 
   @override
-  Future<List<CoupleInvitation>> getPendingInvitations() async => [];
+  Future<List<CoupleInvitation>> getPendingInvitations() async {
+    pendingLoads++;
+    return pendingResponse == null ? [] : await pendingResponse!;
+  }
 
   @override
   Future<CoupleInvitation> getInvitation(String id) async {
     if (invitationError != null) throw invitationError!;
-    return invitation;
+    return statusResponse == null ? invitation : await statusResponse!;
   }
 
   static const CoupleFilterState _filterState = CoupleFilterState(

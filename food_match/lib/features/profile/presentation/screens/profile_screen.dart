@@ -39,21 +39,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _pickAndUploadAvatar() async {
     if (_isUploadingAvatar) return;
+    final auth = context.read<AuthProvider>();
+    final requestVersion = auth.authBoundaryVersion;
     final XFile? image = await ImagePicker().pickImage(
       source: ImageSource.gallery,
     );
-    if (image == null || !mounted) return;
+    if (image == null || !mounted || !auth.isCurrentAuthBoundary(requestVersion)) return;
     final File previewFile = File(image.path);
     setState(() {
       _localAvatarPreview = previewFile;
       _isUploadingAvatar = true;
     });
-    final auth = context.read<AuthProvider>();
     try {
       final AvatarUploadResult result = await context
           .read<UploadRepository>()
           .uploadAvatar(previewFile);
+      if (!auth.isCurrentAuthBoundary(requestVersion)) return;
       await auth.updateCurrentUserAvatar(
+        expectedAuthBoundaryVersion: requestVersion,
         avatarUrl: result.avatarUrl,
         avatarPublicId: result.avatarPublicId,
       );
@@ -62,7 +65,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         result.avatarUrl,
         usage: ImageUsage.avatarLarge,
       );
-      if (mounted && optimizedUrl.isNotEmpty) {
+      if (mounted && auth.isCurrentAuthBoundary(requestVersion) && optimizedUrl.isNotEmpty) {
         try {
           await precacheImage(CachedNetworkImageProvider(optimizedUrl), context);
           avatarPrecached = true;
@@ -70,7 +73,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           // The persisted URL is still valid; keep the local preview meanwhile.
         }
       }
-      if (mounted) {
+      if (mounted && auth.isCurrentAuthBoundary(requestVersion)) {
         if (avatarPrecached) setState(() => _localAvatarPreview = null);
         FoodMatchNotifications.show(
           context,
@@ -79,7 +82,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
       }
     } on ApiException catch (error) {
-      if (mounted) {
+      if (mounted && auth.isCurrentAuthBoundary(requestVersion)) {
         setState(() => _localAvatarPreview = null);
         FoodMatchNotifications.show(
           context,
@@ -91,7 +94,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
       }
     } catch (_) {
-      if (mounted) {
+      if (mounted && auth.isCurrentAuthBoundary(requestVersion)) {
         setState(() => _localAvatarPreview = null);
         FoodMatchNotifications.show(
           context,
@@ -108,10 +111,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (_isUploadingAvatar) return;
     setState(() => _isUploadingAvatar = true);
     final auth = context.read<AuthProvider>();
+    final requestVersion = auth.authBoundaryVersion;
     try {
       await context.read<UploadRepository>().deleteAvatar();
-      await auth.clearCurrentUserAvatar();
-      if (!mounted) return;
+      if (!auth.isCurrentAuthBoundary(requestVersion)) return;
+      await auth.clearCurrentUserAvatar(expectedAuthBoundaryVersion: requestVersion);
+      if (!mounted || !auth.isCurrentAuthBoundary(requestVersion)) return;
       setState(() => _localAvatarPreview = null);
       FoodMatchNotifications.show(
         context,
@@ -119,14 +124,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         title: 'Photo removed',
       );
     } on ApiException catch (error) {
-      if (!mounted) return;
+      if (!mounted || !auth.isCurrentAuthBoundary(requestVersion)) return;
       FoodMatchNotifications.show(
         context,
         type: FoodMatchNotificationType.error,
         title: ErrorMessages.fromApiException(error),
       );
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || !auth.isCurrentAuthBoundary(requestVersion)) return;
       FoodMatchNotifications.show(
         context,
         type: FoodMatchNotificationType.error,

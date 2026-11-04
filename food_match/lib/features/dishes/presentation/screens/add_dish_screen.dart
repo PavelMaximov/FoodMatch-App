@@ -19,6 +19,7 @@ import '../../../../data/repositories/dish_repository.dart';
 import '../../../../data/repositories/upload_repository.dart';
 import '../../../../data/services/api_service.dart';
 import '../../../swipes/logic/swipe_provider.dart';
+import '../../../auth/logic/auth_provider.dart';
 import '../../../premium/logic/premium_provider.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/dish_compact_card.dart';
@@ -174,6 +175,8 @@ class _AddDishScreenState extends State<AddDishScreen> {
 
   Future<void> _submit() async {
     if (_isSubmitting) return;
+    final auth = context.read<AuthProvider>();
+    final requestVersion = auth.authBoundaryVersion;
     final int? customDishLimit = context.read<PremiumProvider>().customDishLimit;
     if (customDishLimit != null && _myDishes.length >= customDishLimit) {
       context.push('/profile/premium');
@@ -216,9 +219,10 @@ class _AddDishScreenState extends State<AddDishScreen> {
           imageUpload = await context
               .read<UploadRepository>()
               .uploadCustomDishImage(_selectedImageFile!);
+          if (!mounted || !auth.isCurrentAuthBoundary(requestVersion)) return;
           _uploadedDishImage = imageUpload;
         } on ApiException catch (_) {
-          if (mounted) {
+          if (mounted && auth.isCurrentAuthBoundary(requestVersion)) {
             FoodMatchNotifications.show(
               context,
               type: FoodMatchNotificationType.error,
@@ -227,7 +231,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
           }
           return;
         } catch (_) {
-          if (mounted) {
+          if (mounted && auth.isCurrentAuthBoundary(requestVersion)) {
             FoodMatchNotifications.show(
               context,
               type: FoodMatchNotificationType.error,
@@ -238,7 +242,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
         }
       }
 
-      if (!mounted) return;
+      if (!mounted || !auth.isCurrentAuthBoundary(requestVersion)) return;
       await dishRepository.createCustomDish(
         title: _titleController.text.trim(),
         cuisine: _canonicalCuisine(
@@ -263,7 +267,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
         imagePublicId: imageUpload?.imagePublicId,
       );
 
-      if (!mounted) return;
+      if (!mounted || !auth.isCurrentAuthBoundary(requestVersion)) return;
       _formKey.currentState?.reset();
       _titleController.clear();
       _cookTimeController.clear();
@@ -282,7 +286,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
       _invalidateSwipeDeckCacheIfAvailable();
 
       await _loadMyDishes();
-      if (mounted) {
+      if (mounted && auth.isCurrentAuthBoundary(requestVersion)) {
         FoodMatchNotifications.show(
           context,
           type: FoodMatchNotificationType.success,
@@ -290,7 +294,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
         );
       }
     } on ApiException catch (e) {
-      if (mounted) {
+      if (mounted && auth.isCurrentAuthBoundary(requestVersion)) {
         if (e.code == 'PREMIUM_CUSTOM_DISH_LIMIT') {
           context.push('/profile/premium');
           return;
@@ -305,7 +309,7 @@ class _AddDishScreenState extends State<AddDishScreen> {
         );
       }
     } catch (_) {
-      if (mounted) {
+      if (mounted && auth.isCurrentAuthBoundary(requestVersion)) {
         FoodMatchNotifications.show(
           context,
           type: FoodMatchNotificationType.error,

@@ -5,7 +5,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../domain/shopping_list_item.dart';
 
 class ShoppingListStorage {
-  ShoppingListStorage({SharedPreferences? preferences}) : _preferences = preferences;
+  ShoppingListStorage({SharedPreferences? preferences, String? userId})
+      : _preferences = preferences,
+        _storageKey = userId == null ? storageKey : '$storageKey:$userId';
+
+  final String _storageKey;
+
+  ShoppingListStorage forUser(String userId) =>
+      ShoppingListStorage(preferences: _preferences, userId: userId);
 
   static const String storageKey = 'foodmatch_shopping_list_v1';
   SharedPreferences? _preferences;
@@ -15,7 +22,7 @@ class ShoppingListStorage {
 
   Future<List<ShoppingListItem>> load() async {
     try {
-      final String? value = (await _prefs).getString(storageKey);
+      final String? value = (await _prefs).getString(_storageKey);
       if (value == null) return <ShoppingListItem>[];
       final List<dynamic> decoded = jsonDecode(value) as List<dynamic>;
       return decoded
@@ -30,7 +37,7 @@ class ShoppingListStorage {
 
   Future<void> save(List<ShoppingListItem> items) async {
     await (await _prefs).setString(
-      storageKey,
+      _storageKey,
       jsonEncode(items.map((ShoppingListItem item) => item.toJson()).toList()),
     );
   }

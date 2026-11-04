@@ -11,6 +11,36 @@ void main() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
   });
 
+  test('personal shopping lists stay with their account across switches', () async {
+    final provider = ShoppingListProvider();
+    addTearDown(provider.dispose);
+    provider.setActiveUser('alice', authBoundaryVersion: 1);
+    await provider.addManualItem(name: 'Alice item');
+    provider.setActiveUser('bob', authBoundaryVersion: 2);
+    await provider.load();
+    expect(provider.items, isEmpty);
+    await provider.addManualItem(name: 'Bob item');
+    provider.setActiveUser('alice', authBoundaryVersion: 3);
+    await provider.load();
+    expect(provider.items.single.name, 'Alice item');
+    provider.setActiveUser(null, authBoundaryVersion: 4);
+    await provider.addManualItem(name: 'signed-out item');
+    expect(provider.items, isEmpty);
+  });
+
+  test('unowned legacy device list is preserved without exposing it to an account', () async {
+    final legacy = ShoppingListProvider();
+    addTearDown(legacy.dispose);
+    await legacy.addManualItem(name: 'Legacy item');
+    final provider = ShoppingListProvider();
+    addTearDown(provider.dispose);
+    provider.setActiveUser('alice', authBoundaryVersion: 1);
+    await provider.load();
+    expect(provider.items, isEmpty);
+    final retained = await ShoppingListStorage().load();
+    expect(retained.single.name, 'Legacy item');
+  });
+
   test('adds trimmed unique ingredients and persists them', () async {
     final ShoppingListProvider provider = ShoppingListProvider();
 

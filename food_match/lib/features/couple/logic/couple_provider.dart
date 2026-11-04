@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../../../core/errors/error_messages.dart';
+import '../../../core/async/single_flight.dart';
 import '../../../core/utils/logger.dart';
 import '../../../data/local/cache_policy.dart';
 import '../../../data/models/couple.dart';
@@ -40,6 +41,7 @@ class CoupleProvider extends ChangeNotifier {
   CoupleFilterState? _filterState;
   Timer? _pollTimer;
   Timer? _invitationPollTimer;
+  final _invitationRefresh = SingleFlight<void>();
   Duration? _activePollInterval;
   bool _pollingWanted = false;
   bool _isAppActive = true;
@@ -191,6 +193,7 @@ class CoupleProvider extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _invitationRefresh.invalidate();
     stopFilterStatePolling(reason: 'dispose');
     stopInvitationPolling(reason: 'dispose');
     super.dispose();
@@ -747,10 +750,20 @@ class CoupleProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> refreshInvitations() async {
-    if (!_isAuthenticated || (_activeUserId?.isEmpty ?? true)) return;
+  Future<void> refreshInvitations() {
+    if (!_isAuthenticated || (_activeUserId?.isEmpty ?? true) || _disposed) {
+      return Future<void>.value();
+    }
+    return _invitationRefresh.run(_refreshInvitations);
+  }
+
+  Future<void> _refreshInvitations() async {
+    final requestVersion = _sessionStateVersion;
+    final requestUserId = _activeUserId;
     try {
-      pendingInvitations = await _repository.getPendingInvitations();
+      final invitations = await _repository.getPendingInvitations();
+      if (!_isCurrentSession(requestVersion, requestUserId)) return;
+      pendingInvitations = invitations;
       AppLogger.info(
         '[PairInvite] pending fetched actionableCount=${pendingInvitations.length}',
       );
@@ -765,6 +778,11 @@ class CoupleProvider extends ChangeNotifier {
       if (activeOutgoing != null) {
         try {
           final CoupleInvitation status = await _repository.getInvitation(activeOutgoing.id);
+          if (!_isCurrentSession(requestVersion, requestUserId) ||
+              _suppressContinuationForSoloResume ||
+              outgoingContinuationInvite?.id != activeOutgoing.id) {
+            return;
+          }
           AppLogger.info('[PairInvite] active outgoing status id=${status.id} status=${status.status}');
           final bool unexpired = status.expiresAt == null || status.expiresAt!.isAfter(DateTime.now());
           if (status.status == 'accepted' && status.sessionActive && unexpired) {
@@ -776,6 +794,10 @@ class CoupleProvider extends ChangeNotifier {
           if (status.status == 'declined' || status.status == 'expired' || status.status == 'cancelled') declinedInvite = status;
           if (status.isPending) outgoingContinuationInvite = status;
         } catch (e) {
+          if (!_isCurrentSession(requestVersion, requestUserId) ||
+              _suppressContinuationForSoloResume) {
+            return;
+          }
           // A temporary network failure does not cancel an invitation.
           if (e is ApiException && e.statusCode == 404 &&
               outgoingContinuationInvite?.id == activeOutgoing.id) {
@@ -797,6 +819,7 @@ class CoupleProvider extends ChangeNotifier {
             ? PairContinuationFlowOrigin.previousSessionInviteAccepter
             : PairContinuationFlowOrigin.previousSessionInviteSender;
         await loadCouple(force: true);
+        if (!_isCurrentSession(requestVersion, requestUserId)) return;
         AppLogger.info(
           '[PairInvite] sender observed accepted id=${acceptedInvite.id} '
           'origin=${continuationFlowOrigin.name}',
@@ -823,8 +846,14 @@ class CoupleProvider extends ChangeNotifier {
     if (outgoingContinuationInvite?.isPending == true) {
       return outgoingContinuationInvite;
     }
+    final requestVersion = _sessionStateVersion;
+    final requestUserId = _activeUserId;
     try {
       final CoupleInvitation invite = await _repository.continueAsBefore();
+      if (!_isCurrentSession(requestVersion, requestUserId) ||
+          _suppressContinuationForSoloResume) {
+        return null;
+      }
       outgoingContinuationInvite = invite.isOutgoing && invite.isPending
           ? invite
           : null;
@@ -841,9 +870,14 @@ class CoupleProvider extends ChangeNotifier {
         await loadCouple(force: true);
       }
       await refreshInvitations();
+      if (!_isCurrentSession(requestVersion, requestUserId) ||
+          _suppressContinuationForSoloResume) {
+        return null;
+      }
       _safeNotify();
       return invite;
     } catch (e) {
+      if (!_isCurrentSession(requestVersion, requestUserId)) return null;
       error = _mapError(e);
       _safeNotify();
       return null;
@@ -856,10 +890,14 @@ class CoupleProvider extends ChangeNotifier {
   }
 
   Future<bool> commitPairFilterChange() async {
+    final requestVersion = _sessionStateVersion;
+    final requestUserId = _activeUserId;
     try {
       final Map<String, dynamic> response = await _repository
           .commitFilterChange();
+      if (!_isCurrentSession(requestVersion, requestUserId)) return false;
       await loadCouple(force: true);
+      if (!_isCurrentSession(requestVersion, requestUserId)) return false;
       final Object? eventId = response['eventId'] ?? response['generation'];
       final Object generation =
           response['generation'] ?? currentCouple?.lifecycleGeneration ?? 0;
@@ -868,6 +906,7 @@ class CoupleProvider extends ChangeNotifier {
       );
       return true;
     } catch (e) {
+      if (!_isCurrentSession(requestVersion, requestUserId)) return false;
       error = _mapError(e);
       _safeNotify();
       return false;
@@ -875,8 +914,13 @@ class CoupleProvider extends ChangeNotifier {
   }
 
   Future<void> acceptInvitation(CoupleInvitation invitation) async {
+    final requestVersion = _sessionStateVersion;
+    final requestUserId = _activeUserId;
     final Couple? couple = await _repository.acceptInvitation(invitation.id);
-    currentCouple = couple ?? await _repository.getMyCouple();
+    if (!_isCurrentSession(requestVersion, requestUserId)) return;
+    final loadedCouple = couple ?? await _repository.getMyCouple();
+    if (!_isCurrentSession(requestVersion, requestUserId)) return;
+    currentCouple = loadedCouple;
     _currentCoupleLoadedAt = DateTime.now();
     hiddenInvitationIds.add(invitation.id);
     pendingInvitations = pendingInvitations
@@ -888,6 +932,7 @@ class CoupleProvider extends ChangeNotifier {
       startFilterStatePolling(reason: 'invitation_accept');
       await refreshFilterState(reason: 'invitation_accept');
     }
+    if (!_isCurrentSession(requestVersion, requestUserId)) return;
     shouldOpenPreviousChoiceAfterInvite = false;
     previousChoiceAfterInviteWasUserAccepted = false;
     shouldAcquireDeckAfterContinuationInvite = true;
@@ -899,7 +944,10 @@ class CoupleProvider extends ChangeNotifier {
   }
 
   Future<void> declineInvitation(CoupleInvitation invitation) async {
+    final requestVersion = _sessionStateVersion;
+    final requestUserId = _activeUserId;
     await _repository.declineInvitation(invitation.id);
+    if (!_isCurrentSession(requestVersion, requestUserId)) return;
     hiddenInvitationIds.add(invitation.id);
     pendingInvitations = pendingInvitations
         .where((CoupleInvitation item) => item.id != invitation.id)
@@ -1128,10 +1176,16 @@ class CoupleProvider extends ChangeNotifier {
     bool incrementVersion = true,
     bool clearEndedMessage = true,
   }) {
+    _invitationRefresh.invalidate();
     stopFilterStatePolling(reason: 'session_clear');
     currentCouple = null;
     hiddenInvitationIds.clear();
     outgoingContinuationInvite = null;
+    shouldAcquireDeckAfterContinuationInvite = false;
+    shouldReturnToResumeAfterContinuationDeclined = false;
+    shouldOpenPreviousChoiceAfterInvite = false;
+    previousChoiceAfterInviteWasUserAccepted = false;
+    continuationFlowOrigin = PairContinuationFlowOrigin.none;
     shouldOpenPairFilterChange = false;
     _handledFilterChangeGenerations.clear();
     _currentCoupleLoadedAt = null;
