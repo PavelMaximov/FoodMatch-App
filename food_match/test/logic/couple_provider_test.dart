@@ -235,6 +235,62 @@ void main() {
     expect(provider.currentCouple?.id, 'c1');
   });
 
+  test('Continue after partner departure sends an invite instead of reopening departure UI', () async {
+    fakeRepo.currentCouple = Couple.fromJson({
+      'id': 'departed', 'inviteCode': 'OLD123', 'members': ['u1', 'u2'],
+      'pairLifecycleState': {'status': 'needs_resync', 'changedBy': 'u2', 'generation': 1},
+    });
+    await provider.loadCouple(force: true);
+    expect(provider.needsPairResync, isTrue);
+    final sent = Completer<CoupleInvitation>();
+    fakeRepo.continueResponse = sent.future;
+    final creation = provider.createContinueAsBeforeInvite();
+    expect(provider.consumeOpenSessionResumeForResync(), isFalse);
+    fakeRepo.currentCouple = const Couple(
+      id: 'continued', inviteCode: 'NEW123', members: ['u1'],
+      memberProfiles: [CoupleMemberProfile(id: 'u1')],
+    );
+    sent.complete(fakeRepo.invitation);
+    expect((await creation)?.isPending, isTrue);
+    expect(provider.currentCouple?.id, 'continued');
+    expect(provider.outgoingContinuationInvite?.toUserId, 'u2');
+    expect(provider.needsPairResync, isFalse);
+    expect(provider.isWaitingForPartnerReturn, isFalse);
+    expect(provider.pairNeedsResyncMessage, isNull);
+    expect(provider.shouldAcquireDeckAfterContinuationInvite, isFalse);
+  });
+
+  test('incoming continuation takes priority over the old departure warning', () async {
+    fakeRepo.currentCouple = Couple.fromJson({
+      'id': 'departed', 'inviteCode': 'OLD123', 'members': ['u1', 'u2'],
+      'pairLifecycleState': {'status': 'needs_resync', 'changedBy': 'u2', 'generation': 1},
+    });
+    await provider.loadCouple(force: true);
+    final incoming = CoupleInvitation.fromJson({
+      'id': 'incoming', 'fromUserId': 'u2', 'toUserId': 'u1',
+      'direction': 'incoming', 'status': 'pending', 'sessionActive': true,
+      'newCoupleSessionId': 'replacement',
+    });
+    fakeRepo.pendingResponse = Future.value([incoming]);
+    await provider.refreshInvitations();
+    expect(provider.nextIncomingInvitation?.id, 'incoming');
+    expect(provider.consumeOpenSessionResumeForResync(), isFalse);
+    expect(provider.isWaitingForPartnerReturn, isFalse);
+  });
+
+  test('stale departure polling cannot replace a pending continuation invitation', () async {
+    fakeRepo.currentCouple = Couple.fromJson({
+      'id': 'departed', 'inviteCode': 'OLD123', 'members': ['u1', 'u2'],
+      'pairLifecycleState': {'status': 'needs_resync', 'changedBy': 'u2', 'generation': 1},
+    });
+    await provider.loadCouple(force: true);
+    await provider.createContinueAsBeforeInvite();
+    await provider.loadCouple(force: true);
+    expect(provider.outgoingContinuationInvite?.isPending, isTrue);
+    expect(provider.consumeOpenSessionResumeForResync(), isFalse);
+    expect(provider.isWaitingForPartnerReturn, isFalse);
+  });
+
   test('continuation survives polling into its newly created session', () async {
     await provider.loadCouple();
     final invitation = await provider.createContinueAsBeforeInvite();

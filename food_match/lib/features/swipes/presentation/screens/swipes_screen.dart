@@ -250,6 +250,10 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
 
   Future<void> _handlePairNeedsResync() async {
     final CoupleProvider coupleProvider = context.read<CoupleProvider>();
+    final isCurrent = _captureSessionScope();
+    // An invitation to a replacement takes priority over the old departure.
+    await coupleProvider.refreshInvitations();
+    if (!mounted || !isCurrent()) return;
     if (!coupleProvider.consumeOpenSessionResumeForResync()) {
       return;
     }
@@ -716,7 +720,10 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
         '[ResumeChoice] pair continuation invite sent id=${invitation.id}',
       );
       debugPrint('[ResumeChoice] waiting_for_partner');
-      setState(() => _sessionResumeChoiceType = null);
+      setState(() {
+        _sessionResumeChoiceType = null;
+        _isWaitingForDepartedPartner = false;
+      });
       coupleProvider.startInvitationPolling(reason: 'session_resume_continue_pair');
       _startPairLifecyclePolling();
       ScaffoldMessenger.of(context).showSnackBar(

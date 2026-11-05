@@ -100,9 +100,20 @@ class CoupleProvider extends ChangeNotifier {
   bool get isJoining => _joinInFlight;
   bool get isLeaving => _leaveInFlight;
   bool get hasActiveSessionConflict => error == activeSessionMessage;
-  bool get needsPairResync => shouldOpenSessionResumeForResync;
+  bool get _hasIncomingContinuation {
+    final invite = nextIncomingInvitation;
+    return invite != null && invite.sessionActive &&
+        (invite.expiresAt == null || invite.expiresAt!.isAfter(DateTime.now())) &&
+        (currentCouple == null || currentCouple!.members.contains(invite.fromUserId));
+  }
+  bool get _awaitingContinuation => _continuationCreation != null || _hasIncomingContinuation ||
+      (outgoingContinuationInvite?.isPending == true &&
+       outgoingContinuationInvite?.sessionActive == true &&
+       (outgoingContinuationInvite?.expiresAt == null ||
+        outgoingContinuationInvite!.expiresAt!.isAfter(DateTime.now())));
+  bool get needsPairResync => !_awaitingContinuation && shouldOpenSessionResumeForResync;
   bool get isWaitingForPartnerReturn =>
-      currentCouple?.pairLifecycleStatus == 'needs_resync' &&
+      !_awaitingContinuation && currentCouple?.pairLifecycleStatus == 'needs_resync' &&
       currentCouple?.lifecycleChangedBy != null &&
       currentCouple?.lifecycleChangedBy != _activeUserId;
   bool get needsPairFilterChange => shouldOpenPairFilterChange;
@@ -912,6 +923,24 @@ class CoupleProvider extends ChangeNotifier {
       outgoingContinuationInvite = invite.isOutgoing && invite.isPending
           ? invite
           : null;
+      shouldOpenSessionResumeForResync = false;
+      shouldReturnToResumeAfterContinuationDeclined = false;
+      pairNeedsResyncMessage = null;
+      if (outgoingContinuationInvite != null) {
+        // Replace the departed pair before restarting lifecycle polling.
+        // A network failure here must not discard an invitation already sent.
+        try {
+          final replacement = await _repository.getMyCouple();
+          if (!_isCurrentSession(requestVersion, requestUserId)) return null;
+          if (replacement?.id == invite.newCoupleSessionId) {
+            currentCouple = replacement;
+            _filterState = null;
+            _currentCoupleLoadedAt = DateTime.now();
+          }
+        } catch (_) {
+          AppLogger.info('[PairInvite] replacement refresh deferred; invitation remains pending');
+        }
+      }
       if (invite.status == 'accepted' &&
           _consumedAcceptedInviteIds.add(invite.id)) {
         hiddenInvitationIds.remove(invite.deliveryKey);
@@ -1027,7 +1056,7 @@ class CoupleProvider extends ChangeNotifier {
   }
 
   bool consumeOpenSessionResumeForResync() {
-    final bool shouldOpen = shouldOpenSessionResumeForResync;
+    final bool shouldOpen = needsPairResync;
     shouldOpenSessionResumeForResync = false;
     if (shouldOpen) _safeNotify();
     return shouldOpen;
@@ -1091,6 +1120,7 @@ class CoupleProvider extends ChangeNotifier {
   }
 
   void _detectPairLifecycleResync() {
+    if (_awaitingContinuation) return;
     final Couple? couple = currentCouple;
     if (couple == null) {
       return;

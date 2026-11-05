@@ -114,6 +114,14 @@ async function main() {
   priorPairKey = 'a_b';
   console.log('PASS continuation reuses incoming invitation even before a first preset exists');
 
+  reset(); const departed = seed(); departed.status = 'closed';
+  const restartInvite = await invitations.createContinueAsBeforeInvite('a');
+  assert.equal(restartInvite.status, 'pending');
+  assert.notEqual(restartInvite.newCoupleSessionId, departed.id);
+  assert.equal((await r.invitations.listPendingIncoming('b'))[0].id, restartInvite.id);
+  assert.equal(await active('b'), null, 'A departed partner is invited, not silently rejoined');
+  console.log('PASS closed previous pair with an idle partner creates a fresh incoming invitation');
+
   reset(); let s = seed();
   const first = await deck.requestDeckRestart('a');
   assert.equal(first.status, 'waiting');
