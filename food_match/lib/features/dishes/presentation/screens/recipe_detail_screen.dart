@@ -25,7 +25,6 @@ import '../../../../shared/widgets/shimmer_card.dart';
 import '../../../favorites/logic/favorites_provider.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../shopping_list/logic/shopping_list_provider.dart';
-import '../../../premium/domain/effective_entitlements.dart';
 import '../../../premium/domain/premium_entry_point.dart';
 import '../../../premium/logic/premium_provider.dart';
 import '../../domain/ingredient_display_parser.dart';
@@ -205,9 +204,23 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     Dish dish,
     List<ShoppingListIngredientInput> ingredients,
   ) async {
-    final premium=context.read<PremiumProvider>();
-    if(!premium.canUse(PremiumFeature.shoppingList)&&!premium.canUse(PremiumFeature.sharedShoppingList)){
-      await context.push('/profile/premium',extra:PremiumEntryPoint.shoppingList);
+    final premium = context.read<PremiumProvider>();
+    final shoppingList = context.read<ShoppingListProvider>();
+    if (!premium.canAddRecipeIngredients(shared: shoppingList.isShared)) {
+      final upgrade = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Grocery list is a Premium feature'),
+          content: const Text('Upgrade to FoodMatch Premium to add recipe ingredients to your grocery list.'),
+          actions: <Widget>[
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Not now')),
+            FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Upgrade to Premium')),
+          ],
+        ),
+      );
+      if (mounted && upgrade == true) {
+        await context.push('/profile/premium', extra: PremiumEntryPoint.shoppingList);
+      }
       return;
     }
     if (_isAddingIngredientsToShoppingList ||
