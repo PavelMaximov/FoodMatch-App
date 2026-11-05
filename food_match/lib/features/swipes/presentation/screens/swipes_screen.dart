@@ -101,7 +101,9 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
   CoupleProvider? _coupleProvider;
   bool _isLoadingInitialSession = false;
   String? _initialSessionError;
+  String? _startupNotice;
   _SessionResumeChoiceType? _sessionResumeChoiceType;
+  String? _resumeSessionId;
   final AppFlowCoordinator _appFlow = const AppFlowCoordinator();
   final Set<String> _preloadedImageUrls = <String>{};
   DateTime? _pairMatchBurstUntil;
@@ -169,10 +171,13 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     setState(() {
       _showPairConnectionStep = false;
       _isHandlingSessionEnded = false;
+      _isLoadingInitialSession = false;
       _isWaitingForDepartedPartner = false;
       _initialSessionError = null;
+      _startupNotice = null;
       _pairFilterUpdateRequired = false;
       _sessionResumeChoiceType = null;
+      _resumeSessionId = null;
       _isPairRestartWaiting = false;
       _isPairRestartLoading = false;
       _pairRestartError = null;
@@ -238,15 +243,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       return;
     }
     if (coupleProvider.sessionEndedMessage != null) {
-      final StartupRouteDecision decision = await _appFlow.resolveStartupRoute(
-        swipeRepository: context.read<SwipeRepository>(),
-        swipeProvider: context.read<SwipeProvider>(),
-        coupleProvider: coupleProvider,
-      );
-      _appFlow.logSessionInvalid(decision.route);
-      if (mounted) {
-        await _loadExistingBackendDeckOrStart();
-      }
+      await _loadExistingBackendDeckOrStart();
     }
   }
 
@@ -501,8 +498,10 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       return;
     }
     final AuthProvider authProvider = context.read<AuthProvider>();
+    final requestVersion = authProvider.authBoundaryVersion;
+    bool isCurrent() => authProvider.isCurrentAuthBoundary(requestVersion);
     if (!authProvider.profileSetupReady) {
-      if (mounted) {
+      if (mounted && isCurrent()) {
         setState(() => _initialSessionError = ErrorMessages.profileNotReady);
       }
       return;
@@ -532,7 +531,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       await coupleProvider
           .loadCouple(force: true)
           .timeout(const Duration(seconds: 15));
-      if (!mounted) {
+      if (!mounted || !isCurrent()) {
         return;
       }
 
@@ -541,13 +540,13 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
           '[PageLoad] retry reason=missingSessionDuringRouteTransition page=Swipe',
         );
         await Future<void>.delayed(const Duration(milliseconds: 300));
-        if (!mounted) {
+        if (!mounted || !isCurrent()) {
           return;
         }
         await coupleProvider
             .loadCouple(force: true)
             .timeout(const Duration(seconds: 15));
-        if (!mounted) return;
+        if (!mounted || !isCurrent()) return;
         if (coupleProvider.error != null && !coupleProvider.hasCouple) {
           setState(() => _initialSessionError = coupleProvider.error);
           debugPrint('[PageLoad] error page=Swipe error=${coupleProvider.error}');
@@ -558,11 +557,9 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       final StartupRouteDecision decision = await _appFlow
           .resolveStartupRoute(
             swipeRepository: context.read<SwipeRepository>(),
-            swipeProvider: swipeProvider,
-            coupleProvider: coupleProvider,
           )
           .timeout(const Duration(seconds: 15));
-      if (!mounted) {
+      if (!mounted || !isCurrent()) {
         return;
       }
       if (_isPreSwipeRouteActive) {
@@ -585,6 +582,8 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
         _pairRestartError = null;
       });
 
+      _startupNotice = decision.notice;
+      _resumeSessionId = decision.sessionId;
       if (decision.route == StartupRoute.sessionResumeChoice) {
         debugPrint('[AppFlow] startup resolved -> SessionResumeChoiceScreen');
         setState(() {
@@ -592,6 +591,10 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
               ? _SessionResumeChoiceType.paired
               : _SessionResumeChoiceType.solo;
         });
+      } else if (decision.route == StartupRoute.pairConnection) {
+        swipeProvider.setPairedMode();
+        coupleProvider.startFilterStatePolling(reason: 'startup_pair_setup');
+        setState(() => _showPairConnectionStep = true);
       } else {
         debugPrint('[AppFlow] startup resolved -> ModeSelection');
         swipeProvider.resetToModeSelection();
@@ -601,11 +604,11 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       );
     } catch (e) {
       debugPrint('[PageLoad] error page=Swipe error=$e');
-      if (mounted) {
+      if (mounted && isCurrent()) {
         setState(() => _initialSessionError = 'We couldn’t load your swipe session. Please try again.');
       }
     } finally {
-      if (mounted) {
+      if (mounted && isCurrent()) {
         setState(() {
           _isLoadingInitialSession = false;
         });
@@ -616,6 +619,28 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
   Future<void> _continueActiveSession() async {
     final _SessionResumeChoiceType? choiceType = _sessionResumeChoiceType;
     if (choiceType == null) {
+      return;
+    }
+    final auth = context.read<AuthProvider>();
+    final authVersion = auth.authBoundaryVersion;
+    try {
+      final latest = await _appFlow.resolveStartupRoute(
+        swipeRepository: context.read<SwipeRepository>(),
+      );
+      if (!mounted || !auth.isCurrentAuthBoundary(authVersion)) return;
+      final expectedMode = choiceType == _SessionResumeChoiceType.solo
+          ? AppFlowMode.solo : AppFlowMode.paired;
+      if (latest.route != StartupRoute.sessionResumeChoice ||
+          latest.previousMode != expectedMode ||
+          (_resumeSessionId != null && latest.sessionId != _resumeSessionId)) {
+        await _loadExistingBackendDeckOrStart();
+        return;
+      }
+    } catch (_) {
+      if (!mounted || !auth.isCurrentAuthBoundary(authVersion)) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not check the previous session. Please try again.')),
+      );
       return;
     }
     setState(() => _pairFilterUpdateRequired = false);
@@ -637,8 +662,9 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
         setState(() {});
         return;
       }
-      setState(() => _initialSessionError = 'Could not restore your solo session. Please try again.');
-      debugPrint('[ResumeChoice] solo resume failed');
+      // Availability may change while this screen is open; resolve again.
+      await _loadExistingBackendDeckOrStart();
+      debugPrint('[ResumeChoice] solo resume no longer available; resolved again');
       return;
     }
     await _continuePairedSession();
@@ -1728,6 +1754,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
 
                     if (showModeSelection) {
                       return SwipeModeSelectionScreen(
+                        notice: _startupNotice,
                         onSolo: () {
                           context.read<CoupleProvider>().beginSoloResumeIsolation();
                           _appFlow.logModeSelection(AppFlowMode.solo);

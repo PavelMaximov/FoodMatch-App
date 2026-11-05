@@ -28,6 +28,9 @@ class SwipeRepository {
     });
   }
 
+  Future<dynamic> getSessionResumeState() =>
+      _apiService.get('/api/swipes/resume-state');
+
   Future<dynamic> getActiveSoloSession() =>
       _apiService.get(ApiConstants.soloSwipesActive);
 
@@ -90,13 +93,15 @@ class SwipeRepository {
     String mode = 'all',
     String? scope,
     String? soloSessionId,
+    String? coupleSessionId,
   }) async {
     final List<String> query = <String>['mode=$mode'];
     if (scope != null && scope.isNotEmpty) {
       query.add('scope=$scope');
     }
-    if (soloSessionId != null && soloSessionId.isNotEmpty) {
-      query.add('sessionId=$soloSessionId');
+    final sessionId = mode == 'paired' ? coupleSessionId : soloSessionId;
+    if (sessionId != null && sessionId.isNotEmpty) {
+      query.add('sessionId=${Uri.encodeQueryComponent(sessionId)}');
     }
     final data = await _apiService.get(
       '${ApiConstants.swipeMatches}?${query.join('&')}',

@@ -8,9 +8,20 @@ export class MatchQueryService {
     mode: 'solo' | 'paired' | 'all' = 'all',
     options: { scope?: 'current' | 'all'; sessionId?: string } = {},
   ) {
+    if (mode === 'all') {
+      const pair = await domainRepositories.coupleSessions.findActiveForUser(userId);
+      mode = pair ? 'paired' : 'solo';
+    }
     let rows;
     let resolvedSoloSessionId: string | undefined;
-    if (mode === 'solo' && options.scope === 'current') {
+    if (mode === 'paired') {
+      const session = await domainRepositories.coupleSessions.findActiveForUser(userId);
+      if (options.sessionId && options.sessionId !== session?.id) {
+        throw new AppError('This pair session is no longer current.', 409, 'PAIR_SESSION_CHANGED');
+      }
+      if (!session) return [];
+      rows = await domainRepositories.matches.listForCouple(session.id);
+    } else if (mode === 'solo') {
       const session = options.sessionId
         ? await domainRepositories.soloSessions.findByIdForUser(
             options.sessionId,
@@ -30,10 +41,7 @@ export class MatchQueryService {
         resolvedSoloSessionId,
       );
     } else {
-      rows = await domainRepositories.matches.listForUser(
-        userId,
-        mode === 'all' ? undefined : mode,
-      );
+      return [];
     }
     const dishes = await loadDishesById(rows.map((r) => r.dishId));
     return rows

@@ -26,7 +26,7 @@ void main() {
       ..matches = dishes
           .map(
             (Dish dish) =>
-                MatchItem(dish: dish, mode: 'paired', matchType: 'pair_match'),
+                MatchItem(dish: dish, mode: 'paired', matchType: 'pair_match', sessionId: 'couple-1'),
           )
           .toList();
     fakeCacheService = _FakeCacheService();
@@ -51,11 +51,38 @@ void main() {
     );
   });
 
+  test('new pair rejects old matches even with the same partner or dish', () async {
+    provider.setActiveUser('user-a');
+    provider.setActiveCouple('new-pair');
+    fakeRepo.matches = [
+      MatchItem(id: 'old', dish: dishes.first, mode: 'paired', matchType: 'pair_match', sessionId: 'old-pair'),
+      MatchItem(id: 'new', dish: dishes.first, mode: 'paired', matchType: 'pair_match', sessionId: 'new-pair'),
+    ];
+    await provider.loadMatches();
+    expect(fakeRepo.requestedCouple, 'new-pair');
+    expect(fakeRepo.requestedScope, 'current');
+    expect(provider.matches.single.id, 'new');
+    expect(badgeController.badgeCount, 1);
+  });
+
+  test('offline cache cannot reintroduce another pair history', () async {
+    provider.setActiveUser('user-a');
+    provider.setActiveCouple('new-pair');
+    fakeRepo.holdRequests = true;
+    fakeCacheService.cachedMatches = [
+      MatchItem(id: 'old', dish: dishes.first, mode: 'paired', matchType: 'pair_match', sessionId: 'old-pair'),
+    ];
+    final load = provider.loadMatches();
+    fakeRepo.requests.single.completeError(StateError('offline'));
+    await load;
+    expect(provider.matches, isEmpty);
+  });
+
   test('clearMatches clears matches', () {
     provider.matches = dishes
         .map(
           (Dish dish) =>
-              MatchItem(dish: dish, mode: 'paired', matchType: 'pair_match'),
+              MatchItem(dish: dish, mode: 'paired', matchType: 'pair_match', sessionId: 'couple-1'),
         )
         .toList();
 
@@ -382,6 +409,8 @@ class _FakeSwipeRepository extends SwipeRepository {
   _FakeSwipeRepository() : super(ApiService());
 
   List<MatchItem> matches = <MatchItem>[];
+  String? requestedCouple;
+  String? requestedScope;
   bool holdRequests = false;
   final requests = <Completer<List<MatchItem>>>[];
 
@@ -390,7 +419,10 @@ class _FakeSwipeRepository extends SwipeRepository {
     String mode = 'all',
     String? scope,
     String? soloSessionId,
+    String? coupleSessionId,
   }) {
+    requestedCouple = coupleSessionId;
+    requestedScope = scope;
     if (!holdRequests) return Future.value(matches);
     final completer = Completer<List<MatchItem>>();
     requests.add(completer);

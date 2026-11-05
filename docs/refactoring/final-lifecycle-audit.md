@@ -122,3 +122,37 @@ Continuation creation invalidates old reads and temporarily defers session/filte
 polls. Old filter errors validate their original scope before clearing state, and
 old cleanup cannot detach a newer read. Screen lifecycle polling starts after the
 invitation is created. Added a Flutter regression for 404-during-continuation.
+
+## Follow-up: authoritative resume and current-session matches
+
+The preset-based startup heuristic could label a returning Pair user as Solo when
+another member closed the pair. Startup now reads authenticated/no-store
+GET /api/swipes/resume-state. It selects the user's most recently created real
+Solo/Pair session and returns an action: resume, finish pair connection, or choose
+a new mode. Closed/abandoned sessions are not resumable; their actual mode is not
+replaced with an old preset's mode. A closed pair shows an explanatory mode-choice
+notice. Availability/session identity is rechecked on Continue, and a missing Solo
+session triggers resolution again instead of leaving the user on a dead-end error.
+Network/invalid resume responses are retriable errors, never a guessed mode.
+
+Current matches are scoped by the active pair ID on both server and client.
+Legacy/default all-mode requests resolve to a current mode rather than dumping
+history. Another/closed pair ID is rejected. The client also filters HTTP and
+cached results by pair identity, including previously contaminated cache snapshots.
+Same partner or same dish does not equate to the same session. Existing closed
+session matches remain in history; they are not deleted or copied to the new pair.
+
+Added backend regressions for resume actions, same-partner session isolation,
+stale session IDs and retained historical records. Added Flutter regressions for
+startup decisions, scoped requests and stale offline cache filtering. Full backend
+checks and final focused build/lint/service tests passed; Flutter tests remain local.
+
+Deploy/restart backend before running the updated Flutter client (new resume-state
+route). No SQL migration is required. Manual acceptance:
+1. A logs out of Pair; B chooses Start new and optionally starts Solo/new Pair.
+   A signs back in: the closed previous Pair must lead to mode selection, not Solo
+   continuation. Also change availability while A's resume screen is open.
+2. Start a new Pair with the same partner: current matches/badge begin empty, old
+   matches remain in history; a newly repeated mutual like belongs to the new pair.
+3. Repeat the new-pair view offline to check cached historical matches stay hidden.
+4. Check completed Solo resume and restoration of a one-member pair invite-code setup.
