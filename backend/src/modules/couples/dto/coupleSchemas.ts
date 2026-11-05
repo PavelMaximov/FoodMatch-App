@@ -5,8 +5,11 @@ export const joinCoupleSchema = z.object({
   replaceEmptyCurrentSession: z.boolean().optional().default(false)
 }).strict();
 
+export const pairScopeSchema = z.object({ sessionId: z.string().uuid().optional(), generation: z.number().int().nonnegative().optional() }).strict();
+
 const stringList = z.array(z.string().trim().max(80));
 const rawCoupleFilterChoicesSchema = z.object({
+  ...pairScopeSchema.shape,
   includeCustomDishesFirst: z.boolean().optional(),
   selectedCategories: stringList.optional(),
   dishRegisters: stringList.optional(),
@@ -48,6 +51,8 @@ export const coupleFilterChoicesSchema = rawCoupleFilterChoicesSchema.transform(
     (typeof value.cuisine === 'string' ? [value.cuisine] : value.cuisine ?? []);
   const selectedCuisines = normalizedList(cuisineInput);
   return {
+    sessionId: value.sessionId,
+    generation: value.generation,
     includeCustomDishesFirst: custom.length === 1 || value.includeCustomDishesFirst === true,
     selectedCategories,
     dishRegisters: selectedCategories,
@@ -67,8 +72,8 @@ export const coupleFilterChoicesSchema = rawCoupleFilterChoicesSchema.transform(
   };
 });
 
-const wrapped = (key: 'choices' | 'filter' | 'filters') => z.object({ [key]: rawCoupleFilterChoicesSchema }).strict()
-  .transform((value) => value[key]).pipe(coupleFilterChoicesSchema);
+const wrapped = (key: 'choices' | 'filter' | 'filters') => z.object({ ...pairScopeSchema.shape, [key]: rawCoupleFilterChoicesSchema }).strict()
+  .transform((value) => ({ ...(value as Record<string, any>)[key], sessionId: value.sessionId, generation: value.generation })).pipe(coupleFilterChoicesSchema);
 
 export const updateCoupleFilterStateSchema = z.union([
   rawCoupleFilterChoicesSchema.pipe(coupleFilterChoicesSchema),
