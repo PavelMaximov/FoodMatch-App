@@ -354,22 +354,30 @@ class CoupleProvider extends ChangeNotifier {
   }
 
   Future<Map<String, dynamic>?> requestDeckRestart() async {
+    final requestVersion = _sessionStateVersion;
+    final requestUserId = _activeUserId;
+    final requestCoupleId = currentCouple?.id;
     try {
       error = null;
       final Map<String, dynamic> status = await _repository
-          .requestDeckRestart();
+          .requestDeckRestart(sessionId: currentCouple?.id);
+      if (!_isCurrentSession(requestVersion, requestUserId, coupleId: requestCoupleId) ||
+          (status['sessionId'] != null && status['sessionId'] != requestCoupleId)) return null;
       if (status['allRequested'] == true) {
-        _filterState = const CoupleFilterState(
-          myChoices: CoupleFilterChoices(),
+        _filterState = CoupleFilterState(
+          myChoices: const CoupleFilterChoices(),
           bothConfirmed: false,
           compatibility: 0,
           status: 'draft',
+          sessionId: requestCoupleId,
+          generation: (status['filterGeneration'] as num?)?.toInt() ?? _filterGeneration,
         );
         _sessionStateVersion++;
       }
       _safeNotify();
       return status;
     } catch (e) {
+      if (!_isCurrentSession(requestVersion, requestUserId, coupleId: requestCoupleId)) return null;
       error = _mapError(e);
       _safeNotify();
       return null;
@@ -377,21 +385,29 @@ class CoupleProvider extends ChangeNotifier {
   }
 
   Future<Map<String, dynamic>?> getDeckRestartStatus() async {
+    final requestVersion = _sessionStateVersion;
+    final requestUserId = _activeUserId;
+    final requestCoupleId = currentCouple?.id;
     try {
       final Map<String, dynamic> status = await _repository
           .getDeckRestartStatus();
+      if (!_isCurrentSession(requestVersion, requestUserId, coupleId: requestCoupleId) ||
+          (status['sessionId'] != null && status['sessionId'] != requestCoupleId)) return null;
       if (status['allRequested'] == true) {
-        _filterState = const CoupleFilterState(
-          myChoices: CoupleFilterChoices(),
+        _filterState = CoupleFilterState(
+          myChoices: const CoupleFilterChoices(),
           bothConfirmed: false,
           compatibility: 0,
           status: 'draft',
+          sessionId: requestCoupleId,
+          generation: (status['filterGeneration'] as num?)?.toInt() ?? _filterGeneration,
         );
         _sessionStateVersion++;
       }
       _safeNotify();
       return status;
     } catch (e) {
+      if (!_isCurrentSession(requestVersion, requestUserId, coupleId: requestCoupleId)) return null;
       error = _mapError(e);
       _safeNotify();
       return null;
@@ -405,7 +421,7 @@ class CoupleProvider extends ChangeNotifier {
     _safeNotify();
     try {
       await _repository.reset();
-      await _repository.resetFilterState();
+      await _repository.resetFilterState(sessionId: currentCouple?.id);
       await _refreshCurrentCoupleAfterReset();
     } catch (e) {
       error = _mapError(e);
@@ -428,7 +444,7 @@ class CoupleProvider extends ChangeNotifier {
     final int requestVersion = _sessionStateVersion;
     final String? requestUserId = _activeUserId;
     try {
-      await _repository.leave();
+      await _repository.leave(sessionId: currentCouple?.id);
       if (!_isCurrentSession(requestVersion, requestUserId)) return;
       _clearSessionState();
     } catch (e) {
@@ -445,6 +461,13 @@ class CoupleProvider extends ChangeNotifier {
     }
   }
 
+  int get _filterGeneration {
+    final state = _filterState;
+    return state != null && state.sessionId == currentCouple?.id
+        ? state.generation
+        : currentCouple?.lifecycleGeneration ?? 0;
+  }
+
   Future<void> saveMyChoices({
     required List<String> dishRegisters,
     required bool includeCustomDishesFirst,
@@ -455,7 +478,7 @@ class CoupleProvider extends ChangeNotifier {
   }) async {
     final int requestVersion = _sessionStateVersion;
     final String? requestUserId = _activeUserId;
-    _filterState = await _repository.updateMyFilterState(
+    final savedState = await _repository.updateMyFilterState(
       CoupleFilterChoices(
         dishRegisters: dishRegisters,
         includeCustomDishesFirst: includeCustomDishesFirst,
@@ -464,9 +487,12 @@ class CoupleProvider extends ChangeNotifier {
         diet: diet,
         exclusions: exclusions,
       ),
+      sessionId: currentCouple?.id,
+      generation: _filterGeneration,
     );
     if (!_isCurrentSession(requestVersion, requestUserId)) return;
     _sessionStateVersion++;
+    _filterState = savedState;
     AppLogger.info('[CoupleFilterState] saved my choices');
     AppLogger.info('[Cache] prepared deck invalidated reason=filters-change');
     _safeNotify();
@@ -504,12 +530,14 @@ class CoupleProvider extends ChangeNotifier {
         ingredients: ingredients,
         season: season,
       ),
+      sessionId: currentCouple?.id,
+      generation: _filterGeneration,
     );
     if (!_isCurrentSession(requestVersion, requestUserId)) return;
     _filterState = savedState;
 
     final CoupleFilterState confirmedState = await _repository
-        .confirmMyFilterState();
+        .confirmMyFilterState(sessionId: currentCouple?.id, generation: _filterGeneration);
     if (!_isCurrentSession(requestVersion, requestUserId)) return;
     _filterState = confirmedState;
     _sessionStateVersion++;
@@ -526,8 +554,9 @@ class CoupleProvider extends ChangeNotifier {
     }
     final int requestVersion = _sessionStateVersion;
     final String? requestUserId = _activeUserId;
-    _filterState = await _repository.confirmMyFilterState();
+    final confirmedState = await _repository.confirmMyFilterState(sessionId: currentCouple?.id, generation: _filterGeneration);
     if (!_isCurrentSession(requestVersion, requestUserId)) return;
+    _filterState = confirmedState;
     _safeNotify();
   }
 

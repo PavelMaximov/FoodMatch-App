@@ -367,7 +367,7 @@ class _FakeCoupleRepository extends CoupleRepository {
       : currentCouple;
 
   @override
-  Future<void> leave() async {
+  Future<void> leave({String? sessionId}) async {
     didLeave = true;
     if (leaveError != null) throw leaveError!;
   }
