@@ -1,3 +1,4 @@
+import { lockActivePair, lockSessionUsers, PairScope } from './pairSessionGuard';
 import { AppError } from '../../../core/errors/AppError';
 import { generateInviteCode } from '../../../core/utils/inviteCode';
 import { PairFilterStateRecord } from '../../../domain/repositories/CoupleSessionRepository';
@@ -29,6 +30,12 @@ export class CoupleService {
     return s ? this.dto(s) : null;
   }
   async createSession(userId: string) {
+    return withPostgresTransaction(async () => {
+      await lockSessionUsers([userId]);
+      return this.createSessionLocked(userId);
+    });
+  }
+  private async createSessionLocked(userId: string) {
     if (await domainRepositories.soloSessions.findActive(userId))
       throw new AppError(
         'Please finish or leave your solo session before starting a pair session.',
@@ -50,9 +57,8 @@ export class CoupleService {
   }
   async joinSession(userId: string, code: string, o: JoinSessionOptions = {}) {
     return withPostgresTransaction(async () => {
-      await queryPostgres('select pg_advisory_xact_lock(hashtext($1))', [
-        `session-user:${userId}`,
-      ]);
+      const target = await domainRepositories.coupleSessions.findByInviteCode(code.trim().toUpperCase());
+      await lockSessionUsers([userId, ...(target?.memberIds ?? [])]);
       await queryPostgres(
         'select id from couple_sessions where invite_code=$1 for update',
         [code.trim().toUpperCase()],
@@ -121,9 +127,16 @@ export class CoupleService {
     });
     return this.dto(s!);
   }
-  async markPartnerDisconnected(userId: string) {
-    const s = await domainRepositories.coupleSessions.findActiveForUser(userId);
+  async markPartnerDisconnected(userId: string, scope: PairScope = {}) {
+    return withPostgresTransaction(async () => {
+      await lockSessionUsers([userId]);
+      return this.disconnectLocked(userId, scope);
+    });
+  }
+  private async disconnectLocked(userId: string, scope: PairScope) {
+    let s = await domainRepositories.coupleSessions.findActiveForUser(userId);
     if (!s) return { status: 'none' };
+    s = await lockActivePair(userId, { ...scope, sessionId: scope.sessionId ?? s.id });
     const generation =
       Number((s.pairLifecycleState as any).generation ?? 0) + 1;
     await domainRepositories.coupleSessions.clearFilterStates(s.id);
@@ -162,28 +175,23 @@ export class CoupleService {
       generation,
     };
   }
-  private async lockFilterSession(userId: string) {
-    const session = await this.require(userId);
-    await queryPostgres(
-      'select id from couple_sessions where id=$1 for update',
-      [session.id],
-    );
-    return this.require(userId);
+  private async lockFilterSession(userId: string, scope: PairScope = {}) {
+    return lockActivePair(userId, scope);
   }
-  async leaveSession(userId: string) {
-    const session =
-      await domainRepositories.coupleSessions.findActiveForUser(userId);
-    if (!session) return { message: 'No active session', alreadyLeft: true };
-    // Continuation invitations may reference even a one-member waiting session.
-    // Closing releases its active slot without breaking those foreign keys.
-    await this.closeForHistory(session);
-    return { message: 'Left session', left: true, sessionDeleted: false };
+  async leaveSession(userId: string, scope: PairScope = {}) {
+    return withPostgresTransaction(async () => {
+      await lockSessionUsers([userId]);
+      const active = await domainRepositories.coupleSessions.findActiveForUser(userId);
+      if (!active) return { message: 'No active session', alreadyLeft: true };
+      const session = await lockActivePair(userId, scope);
+      await this.closeForHistory(session);
+      return { message: 'Left session', left: true, sessionDeleted: false };
+    });
   }
-
   async closeActiveSession(userId: string) {
     const session =
       await domainRepositories.coupleSessions.findActiveForUser(userId);
-    if (session) await this.closeForHistory(session);
+    if (session) await this.closeForHistory(await lockActivePair(userId, { sessionId: session.id }));
   }
 
   private async closeForHistory(session: CoupleSessionRecord) {
@@ -216,14 +224,14 @@ export class CoupleService {
   async getFilterState(userId: string) {
     return this.filterResponse(await this.require(userId), userId);
   }
-  async updateMyFilterState(userId: string, p: CoupleFilterStatePayload) {
+  async updateMyFilterState(userId: string, p: CoupleFilterStatePayload, scope: PairScope = {}) {
     await requireAdvancedFilterAccess(
       userId,
       p.choices ?? p.filter ?? p.filters ?? p,
     );
     return withPostgresTransaction(async () => {
       const started = Date.now(),
-        s = await this.lockFilterSession(userId),
+        s = await this.lockFilterSession(userId, scope),
         filters = normalizeCoupleFilterStatePayload(p);
       const states = await domainRepositories.coupleSessions.listFilterStates(
         s.id,
@@ -260,7 +268,6 @@ export class CoupleService {
       await domainRepositories.coupleSessions.update(s.id, {
         preparedDeckDishIds: [],
         preparedDeckMeta: { status: 'idle' },
-        restartState: idle(),
       });
       const response = await this.filterResponse(
         (await domainRepositories.coupleSessions.findById(s.id))!,
@@ -271,9 +278,9 @@ export class CoupleService {
       return response;
     });
   }
-  async confirmMyFilterState(userId: string) {
+  async confirmMyFilterState(userId: string, scope: PairScope = {}) {
     return withPostgresTransaction(async () => {
-      const s = await this.lockFilterSession(userId),
+      const s = await this.lockFilterSession(userId, scope),
         states = await domainRepositories.coupleSessions.listFilterStates(s.id),
         mine = states.find((x) => x.userId === userId);
       await requireAdvancedFilterAccess(userId, mine?.filters ?? {});
@@ -286,14 +293,16 @@ export class CoupleService {
       return this.filterResponse(s, userId);
     });
   }
-  async resetFilterState(userId: string) {
-    const s = await this.require(userId);
-    await domainRepositories.coupleSessions.clearFilterStates(s.id);
-    await domainRepositories.coupleSessions.update(s.id, {
-      preparedDeckDishIds: [],
-      preparedDeckMeta: { status: 'idle' },
+  async resetFilterState(userId: string, scope: PairScope = {}) {
+    return withPostgresTransaction(async () => {
+      const s = await lockActivePair(userId, scope);
+      await domainRepositories.coupleSessions.clearFilterStates(s.id);
+      await domainRepositories.coupleSessions.update(s.id, {
+        preparedDeckDishIds: [],
+        preparedDeckMeta: { status: 'idle' },
+      });
+      return this.filterResponse(s, userId);
     });
-    return this.filterResponse(s, userId);
   }
   private async filterResponse(s: CoupleSessionRecord, u: string) {
     const states = await domainRepositories.coupleSessions.listFilterStates(
@@ -308,6 +317,8 @@ export class CoupleService {
       partner = states.find((x) => x.userId !== u),
       both = Boolean(partner && mine.confirmed && partner.confirmed);
     return {
+      sessionId: s.id,
+      generation: Number(s.pairLifecycleState.generation ?? 0),
       myChoices: {
         ...(mine.filters as any),
         confirmed: mine.confirmed,

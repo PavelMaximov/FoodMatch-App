@@ -153,6 +153,9 @@ class _RecipeContent extends StatelessWidget {
     final FoodMatchThemeColors colors = context.fmColors;
     final EdgeInsets safePadding = MediaQuery.paddingOf(context);
     final List<_IngredientDisplayRow> ingredientRows = _buildIngredientRows(dish, measurementSystem);
+    final bool groceryListLocked = !context.watch<PremiumProvider>().canAddRecipeIngredients(
+      shared: context.watch<ShoppingListProvider>().isShared,
+    );
     final List<ShoppingListIngredientInput> shoppingIngredients =
         _buildShoppingIngredients(dish, measurementSystem);
 
@@ -212,9 +215,9 @@ class _RecipeContent extends StatelessWidget {
                         dimension: 17,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.add_rounded, size: 21),
+                    : Icon(groceryListLocked ? Icons.lock_outline_rounded : Icons.add_rounded, size: 21),
                 label: Text(
-                  'Add ingredients to the grocery list',
+                  groceryListLocked ? 'Grocery list · Premium' : 'Add ingredients to the grocery list',
                   style: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w800),
                 ),
               ),

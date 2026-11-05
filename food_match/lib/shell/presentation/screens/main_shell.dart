@@ -331,16 +331,16 @@ class _MainShellState extends State<MainShell>
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      isDismissible: true,
-      enableDrag: true,
+      isDismissible: false,
+      enableDrag: false,
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black.withValues(alpha: 0.58),
       builder: (BuildContext sheetContext) => ContinuationInvitationSheet(
         invitation: invitation,
         onJoin: () async {
-          Navigator.pop(sheetContext);
           await coupleProvider.acceptInvitation(invitation);
-          if (!mounted) return;
+          if (!mounted || !sheetContext.mounted) return;
+          Navigator.pop(sheetContext);
           widget.navigationShell.goBranch(2);
           FoodMatchNotifications.show(
             context,
@@ -349,9 +349,9 @@ class _MainShellState extends State<MainShell>
           );
         },
         onDecline: () async {
-          Navigator.pop(sheetContext);
           await coupleProvider.declineInvitation(invitation);
-          if (!mounted) return;
+          if (!mounted || !sheetContext.mounted) return;
+          Navigator.pop(sheetContext);
           FoodMatchNotifications.show(
             context,
             type: FoodMatchNotificationType.info,

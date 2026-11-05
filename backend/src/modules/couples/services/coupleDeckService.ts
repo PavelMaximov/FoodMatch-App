@@ -1,3 +1,4 @@
+import { lockActivePair, PairScope } from './pairSessionGuard';
 import { AppError } from '../../../core/errors/AppError';
 import { CoupleSessionRecord } from '../../../domain/repositories/types';
 import {
@@ -10,8 +11,8 @@ import {
   postgresDishId,
 } from '../../../shared/db/dishIdMapping';
 import {
-  queryPostgres,
   withPostgresAdvisoryLock,
+  withPostgresTransaction,
 } from '../../../shared/db/postgresClient';
 import { toDishDto } from '../../dishes/dto/dishDto';
 import { buildPairSharedRecommendedDeck } from '../../recommendations/deckRecommendationService';
@@ -38,20 +39,15 @@ export class CoupleDeckService {
     if (existing) return existing;
     const flight = withPostgresAdvisoryLock(
       `pair-deck:${key}:weighted_category_cuisine_v1`,
-      () => this.computeDeck(userId),
+      () => this.computeDeck(userId, session.id),
     ).finally(() => prepareFlights.delete(key));
     prepareFlights.set(key, flight);
     const result = await flight;
     this.timing('total', Date.now() - total);
     return result;
   }
-  private async computeDeck(userId: string) {
-    const initial = await this.require(userId);
-    await queryPostgres(
-      'select id from couple_sessions where id=$1 for update',
-      [initial.id],
-    );
-    const s = await this.require(userId),
+  private async computeDeck(userId: string, expectedSessionId: string) {
+    const s = await lockActivePair(userId, { sessionId: expectedSessionId }),
       filterStarted = Date.now(),
       choices = await this.choices(s);
     this.timing('filter load', Date.now() - filterStarted);
@@ -124,6 +120,7 @@ export class CoupleDeckService {
       pairLifecycleState: { ...s.pairLifecycleState, status: 'active' },
       preparedDeckDishIds: ids,
       preparedDeckFiltersHash: hash,
+      restartState: { requestedBy: [], status: 'idle', generation: Number(s.restartState?.generation ?? 0) },
       preparedDeckGeneration: s.preparedDeckGeneration + 1,
       preparedDeckMeta: {
         status: 'ready',
@@ -179,46 +176,41 @@ export class CoupleDeckService {
     );
     return this.empty(f, createFiltersHash(f));
   }
-  async requestDeckRestart(userId: string) {
-    const s = await this.require(userId);
-    return this.restart(s, userId, true);
-  }
-  async getDeckRestartStatus(userId: string) {
-    const s = await this.require(userId);
-    return this.restart(s, userId, false);
-  }
-  private async restart(s: CoupleSessionRecord, u: string, record: boolean) {
-    const old = s.restartState as any,
-      requested: string[] = [...(old.requestedBy ?? [])];
-    if (record && !requested.includes(u)) requested.push(u);
-    const ready =
-        s.memberIds.length >= 2 &&
-        s.memberIds.every((x) => requested.includes(x)),
-      generation = Number(old.generation ?? 0) + (ready ? 1 : 0),
-      state = {
-        requestedBy: ready ? [] : requested,
-        status: ready ? 'ready' : requested.length ? 'waiting' : 'idle',
-        generation,
+  async requestDeckRestart(userId: string, scope: PairScope = {}) {
+    return withPostgresTransaction(async () => {
+      const s = await lockActivePair(userId, scope);
+      const old = s.restartState as any;
+      if (old.status === 'ready') return this.restartResponse(s);
+      const requested = [...new Set([...(old.requestedBy ?? []), userId])];
+      const ready = s.memberIds.length === 2 && s.memberIds.every((id) => requested.includes(id));
+      const state = {
+        requestedBy: requested,
+        status: ready ? 'ready' : 'waiting',
+        generation: Number(old.generation ?? 0) + (ready ? 1 : 0),
         updatedAt: new Date(),
       };
-    if (ready) {
-      await domainRepositories.coupleSessions.clearFilterStates(s.id);
-      await domainRepositories.coupleSessions.update(s.id, {
+      if (ready) await domainRepositories.coupleSessions.clearFilterStates(s.id);
+      const updated = await domainRepositories.coupleSessions.update(s.id, {
         restartState: state,
-        preparedDeckDishIds: [],
-        preparedDeckFiltersHash: null,
-        preparedDeckMeta: { status: 'idle' },
+        ...(ready ? {
+          preparedDeckDishIds: [], preparedDeckFiltersHash: null, preparedDeckMeta: { status: 'idle' },
+          pairLifecycleState: { ...s.pairLifecycleState, generation: Number(s.pairLifecycleState.generation ?? 0) + 1 },
+        } : {}),
       });
-    } else
-      await domainRepositories.coupleSessions.update(s.id, {
-        restartState: state,
-      });
+      return this.restartResponse(updated!);
+    });
+  }
+  async getDeckRestartStatus(userId: string) {
+    // Polling is read-only. Both partners must observe the same durable decision.
+    return this.restartResponse(await this.require(userId));
+  }
+  private restartResponse(s: CoupleSessionRecord) {
+    const state = s.restartState as any;
     return {
-      status: state.status,
-      requestedBy: state.requestedBy,
-      requiredUserIds: s.memberIds,
-      allRequested: ready,
-      generation,
+      status: state.status ?? 'idle', requestedBy: state.requestedBy ?? [],
+      requiredUserIds: s.memberIds, allRequested: state.status === 'ready',
+      generation: Number(state.generation ?? 0), sessionId: s.id,
+      filterGeneration: Number(s.pairLifecycleState.generation ?? 0),
     };
   }
   private async choices(s: CoupleSessionRecord): Promise<Choice[]> {
