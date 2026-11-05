@@ -10,6 +10,7 @@ import { createSwipeSchema } from '../dto/swipeSchemas';
 const router = Router();
 
 router.post('/', authMiddleware, swipeRateLimiter, validateBody(createSwipeSchema), asyncHandler(swipeController.create.bind(swipeController)));
+router.get('/resume-state', authMiddleware, noStore, asyncHandler(swipeController.resumeState.bind(swipeController)));
 router.get('/matches', authMiddleware, noStore, asyncHandler(swipeController.matches.bind(swipeController)));
 router.get('/history', authMiddleware, asyncHandler(swipeController.history.bind(swipeController)));
 

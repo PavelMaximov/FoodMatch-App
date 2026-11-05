@@ -47,6 +47,9 @@ class ShoppingListProvider extends ChangeNotifier {
 
   final ShoppingListStorage _storage;
   final SharedShoppingListRepository? _sharedRepository;
+  ShoppingListStorage? _userStorage;
+  String? _activeUserId;
+  int? _authBoundaryVersion;
   String? _sharedSessionId;
   int _scopeGeneration = 0;
   bool _disposed = false;
@@ -62,8 +65,27 @@ class ShoppingListProvider extends ChangeNotifier {
       _items.where((ShoppingListItem item) => item.checked).length;
   bool get isLoaded => _isLoaded;
 
+  void setActiveUser(String? userId, {required int authBoundaryVersion}) {
+    if (_disposed ||
+        (_activeUserId == userId && _authBoundaryVersion == authBoundaryVersion)) {
+      return;
+    }
+    _activeUserId = userId;
+    _authBoundaryVersion = authBoundaryVersion;
+    _userStorage = userId == null ? null : _storage.forUser(userId);
+    _sharedSessionId = null;
+    _scopeGeneration++;
+    _items.clear();
+    _isLoaded = false;
+    _loadFuture = null;
+    notifyListeners();
+  }
+
   Future<void> load() async {
-    if (_disposed || _isLoaded) return;
+    if (_disposed || _isLoaded ||
+        (_authBoundaryVersion != null && _activeUserId == null)) {
+      return;
+    }
     if (_loadFuture != null) return _loadFuture;
     final generation = _scopeGeneration;
     final sessionId = _sharedSessionId;
@@ -76,8 +98,11 @@ class ShoppingListProvider extends ChangeNotifier {
     }
   }
 
+  bool get _canAccessScope => !_disposed &&
+      (_authBoundaryVersion == null || _activeUserId != null);
+
   bool _isCurrentScope(int generation, String? sessionId) =>
-      !_disposed &&
+      _canAccessScope &&
       generation == _scopeGeneration &&
       sessionId == _sharedSessionId;
 
@@ -100,7 +125,7 @@ class ShoppingListProvider extends ChangeNotifier {
 
   Future<void> _loadForScope(int generation, String? sessionId) async {
     final loaded = sessionId == null
-        ? await _storage.load()
+        ? await (_userStorage ?? _storage).load()
         : await _sharedRepository?.load() ?? <ShoppingListItem>[];
     if (!_isCurrentScope(generation, sessionId)) return;
     _items
@@ -116,6 +141,7 @@ class ShoppingListProvider extends ChangeNotifier {
     String? quantity,
     String? measure,
   }) async {
+    if (!_canAccessScope) return;
     if (isShared && _sharedRepository != null) {
       final generation = _scopeGeneration;
       final loaded = await _sharedRepository.add(
@@ -132,7 +158,10 @@ class ShoppingListProvider extends ChangeNotifier {
       }
       return;
     }
+    final generation = _scopeGeneration;
+    final sessionId = _sharedSessionId;
     await load();
+    if (!_isCurrentScope(generation, sessionId)) return;
     final String cleanName = name.trim();
     if (cleanName.isEmpty) return;
     final String normalized = _normalize(cleanName);
@@ -173,6 +202,7 @@ class ShoppingListProvider extends ChangeNotifier {
     String? sourceDishId,
     String? sourceDishName,
   }) async {
+    if (!_canAccessScope) return 0;
     if (isShared && _sharedRepository != null) {
       final generation = _scopeGeneration;
       var added = 0;
@@ -196,7 +226,10 @@ class ShoppingListProvider extends ChangeNotifier {
       }
       return added;
     }
+    final generation = _scopeGeneration;
+    final sessionId = _sharedSessionId;
     await load();
+    if (!_isCurrentScope(generation, sessionId)) return 0;
     int added = 0;
     bool updated = false;
     for (final ShoppingListIngredientInput ingredient in ingredients) {
@@ -255,6 +288,7 @@ class ShoppingListProvider extends ChangeNotifier {
   );
 
   Future<void> toggleChecked(String id) async {
+    if (!_canAccessScope) return;
     if (isShared && _sharedRepository != null) {
       final item = _items.firstWhere((item) => item.id == id);
       final generation = _scopeGeneration;
@@ -275,6 +309,7 @@ class ShoppingListProvider extends ChangeNotifier {
   }
 
   Future<void> removeItem(String id) async {
+    if (!_canAccessScope) return;
     if (isShared && _sharedRepository != null) {
       final generation = _scopeGeneration;
       final loaded = await _sharedRepository.remove(id);
@@ -286,47 +321,68 @@ class ShoppingListProvider extends ChangeNotifier {
       }
       return;
     }
+    final generation = _scopeGeneration;
+    final sessionId = _sharedSessionId;
     await load();
+    if (!_isCurrentScope(generation, sessionId)) return;
     _items.removeWhere((ShoppingListItem item) => item.id == id);
     await _renumberAndPersist();
   }
 
   Future<void> clearCompleted() async {
+    if (!_canAccessScope) return;
+    final batchGeneration = _scopeGeneration;
     if (isShared) {
       for (final item in List<ShoppingListItem>.from(
         _items.where((item) => item.checked),
       )) {
+        if (_disposed || batchGeneration != _scopeGeneration) return;
         await removeItem(item.id);
       }
       return;
     }
+    final generation = _scopeGeneration;
+    final sessionId = _sharedSessionId;
     await load();
+    if (!_isCurrentScope(generation, sessionId)) return;
     _items.removeWhere((ShoppingListItem item) => item.checked);
     await _renumberAndPersist();
   }
 
   Future<void> clearAll() async {
+    if (!_canAccessScope) return;
+    final batchGeneration = _scopeGeneration;
     if (isShared) {
       for (final item in List<ShoppingListItem>.from(_items)) {
+        if (_disposed || batchGeneration != _scopeGeneration) return;
         await removeItem(item.id);
       }
       return;
     }
+    final generation = _scopeGeneration;
+    final sessionId = _sharedSessionId;
     await load();
+    if (!_isCurrentScope(generation, sessionId)) return;
     _items.clear();
     await _persist();
   }
 
   Future<void> resetChecked() async {
+    if (!_canAccessScope) return;
+    final batchGeneration = _scopeGeneration;
     if (isShared && _sharedRepository != null) {
       for (final item in List<ShoppingListItem>.from(
         _items.where((item) => item.checked),
       )) {
+        if (_disposed || batchGeneration != _scopeGeneration) return;
         await toggleChecked(item.id);
       }
       return;
     }
+    final generation = _scopeGeneration;
+    final sessionId = _sharedSessionId;
     await load();
+    if (!_isCurrentScope(generation, sessionId)) return;
     final DateTime now = DateTime.now();
     for (int index = 0; index < _items.length; index++) {
       if (_items[index].checked) {
@@ -337,6 +393,7 @@ class ShoppingListProvider extends ChangeNotifier {
   }
 
   Future<void> reorder(int oldIndex, int newIndex) async {
+    if (!_canAccessScope) return;
     final generation = _scopeGeneration;
     final sessionId = _sharedSessionId;
     await load();
@@ -368,7 +425,10 @@ class ShoppingListProvider extends ChangeNotifier {
     String id,
     ShoppingListItem Function(ShoppingListItem item) update,
   ) async {
+    final generation = _scopeGeneration;
+    final sessionId = _sharedSessionId;
     await load();
+    if (!_isCurrentScope(generation, sessionId)) return;
     final int index = _items.indexWhere(
       (ShoppingListItem item) => item.id == id,
     );
@@ -385,9 +445,13 @@ class ShoppingListProvider extends ChangeNotifier {
   }
 
   Future<void> _persist() async {
-    if (_disposed || isShared) return;
-    await _storage.save(List<ShoppingListItem>.from(_items));
-    if (!_disposed) notifyListeners();
+    if (_disposed || isShared ||
+        (_authBoundaryVersion != null && _activeUserId == null)) {
+      return;
+    }
+    final generation = _scopeGeneration;
+    await (_userStorage ?? _storage).save(List<ShoppingListItem>.from(_items));
+    if (!_disposed && generation == _scopeGeneration) notifyListeners();
   }
 
   @override

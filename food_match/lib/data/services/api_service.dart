@@ -8,6 +8,7 @@ import 'package:http_parser/http_parser.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/constants/api_constants.dart';
+import '../../core/async/single_flight.dart';
 import '../../core/config/backend_api_config.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/security/certificate_pinning_http_client.dart';
@@ -37,10 +38,30 @@ class ApiService {
       error.runtimeType.toString() == 'SocketException';
 
   String? _token;
-  Future<bool>? _refreshFuture;
+  final _tokenRefresh = SingleFlight<bool>();
   DateTime? _lastRequestTime;
   Future<void> Function()? onUnauthorized;
   bool _handlingUnauthorized = false;
+  int _authBoundaryVersion = 0;
+
+  void invalidateAuthRequests() {
+    _authBoundaryVersion++;
+    _tokenRefresh.invalidate();
+  }
+
+  void Function() _captureRequestScope() {
+    final version = _authBoundaryVersion;
+    final userId = _supabase?.auth.currentUser?.id;
+    final accessToken = _currentAccessToken;
+    return () {
+      final sameIdentity = userId != null
+          ? _supabase?.auth.currentUser?.id == userId
+          : _currentAccessToken == accessToken;
+      if (version != _authBoundaryVersion || !sameIdentity) {
+        throw const ApiException('Account changed. Please try again.', code: 'REQUEST_SCOPE_CHANGED');
+      }
+    };
+  }
 
   String? get token => _token;
 
@@ -94,18 +115,20 @@ class ApiService {
   }
 
   Future<dynamic> get(String endpoint) async {
+    final assertCurrentScope = _captureRequestScope();
     final uri = _backendUri('GET', endpoint);
     try {
       await _throttle();
       AppLogger.api('GET', uri.toString());
       final stopwatch = Stopwatch()..start();
       var response = await _requestWithRetry(
-        () => _client.get(uri, headers: _getHeaders()),
+        () => _client.get(uri, headers: _getHeaders(assertCurrentScope: assertCurrentScope)),
       );
       response = await _refreshAndRetryIfUnauthorized(
         endpoint,
         response,
-        () => _client.get(uri, headers: _getHeaders()),
+        assertCurrentScope,
+        () => _client.get(uri, headers: _getHeaders(assertCurrentScope: assertCurrentScope)),
       );
       stopwatch.stop();
       AppLogger.api(
@@ -116,6 +139,7 @@ class ApiService {
         body: response.body,
         errorType: _friendlyErrorType(endpoint, response),
       );
+      assertCurrentScope();
       return _handleResponse(response);
     } on TimeoutException {
       throw const ApiException(AppStrings.requestTimeout);
@@ -129,18 +153,20 @@ class ApiService {
   }
 
   Future<dynamic> post(String endpoint, Map<String, dynamic> body) async {
+    final assertCurrentScope = _captureRequestScope();
     final uri = _backendUri('POST', endpoint);
     try {
       await _throttle();
       AppLogger.api('POST', uri.toString());
       final stopwatch = Stopwatch()..start();
       var response = await _requestWithRetry(
-        () => _client.post(uri, headers: _getHeaders(), body: jsonEncode(body)),
+        () => _client.post(uri, headers: _getHeaders(assertCurrentScope: assertCurrentScope), body: jsonEncode(body)),
       );
       response = await _refreshAndRetryIfUnauthorized(
         endpoint,
         response,
-        () => _client.post(uri, headers: _getHeaders(), body: jsonEncode(body)),
+        assertCurrentScope,
+        () => _client.post(uri, headers: _getHeaders(assertCurrentScope: assertCurrentScope), body: jsonEncode(body)),
       );
       stopwatch.stop();
       AppLogger.api(
@@ -151,6 +177,7 @@ class ApiService {
         body: response.body,
         errorType: _friendlyErrorType(endpoint, response),
       );
+      assertCurrentScope();
       return _handleResponse(response);
     } on TimeoutException {
       throw const ApiException(AppStrings.requestTimeout);
@@ -173,18 +200,20 @@ class ApiService {
   }
 
   Future<dynamic> put(String endpoint, Map<String, dynamic> body) async {
+    final assertCurrentScope = _captureRequestScope();
     final uri = _backendUri('PUT', endpoint);
     try {
       await _throttle();
       AppLogger.api('PUT', uri.toString());
       final stopwatch = Stopwatch()..start();
       var response = await _requestWithRetry(
-        () => _client.put(uri, headers: _getHeaders(), body: jsonEncode(body)),
+        () => _client.put(uri, headers: _getHeaders(assertCurrentScope: assertCurrentScope), body: jsonEncode(body)),
       );
       response = await _refreshAndRetryIfUnauthorized(
         endpoint,
         response,
-        () => _client.put(uri, headers: _getHeaders(), body: jsonEncode(body)),
+        assertCurrentScope,
+        () => _client.put(uri, headers: _getHeaders(assertCurrentScope: assertCurrentScope), body: jsonEncode(body)),
       );
       stopwatch.stop();
       AppLogger.api(
@@ -195,6 +224,7 @@ class ApiService {
         body: response.body,
         errorType: _friendlyErrorType(endpoint, response),
       );
+      assertCurrentScope();
       return _handleResponse(response);
     } on TimeoutException {
       throw const ApiException(AppStrings.requestTimeout);
@@ -208,6 +238,7 @@ class ApiService {
   }
 
   Future<dynamic> patch(String endpoint, Map<String, dynamic> body) async {
+    final assertCurrentScope = _captureRequestScope();
     final uri = _backendUri('PATCH', endpoint);
     try {
       await _throttle();
@@ -215,13 +246,14 @@ class ApiService {
       final stopwatch = Stopwatch()..start();
       var response = await _requestWithRetry(
         () =>
-            _client.patch(uri, headers: _getHeaders(), body: jsonEncode(body)),
+            _client.patch(uri, headers: _getHeaders(assertCurrentScope: assertCurrentScope), body: jsonEncode(body)),
       );
       response = await _refreshAndRetryIfUnauthorized(
         endpoint,
         response,
+        assertCurrentScope,
         () =>
-            _client.patch(uri, headers: _getHeaders(), body: jsonEncode(body)),
+            _client.patch(uri, headers: _getHeaders(assertCurrentScope: assertCurrentScope), body: jsonEncode(body)),
       );
       stopwatch.stop();
       AppLogger.api(
@@ -232,6 +264,7 @@ class ApiService {
         body: response.body,
         errorType: _friendlyErrorType(endpoint, response),
       );
+      assertCurrentScope();
       return _handleResponse(response);
     } on TimeoutException {
       throw const ApiException(AppStrings.requestTimeout);
@@ -245,18 +278,20 @@ class ApiService {
   }
 
   Future<dynamic> delete(String endpoint) async {
+    final assertCurrentScope = _captureRequestScope();
     final uri = _backendUri('DELETE', endpoint);
     try {
       await _throttle();
       AppLogger.api('DELETE', uri.toString());
       final stopwatch = Stopwatch()..start();
       var response = await _requestWithRetry(
-        () => _client.delete(uri, headers: _getHeaders()),
+        () => _client.delete(uri, headers: _getHeaders(assertCurrentScope: assertCurrentScope)),
       );
       response = await _refreshAndRetryIfUnauthorized(
         endpoint,
         response,
-        () => _client.delete(uri, headers: _getHeaders()),
+        assertCurrentScope,
+        () => _client.delete(uri, headers: _getHeaders(assertCurrentScope: assertCurrentScope)),
       );
       stopwatch.stop();
       AppLogger.api(
@@ -267,6 +302,7 @@ class ApiService {
         body: response.body,
         errorType: _friendlyErrorType(endpoint, response),
       );
+      assertCurrentScope();
       return _handleResponse(response);
     } on TimeoutException {
       throw const ApiException(AppStrings.requestTimeout);
@@ -285,13 +321,14 @@ class ApiService {
     String fieldName = 'file',
     Map<String, String>? fields,
   }) async {
+    final assertCurrentScope = _captureRequestScope();
     final uri = _backendUri('POST', endpoint);
     try {
       await _throttle();
       AppLogger.api('POST-MULTIPART', uri.toString());
       final stopwatch = Stopwatch()..start();
       var response = await _requestWithRetry(() async {
-        final headers = _getHeaders(withAuth: true)..remove('Content-Type');
+        final headers = _getHeaders(withAuth: true, assertCurrentScope: assertCurrentScope)..remove('Content-Type');
         final request = http.MultipartRequest('POST', uri)
           ..headers.addAll(headers)
           ..fields.addAll(fields ?? const <String, String>{})
@@ -303,14 +340,16 @@ class ApiService {
             ),
           );
 
-        final streamed = await request.send();
+        assertCurrentScope();
+        final streamed = await _client.send(request);
         return http.Response.fromStream(streamed);
       });
       response = await _refreshAndRetryIfUnauthorized(
         endpoint,
         response,
+        assertCurrentScope,
         () async {
-          final headers = _getHeaders(withAuth: true)..remove('Content-Type');
+          final headers = _getHeaders(withAuth: true, assertCurrentScope: assertCurrentScope)..remove('Content-Type');
           final request = http.MultipartRequest('POST', uri)
             ..headers.addAll(headers)
             ..fields.addAll(fields ?? const <String, String>{})
@@ -321,7 +360,8 @@ class ApiService {
                 contentType: _mediaTypeForFile(file),
               ),
             );
-          final streamed = await request.send();
+          assertCurrentScope();
+          final streamed = await _client.send(request);
           return http.Response.fromStream(streamed);
         },
       );
@@ -335,6 +375,7 @@ class ApiService {
         body: response.body,
         errorType: _friendlyErrorType(endpoint, response),
       );
+      assertCurrentScope();
       final dynamic data = _handleResponse(response);
       if (data is Map<String, dynamic>) {
         return data;
@@ -366,7 +407,8 @@ class ApiService {
     return MediaType('image', 'jpeg');
   }
 
-  Map<String, String> _getHeaders({bool withAuth = true}) {
+  Map<String, String> _getHeaders({bool withAuth = true, void Function()? assertCurrentScope}) {
+    assertCurrentScope?.call();
     final headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
@@ -406,6 +448,7 @@ class ApiService {
       try {
         return await request().timeout(_timeout);
       } catch (e) {
+        if (e is ApiException && e.code == 'REQUEST_SCOPE_CHANGED') rethrow;
         attempt++;
         if (attempt > _maxRetries) rethrow;
         AppLogger.info('Retrying request: attempt $attempt');
@@ -431,13 +474,16 @@ class ApiService {
   Future<http.Response> _refreshAndRetryIfUnauthorized(
     String endpoint,
     http.Response response,
+    void Function() assertCurrentScope,
     Future<http.Response> Function() retry,
   ) async {
+    assertCurrentScope();
     if (response.statusCode != 401 || _isAuthEndpoint(endpoint)) {
       return response;
     }
     if (_supabase?.auth.currentSession == null) return response;
     final bool refreshed = await refreshTokens();
+    assertCurrentScope();
     if (!refreshed) return response;
     AppLogger.info('[AuthRefresh] original request retry started');
     final retryResponse = await retry().timeout(_timeout);
@@ -500,17 +546,7 @@ class ApiService {
     );
   }
 
-  Future<bool> refreshTokens() {
-    final Future<bool>? inFlight = _refreshFuture;
-    if (inFlight != null) {
-      AppLogger.info('[RequestDedup] refresh reused existing request');
-      return inFlight;
-    }
-    _refreshFuture = _performRefresh().whenComplete(
-      () => _refreshFuture = null,
-    );
-    return _refreshFuture!;
-  }
+  Future<bool> refreshTokens() => _tokenRefresh.run(_performRefresh);
 
   Future<bool> _performRefresh() async {
     final SupabaseClient? supabase = _supabase;
@@ -518,11 +554,13 @@ class ApiService {
       AppLogger.info('[AuthRefresh] refresh skipped: missing refresh token');
       return false;
     }
+    final assertCurrentScope = _captureRequestScope();
     AppLogger.info('[AuthRefresh] refresh started');
     try {
       final AuthResponse response = await supabase!.auth
           .refreshSession()
           .timeout(_timeout);
+      assertCurrentScope();
       final Session? session = response.session;
       if (session == null) {
         await clearTokens();
@@ -533,6 +571,7 @@ class ApiService {
       AppLogger.info('[AuthRefresh] refresh success');
       return true;
     } on AuthException catch (error) {
+      assertCurrentScope();
       final int? statusCode = int.tryParse(error.statusCode ?? '');
       if (statusCode == 400 || statusCode == 401 || statusCode == 403) {
         await clearTokens();

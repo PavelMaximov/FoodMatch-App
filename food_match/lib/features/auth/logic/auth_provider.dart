@@ -255,6 +255,7 @@ class AuthProvider extends ChangeNotifier {
 
   void _markAuthBoundaryChanged({required String reason}) {
     authBoundaryVersion++;
+    _apiService.invalidateAuthRequests();
     AppLogger.info(
       '[Auth] boundary changed reason=$reason version=$authBoundaryVersion',
     );
@@ -317,10 +318,15 @@ class AuthProvider extends ChangeNotifier {
     super.dispose();
   }
 
+  bool isCurrentAuthBoundary(int version) =>
+      !_disposed && version == authBoundaryVersion;
+
   Future<void> updateCurrentUserAvatar({
     required String avatarUrl,
+    required int expectedAuthBoundaryVersion,
     String? avatarPublicId,
   }) async {
+    if (!isCurrentAuthBoundary(expectedAuthBoundaryVersion)) return;
     final User? user = currentUser;
     if (user == null) {
       return;
@@ -332,10 +338,13 @@ class AuthProvider extends ChangeNotifier {
     );
     _currentUserLoadedAt = DateTime.now();
     await _cacheUserDataIfAvailable();
-    notifyListeners();
+    if (isCurrentAuthBoundary(expectedAuthBoundaryVersion)) notifyListeners();
   }
 
-  Future<void> clearCurrentUserAvatar() async {
+  Future<void> clearCurrentUserAvatar({
+    required int expectedAuthBoundaryVersion,
+  }) async {
+    if (!isCurrentAuthBoundary(expectedAuthBoundaryVersion)) return;
     final User? user = currentUser;
     if (user == null) {
       return;
@@ -344,7 +353,7 @@ class AuthProvider extends ChangeNotifier {
     currentUser = user.copyWith(clearAvatar: true);
     _currentUserLoadedAt = DateTime.now();
     await _cacheUserDataIfAvailable();
-    notifyListeners();
+    if (isCurrentAuthBoundary(expectedAuthBoundaryVersion)) notifyListeners();
   }
 
   Future<void> _cacheUserDataIfAvailable() async {

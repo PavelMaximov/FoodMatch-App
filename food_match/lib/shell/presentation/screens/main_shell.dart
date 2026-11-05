@@ -69,7 +69,7 @@ class _MainShellState extends State<MainShell>
   final Map<String, Future<bool>> _iconAssetAvailability =
       <String, Future<bool>>{};
   bool _isBootstrappingMatchesBadge = false;
-  String? _shownInvitationId;
+  String? _shownInvitationDeliveryKey;
   late final AnimationController _soloPlusOneController;
   MatchBadgeController? _matchBadgeController;
   SwipeProvider? _swipeProvider;
@@ -327,6 +327,7 @@ class _MainShellState extends State<MainShell>
   Future<void> _showContinuationInvitation(CoupleInvitation invitation) async {
     if (!mounted) return;
     final CoupleProvider coupleProvider = context.read<CoupleProvider>();
+    if (coupleProvider.nextIncomingInvitation?.deliveryKey != invitation.deliveryKey) return;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -376,8 +377,8 @@ class _MainShellState extends State<MainShell>
         .select<CoupleProvider, CoupleInvitation?>(
           (CoupleProvider provider) => provider.nextIncomingInvitation,
         );
-    if (invitation != null && invitation.id != _shownInvitationId) {
-      _shownInvitationId = invitation.id;
+    if (invitation != null && invitation.deliveryKey != _shownInvitationDeliveryKey) {
+      _shownInvitationDeliveryKey = invitation.deliveryKey;
       WidgetsBinding.instance.addPostFrameCallback(
         (_) => _showContinuationInvitation(invitation),
       );

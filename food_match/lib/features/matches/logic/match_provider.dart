@@ -214,7 +214,7 @@ class MatchProvider extends ChangeNotifier {
 
     final String requestKey = _cacheKey;
     AppLogger.info(
-      '[MatchProvider] loadMatches user=${_activeUserId ?? 'none'} mode=$_mode scope=${_mode == 'solo' ? 'current' : 'all'} sessionId=${_activeSoloSessionId ?? _activeCoupleId ?? 'none'} force=$force',
+      '[MatchProvider] loadMatches user=${_activeUserId ?? 'none'} mode=$_mode scope=current sessionId=${_activeSoloSessionId ?? _activeCoupleId ?? 'none'} force=$force',
     );
     AppLogger.info('[MatchProvider] cache hit=false count=0 key=$requestKey');
     final completer = Completer<void>();
@@ -263,8 +263,9 @@ class MatchProvider extends ChangeNotifier {
       final List<MatchItem> result = _filterForMode(
         await _swipeRepository.getMatches(
           mode: _mode,
-          scope: _mode == 'solo' ? 'current' : null,
+          scope: 'current',
           soloSessionId: _mode == 'solo' ? _activeSoloSessionId : null,
+          coupleSessionId: _mode == 'paired' ? _activeCoupleId : null,
         ),
       );
       AppLogger.info('[MatchProvider] API result count=${result.length}');
@@ -331,10 +332,11 @@ class MatchProvider extends ChangeNotifier {
       );
     } catch (e) {
       if (!isCurrent()) return;
-      final List<MatchItem> cached = matches.isNotEmpty
+      final List<MatchItem> rawCached = matches.isNotEmpty
           ? List<MatchItem>.from(matches)
           : await _cacheService.getCachedMatchItems(scopeKey: requestKey);
       if (!isCurrent()) return;
+      final cached = _filterForMode(rawCached);
       if (_mode == 'solo') {
         final Set<String> cachedDishIds = cached
             .map((MatchItem item) => item.dish.id)
@@ -426,7 +428,9 @@ class MatchProvider extends ChangeNotifier {
       return items
           .where(
             (MatchItem item) =>
-                item.mode == 'paired' && item.matchType == 'pair_match',
+                item.mode == 'paired' && item.matchType == 'pair_match' &&
+                _activeCoupleId != null &&
+                (item.sessionId ?? item.coupleId) == _activeCoupleId,
           )
           .toList();
     }

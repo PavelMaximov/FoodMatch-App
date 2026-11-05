@@ -11,8 +11,10 @@ class SwipeModeSelectionScreen extends StatefulWidget {
     super.key,
     required this.onSolo,
     required this.onPairUp,
+    this.notice,
   });
 
+  final String? notice;
   final VoidCallback onSolo;
   final VoidCallback onPairUp;
 
@@ -33,6 +35,10 @@ class _SwipeModeSelectionScreenState extends State<SwipeModeSelectionScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
+          if (widget.notice != null) ...[
+            Text(widget.notice!, style: TextStyle(color: colors.textSecondary)),
+            const SizedBox(height: 16),
+          ],
           Text(
             'How do you want\nto swipe?',
             style: GoogleFonts.fredoka(

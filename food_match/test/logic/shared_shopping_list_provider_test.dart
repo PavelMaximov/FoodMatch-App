@@ -34,6 +34,15 @@ class _Shared implements SharedShoppingListRepository {
   final loads = <Completer<List<ShoppingListItem>>>[];
   final reorders = <Completer<List<ShoppingListItem>>>[];
   final orders = <List<String>>[];
+  final removedIds = <String>[];
+  final removals = <Completer<List<ShoppingListItem>>>[];
+  @override
+  Future<List<ShoppingListItem>> remove(String id) {
+    removedIds.add(id);
+    final result = Completer<List<ShoppingListItem>>();
+    removals.add(result);
+    return result.future;
+  }
   @override
   Future<List<ShoppingListItem>> load() {
     final c = Completer<List<ShoppingListItem>>();
@@ -54,6 +63,40 @@ class _Shared implements SharedShoppingListRepository {
 }
 
 void main() {
+  test('personal add awaiting storage cannot edit a new shared list', () async {
+    final pending = Completer<List<ShoppingListItem>>();
+    final storage = _Storage()..loader = () => pending.future;
+    final shared = _Shared();
+    final provider = ShoppingListProvider(storage: storage, sharedRepository: shared);
+    addTearDown(provider.dispose);
+    final add = provider.addManualItem(name: 'old-personal-item');
+    final pair = provider.setSharedSession('a');
+    shared.loads.single.complete([_item('pair-item')]);
+    await pair;
+    pending.complete([]);
+    await add;
+    expect(provider.items.single.id, 'pair-item');
+    expect(storage.saves, 0);
+  });
+
+  test('bulk deletion stops before sending another request in a new pair', () async {
+    final shared = _Shared();
+    final provider = ShoppingListProvider(storage: _Storage(), sharedRepository: shared);
+    addTearDown(provider.dispose);
+    final first = provider.setSharedSession('a');
+    shared.loads.single.complete([_item('one'), _item('two')]);
+    await first;
+    final clear = provider.clearAll();
+    expect(shared.removedIds, ['one']);
+    final next = provider.setSharedSession('b');
+    shared.loads.last.complete([_item('new-pair-item')]);
+    await next;
+    shared.removals.single.complete([_item('two')]);
+    await clear;
+    expect(shared.removedIds, ['one']);
+    expect(provider.items.single.id, 'new-pair-item');
+  });
+
   test('stale old-pair load is ignored', () async {
     final shared = _Shared(), storage = _Storage();
     final provider = ShoppingListProvider(

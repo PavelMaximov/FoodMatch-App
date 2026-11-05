@@ -306,6 +306,10 @@ Future<void> main() async {
                 ShoppingListProvider(
                   sharedRepository: SharedShoppingListRepository(apiService),
                 );
+            provider.setActiveUser(
+              auth.currentUser?.id,
+              authBoundaryVersion: auth.authBoundaryVersion,
+            );
             final shared =
                 auth.isAuthenticated &&
                     premium.canUse(PremiumFeature.sharedShoppingList)
