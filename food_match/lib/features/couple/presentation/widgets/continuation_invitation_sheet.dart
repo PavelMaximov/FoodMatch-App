@@ -5,7 +5,7 @@ import '../../../../core/theme/theme_extensions.dart';
 import '../../../../data/models/couple_invitation.dart';
 import '../../../../shared/widgets/media/safe_avatar_image.dart';
 
-class ContinuationInvitationSheet extends StatelessWidget {
+class ContinuationInvitationSheet extends StatefulWidget {
   const ContinuationInvitationSheet({
     super.key,
     required this.invitation,
@@ -14,15 +14,38 @@ class ContinuationInvitationSheet extends StatelessWidget {
   });
 
   final CoupleInvitation invitation;
-  final VoidCallback onJoin;
-  final VoidCallback onDecline;
+  final Future<void> Function() onJoin;
+  final Future<void> Function() onDecline;
+
+  @override
+  State<ContinuationInvitationSheet> createState() => _ContinuationInvitationSheetState();
+}
+
+class _ContinuationInvitationSheetState extends State<ContinuationInvitationSheet> {
+  bool _busy = false;
+  String? _error;
+
+  Future<void> _run(Future<void> Function() action) async {
+    if (_busy) return;
+    setState(() { _busy = true; _error = null; });
+    try {
+      await action();
+    } catch (_) {
+      if (mounted) setState(() => _error = 'Could not update the invitation. Please try again.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final invitation = widget.invitation;
     final FoodMatchThemeColors colors = context.fmColors;
     final String name = invitation.fromUser.displayName.trim().isEmpty ? 'Partner' : invitation.fromUser.displayName.trim();
     final int? matchCount = invitation.mutualMatchCount;
-    return SafeArea(
+    return PopScope(
+      canPop: !_busy,
+      child: SafeArea(
       top: false,
       child: Container(
         padding: const EdgeInsets.fromLTRB(28, 12, 28, 28),
@@ -115,11 +138,15 @@ class ContinuationInvitationSheet extends StatelessWidget {
                 ],
               ),
             ),
+            if (_error != null) ...<Widget>[
+              const SizedBox(height: 16),
+              Text(_error!, key: const Key('invitation-error'), style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            ],
             const SizedBox(height: 46),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: onJoin,
+                onPressed: _busy ? null : () => _run(widget.onJoin),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: colors.buttonPrimaryBackground,
                   foregroundColor: colors.buttonPrimaryText,
@@ -127,14 +154,14 @@ class ContinuationInvitationSheet extends StatelessWidget {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
                   textStyle: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.w900),
                 ),
-                child: const Text('Join session'),
+                child: Text(_busy ? 'Please wait...' : 'Join session'),
               ),
             ),
             const SizedBox(height: 14),
             SizedBox(
               width: double.infinity,
               child: OutlinedButton(
-                onPressed: onDecline,
+                onPressed: _busy ? null : () => _run(widget.onDecline),
                 style: OutlinedButton.styleFrom(
                   backgroundColor: colors.card,
                   foregroundColor: colors.textMuted,
@@ -146,8 +173,13 @@ class ContinuationInvitationSheet extends StatelessWidget {
                 child: const Text('Decline'),
               ),
             ),
+            TextButton(
+              onPressed: _busy ? null : () => Navigator.of(context).pop(),
+              child: const Text('Not now'),
+            ),
           ],
         ),
+      ),
       ),
     );
   }

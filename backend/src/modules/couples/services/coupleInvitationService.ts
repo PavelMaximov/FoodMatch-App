@@ -1,3 +1,4 @@
+import { lockSessionUsers } from './pairSessionGuard';
 import { AppError } from '../../../core/errors/AppError';
 import { InvitationRecord } from '../../../domain/repositories/types';
 import { domainRepositories } from '../../../infrastructure/repositories/domainRepositories';
@@ -11,48 +12,35 @@ const TTL = 20 * 60 * 1000;
 export class CoupleInvitationService {
   private couples = new CoupleService();
   async createContinueAsBeforeInvite(userId: string) {
-    let active =
-        await domainRepositories.coupleSessions.findActiveForUser(userId),
-      pairKey =
-        active && active.memberIds.length >= 2
-          ? (active.pairKey ?? buildPairKey(active.memberIds))
-          : null,
-      preset = pairKey
-        ? await domainRepositories.filterPresets.findLast(
-            userId,
-            'paired',
-            pairKey,
-          )
-        : null;
-    if (!pairKey) {
-      const latest = await queryPostgres<{ pair_key: string }>(
-        "select pair_key from filter_presets where user_id=$1 and mode='paired' and pair_key is not null order by used_at desc nulls last limit 1",
-        [userId],
-      );
-      pairKey = latest.rows[0]?.pair_key ?? null;
-      preset = pairKey
-        ? await domainRepositories.filterPresets.findLast(
-            userId,
-            'paired',
-            pairKey,
-          )
-        : null;
-    }
-    if (!pairKey)
-      throw new AppError(
-        'No previous pair setup found.',
-        404,
-        'PREVIOUS_PARTNER_NOT_FOUND',
-      );
-    const partner =
-      active?.memberIds.find((x) => x !== userId) ??
-      pairKey.split('_').find((x) => x !== userId);
-    if (!partner)
-      throw new AppError(
-        'No previous pair setup found.',
-        404,
-        'PREVIOUS_PARTNER_NOT_FOUND',
-      );
+    // Resolve the partner before taking ordered locks; recheck inside the transaction.
+    const current = await domainRepositories.coupleSessions.findActiveForUser(userId);
+    const prior = current && current.memberIds.length === 2 ? null : await queryPostgres<{ pair_key: string }>(
+      "select pair_key from filter_presets where user_id=$1 and mode='paired' and pair_key is not null order by used_at desc nulls last limit 1", [userId],
+    );
+    const pending = await domainRepositories.invitations.listPendingIncoming(userId);
+    const pairKey = current && current.memberIds.length === 2
+      ? (current.pairKey ?? buildPairKey(current.memberIds)) : prior?.rows[0]?.pair_key ?? pending[0]?.pairKey;
+    const partner = pairKey?.split('_').find((id) => id !== userId);
+    if (!partner) throw new AppError('No previous pair setup found.', 404, 'PREVIOUS_PARTNER_NOT_FOUND');
+    return withPostgresTransaction(async () => {
+      await lockSessionUsers([userId, partner]);
+      const active = await domainRepositories.coupleSessions.findActiveForUser(userId);
+      if (active && active.memberIds.length === 2 && !active.memberIds.includes(partner))
+        throw new AppError('This pair session has changed.', 409, 'PAIR_SESSION_CHANGED');
+      const incoming = (await domainRepositories.invitations.listPendingIncoming(userId))
+        .find((i) => i.fromUserId === partner && i.pairKey === pairKey);
+      if (incoming) {
+        // Both users chose Continue. Reuse the first request instead of creating a cross-invite.
+        await this.lockInvitation(incoming.id, incoming.newCoupleSessionId);
+        const accepted = await this.acceptLocked(userId, incoming.id);
+        return accepted.invite;
+      }
+      return this.createContinueLocked(userId, pairKey!, partner);
+    });
+  }
+  private async createContinueLocked(userId: string, pairKey: string, partner: string) {
+    let active = await domainRepositories.coupleSessions.findActiveForUser(userId);
+    const preset = await domainRepositories.filterPresets.findLast(userId, 'paired', pairKey);
     const previous = active ?? null;
     if (!active || active.memberIds.length > 1) {
       if (active) await this.couples.closeActiveSession(userId);
@@ -103,23 +91,25 @@ export class CoupleInvitationService {
   }
   async accept(userId: string, id: string) {
     return withPostgresTransaction(async () => {
-      await queryPostgres('select pg_advisory_xact_lock(hashtext($1))', [
-        `session-user:${userId}`,
-      ]);
-      await queryPostgres(
-        'select id from couple_invitations where id=$1 for update',
-        [id],
-      );
-      const invite = await this.pendingTarget(userId, id);
-      await queryPostgres(
-        'select id from couple_sessions where id=$1 for update',
-        [invite.newCoupleSessionId],
-      );
+      const invite = await this.target(userId, id);
+      await lockSessionUsers([invite.fromUserId, invite.toUserId]);
+      await this.lockInvitation(id, invite.newCoupleSessionId);
       return this.acceptLocked(userId, id);
     });
   }
+  private async lockInvitation(id: string, sessionId: string | null) {
+    await queryPostgres('select id from couple_invitations where id=$1 for update', [id]);
+    await queryPostgres('select id from couple_sessions where id=$1 for update', [sessionId]);
+  }
   private async acceptLocked(userId: string, id: string) {
-    const i = await this.pendingTarget(userId, id);
+    const i = await this.target(userId, id);
+    if (i.status === 'accepted') {
+      const active = await domainRepositories.coupleSessions.findActiveForUser(userId);
+      if (!active || active.id !== i.newCoupleSessionId || !active.memberIds.includes(i.fromUserId))
+        throw new AppError('Invitation session is no longer active.', 409, 'INVITATION_SESSION_INACTIVE');
+      return { invite: await this.dto(i, userId), session: await this.couples.getMyActiveSession(userId) };
+    }
+    if (i.status !== 'pending') throw new AppError('Invitation is no longer pending.', 409, 'INVITATION_NOT_PENDING');
     if (i.expiresAt <= new Date()) {
       await domainRepositories.invitations.setStatus(id, 'expired');
       throw new AppError('Invitation expired.', 409, 'INVITATION_EXPIRED');
@@ -181,15 +171,19 @@ export class CoupleInvitationService {
     };
   }
   async decline(userId: string, id: string) {
-    await this.pendingTarget(userId, id);
-    return this.dto(
-      (await domainRepositories.invitations.setStatus(id, 'declined'))!,
-      userId,
-    );
+    return withPostgresTransaction(async () => {
+      const before = await this.target(userId, id);
+      await lockSessionUsers([before.fromUserId, before.toUserId]);
+      await this.lockInvitation(id, before.newCoupleSessionId);
+      const i = await this.target(userId, id);
+      if (i.status === 'declined') return this.dto(i, userId);
+      if (i.status !== 'pending') throw new AppError('Invitation is no longer pending.', 409, 'INVITATION_NOT_PENDING');
+      return this.dto((await domainRepositories.invitations.setStatus(id, 'declined'))!, userId);
+    });
   }
-  private async pendingTarget(u: string, id: string) {
+  private async target(u: string, id: string) {
     const i = await domainRepositories.invitations.findForParticipant(id, u);
-    if (!i || i.toUserId !== u || i.status !== 'pending')
+    if (!i || i.toUserId !== u)
       throw new AppError('Invitation not found.', 404, 'INVITATION_NOT_FOUND');
     return i;
   }

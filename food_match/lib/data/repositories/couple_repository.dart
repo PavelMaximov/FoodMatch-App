@@ -36,7 +36,7 @@ class CoupleRepository {
   }
 
   Future<void> reset() async => _apiService.post(ApiConstants.coupleReset, {});
-  Future<void> leave() async => _apiService.post(ApiConstants.coupleLeave, {});
+  Future<void> leave({String? sessionId}) async => _apiService.post(ApiConstants.coupleLeave, _scope(sessionId, null));
 
   Future<CoupleInvitation> continueAsBefore() async {
     final data = await _apiService.post(ApiConstants.coupleContinueAsBefore, <String, dynamic>{});
@@ -66,25 +66,30 @@ class CoupleRepository {
       _apiService.post(ApiConstants.coupleInvitationDecline(id), <String, dynamic>{});
 
   Future<CoupleFilterState> getFilterState() async => CoupleFilterState.fromJson(await _apiService.get(ApiConstants.coupleFilterState) as Map<String, dynamic>);
-  Future<CoupleFilterState> updateMyFilterState(CoupleFilterChoices choices) async {
-    final Map<String, dynamic> body = choices.toJson();
+  Future<CoupleFilterState> updateMyFilterState(CoupleFilterChoices choices, {String? sessionId, int? generation}) async {
+    final Map<String, dynamic> body = <String, dynamic>{...choices.toJson(), ..._scope(sessionId, generation)};
     AppLogger.info('[FilterState] PUT /me body=$body');
     return CoupleFilterState.fromJson(await _apiService.put(ApiConstants.coupleFilterStateMe, body) as Map<String, dynamic>);
   }
-  Future<CoupleFilterState> confirmMyFilterState() async => CoupleFilterState.fromJson(await _apiService.post(ApiConstants.coupleFilterStateConfirm, {}) as Map<String, dynamic>);
-  Future<CoupleFilterState> resetFilterState() async => CoupleFilterState.fromJson(await _apiService.post(ApiConstants.coupleFilterStateReset, {}) as Map<String, dynamic>);
+  Future<CoupleFilterState> confirmMyFilterState({String? sessionId, int? generation}) async => CoupleFilterState.fromJson(await _apiService.post(ApiConstants.coupleFilterStateConfirm, _scope(sessionId, generation)) as Map<String, dynamic>);
+  Future<CoupleFilterState> resetFilterState({String? sessionId}) async => CoupleFilterState.fromJson(await _apiService.post(ApiConstants.coupleFilterStateReset, _scope(sessionId, null)) as Map<String, dynamic>);
 
   Future<PreparedDeck> prepareDeck() async => PreparedDeck.fromJson(await _apiService.post(ApiConstants.coupleDeckPrepare, {}) as Map<String, dynamic>);
   Future<PreparedDeck> getPreparedDeck() async => PreparedDeck.fromJson(await _apiService.get(ApiConstants.coupleDeck) as Map<String, dynamic>);
   Future<void> resetPreparedDeck() async => _apiService.post(ApiConstants.coupleDeckReset, {});
-  Future<Map<String, dynamic>> requestDeckRestart() async =>
-      Map<String, dynamic>.from(await _apiService.post(ApiConstants.coupleDeckRestartRequest, <String, dynamic>{}) as Map);
+  Future<Map<String, dynamic>> requestDeckRestart({String? sessionId}) async =>
+      Map<String, dynamic>.from(await _apiService.post(ApiConstants.coupleDeckRestartRequest, _scope(sessionId, null)) as Map);
   Future<Map<String, dynamic>> getDeckRestartStatus() async =>
       Map<String, dynamic>.from(await _apiService.get(ApiConstants.coupleDeckRestartStatus) as Map);
   Future<Map<String, dynamic>> startFilterChange() async =>
       Map<String, dynamic>.from(await _apiService.post(ApiConstants.coupleFilterChangeStart, <String, dynamic>{}) as Map);
   Future<Map<String, dynamic>> commitFilterChange() async =>
       Map<String, dynamic>.from(await _apiService.post(ApiConstants.coupleFilterChangeCommit, <String, dynamic>{}) as Map);
+
+  Map<String, dynamic> _scope(String? sessionId, int? generation) => <String, dynamic>{
+    if (sessionId != null) 'sessionId': sessionId,
+    if (generation != null) 'generation': generation,
+  };
 
   Map<String, dynamic> _extractSessionMap(dynamic data) {
     if (data is Map<String, dynamic>) {

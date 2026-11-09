@@ -26,6 +26,33 @@ const premium = EffectiveEntitlements(
   customDishLimit: null,
 );
 void main() {
+  test('Free cannot add recipe ingredients to either grocery list', () async {
+    final p = PremiumProvider(repository: FakeRepository([Future.value(EffectiveEntitlements.free)]));
+    addTearDown(p.dispose);
+    p.setAuthenticatedUser('free', isAuthenticated: true);
+    await Future<void>.delayed(Duration.zero);
+    expect(p.canAddRecipeIngredients(shared: false), isFalse);
+    expect(p.canAddRecipeIngredients(shared: true), isFalse);
+  });
+  test('partner Premium unlocks shared ingredients without unlocking personal list', () async {
+    const shared = EffectiveEntitlements(
+      tier: SubscriptionTier.free, status: SubscriptionStatus.none,
+      features: {PremiumFeature.sharedShoppingList}, customDishLimit: 3,
+    );
+    final p = PremiumProvider(repository: FakeRepository([
+      Future.value(shared), Future.value(shared), Future.value(EffectiveEntitlements.free),
+    ]));
+    addTearDown(p.dispose);
+    p.setAuthenticatedUser('free', isAuthenticated: true);
+    await Future<void>.delayed(Duration.zero);
+    expect(p.canAddRecipeIngredients(shared: true), isFalse);
+    p.handlePairContext('pair');
+    await Future<void>.delayed(Duration.zero);
+    expect(p.canAddRecipeIngredients(shared: true), isTrue);
+    expect(p.canAddRecipeIngredients(shared: false), isFalse);
+    p.handlePairContext(null);
+    expect(p.canAddRecipeIngredients(shared: true), isFalse);
+  });
   test('defaults safely to Free and exposes free policy', () {
     final p = PremiumProvider(repository: FakeRepository([]));
     expect(p.isPremium, isFalse);

@@ -50,10 +50,14 @@ export class SwipeService {
         409,
         'SWIPE_SESSION_CHANGED',
       );
+    if (session.memberIds.length !== 2 || session.preparedDeckMeta.status !== 'ready' ||
+        !['active', 'idle', undefined].includes(session.pairLifecycleState.status as any))
+      throw new AppError('The shared deck is not ready.', 409, 'PAIR_DECK_NOT_READY');
     const dish = await postgresDishes.getByPublicId(dishId);
     if (!dish) throw new AppError('This dish is not available.', 404);
     const pgDish = await postgresDishId(dish);
     const inDeck = session.preparedDeckDishIds.includes(pgDish);
+    if (!inDeck) throw new AppError('This dish is not in your current shared deck.', 409, 'DISH_NOT_IN_PAIR_DECK');
     if (
       !(dish.visibility === 'public' && dish.status === 'approved') &&
       !(dish.isCustom && dish.status === 'approved' && inDeck)

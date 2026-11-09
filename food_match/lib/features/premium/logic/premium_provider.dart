@@ -32,6 +32,9 @@ class PremiumProvider extends ChangeNotifier {
       _isReady &&
       (feature != PremiumFeature.sharedShoppingList || _pairSessionId != null) &&
       _entitlements.canUse(feature);
+  bool canAddRecipeIngredients({required bool shared}) => canUse(
+    shared ? PremiumFeature.sharedShoppingList : PremiumFeature.shoppingList,
+  );
   int? get customDishLimit => entitlements.customDishLimit;
   bool get shouldRequestAds =>
       _isReady && _adPolicy.canRequestExternalAds(_entitlements);

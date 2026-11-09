@@ -90,6 +90,8 @@ class CoupleFilterState {
     required this.bothConfirmed,
     required this.compatibility,
     required this.status,
+    this.sessionId,
+    this.generation = 0,
   });
 
   final CoupleFilterChoices myChoices;
@@ -97,6 +99,8 @@ class CoupleFilterState {
   final bool bothConfirmed;
   final int compatibility;
   final String status;
+  final String? sessionId;
+  final int generation;
 
   factory CoupleFilterState.fromJson(Map<String, dynamic> json) =>
       CoupleFilterState(
@@ -111,5 +115,7 @@ class CoupleFilterState {
         bothConfirmed: json['bothConfirmed'] == true,
         compatibility: (json['compatibility'] as num?)?.toInt() ?? 0,
         status: json['status']?.toString() ?? 'draft',
+        sessionId: json['sessionId']?.toString(),
+        generation: (json['generation'] as num?)?.toInt() ?? 0,
       );
 }

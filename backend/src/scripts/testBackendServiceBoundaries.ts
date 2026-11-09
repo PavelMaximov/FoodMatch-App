@@ -105,6 +105,8 @@ async function main() {
       status: 'active',
       memberIds: ['user', 'partner'],
       preparedDeckDishIds: ['dish'],
+      preparedDeckMeta: { status: 'ready' },
+      pairLifecycleState: { status: 'active' },
     };
     repos.coupleSessions.findActiveForUser = async () => session;
     postgresDishes.getByPublicId = async () =>
