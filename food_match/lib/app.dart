@@ -1,3 +1,5 @@
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'l10n/locale_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -101,6 +103,9 @@ class _FoodMatchAppState extends State<FoodMatchApp>
   Widget build(BuildContext context) {
     return MaterialApp.router(
       title: 'FoodMatch',
+      locale: context.watch<LocaleController?>()?.locale,
+      supportedLocales: LocaleController.supportedLocales,
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,

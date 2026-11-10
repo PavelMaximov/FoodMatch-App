@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -123,24 +124,24 @@ class SessionSettingsSheet extends StatelessWidget {
           builder: (BuildContext dialogContext) => AlertDialog(
             backgroundColor: context.fmColors.modalBackground,
             title: Text(
-              title,
+              context.tr(title),
               style: TextStyle(color: context.fmColors.textPrimary),
             ),
             content: Text(
-              message,
+              context.tr(message),
               style: TextStyle(color: context.fmColors.textSecondary),
             ),
             actions: <Widget>[
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext, false),
                 child: Text(
-                  'Cancel',
+                  context.tr('Cancel'),
                   style: TextStyle(color: context.fmColors.textSecondary),
                 ),
               ),
               ElevatedButton(
                 onPressed: () => Navigator.pop(dialogContext, true),
-                child: const Text('Switch'),
+                child: Text(context.tr('Switch')),
               ),
             ],
           ),
@@ -161,13 +162,12 @@ class _SheetHeader extends StatelessWidget {
       children: <Widget>[
         Expanded(
           child: Text(
-            'Session information',
+            context.tr('Session information'),
             style: GoogleFonts.nunito(
               fontSize: 31,
               fontWeight: FontWeight.w700,
               height: 1.05,
               color: context.fmColors.textPrimary,
-              
             ),
           ),
         ),
@@ -223,7 +223,7 @@ class _SoloSettings extends StatelessWidget {
         ),
         const SizedBox(height: 22),
         Text(
-          'You can switch to a Pair session.',
+          context.tr('You can switch to a Pair session.'),
           style: GoogleFonts.nunito(
             fontSize: 15,
             fontWeight: FontWeight.w700,
@@ -258,7 +258,9 @@ class _PairSettings extends StatelessWidget {
     final String partnerLabel = resolvePartnerDisplayName(
       couple: couple,
       currentUserId: currentUserId,
-      fallback: coupleProvider.hasPartner ? 'Partner connected' : 'Waiting...',
+      fallback: context.tr(
+        coupleProvider.hasPartner ? 'Partner connected' : 'Waiting...',
+      ),
     );
 
     return Column(
@@ -275,7 +277,7 @@ class _PairSettings extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Text(
-                'Invite code:',
+                context.tr('Invite code:'),
                 style: GoogleFonts.nunito(
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
@@ -304,7 +306,7 @@ class _PairSettings extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Text(
-                'Partner: $partnerLabel',
+                context.tr('Partner: {name}', {'name': partnerLabel}),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.nunito(
@@ -320,7 +322,7 @@ class _PairSettings extends StatelessWidget {
                       onPressed: coupleProvider.isLoading
                           ? null
                           : coupleProvider.resetCouple,
-                      child: const Text('Reset'),
+                      child: Text(context.tr('Reset')),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -329,7 +331,7 @@ class _PairSettings extends StatelessWidget {
                       onPressed: coupleProvider.isLeaving
                           ? null
                           : coupleProvider.leaveCouple,
-                      child: const Text('Leave'),
+                      child: Text(context.tr('Leave')),
                     ),
                   ),
                 ],
@@ -339,7 +341,7 @@ class _PairSettings extends StatelessWidget {
         ),
         const SizedBox(height: 22),
         Text(
-          'You can switch to a Solo session.',
+          context.tr('You can switch to a Solo session.'),
           style: GoogleFonts.nunito(
             fontSize: 15,
             fontWeight: FontWeight.w700,
@@ -382,7 +384,7 @@ class _NoActiveSession extends StatelessWidget {
               Navigator.pop(context);
               onSolo();
             },
-            child: const Text('Start Solo'),
+            child: Text(context.tr('Start Solo')),
           ),
         ),
         const SizedBox(height: 10),
@@ -393,7 +395,7 @@ class _NoActiveSession extends StatelessWidget {
               Navigator.pop(context);
               onPairUp();
             },
-            child: const Text('Pair up'),
+            child: Text(context.tr('Pair up')),
           ),
         ),
       ],
@@ -422,7 +424,7 @@ class _SimpleInfoCard extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              text,
+              context.tr(text),
               style: GoogleFonts.nunito(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
@@ -484,7 +486,7 @@ class _SwitchModeCard extends StatelessWidget {
                     Row(
                       children: <Widget>[
                         Text(
-                          title,
+                          context.tr(title),
                           style: GoogleFonts.nunito(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
@@ -503,7 +505,7 @@ class _SwitchModeCard extends StatelessWidget {
                               borderRadius: BorderRadius.circular(999),
                             ),
                             child: Text(
-                              badge!,
+                              context.tr(badge!),
                               style: GoogleFonts.nunito(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w800,
@@ -515,7 +517,7 @@ class _SwitchModeCard extends StatelessWidget {
                       ],
                     ),
                     Text(
-                      subtitle,
+                      context.tr(subtitle),
                       style: GoogleFonts.nunito(
                         fontSize: 14,
                         color: context.fmColors.textMuted,
@@ -543,7 +545,7 @@ class _SwitchModeCard extends StatelessWidget {
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              child: Text(buttonText),
+              child: Text(context.tr(buttonText)),
             ),
           ),
         ],
@@ -580,7 +582,7 @@ class _CopyPill extends StatelessWidget {
             Icon(Icons.copy, size: 14, color: context.fmColors.textMuted),
             const SizedBox(width: 4),
             Text(
-              'Copy',
+              context.tr('Copy'),
               style: GoogleFonts.nunito(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
@@ -612,7 +614,7 @@ class _StatTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
-            label,
+            context.tr(label),
             style: GoogleFonts.nunito(
               fontSize: 14,
               fontWeight: FontWeight.w700,

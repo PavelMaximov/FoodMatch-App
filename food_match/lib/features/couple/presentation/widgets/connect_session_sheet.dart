@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -100,7 +101,7 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
                   if (coupleProvider.error != null) ...<Widget>[
                     const SizedBox(height: 12),
                     Text(
-                      coupleProvider.error!,
+                      context.copy.error(coupleProvider.error!),
                       style: GoogleFonts.nunito(
                         fontSize: 13,
                         color: coupleProvider.hasActiveSessionConflict
@@ -123,7 +124,7 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Text(
-          'Create your own session',
+          context.tr('Create your own session'),
           style: GoogleFonts.nunito(
             fontSize: 18,
             fontWeight: FontWeight.w800,
@@ -132,7 +133,9 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Start a new invite code or join one from your partner below.',
+          context.tr(
+            'Start a new invite code or join one from your partner below.',
+          ),
           style: GoogleFonts.nunito(
             fontSize: 14,
             color: AppColors.textSecondary,
@@ -167,7 +170,7 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
                     ),
                   )
                 : Text(
-                    'Create session',
+                    context.tr('Create session'),
                     style: GoogleFonts.nunito(
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
@@ -185,7 +188,9 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Text(
-          'You already have an active session. Leave it before joining another one.',
+          context.tr(
+            'You already have an active session. Leave it before joining another one.',
+          ),
           style: GoogleFonts.nunito(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -209,7 +214,7 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text('Leave session'),
+                child: Text(context.tr('Leave session')),
               ),
             ),
             const SizedBox(width: 12),
@@ -227,7 +232,7 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text('Reset'),
+                child: Text(context.tr('Reset')),
               ),
             ),
           ],
@@ -241,7 +246,7 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Text(
-          'Join an existing session',
+          context.tr('Join an existing session'),
           style: GoogleFonts.nunito(
             fontSize: 18,
             fontWeight: FontWeight.w500,
@@ -254,7 +259,7 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
           textCapitalization: TextCapitalization.characters,
           style: GoogleFonts.nunito(fontSize: 15, color: AppColors.textPrimary),
           decoration: InputDecoration(
-            hintText: 'Enter the invitation code',
+            hintText: context.tr('Enter the invitation code'),
             hintStyle: GoogleFonts.nunito(
               fontSize: 14,
               color: AppColors.textHint,
@@ -311,7 +316,7 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
                     ),
                   )
                 : Text(
-                    'Connect to session',
+                    context.tr('Connect to session'),
                     style: GoogleFonts.nunito(
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
@@ -415,7 +420,7 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
     return resolvePartnerDisplayName(
       couple: coupleProvider.currentCouple,
       currentUserId: currentUserId,
-      fallback: 'Partner connected',
+      fallback: context.tr('Partner connected'),
     );
   }
 }
@@ -437,7 +442,7 @@ class _SheetHeader extends StatelessWidget {
               const Icon(Icons.link, size: 34, color: AppColors.textPrimary),
               const SizedBox(width: 10),
               Text(
-                'Create a session',
+                context.tr('Create a session'),
                 style: GoogleFonts.fredoka(
                   fontSize: 30,
                   fontWeight: FontWeight.w700,
@@ -490,7 +495,7 @@ class _InviteCodePanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
-            'Invite code:',
+            context.tr('Invite code:'),
             style: GoogleFonts.nunito(
               fontSize: 16,
               fontWeight: FontWeight.w800,
@@ -531,7 +536,7 @@ class _InviteCodePanel extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            'Partner: $partnerLabel',
+            context.tr('Partner: {name}', {'name': partnerLabel}),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.nunito(
@@ -580,7 +585,7 @@ class _CopyButton extends StatelessWidget {
             ),
             const SizedBox(width: 4),
             Text(
-              'Copy',
+              context.tr('Copy'),
               style: GoogleFonts.nunito(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,

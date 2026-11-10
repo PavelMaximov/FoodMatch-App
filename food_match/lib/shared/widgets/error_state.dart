@@ -1,14 +1,11 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/constants/app_strings.dart';
 import '../../core/theme/theme_extensions.dart';
 
 class ErrorState extends StatelessWidget {
-  const ErrorState({
-    required this.message,
-    this.onRetry,
-    super.key,
-  });
+  const ErrorState({required this.message, this.onRetry, super.key});
 
   final String message;
   final VoidCallback? onRetry;
@@ -25,7 +22,7 @@ class ErrorState extends StatelessWidget {
             Icon(Icons.error_outline, size: 64, color: colors.error),
             const SizedBox(height: 16),
             Text(
-              message,
+              context.copy.error(message),
               style: Theme.of(context).textTheme.bodyLarge,
               textAlign: TextAlign.center,
             ),
@@ -34,7 +31,7 @@ class ErrorState extends StatelessWidget {
               ElevatedButton.icon(
                 onPressed: onRetry,
                 icon: const Icon(Icons.refresh),
-                label: const Text(AppStrings.retry),
+                label: Text(context.tr(AppStrings.retry)),
               ),
             ],
           ],

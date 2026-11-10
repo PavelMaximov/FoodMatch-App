@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -33,7 +34,9 @@ class RecipeListFilters {
     bool clearDifficulty = false,
   }) {
     return RecipeListFilters(
-      mealCategory: clearMealCategory ? null : mealCategory ?? this.mealCategory,
+      mealCategory: clearMealCategory
+          ? null
+          : mealCategory ?? this.mealCategory,
       maxCookTime: clearMaxCookTime ? null : maxCookTime ?? this.maxCookTime,
       difficulty: clearDifficulty ? null : difficulty ?? this.difficulty,
       cuisines: cuisines ?? this.cuisines,
@@ -75,7 +78,8 @@ class RecipeFilterBottomSheet extends StatefulWidget {
   final List<String> cuisineOptions;
 
   @override
-  State<RecipeFilterBottomSheet> createState() => _RecipeFilterBottomSheetState();
+  State<RecipeFilterBottomSheet> createState() =>
+      _RecipeFilterBottomSheetState();
 }
 
 class _RecipeFilterBottomSheetState extends State<RecipeFilterBottomSheet> {
@@ -110,7 +114,7 @@ class _RecipeFilterBottomSheetState extends State<RecipeFilterBottomSheet> {
                 child: Row(
                   children: <Widget>[
                     Text(
-                      'Filters',
+                      context.tr('Filters'),
                       style: GoogleFonts.nunito(
                         fontSize: 22,
                         fontWeight: FontWeight.w800,
@@ -135,9 +139,15 @@ class _RecipeFilterBottomSheetState extends State<RecipeFilterBottomSheet> {
                       const SizedBox(height: 12),
                       _ChipWrap(
                         options: widget.mealOptions,
-                        selected: _mealCategory == null ? const <String>{} : <String>{_mealCategory!},
+                        selected: _mealCategory == null
+                            ? const <String>{}
+                            : <String>{_mealCategory!},
                         onTap: (String value) {
-                          setState(() => _mealCategory = _mealCategory == value ? null : value);
+                          setState(
+                            () => _mealCategory = _mealCategory == value
+                                ? null
+                                : value,
+                          );
                         },
                       ),
                       const SizedBox(height: 26),
@@ -156,21 +166,26 @@ class _RecipeFilterBottomSheetState extends State<RecipeFilterBottomSheet> {
                           max: 60,
                           divisions: 3,
                           value: (_maxCookTime ?? 60).toDouble(),
-                          label: '${_maxCookTime ?? 60} min',
-                          onChanged: (double value) => setState(() => _maxCookTime = value.round()),
+                          label: context.tr('{count} min', {
+                            'count': _maxCookTime ?? 60,
+                          }),
+                          onChanged: (double value) =>
+                              setState(() => _maxCookTime = value.round()),
                         ),
                       ),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: _cookTimes
-                            .map((int minutes) => Text(
-                                  '$minutes min',
-                                  style: GoogleFonts.nunito(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: colors.textSecondary,
-                                  ),
-                                ))
+                            .map(
+                              (int minutes) => Text(
+                                context.tr('{count} min', {'count': minutes}),
+                                style: GoogleFonts.nunito(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: colors.textSecondary,
+                                ),
+                              ),
+                            )
                             .toList(),
                       ),
                       const SizedBox(height: 26),
@@ -178,9 +193,15 @@ class _RecipeFilterBottomSheetState extends State<RecipeFilterBottomSheet> {
                       const SizedBox(height: 12),
                       _ChipWrap(
                         options: _difficulties,
-                        selected: _difficulty == null ? const <String>{} : <String>{_difficulty!},
+                        selected: _difficulty == null
+                            ? const <String>{}
+                            : <String>{_difficulty!},
                         onTap: (String value) {
-                          setState(() => _difficulty = _difficulty == value ? null : value);
+                          setState(
+                            () => _difficulty = _difficulty == value
+                                ? null
+                                : value,
+                          );
                         },
                       ),
                       if (widget.cuisineOptions.isNotEmpty) ...<Widget>[
@@ -220,13 +241,20 @@ class _RecipeFilterBottomSheetState extends State<RecipeFilterBottomSheet> {
                         }),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: colors.buttonSecondaryText,
-                          side: BorderSide(color: colors.borderStrong, width: 1.5),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
+                          side: BorderSide(
+                            color: colors.borderStrong,
+                            width: 1.5,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(36),
+                          ),
                           padding: const EdgeInsets.symmetric(vertical: 15),
                         ),
                         child: Text(
-                          'Clear all',
-                          style: GoogleFonts.nunito(fontWeight: FontWeight.w800),
+                          context.tr('Clear all'),
+                          style: GoogleFonts.nunito(
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       ),
                     ),
@@ -246,12 +274,16 @@ class _RecipeFilterBottomSheetState extends State<RecipeFilterBottomSheet> {
                           backgroundColor: colors.buttonPrimaryBackground,
                           foregroundColor: colors.buttonPrimaryText,
                           elevation: 0,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(36),
+                          ),
                           padding: const EdgeInsets.symmetric(vertical: 15),
                         ),
                         child: Text(
-                          'Apply',
-                          style: GoogleFonts.nunito(fontWeight: FontWeight.w800),
+                          context.tr('Apply'),
+                          style: GoogleFonts.nunito(
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       ),
                     ),
@@ -275,7 +307,7 @@ class _FilterSectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     final FoodMatchThemeColors colors = context.fmColors;
     return Text(
-      title,
+      context.tr(title),
       style: GoogleFonts.nunito(
         fontSize: 17,
         fontWeight: FontWeight.w800,
@@ -316,12 +348,14 @@ class _ChipWrap extends StatelessWidget {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(999),
                 border: Border.all(
-                  color: isSelected ? colors.chipSelectedBorder : colors.chipBorder,
+                  color: isSelected
+                      ? colors.chipSelectedBorder
+                      : colors.chipBorder,
                   width: isSelected ? 1.7 : 1.2,
                 ),
               ),
               child: Text(
-                option,
+                context.tr(option),
                 style: GoogleFonts.nunito(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,

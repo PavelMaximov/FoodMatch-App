@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -34,9 +35,16 @@ class DishGridCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final FoodMatchThemeColors colors = context.fmColors;
     final Widget image = SafeDishImage(
-      cacheWidth: ((width ?? (MediaQuery.sizeOf(context).width - 55) / 2) *
-              MediaQuery.devicePixelRatioOf(context)).round().clamp(1, 1600).toInt(),
-      imageUrl: ImageUtils.getImageUrl(dish.imageUrl, usage: ImageUsage.dishCard),
+      cacheWidth:
+          ((width ?? (MediaQuery.sizeOf(context).width - 55) / 2) *
+                  MediaQuery.devicePixelRatioOf(context))
+              .round()
+              .clamp(1, 1600)
+              .toInt(),
+      imageUrl: ImageUtils.getImageUrl(
+        dish.imageUrl,
+        usage: ImageUsage.dishCard,
+      ),
       fit: BoxFit.cover,
       emptyImageAsset: isCustomDishWithoutPhoto(dish)
           ? AppEmptyStateAssets.customDishPlaceholder
@@ -58,7 +66,9 @@ class DishGridCard extends StatelessWidget {
             decoration: BoxDecoration(
               color: colors.dishCardBackground,
               border: Border.all(color: colors.dishCardBorder),
-              borderRadius: BorderRadius.circular(_DishGridCardTokens.cardRadius),
+              borderRadius: BorderRadius.circular(
+                _DishGridCardTokens.cardRadius,
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -76,8 +86,12 @@ class DishGridCard extends StatelessWidget {
                       fit: StackFit.expand,
                       children: <Widget>[
                         ClipRRect(
-                          borderRadius: BorderRadius.circular(_DishGridCardTokens.imageRadius),
-                          child: heroTag == null ? image : Hero(tag: heroTag!, child: image),
+                          borderRadius: BorderRadius.circular(
+                            _DishGridCardTokens.imageRadius,
+                          ),
+                          child: heroTag == null
+                              ? image
+                              : Hero(tag: heroTag!, child: image),
                         ),
                         Positioned(
                           top: _DishGridCardTokens.overlayInset,
@@ -93,16 +107,18 @@ class DishGridCard extends StatelessWidget {
                             left: _DishGridCardTokens.overlayInset,
                             bottom: _DishGridCardTokens.overlayInset,
                             child: _MetaPill(
-                             iconWidget: SvgPicture.asset(
-                                  'assets/icons/time.svg',
-                                  width: 10,
-                                  height: 10,
-                                  colorFilter: ColorFilter.mode(
-                                    colors.metadataIcon,
-                                    BlendMode.srcIn,
-                                  ),
+                              iconWidget: SvgPicture.asset(
+                                'assets/icons/time.svg',
+                                width: 10,
+                                height: 10,
+                                colorFilter: ColorFilter.mode(
+                                  colors.metadataIcon,
+                                  BlendMode.srcIn,
                                 ),
-                              label: dish.totalTimeDisplay,
+                              ),
+                              label: context.copy.duration(
+                                dish.totalTimeDisplay,
+                              ),
                             ),
                           ),
                         if (_difficultyLabel(dish.effort) != null)
@@ -170,12 +186,18 @@ class DishGridCard extends StatelessWidget {
     if (normalized == 'medium' || normalized == 'moderate') return 'Med';
     if (normalized == 'hard') return 'Hard';
     if (normalized == 'complex') return 'Hard';
-    return value.trim().length <= 7 ? value.trim() : value.trim().substring(0, 7);
+    return value.trim().length <= 7
+        ? value.trim()
+        : value.trim().substring(0, 7);
   }
 }
 
 class _FavoriteButton extends StatelessWidget {
-  const _FavoriteButton({required this.isFavorite, required this.isLoading, this.onTap});
+  const _FavoriteButton({
+    required this.isFavorite,
+    required this.isLoading,
+    this.onTap,
+  });
 
   final bool isFavorite;
   final bool isLoading;
@@ -202,7 +224,9 @@ class _FavoriteButton extends StatelessWidget {
                 : Icon(
                     isFavorite ? Icons.bookmark : Icons.bookmark_border,
                     size: 19,
-                    color: isFavorite ? context.fmColors.favoriteActive : context.fmColors.favoriteInactive,
+                    color: isFavorite
+                        ? context.fmColors.favoriteActive
+                        : context.fmColors.favoriteInactive,
                   ),
           ),
         ),
@@ -231,7 +255,7 @@ class _MetaPill extends StatelessWidget {
           if (iconWidget != null) iconWidget!,
           if (iconWidget != null) const SizedBox(width: 3),
           Text(
-            label,
+            context.tr(label),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.nunito(

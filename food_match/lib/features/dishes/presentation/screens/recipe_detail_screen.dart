@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import '../../../../shared/logic/favorite_actions.dart';
 import '../../../../core/errors/error_messages.dart';
 import '../../../../core/theme/notification_theme.dart';
@@ -34,7 +35,12 @@ import '../../logic/recipe_provider.dart';
 part '../widgets/recipe_detail_content.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
-  const RecipeDetailScreen({required this.dishId, this.dish, this.source, super.key});
+  const RecipeDetailScreen({
+    required this.dishId,
+    this.dish,
+    this.source,
+    super.key,
+  });
 
   final String dishId;
   final Dish? dish;
@@ -58,11 +64,13 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     _scrollController.addListener(_handleScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      AppLogger.info('[RecipeDetail] open source=${widget.source ?? 'other'} dish=${widget.dishId} initialHasTime=${widget.dish?.hasTime ?? false}');
+      AppLogger.info(
+        '[RecipeDetail] open source=${widget.source ?? 'other'} dish=${widget.dishId} initialHasTime=${widget.dish?.hasTime ?? false}',
+      );
       context.read<RecipeProvider>().loadRecipeForDish(
-            dishId: widget.dishId,
-            dish: widget.dish,
-          );
+        dishId: widget.dishId,
+        dish: widget.dish,
+      );
       context.read<FavoritesProvider>().loadFavorites();
     });
   }
@@ -76,7 +84,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   }
 
   void _handleScroll() {
-    final bool nextIsScrolled = _scrollController.hasClients && _scrollController.offset > 80;
+    final bool nextIsScrolled =
+        _scrollController.hasClients && _scrollController.offset > 80;
     if (nextIsScrolled != _isScrolled) {
       setState(() => _isScrolled = nextIsScrolled);
     }
@@ -84,22 +93,41 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final Dish? dish = context.select<RecipeProvider, Dish?>((RecipeProvider p) => p.currentDish);
-    final bool isLoading = context.select<RecipeProvider, bool>((RecipeProvider p) => p.isLoading);
-    final String? error = context.select<RecipeProvider, String?>((RecipeProvider p) => p.error);
+    final Dish? dish = context.select<RecipeProvider, Dish?>(
+      (RecipeProvider p) => p.currentDish,
+    );
+    final bool isLoading = context.select<RecipeProvider, bool>(
+      (RecipeProvider p) => p.isLoading,
+    );
+    final String? error = context.select<RecipeProvider, String?>(
+      (RecipeProvider p) => p.error,
+    );
     final FoodMatchThemeColors colors = context.fmColors;
-    final preference = context.watch<AuthProvider>().measurementSystemPreference;
+    final preference = context
+        .watch<AuthProvider>()
+        .measurementSystemPreference;
     final deviceLocale = WidgetsBinding.instance.platformDispatcher.locale;
     final MeasurementSystem measurementSystem = resolveMeasurementSystem(
-      preference: preference, deviceLocale: deviceLocale,
+      preference: preference,
+      deviceLocale: deviceLocale,
       fallbackLocale: Localizations.maybeLocaleOf(context),
     );
-    final diagnostic = '${preference.name}|$deviceLocale|${measurementSystem.name}|${dish?.totalTimeDisplay}';
+    final diagnostic =
+        '${preference.name}|$deviceLocale|${measurementSystem.name}|${dish?.totalTimeDisplay}';
     if (_lastDiagnosticSignature != diagnostic) {
       _lastDiagnosticSignature = diagnostic;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        AppLogger.info('[Measurement] preference=${preference.name} locale=$deviceLocale country=${deviceLocale.countryCode ?? 'none'} resolved=${measurementSystem.name}');
-        if (dish != null) AppLogger.info('[RecipeDetail] render time=${dish.totalTimeDisplay.isEmpty ? 'none' : dish.totalTimeDisplay} source=${dish.totalTimeMinutes > 0 ? 'totalTimeMinutes' : dish.cookTime > 0 ? 'legacyCookTime' : 'componentOrTier'}');
+        AppLogger.info(
+          '[Measurement] preference=${preference.name} locale=$deviceLocale country=${deviceLocale.countryCode ?? 'none'} resolved=${measurementSystem.name}',
+        );
+        if (dish != null)
+          AppLogger.info(
+            '[RecipeDetail] render time=${dish.totalTimeDisplay.isEmpty ? 'none' : dish.totalTimeDisplay} source=${dish.totalTimeMinutes > 0
+                ? 'totalTimeMinutes'
+                : dish.cookTime > 0
+                ? 'legacyCookTime'
+                : 'componentOrTier'}',
+          );
       });
     }
 
@@ -120,9 +148,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           child: ErrorState(
             message: error,
             onRetry: () => context.read<RecipeProvider>().loadRecipeForDish(
-                  dishId: widget.dishId,
-                  dish: widget.dish,
-                ),
+              dishId: widget.dishId,
+              dish: widget.dish,
+            ),
           ),
         ),
       );
@@ -142,7 +170,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
               Expanded(
                 child: Center(
                   child: Text(
-                    AppStrings.recipeNotAvailable,
+                    context.tr(AppStrings.recipeNotAvailable),
                     style: GoogleFonts.nunito(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
@@ -161,8 +189,12 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       math.max(MediaQuery.sizeOf(context).height * 0.40, 280.0),
       380.0,
     );
-    final bool isFavorite = context.select<FavoritesProvider, bool>((FavoritesProvider p) => p.savedDishIds.contains(dish.id));
-    final bool isFavoriteUpdating = context.select<FavoritesProvider, bool>((FavoritesProvider p) => p.isUpdating(dish.id));
+    final bool isFavorite = context.select<FavoritesProvider, bool>(
+      (FavoritesProvider p) => p.savedDishIds.contains(dish.id),
+    );
+    final bool isFavoriteUpdating = context.select<FavoritesProvider, bool>(
+      (FavoritesProvider p) => p.isUpdating(dish.id),
+    );
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -172,15 +204,21 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             controller: _scrollController,
             slivers: <Widget>[
               SliverToBoxAdapter(
-                child: _HeroImage(dish: dish, dishId: dish.id, height: heroHeight),
+                child: _HeroImage(
+                  dish: dish,
+                  dishId: dish.id,
+                  height: heroHeight,
+                ),
               ),
               SliverToBoxAdapter(
                 child: _RecipeContent(
                   dish: dish,
                   fallbackDishId: widget.dishId,
                   activeTab: _activeTab,
-                  onTabChanged: (_RecipeDetailTab tab) => setState(() => _activeTab = tab),
-                  isAddingIngredients: _isAddingIngredientsToShoppingList ||
+                  onTabChanged: (_RecipeDetailTab tab) =>
+                      setState(() => _activeTab = tab),
+                  isAddingIngredients:
+                      _isAddingIngredientsToShoppingList ||
                       _hasScheduledShoppingListNavigation,
                   onAddIngredients: _handleAddIngredientsToShoppingList,
                   measurementSystem: measurementSystem,
@@ -210,16 +248,29 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       final upgrade = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: const Text('Grocery list is a Premium feature'),
-          content: const Text('Upgrade to FoodMatch Premium to add recipe ingredients to your grocery list.'),
+          title: Text(context.tr('Grocery list is a Premium feature')),
+          content: Text(
+            context.tr(
+              'Upgrade to FoodMatch Premium to add recipe ingredients to your grocery list.',
+            ),
+          ),
           actions: <Widget>[
-            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Not now')),
-            FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Upgrade to Premium')),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: Text(context.tr('Not now')),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text(context.tr('Upgrade to Premium')),
+            ),
           ],
         ),
       );
       if (mounted && upgrade == true) {
-        await context.push('/profile/premium', extra: PremiumEntryPoint.shoppingList);
+        await context.push(
+          '/profile/premium',
+          extra: PremiumEntryPoint.shoppingList,
+        );
       }
       return;
     }
@@ -230,9 +281,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     setState(() => _isAddingIngredientsToShoppingList = true);
     try {
       await context.read<ShoppingListProvider>().addIngredients(
-            ingredients: ingredients,
-            sourceDishId: dish.id,
-            sourceDishName: dish.name,
+        ingredients: ingredients,
+        sourceDishId: dish.id,
+        sourceDishName: dish.name,
       );
       if (!mounted) return;
       setState(() => _hasScheduledShoppingListNavigation = true);
@@ -252,9 +303,11 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       });
     } catch (error) {
       if (mounted) {
-        FoodMatchNotifications.show(context,
+        FoodMatchNotifications.show(
+          context,
           type: FoodMatchNotificationType.error,
-          title: ErrorMessages.fromException(error));
+          title: ErrorMessages.fromException(error),
+        );
       }
     } finally {
       if (mounted) {

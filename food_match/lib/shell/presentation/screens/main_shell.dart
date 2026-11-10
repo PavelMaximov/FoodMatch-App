@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -175,8 +176,7 @@ class _MainShellState extends State<MainShell>
   }
 
   void _handleBadgeAnimationEvent() {
-    final int event =
-        _matchBadgeController?.bumpToken ?? 0;
+    final int event = _matchBadgeController?.bumpToken ?? 0;
     if (event <= _lastBadgeBumpToken || !mounted) {
       return;
     }
@@ -214,9 +214,7 @@ class _MainShellState extends State<MainShell>
     final CoupleProvider? coupleProvider = _coupleProvider;
     if (coupleProvider == null) return;
     if (_swipeProvider?.hasActiveSoloSession == true) {
-      coupleProvider.stopInvitationPolling(
-        reason: 'active_solo_deck',
-      );
+      coupleProvider.stopInvitationPolling(reason: 'active_solo_deck');
       if (kDebugMode) {
         debugPrint('[PairInvite] polling paused reason=active_solo_deck');
       }
@@ -230,13 +228,10 @@ class _MainShellState extends State<MainShell>
 
   void _startMatchBadgeRefresh() {
     _matchBadgeRefreshTimer?.cancel();
-    _matchBadgeRefreshTimer = Timer.periodic(
-      const Duration(seconds: 15),
-      (_) {
-        if (!mounted || _isDisposed) return;
-        unawaited(_refreshMatchBadge(reason: 'shell_poll'));
-      },
-    );
+    _matchBadgeRefreshTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      if (!mounted || _isDisposed) return;
+      unawaited(_refreshMatchBadge(reason: 'shell_poll'));
+    });
   }
 
   Future<void> _refreshMatchBadge({required String reason}) async {
@@ -263,10 +258,7 @@ class _MainShellState extends State<MainShell>
     if (kDebugMode) {
       debugPrint('[MatchBadge] refresh requested reason=$reason');
     }
-    await matchProvider.loadMatches(
-      force: true,
-      reason: reason,
-    );
+    await matchProvider.loadMatches(force: true, reason: reason);
     if (!mounted || _isDisposed || generation != _badgeRefreshGeneration) {
       return;
     }
@@ -327,7 +319,9 @@ class _MainShellState extends State<MainShell>
   Future<void> _showContinuationInvitation(CoupleInvitation invitation) async {
     if (!mounted) return;
     final CoupleProvider coupleProvider = context.read<CoupleProvider>();
-    if (coupleProvider.nextIncomingInvitation?.deliveryKey != invitation.deliveryKey) return;
+    if (coupleProvider.nextIncomingInvitation?.deliveryKey !=
+        invitation.deliveryKey)
+      return;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -377,7 +371,8 @@ class _MainShellState extends State<MainShell>
         .select<CoupleProvider, CoupleInvitation?>(
           (CoupleProvider provider) => provider.nextIncomingInvitation,
         );
-    if (invitation != null && invitation.deliveryKey != _shownInvitationDeliveryKey) {
+    if (invitation != null &&
+        invitation.deliveryKey != _shownInvitationDeliveryKey) {
       _shownInvitationDeliveryKey = invitation.deliveryKey;
       WidgetsBinding.instance.addPostFrameCallback(
         (_) => _showContinuationInvitation(invitation),
@@ -466,10 +461,10 @@ class _MainShellState extends State<MainShell>
                             Positioned.fill(
                               child: MatchesNavBadge(
                                 count: matchCount,
-                                mode: _matchBadgeController?.mode ??
+                                mode:
+                                    _matchBadgeController?.mode ??
                                     matchProvider.mode,
-                                sessionId:
-                                    _matchBadgeController?.sessionId,
+                                sessionId: _matchBadgeController?.sessionId,
                                 bumpToken:
                                     _matchBadgeController?.bumpToken ?? 0,
                                 animation: _soloPlusOneController,
@@ -495,7 +490,7 @@ class _MainShellState extends State<MainShell>
                               ? colors.bottomNavActive
                               : colors.bottomNavInactive,
                         ),
-                        child: Text(item.label),
+                        child: Text(context.tr(item.label)),
                       ),
                     ],
                   ),

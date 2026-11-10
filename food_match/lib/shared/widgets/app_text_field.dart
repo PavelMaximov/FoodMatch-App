@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_dimensions.dart';
@@ -27,9 +28,9 @@ class AppTextField extends StatelessWidget {
     this.autofillHints,
   });
 
-String? _validate(String? value) {
+  String? _validate(String? value) {
     if (required && (value == null || value.trim().isEmpty)) {
-      return 'Это поле обязательно для заполнения';
+      return 'This field is required';
     }
     return validator?.call(value);
   }
@@ -42,11 +43,14 @@ String? _validate(String? value) {
       controller: controller,
       obscureText: obscureText,
       keyboardType: keyboardType,
-      validator: _validate,
+      validator: (value) {
+        final message = _validate(value);
+        return message == null ? null : context.tr(message);
+      },
       maxLines: maxLines,
       autofillHints: autofillHints,
       decoration: InputDecoration(
-        hintText: hint,
+        hintText: context.tr(hint),
         hintStyle: TextStyle(color: colors.textMuted),
         filled: true,
         fillColor: colors.inputBackground,

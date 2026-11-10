@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import '../../domain/premium_purchase.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -17,7 +18,11 @@ TextStyle premiumText(
 );
 
 class PremiumHero extends StatelessWidget {
-  const PremiumHero({super.key, required this.crownHeight, this.compact = false});
+  const PremiumHero({
+    super.key,
+    required this.crownHeight,
+    this.compact = false,
+  });
   final double crownHeight;
   final bool compact;
   @override
@@ -59,7 +64,7 @@ class PremiumHero extends StatelessWidget {
               alignment: Alignment.topLeft,
               child: IconButton(
                 key: const ValueKey('premium-close'),
-                tooltip: 'Close Premium',
+                tooltip: context.tr('Close Premium'),
                 onPressed: () => Navigator.of(context).maybePop(),
                 style: IconButton.styleFrom(
                   minimumSize: const Size(44, 44),
@@ -76,15 +81,23 @@ class PremiumHero extends StatelessWidget {
       Semantics(
         header: true,
         child: Text(
-          'Unlock Premium',
+          context.tr('Unlock Premium'),
           textAlign: TextAlign.center,
-          style: premiumText(context, compact ? 28 : 35, weight: FontWeight.w900),
+          style: premiumText(
+            context,
+            compact ? 28 : 35,
+            weight: FontWeight.w900,
+          ),
         ),
       ),
       Text(
-        'Get more powerful tools for smarter\nmeal planning.',
+        context.tr('Get more powerful tools for smarter\nmeal planning.'),
         textAlign: TextAlign.center,
-        style: premiumText(context, compact ? 14 : 16, color: context.fmColors.textSecondary),
+        style: premiumText(
+          context,
+          compact ? 14 : 16,
+          color: context.fmColors.textSecondary,
+        ),
       ),
     ],
   );
@@ -195,14 +208,14 @@ class PremiumBenefit extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              title,
+              context.tr(title),
               style: premiumText(context, 16, weight: FontWeight.w800),
             ),
           ),
         ],
       ),
       Text(
-        description,
+        context.tr(description),
         style: premiumText(context, 13, color: context.fmColors.textSecondary),
       ),
     ],
@@ -269,8 +282,10 @@ class PremiumPlanCard extends StatelessWidget {
         Semantics(
           selected: selected,
           button: true,
-          label:
-              '${plan.title}${plan.badge == null ? '' : ', recommended'} plan',
+          label: context.tr(
+            plan.badge == null ? 'plan.label' : 'plan.recommended',
+            {'plan': context.tr(plan.title)},
+          ),
           child: Material(
             key: ValueKey('premium-plan-${plan.selection.name}'),
             color: selected
@@ -300,7 +315,7 @@ class PremiumPlanCard extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            plan.title,
+                            context.tr(plan.title),
                             style: premiumText(
                               context,
                               17,
@@ -323,7 +338,9 @@ class PremiumPlanCard extends StatelessWidget {
                     ),
                     Text.rich(
                       TextSpan(
-                        text: plan.price,
+                        text: plan.storeProduct == null
+                            ? context.tr(plan.price)
+                            : plan.price,
                         style: premiumText(
                           context,
                           24,
@@ -331,7 +348,7 @@ class PremiumPlanCard extends StatelessWidget {
                         ),
                         children: [
                           TextSpan(
-                            text: ' ${plan.suffix}',
+                            text: ' ${context.tr(plan.suffix)}',
                             style: premiumText(
                               context,
                               12,
@@ -342,7 +359,7 @@ class PremiumPlanCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      plan.detail,
+                      plan.localizedDetail(context.copy),
                       style: premiumText(
                         context,
                         13,
@@ -376,7 +393,7 @@ class PremiumPlanCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  plan.badge!,
+                  context.tr(plan.badge!),
                   style: premiumText(
                     context,
                     11,
@@ -419,10 +436,10 @@ class PremiumFooter extends StatelessWidget {
               weight: FontWeight.w700,
             ).copyWith(decoration: TextDecoration.underline),
           ),
-          child: const Text('Restore purchases'),
+          child: Text(context.tr('Restore purchases')),
         ),
         Text(
-          'Auto-renewable. Cancel anytime.',
+          context.tr('Auto-renewable. Cancel anytime.'),
           style: premiumText(context, 12, color: colors.textMuted),
         ),
         // TODO(legal): Wire approved destinations when available. Profile's
@@ -430,12 +447,12 @@ class PremiumFooter extends StatelessWidget {
         Text.rich(
           TextSpan(
             children: [
-              TextSpan(text: 'Terms', style: linkStyle),
+              TextSpan(text: context.tr('Terms'), style: linkStyle),
               TextSpan(
                 text: '   |   ',
                 style: premiumText(context, 12, color: colors.textMuted),
               ),
-              TextSpan(text: 'Privacy', style: linkStyle),
+              TextSpan(text: context.tr('Privacy'), style: linkStyle),
             ],
           ),
         ),

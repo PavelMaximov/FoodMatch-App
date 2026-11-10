@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -103,7 +104,9 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
 
   void _showTimeoutError() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Something went wrong. Please try again.')),
+      SnackBar(
+        content: Text(context.tr('Something went wrong. Please try again.')),
+      ),
     );
   }
 
@@ -134,7 +137,14 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
     if (!mounted) return false;
     if (provider.error != null || provider.hasCouple) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(provider.error ?? 'Could not leave the session. Please try again.')),
+        SnackBar(
+          content: Text(
+            context.copy.error(
+              provider.error ??
+                  'Could not leave the session. Please try again.',
+            ),
+          ),
+        ),
       );
       return false;
     }
@@ -159,11 +169,11 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
           builder: (BuildContext dialogContext) => AlertDialog(
             backgroundColor: context.fmColors.modalBackground,
             title: Text(
-              'Leave pair setup?',
+              context.tr('Leave pair setup?'),
               style: TextStyle(color: context.fmColors.textPrimary),
             ),
             content: Text(
-              'Your current invite code will be closed.',
+              context.tr('Your current invite code will be closed.'),
               style: TextStyle(color: context.fmColors.textSecondary),
             ),
             actionsAlignment: MainAxisAlignment.center,
@@ -171,13 +181,13 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext, false),
                 child: Text(
-                  'Cancel',
+                  context.tr('Cancel'),
                   style: TextStyle(color: context.fmColors.textSecondary),
                 ),
               ),
               ElevatedButton(
                 onPressed: () => Navigator.pop(dialogContext, true),
-                child: const Text('Leave'),
+                child: Text(context.tr('Leave')),
               ),
             ],
           ),
@@ -196,7 +206,7 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
     return resolvePartnerDisplayName(
       couple: provider.currentCouple,
       currentUserId: context.read<AuthProvider>().currentUser?.id,
-      fallback: 'Connected',
+      fallback: context.tr('Connected'),
     );
   }
 
@@ -235,7 +245,7 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    'Create session',
+                    context.tr('Create session'),
                     style: GoogleFonts.fredoka(
                       fontSize: 28,
                       fontWeight: FontWeight.w700,
@@ -260,7 +270,7 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
                 const SizedBox(height: 26),
               ] else ...<Widget>[
                 Text(
-                  'Create your own session',
+                  context.tr('Create your own session'),
                   style: _sectionTitleStyle(context),
                 ),
                 const SizedBox(height: 12),
@@ -274,7 +284,7 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
                 const SizedBox(height: 30),
               ],
               Text(
-                'Join an existing session',
+                context.tr('Join an existing session'),
                 style: _sectionTitleStyle(context),
               ),
               const SizedBox(height: 14),
@@ -295,7 +305,7 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
               if (coupleProvider.error != null) ...<Widget>[
                 const SizedBox(height: 12),
                 Text(
-                  coupleProvider.error!,
+                  context.copy.error(coupleProvider.error!),
                   style: GoogleFonts.nunito(
                     fontSize: 13,
                     color: coupleProvider.hasActiveSessionConflict
@@ -355,7 +365,7 @@ class _InviteCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(
-                      'Invite code:',
+                      context.tr('Invite code:'),
                       style: GoogleFonts.nunito(
                         fontSize: 14,
                         color: colors.textSecondary,
@@ -379,12 +389,12 @@ class _InviteCard extends StatelessWidget {
                   await Clipboard.setData(ClipboardData(text: inviteCode));
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Invite code copied')),
+                      SnackBar(content: Text(context.tr('Invite code copied'))),
                     );
                   }
                 },
                 icon: const Icon(Icons.copy_rounded, size: 16),
-                label: const Text('Copy'),
+                label: Text(context.tr('Copy')),
               ),
             ],
           ),
@@ -392,7 +402,7 @@ class _InviteCard extends StatelessWidget {
           Row(
             children: <Widget>[
               Text(
-                'Partner:',
+                context.tr('Partner:'),
                 style: GoogleFonts.nunito(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
@@ -437,7 +447,7 @@ class _InviteCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(36),
                       ),
                     ),
-                    child: const Text('Reset'),
+                    child: Text(context.tr('Reset')),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -451,7 +461,7 @@ class _InviteCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(36),
                       ),
                     ),
-                    child: const Text('Leave'),
+                    child: Text(context.tr('Leave')),
                   ),
                 ),
               ],
@@ -538,7 +548,7 @@ class _CodeInput extends StatelessWidget {
               TextButton.icon(
                 onPressed: onPaste,
                 icon: const Icon(Icons.content_paste_rounded, size: 15),
-                label: const Text('Paste'),
+                label: Text(context.tr('Paste')),
               ),
             ],
           ),
@@ -586,7 +596,7 @@ class _OrangeButton extends StatelessWidget {
                 ),
               )
             : Text(
-                label,
+                context.tr(label),
                 style: GoogleFonts.nunito(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,

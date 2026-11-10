@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/locale_controller.dart';
 import 'package:food_match/core/theme/theme_controller.dart';
 import 'dart:async';
 import 'package:food_match/features/auth/logic/auth_provider.dart';
@@ -20,10 +21,13 @@ class _UnitsAuth extends ChangeNotifier implements AuthProvider {
   MeasurementSystemPreference? selected;
 
   @override
-  MeasurementSystemPreference get measurementSystemPreference => MeasurementSystemPreference.auto;
+  MeasurementSystemPreference get measurementSystemPreference =>
+      MeasurementSystemPreference.auto;
 
   @override
-  Future<bool> updateMeasurementSystemPreference(MeasurementSystemPreference value) {
+  Future<bool> updateMeasurementSystemPreference(
+    MeasurementSystemPreference value,
+  ) {
     selected = value;
     return completion.future;
   }
@@ -50,28 +54,38 @@ void main() {
   }
 
   Widget historyApp(MatchHistoryProvider provider) => testApp(
-        ChangeNotifierProvider<MatchHistoryProvider>.value(
-          value: provider,
-          child: const MatchHistoryContent(),
-        ),
-      );
+    ChangeNotifierProvider<MatchHistoryProvider>.value(
+      value: provider,
+      child: const MatchHistoryContent(),
+    ),
+  );
 
-  testWidgets('units selection survives dismissing the sheet while saving', (tester) async {
+  testWidgets('units selection survives dismissing the sheet while saving', (
+    tester,
+  ) async {
     final auth = _UnitsAuth();
     addTearDown(auth.dispose);
-    await tester.pumpWidget(testApp(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<AuthProvider>.value(value: auth),
-          ChangeNotifierProvider<ThemeController>(create: (_) => ThemeController()),
-        ],
-        child: const ProfileSettingsScreen(),
+    await tester.pumpWidget(
+      testApp(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider(create: (_) => LocaleController()),
+            ChangeNotifierProvider<AuthProvider>.value(value: auth),
+            ChangeNotifierProvider<ThemeController>(
+              create: (_) => ThemeController(),
+            ),
+          ],
+          child: const ProfileSettingsScreen(),
+        ),
       ),
-    ));
+    );
     await tester.ensureVisible(find.text('Units'));
     await tester.tap(find.text('Units'));
     await tester.pumpAndSettle();
-    expect(find.byType(RadioGroup<MeasurementSystemPreference>), findsOneWidget);
+    expect(
+      find.byType(RadioGroup<MeasurementSystemPreference>),
+      findsOneWidget,
+    );
     await tester.tap(find.text('Imperial'));
     await tester.pump();
     expect(auth.selected, MeasurementSystemPreference.imperial);
@@ -81,38 +95,42 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('About FoodMatch groups product and legal information',
-      (WidgetTester tester) async {
+  testWidgets('About FoodMatch groups product and legal information', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(testApp(const AboutFoodMatchScreen()));
 
     expect(find.text('About FoodMatch'), findsOneWidget);
     expect(find.text('Version'), findsOneWidget);
-    expect(find.text('Privacy Policy'), findsOneWidget);
-    expect(find.text('Terms of Use'), findsOneWidget);
+    expect(find.text('Privacy policy'), findsOneWidget);
+    expect(find.text('Terms of use'), findsOneWidget);
   });
 
-  testWidgets('Help groups support and sharing actions',
-      (WidgetTester tester) async {
+  testWidgets('Help groups support and sharing actions', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(testApp(const HelpScreen()));
 
     expect(find.text('Help'), findsOneWidget);
-    expect(find.text('Contact Us'), findsOneWidget);
-    expect(find.text('Rate Us'), findsOneWidget);
-    expect(find.text('Share App'), findsOneWidget);
+    expect(find.text('Contact us'), findsOneWidget);
+    expect(find.text('Rate us'), findsOneWidget);
+    expect(find.text('Share app'), findsOneWidget);
   });
 
-  testWidgets('Profile details render with the dark FoodMatch theme',
-      (WidgetTester tester) async {
+  testWidgets('Profile details render with the dark FoodMatch theme', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(
       testApp(const HelpScreen(), themeMode: ThemeMode.dark),
     );
 
     expect(find.text('Help'), findsOneWidget);
-    expect(find.text('Contact Us'), findsOneWidget);
+    expect(find.text('Contact us'), findsOneWidget);
   });
 
-  testWidgets('Match History has an image-based empty state',
-      (WidgetTester tester) async {
+  testWidgets('Match History has an image-based empty state', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(
       historyApp(
         MatchHistoryProvider.seeded(
@@ -126,17 +144,16 @@ void main() {
 
     expect(find.text('No matches yet'), findsOneWidget);
     expect(find.text('Your matched dishes will appear here.'), findsOneWidget);
-    final FoodMatchEmptyStateImage image = tester.widget<FoodMatchEmptyStateImage>(
-      find.byType(FoodMatchEmptyStateImage).first,
-    );
-    expect(
-      image.assetPath,
-      'assets/empty_states/empty_match_history.png',
-    );
+    final FoodMatchEmptyStateImage image = tester
+        .widget<FoodMatchEmptyStateImage>(
+          find.byType(FoodMatchEmptyStateImage).first,
+        );
+    expect(image.assetPath, 'assets/empty_states/empty_match_history.png');
   });
 
-  testWidgets('Match History renders Solo and Pair session sections',
-      (WidgetTester tester) async {
+  testWidgets('Match History renders Solo and Pair session sections', (
+    WidgetTester tester,
+  ) async {
     final now = DateTime(2026, 8, 30, 12);
     MatchHistorySession session(MatchHistoryMode mode, String id) =>
         MatchHistorySession(

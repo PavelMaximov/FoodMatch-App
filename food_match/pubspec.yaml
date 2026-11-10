@@ -9,6 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
   go_router: ^14.8.1
   animations: ^2.2.0
   flutter_secure_storage: ^9.2.4

@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -21,7 +22,9 @@ class AppLogoHeader extends StatelessWidget {
       children: <Widget>[
         LayoutBuilder(
           builder: (BuildContext context, BoxConstraints constraints) {
-            final double width = constraints.maxWidth > 0 ? constraints.maxWidth : 230;
+            final double width = constraints.maxWidth > 0
+                ? constraints.maxWidth
+                : 230;
             return SvgPicture.asset(
               logoAsset,
               width: width,
@@ -41,7 +44,7 @@ class AppLogoHeader extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
-              AppStrings.appTagline,
+              context.tr(AppStrings.appTagline),
               style: GoogleFonts.nunito(
                 fontSize: 14,
                 color: context.fmColors.textSecondary,

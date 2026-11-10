@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -81,7 +82,10 @@ class _SessionResumeChoiceScreenState extends State<SessionResumeChoiceScreen> {
   @override
   Widget build(BuildContext context) {
     final FoodMatchThemeColors colors = context.fmColors;
-    final String partnerName = _partnerName(widget.partner);
+    final String partnerName = _partnerName(
+      widget.partner,
+      context.tr('your partner'),
+    );
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
       child: Column(
@@ -96,7 +100,7 @@ class _SessionResumeChoiceScreenState extends State<SessionResumeChoiceScreen> {
           ),
           const SizedBox(height: 5),
           Text(
-            'Session complete',
+            context.tr('Session complete'),
             style: GoogleFonts.fredoka(
               fontSize: 35,
               fontWeight: FontWeight.w700,
@@ -106,7 +110,9 @@ class _SessionResumeChoiceScreenState extends State<SessionResumeChoiceScreen> {
           ),
           const SizedBox(height: 10),
           Text(
-            'Would you like to continue with previous setup or start a new session?',
+            context.tr(
+              'Would you like to continue with previous setup or start a new session?',
+            ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.nunito(
@@ -135,7 +141,11 @@ class _SessionResumeChoiceScreenState extends State<SessionResumeChoiceScreen> {
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              child: Text(_isContinuing ? 'Continuing…' : 'Continue last session'),
+              child: Text(
+                context.tr(
+                  _isContinuing ? 'Continuing…' : 'Continue last session',
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 13),
@@ -158,7 +168,7 @@ class _SessionResumeChoiceScreenState extends State<SessionResumeChoiceScreen> {
                 ),
               ),
               child: Text(
-                _isStartingNew ? 'Starting…' : 'Start new session',
+                context.tr(_isStartingNew ? 'Starting…' : 'Start new session'),
               ),
             ),
           ),
@@ -168,7 +178,9 @@ class _SessionResumeChoiceScreenState extends State<SessionResumeChoiceScreen> {
             children: <Widget>[
               Flexible(
                 child: Text(
-                  widget.isSoloMode ? 'Solo' : 'With $partnerName',
+                  widget.isSoloMode
+                      ? context.tr('Solo')
+                      : context.tr('With {name}', {'name': partnerName}),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.nunito(
@@ -342,7 +354,7 @@ class _FilterSection extends StatelessWidget {
               Icon(icon, color: chipColors.foreground, size: 21),
               const SizedBox(width: 10),
               Text(
-                label,
+                context.tr(label),
                 style: GoogleFonts.nunito(
                   fontSize: 15,
                   color: colors.textMuted,
@@ -368,9 +380,11 @@ class _FilterSection extends StatelessWidget {
                       border: Border.all(color: chipColors.border),
                     ),
                     child: Text(
-                      isLoading || values.isEmpty
-                          ? value
-                          : _formatOptionLabel(value),
+                      context.tr(
+                        isLoading || values.isEmpty
+                            ? value
+                            : _formatOptionLabel(value),
+                      ),
                       style: GoogleFonts.nunito(
                         fontSize: 13,
                         fontWeight: FontWeight.w800,
@@ -387,7 +401,7 @@ class _FilterSection extends StatelessWidget {
   }
 }
 
-String _partnerName(CoupleMemberProfile? partner) {
+String _partnerName(CoupleMemberProfile? partner, String fallback) {
   final String? email = partner?.email;
   final String? emailPrefix = email == null || !email.contains('@')
       ? email
@@ -402,7 +416,7 @@ String _partnerName(CoupleMemberProfile? partner) {
     final String value = candidate?.trim() ?? '';
     if (value.isNotEmpty) return value;
   }
-  return 'your partner';
+  return fallback;
 }
 
 String _formatOptionLabel(String value) => value

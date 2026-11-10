@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -29,9 +30,11 @@ class _NetworkStatusBarState extends State<NetworkStatusBar> {
 
   Future<void> _checkConnectivity() async {
     try {
-      final List<InternetAddress> result = await InternetAddress.lookup('google.com')
-          .timeout(const Duration(seconds: 3));
-      final bool online = result.isNotEmpty && result.first.rawAddress.isNotEmpty;
+      final List<InternetAddress> result = await InternetAddress.lookup(
+        'google.com',
+      ).timeout(const Duration(seconds: 3));
+      final bool online =
+          result.isNotEmpty && result.first.rawAddress.isNotEmpty;
       if (mounted && online != _isOnline) {
         setState(() => _isOnline = online);
       }
@@ -58,13 +61,13 @@ class _NetworkStatusBarState extends State<NetworkStatusBar> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
       color: AppColors.textSecondary,
-      child: const Row(
+      child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
           Icon(Icons.wifi_off, size: 16, color: Colors.white),
           SizedBox(width: 8),
           Text(
-            AppStrings.noInternet,
+            context.tr(AppStrings.noInternet),
             style: TextStyle(color: Colors.white, fontSize: 12),
           ),
         ],

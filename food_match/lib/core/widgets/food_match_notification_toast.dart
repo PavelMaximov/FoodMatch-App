@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/notification_theme.dart';
@@ -60,7 +61,9 @@ class FoodMatchNotificationToast extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
-                    title,
+                    type == FoodMatchNotificationType.error
+                        ? context.copy.error(title)
+                        : context.tr(title),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -73,7 +76,7 @@ class FoodMatchNotificationToast extends StatelessWidget {
                   if (hasMessage) ...<Widget>[
                     const SizedBox(height: 3),
                     Text(
-                      message!,
+                      context.tr(message!),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -97,7 +100,7 @@ class FoodMatchNotificationToast extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                 ),
                 child: Text(
-                  actionLabel!,
+                  context.tr(actionLabel!),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontWeight: FontWeight.w800),
