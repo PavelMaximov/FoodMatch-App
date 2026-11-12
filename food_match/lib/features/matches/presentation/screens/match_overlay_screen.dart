@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -54,7 +55,9 @@ class MatchOverlayScreen extends StatelessWidget {
               ),
             ),
           DecoratedBox(
-            decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.66)),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.66),
+            ),
           ),
           IgnorePointer(
             child: Lottie.asset(
@@ -71,7 +74,7 @@ class MatchOverlayScreen extends StatelessWidget {
                   FittedBox(
                     fit: BoxFit.scaleDown,
                     child: Text(
-                      'It\'s a match!',
+                      context.tr('It\'s a match!'),
                       textAlign: TextAlign.center,
                       style: GoogleFonts.fredoka(
                         fontSize: 53,
@@ -83,7 +86,7 @@ class MatchOverlayScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 18),
                   Text(
-                    'You both liked',
+                    context.tr('You both liked'),
                     textAlign: TextAlign.center,
                     style: GoogleFonts.nunito(
                       color: Colors.white,
@@ -156,11 +159,17 @@ class _MatchOverlayButton extends StatelessWidget {
           foregroundColor: foregroundColor,
           elevation: 0,
           padding: const EdgeInsets.symmetric(vertical: 18),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(36),
+          ),
         ),
         child: Text(
-          text,
-          style: GoogleFonts.nunito(fontSize: 17, fontWeight: FontWeight.w900, color: foregroundColor),
+          context.tr(text),
+          style: GoogleFonts.nunito(
+            fontSize: 17,
+            fontWeight: FontWeight.w900,
+            color: foregroundColor,
+          ),
         ),
       ),
     );

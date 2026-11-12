@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -26,7 +27,7 @@ class ShoppingListScreen extends StatelessWidget {
           icon: Icon(Icons.arrow_back, color: colors.textPrimary),
         ),
         title: Text(
-          'Grocery list',
+          context.tr('Grocery list'),
           style: AppTextStyles.pageTitle.copyWith(
             fontSize: 30,
             color: colors.textPrimary,
@@ -90,7 +91,7 @@ class _ProgressRow extends StatelessWidget {
         Expanded(
           child: Text.rich(
             TextSpan(
-              text: 'Total products: ',
+              text: context.tr('Total products: '),
               children: <InlineSpan>[
                 TextSpan(
                   text: '${provider.checkedCount}/${provider.items.length}',
@@ -107,14 +108,16 @@ class _ProgressRow extends StatelessWidget {
         ),
         _SmallAction(
           icon: Icons.refresh_rounded,
-          tooltip: 'Reset completed products',
+          tooltip: context.tr('Reset completed products'),
           onPressed: provider.checkedCount == 0 ? null : provider.resetChecked,
         ),
         const SizedBox(width: 8),
         _SmallAction(
           icon: Icons.delete_rounded,
-          tooltip: 'Clear grocery list',
-          onPressed: provider.items.isEmpty ? null : () => _confirmClear(context),
+          tooltip: context.tr('Clear grocery list'),
+          onPressed: provider.items.isEmpty
+              ? null
+              : () => _confirmClear(context),
         ),
       ],
     );
@@ -126,14 +129,23 @@ class _ProgressRow extends StatelessWidget {
       context: context,
       builder: (BuildContext dialogContext) => AlertDialog(
         backgroundColor: colors.modalBackground,
-        title: Text('Clear grocery list?', style: TextStyle(color: colors.textPrimary)),
+        title: Text(
+          context.tr('Clear grocery list?'),
+          style: TextStyle(color: colors.textPrimary),
+        ),
         content: Text(
-          'This will remove all products from your grocery list.',
+          context.tr('This will remove all products from your grocery list.'),
           style: TextStyle(color: colors.textSecondary),
         ),
         actions: <Widget>[
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Clear')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(context.tr('Cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(context.tr('Clear')),
+          ),
         ],
       ),
     );
@@ -142,7 +154,11 @@ class _ProgressRow extends StatelessWidget {
 }
 
 class _SmallAction extends StatelessWidget {
-  const _SmallAction({required this.icon, required this.tooltip, required this.onPressed});
+  const _SmallAction({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
 
   final IconData icon;
   final String tooltip;
@@ -155,7 +171,7 @@ class _SmallAction extends StatelessWidget {
       dimension: 38,
       child: IconButton(
         padding: EdgeInsets.zero,
-        tooltip: tooltip,
+        tooltip: context.tr(tooltip),
         onPressed: onPressed,
         icon: Icon(icon, size: 20),
         color: colors.textPrimary,
@@ -184,7 +200,11 @@ class _ShoppingItems extends StatelessWidget {
       onReorder: provider.reorder,
       itemBuilder: (BuildContext context, int index) {
         final ShoppingListItem item = provider.items[index];
-        return _ShoppingRow(key: ValueKey<String>(item.id), item: item, index: index);
+        return _ShoppingRow(
+          key: ValueKey<String>(item.id),
+          item: item,
+          index: index,
+        );
       },
     );
   }
@@ -196,10 +216,10 @@ class _ShoppingRow extends StatelessWidget {
   final ShoppingListItem item;
   final int index;
 
-  String get quantityLabel {
+  String quantityLabel(BuildContext context) {
     if (item.quantity == null) return '';
     if (item.measure == null) return item.quantity!;
-    return '${item.quantity} ${item.measure}';
+    return '${item.quantity} ${context.tr(item.measure!)}';
   }
 
   @override
@@ -213,7 +233,11 @@ class _ShoppingRow extends StatelessWidget {
             index: index,
             child: Padding(
               padding: const EdgeInsets.only(right: 12),
-              child: Icon(Icons.drag_indicator_rounded, size: 20, color: colors.textMuted),
+              child: Icon(
+                Icons.drag_indicator_rounded,
+                size: 20,
+                color: colors.textMuted,
+              ),
             ),
           ),
           Expanded(
@@ -232,28 +256,38 @@ class _ShoppingRow extends StatelessWidget {
           SizedBox(
             width: 76,
             child: Text(
-              quantityLabel,
+              quantityLabel(context),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.right,
-              style: GoogleFonts.nunito(fontSize: 14, color: colors.textSecondary),
+              style: GoogleFonts.nunito(
+                fontSize: 14,
+                color: colors.textSecondary,
+              ),
             ),
           ),
           const SizedBox(width: 12),
           InkWell(
             borderRadius: BorderRadius.circular(5),
-            onTap: () => context.read<ShoppingListProvider>().toggleChecked(item.id),
+            onTap: () =>
+                context.read<ShoppingListProvider>().toggleChecked(item.id),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 150),
               width: 25,
               height: 25,
               decoration: BoxDecoration(
                 color: item.checked ? colors.primary : Colors.transparent,
-                border: Border.all(color: item.checked ? colors.primary : colors.borderStrong),
+                border: Border.all(
+                  color: item.checked ? colors.primary : colors.borderStrong,
+                ),
                 borderRadius: BorderRadius.circular(5),
               ),
               child: item.checked
-                  ? Icon(Icons.check_rounded, size: 18, color: colors.buttonPrimaryText)
+                  ? Icon(
+                      Icons.check_rounded,
+                      size: 18,
+                      color: colors.buttonPrimaryText,
+                    )
                   : null,
             ),
           ),
@@ -276,15 +310,24 @@ class _EmptyState extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Text(
-              'Your grocery list is empty',
+              context.tr('Your grocery list is empty'),
               textAlign: TextAlign.center,
-              style: GoogleFonts.nunito(fontSize: 20, fontWeight: FontWeight.w800, color: colors.textPrimary),
+              style: GoogleFonts.nunito(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: colors.textPrimary,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Add ingredients from a recipe or add a product manually.',
+              context.tr(
+                'Add ingredients from a recipe or add a product manually.',
+              ),
               textAlign: TextAlign.center,
-              style: GoogleFonts.nunito(fontSize: 14, color: colors.textSecondary),
+              style: GoogleFonts.nunito(
+                fontSize: 14,
+                color: colors.textSecondary,
+              ),
             ),
           ],
         ),
@@ -302,7 +345,15 @@ class _AddProductSheet extends StatefulWidget {
 
 class _AddProductSheetState extends State<_AddProductSheet> {
   static const List<String> _measures = <String>[
-    'kg', 'g', 'l', 'ml', 'pcs', 'tbsp', 'tsp', 'cup', 'pack',
+    'kg',
+    'g',
+    'l',
+    'ml',
+    'pcs',
+    'tbsp',
+    'tsp',
+    'cup',
+    'pack',
   ];
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
@@ -336,8 +387,19 @@ class _AddProductSheetState extends State<_AddProductSheet> {
               children: <Widget>[
                 Row(
                   children: <Widget>[
-                    Expanded(child: Text('Add product', style: AppTextStyles.sectionHeader.copyWith(fontSize: 24, color: colors.textPrimary))),
-                    IconButton(onPressed: () => Navigator.pop(context), icon: Icon(Icons.close, color: colors.textPrimary)),
+                    Expanded(
+                      child: Text(
+                        context.tr('Add product'),
+                        style: AppTextStyles.sectionHeader.copyWith(
+                          fontSize: 24,
+                          color: colors.textPrimary,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: Icon(Icons.close, color: colors.textPrimary),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -346,10 +408,20 @@ class _AddProductSheetState extends State<_AddProductSheet> {
                   autofocus: true,
                   textInputAction: TextInputAction.next,
                   decoration: _decoration(context, '*Product name'),
-                  validator: (String? value) => value == null || value.trim().isEmpty ? 'Product name is required' : null,
+                  validator: (String? value) =>
+                      value == null || value.trim().isEmpty
+                      ? context.tr('Product name is required')
+                      : null,
                 ),
                 const SizedBox(height: 22),
-                Text('Add details', style: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+                Text(
+                  context.tr('Add details'),
+                  style: GoogleFonts.nunito(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: colors.textPrimary,
+                  ),
+                ),
                 const SizedBox(height: 10),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -357,7 +429,9 @@ class _AddProductSheetState extends State<_AddProductSheet> {
                     Expanded(
                       child: TextFormField(
                         controller: _quantityController,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
                         decoration: _decoration(context, 'Enter quantity'),
                       ),
                     ),
@@ -367,8 +441,16 @@ class _AddProductSheetState extends State<_AddProductSheet> {
                         initialValue: _measure,
                         decoration: _decoration(context, 'Measure'),
                         dropdownColor: colors.surface,
-                        items: _measures.map((String value) => DropdownMenuItem<String>(value: value, child: Text(value))).toList(),
-                        onChanged: (String? value) => setState(() => _measure = value),
+                        items: _measures
+                            .map(
+                              (String value) => DropdownMenuItem<String>(
+                                value: value,
+                                child: Text(context.tr(value)),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (String? value) =>
+                            setState(() => _measure = value),
                       ),
                     ),
                   ],
@@ -381,10 +463,19 @@ class _AddProductSheetState extends State<_AddProductSheet> {
                     style: FilledButton.styleFrom(
                       backgroundColor: colors.primary,
                       foregroundColor: colors.buttonPrimaryText,
-                      padding: const EdgeInsets.symmetric(horizontal: 34, vertical: 14),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 34,
+                        vertical: 14,
+                      ),
                       shape: const StadiumBorder(),
                     ),
-                    child: Text('Add +', style: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.w800)),
+                    child: Text(
+                      context.tr('Add +'),
+                      style: GoogleFonts.nunito(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -398,13 +489,22 @@ class _AddProductSheetState extends State<_AddProductSheet> {
   InputDecoration _decoration(BuildContext context, String hint) {
     final colors = context.fmColors;
     return InputDecoration(
-      hintText: hint,
+      hintText: context.tr(hint),
       hintStyle: TextStyle(color: colors.textMuted),
       filled: true,
       fillColor: colors.inputBackground,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: colors.inputBorder)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: colors.inputBorder)),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: colors.inputFocusedBorder)),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: colors.inputBorder),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: colors.inputBorder),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: colors.inputFocusedBorder),
+      ),
     );
   }
 
@@ -412,10 +512,10 @@ class _AddProductSheetState extends State<_AddProductSheet> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _submitting = true);
     await context.read<ShoppingListProvider>().addManualItem(
-          name: _nameController.text,
-          quantity: _quantityController.text,
-          measure: _measure,
-        );
+      name: _nameController.text,
+      quantity: _quantityController.text,
+      measure: _measure,
+    );
     if (mounted) Navigator.pop(context);
   }
 }

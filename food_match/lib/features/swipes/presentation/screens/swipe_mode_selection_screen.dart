@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -29,18 +30,23 @@ class _SwipeModeSelectionScreenState extends State<SwipeModeSelectionScreen> {
   @override
   Widget build(BuildContext context) {
     final FoodMatchThemeColors colors = context.fmColors;
-    final _ModeInfoBlockColors switchHintColors = _modeSwitchHintColors(context);
+    final _ModeInfoBlockColors switchHintColors = _modeSwitchHintColors(
+      context,
+    );
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 36, 20, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           if (widget.notice != null) ...[
-            Text(widget.notice!, style: TextStyle(color: colors.textSecondary)),
+            Text(
+              context.tr(widget.notice!),
+              style: TextStyle(color: colors.textSecondary),
+            ),
             const SizedBox(height: 16),
           ],
           Text(
-            'How do you want\nto swipe?',
+            context.tr('How do you want\nto swipe?'),
             style: GoogleFonts.fredoka(
               fontSize: 36,
               fontWeight: FontWeight.w700,
@@ -50,7 +56,9 @@ class _SwipeModeSelectionScreenState extends State<SwipeModeSelectionScreen> {
           ),
           const SizedBox(height: 10),
           Text(
-            'Choose solo to explore on your own, or pair up to find a dish you both want.',
+            context.tr(
+              'Choose solo to explore on your own, or pair up to find a dish you both want.',
+            ),
             style: GoogleFonts.nunito(
               fontSize: 15,
               height: 1.35,
@@ -63,7 +71,8 @@ class _SwipeModeSelectionScreenState extends State<SwipeModeSelectionScreen> {
             icon: Icons.person_rounded,
             title: 'Solo',
             subtitle: 'Swipe through dishes just for yourself.',
-            info: 'Matches are saved to your personal list right away — no waiting on anyone else.',
+            info:
+                'Matches are saved to your personal list right away — no waiting on anyone else.',
             onTap: () => setState(() => _selected = SwipeModeChoice.solo),
           ),
           const SizedBox(height: 14),
@@ -73,7 +82,8 @@ class _SwipeModeSelectionScreenState extends State<SwipeModeSelectionScreen> {
             title: 'Pair up',
             badge: '2 people',
             subtitle: 'Swipe together with a partner in real time.',
-            info: 'You\'ll send an invite link. A dish becomes a match only when you both swipe right.',
+            info:
+                'You\'ll send an invite link. A dish becomes a match only when you both swipe right.',
             onTap: () => setState(() => _selected = SwipeModeChoice.paired),
           ),
           const SizedBox(height: 16),
@@ -85,11 +95,16 @@ class _SwipeModeSelectionScreenState extends State<SwipeModeSelectionScreen> {
             ),
             child: Row(
               children: <Widget>[
-                Icon(Icons.lightbulb_outline, color: switchHintColors.foreground),
+                Icon(
+                  Icons.lightbulb_outline,
+                  color: switchHintColors.foreground,
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'You can switch modes anytime from Session settings.',
+                    context.tr(
+                      'You can switch modes anytime from Session settings.',
+                    ),
                     style: GoogleFonts.nunito(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
@@ -104,7 +119,9 @@ class _SwipeModeSelectionScreenState extends State<SwipeModeSelectionScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: _selected == SwipeModeChoice.solo ? widget.onSolo : widget.onPairUp,
+              onPressed: _selected == SwipeModeChoice.solo
+                  ? widget.onSolo
+                  : widget.onPairUp,
               style: ElevatedButton.styleFrom(
                 backgroundColor: colors.buttonPrimaryBackground,
                 foregroundColor: colors.buttonPrimaryText,
@@ -122,7 +139,11 @@ class _SwipeModeSelectionScreenState extends State<SwipeModeSelectionScreen> {
                 ),
               ),
               child: Text(
-                _selected == SwipeModeChoice.solo ? 'Continue with Solo' : 'Continue with Pair up',
+                context.tr(
+                  _selected == SwipeModeChoice.solo
+                      ? 'Continue with Solo'
+                      : 'Continue with Pair up',
+                ),
               ),
             ),
           ),
@@ -191,10 +212,13 @@ class _ModeCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      Row(
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: <Widget>[
                           Text(
-                            title,
+                            context.tr(title),
                             style: GoogleFonts.nunito(
                               fontSize: 18,
                               fontWeight: FontWeight.w800,
@@ -202,15 +226,17 @@ class _ModeCard extends StatelessWidget {
                             ),
                           ),
                           if (badge != null) ...<Widget>[
-                            const SizedBox(width: 8),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
                               decoration: BoxDecoration(
                                 color: colors.primarySoft,
                                 borderRadius: BorderRadius.circular(999),
                               ),
                               child: Text(
-                                badge!,
+                                context.tr(badge!),
                                 style: GoogleFonts.nunito(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w800,
@@ -222,8 +248,11 @@ class _ModeCard extends StatelessWidget {
                         ],
                       ),
                       Text(
-                        subtitle,
-                        style: GoogleFonts.nunito(fontSize: 14, color: colors.textSecondary),
+                        context.tr(subtitle),
+                        style: GoogleFonts.nunito(
+                          fontSize: 14,
+                          color: colors.textSecondary,
+                        ),
                       ),
                     ],
                   ),
@@ -231,10 +260,7 @@ class _ModeCard extends StatelessWidget {
                 RadioGroup<bool>(
                   groupValue: selected,
                   onChanged: (_) => onTap(),
-                  child: Radio<bool>(
-                    value: true,
-                    activeColor: colors.primary,
-                  ),
+                  child: Radio<bool>(value: true, activeColor: colors.primary),
                 ),
               ],
             ),
@@ -247,11 +273,15 @@ class _ModeCard extends StatelessWidget {
               ),
               child: Row(
                 children: <Widget>[
-                  Icon(Icons.info_outline, size: 18, color: blockColors.foreground),
+                  Icon(
+                    Icons.info_outline,
+                    size: 18,
+                    color: blockColors.foreground,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      info,
+                      context.tr(info),
                       style: GoogleFonts.nunito(
                         fontSize: 13,
                         height: 1.3,

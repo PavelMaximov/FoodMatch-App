@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/theme/theme_extensions.dart';
@@ -43,23 +44,23 @@ class EmptyState extends StatelessWidget {
               Icon(icon, size: 80, color: colors.textMuted),
             const SizedBox(height: 16),
             Text(
-              title,
+              context.tr(title),
               style: Theme.of(context).textTheme.headlineSmall,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
-              subtitle,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: colors.textMuted,
-                  ),
+              context.tr(subtitle),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: colors.textMuted),
               textAlign: TextAlign.center,
             ),
             if (buttonText != null && onButtonPressed != null) ...<Widget>[
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: onButtonPressed,
-                child: Text(buttonText!),
+                child: Text(context.tr(buttonText!)),
               ),
             ],
           ],

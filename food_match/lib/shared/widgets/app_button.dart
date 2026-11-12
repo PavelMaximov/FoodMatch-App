@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_dimensions.dart';
@@ -54,6 +55,7 @@ class AppButton extends StatelessWidget {
                 ),
               ),
               child: _buildChild(
+                context,
                 colors,
                 isOutlined: true,
                 outlinedColor: outlinedColor,
@@ -83,7 +85,7 @@ class AppButton extends StatelessWidget {
                 borderRadius: BorderRadius.circular(AppDimensions.radiusButton),
               ),
             ),
-            child: _buildChild(colors),
+            child: _buildChild(context, colors),
           ),
         ),
       ),
@@ -91,6 +93,7 @@ class AppButton extends StatelessWidget {
   }
 
   Widget _buildChild(
+    BuildContext context,
     FoodMatchThemeColors colors, {
     bool isOutlined = false,
     Color? outlinedColor,
@@ -115,7 +118,7 @@ class AppButton extends StatelessWidget {
           Icon(icon, size: 20),
           const SizedBox(width: 8),
           Text(
-            text,
+            context.tr(text),
             style: isOutlined
                 ? AppTextStyles.button.copyWith(
                     color: outlinedColor ?? colors.primary,
@@ -129,7 +132,7 @@ class AppButton extends StatelessWidget {
     }
 
     return Text(
-      text,
+      context.tr(text),
       style: isOutlined
           ? AppTextStyles.button.copyWith(
               color: outlinedColor ?? colors.primary,

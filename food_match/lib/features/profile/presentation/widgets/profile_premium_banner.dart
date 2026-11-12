@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -5,7 +6,11 @@ import '../../../../core/assets/app_profile_assets.dart';
 import '../../../../core/widgets/food_match_ripple.dart';
 
 class ProfilePremiumBanner extends StatelessWidget {
-  const ProfilePremiumBanner({required this.onTap, required this.isPremium, super.key});
+  const ProfilePremiumBanner({
+    required this.onTap,
+    required this.isPremium,
+    super.key,
+  });
 
   static const double _height = 60;
   static const double _radius = 20;
@@ -73,14 +78,30 @@ class ProfilePremiumBanner extends StatelessWidget {
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start,mainAxisAlignment: MainAxisAlignment.center,children:[Text(
-                        'FoodMatch Premium',
-                        style: GoogleFonts.nunito(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: titleColor,
-                        ),
-                      ),Text(isPremium?'Active':'Unlock more features',style:GoogleFonts.nunito(fontSize:12,fontWeight:FontWeight.w600,color:titleColor.withValues(alpha:.8)))]),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            context.tr('FoodMatch Premium'),
+                            style: GoogleFonts.nunito(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: titleColor,
+                            ),
+                          ),
+                          Text(
+                            context.tr(
+                              isPremium ? 'Active' : 'Unlock more features',
+                            ),
+                            style: GoogleFonts.nunito(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: titleColor.withValues(alpha: .8),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                     Icon(
                       Icons.chevron_right_rounded,

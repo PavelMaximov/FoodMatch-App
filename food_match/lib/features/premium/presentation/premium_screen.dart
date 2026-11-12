@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../domain/premium_purchase.dart';
@@ -74,8 +75,10 @@ class _PremiumScreenState extends State<PremiumScreen> {
             builder: (context, constraints) {
               final scale = MediaQuery.textScalerOf(context).scale(14) / 14;
               final compact = constraints.maxHeight < 820;
-              final dense = constraints.maxWidth < 380 &&
-                  scale > 1.1 && constraints.maxHeight < 800;
+              final dense =
+                  constraints.maxWidth < 380 &&
+                  scale > 1.1 &&
+                  constraints.maxHeight < 800;
               final fallback =
                   constraints.maxHeight < 640 ||
                   (scale > 1.3 && constraints.maxHeight < 800) ||
@@ -121,7 +124,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                           PremiumPlanPresentation.forSelection(
                             _selection,
                             _products,
-                          ).cta,
+                          ).localizedCta(context.copy),
                         ),
                       ),
                     ),

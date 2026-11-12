@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -52,7 +53,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 const SizedBox(height: 20),
                 const AppLogoHeader(showSubtitle: false),
                 Text(
-                  AppStrings.resetPasswordTitle,
+                  context.tr(AppStrings.resetPasswordTitle),
                   style: GoogleFonts.fredoka(
                     fontSize: 36,
                     fontWeight: FontWeight.w700,
@@ -61,7 +62,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  AppStrings.resetPasswordDesc,
+                  context.tr(AppStrings.resetPasswordDesc),
                   textAlign: TextAlign.center,
                   style: GoogleFonts.nunito(
                     fontSize: 14,
@@ -85,7 +86,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 GestureDetector(
                   onTap: () => context.pop(),
                   child: Text(
-                    AppStrings.backToLogin,
+                    context.tr(AppStrings.backToLogin),
                     style: GoogleFonts.nunito(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,

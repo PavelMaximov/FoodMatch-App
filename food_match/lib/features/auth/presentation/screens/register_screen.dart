@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
@@ -62,7 +63,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Row(
       children: <Widget>[
         Text(
-          text,
+          context.tr(text),
           style: GoogleFonts.nunito(
             fontSize: 13,
             color: context.fmColors.textSecondary,
@@ -151,7 +152,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
             Text(
-              text,
+              context.tr(text),
               style: GoogleFonts.nunito(
                 fontSize: 14,
                 color: context.fmColors.textInverse,
@@ -159,7 +160,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
             const SizedBox(width: 4),
             Text(
-              actionText,
+              context.tr(actionText),
               style: GoogleFonts.nunito(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
@@ -186,7 +187,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 const SizedBox(height: 20),
                 const AppLogoHeader(showSubtitle: true),
                 Text(
-                  AppStrings.signUp,
+                  context.tr(AppStrings.signUp),
                   style: GoogleFonts.fredoka(
                     fontSize: 36,
                     fontWeight: FontWeight.w700,

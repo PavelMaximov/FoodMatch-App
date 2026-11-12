@@ -1,3 +1,6 @@
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'l10n/app_localizations.dart';
+import 'l10n/locale_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -90,10 +93,13 @@ Future<void> main() async {
   await userProfileService.init();
   final ThemeController themeController = ThemeController();
   await themeController.load();
+  final localeController = LocaleController();
+  await localeController.load();
 
   runApp(
     MultiProvider(
       providers: [
+        ChangeNotifierProvider<LocaleController>.value(value: localeController),
         Provider<CoupleRepository>.value(value: coupleRepo),
         Provider<SwipeRepository>.value(value: swipeRepo),
         Provider<MatchHistoryRepository>.value(value: matchHistoryRepo),
@@ -332,30 +338,36 @@ class _MissingConfigurationApp extends StatelessWidget {
   const _MissingConfigurationApp();
 
   @override
-  Widget build(BuildContext context) => const MaterialApp(
-    home: Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Text(
-                  'Missing app configuration',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-                SizedBox(height: 16),
-                Text(
-                  'Run the app with SUPABASE_URL, SUPABASE_ANON_KEY and API_BASE_URL.',
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(height: 16),
-                SelectableText(
-                  'flutter run --dart-define=SUPABASE_URL=https://<project-ref>.supabase.co --dart-define=SUPABASE_ANON_KEY=<anon-key> --dart-define=API_BASE_URL=http://<backend-host>:4000',
-                  textAlign: TextAlign.center,
-                ),
-              ],
+  Widget build(BuildContext context) => MaterialApp(
+    supportedLocales: LocaleController.supportedLocales,
+    localizationsDelegates: GlobalMaterialLocalizations.delegates,
+    home: Builder(
+      builder: (context) => Scaffold(
+        body: SafeArea(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Text(
+                    context.tr('Missing app configuration'),
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    context.tr(
+                      'Run the app with SUPABASE_URL, SUPABASE_ANON_KEY and API_BASE_URL.',
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 16),
+                  SelectableText(
+                    'flutter run --dart-define=SUPABASE_URL=https://<project-ref>.supabase.co --dart-define=SUPABASE_ANON_KEY=<anon-key> --dart-define=API_BASE_URL=http://<backend-host>:4000',
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             ),
           ),
         ),

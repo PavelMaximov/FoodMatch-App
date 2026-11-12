@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -44,7 +45,7 @@ class PreviousFilterChoiceScreen extends StatelessWidget {
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      lastUsedLabel(preset.usedAt),
+                      lastUsedLabel(preset.usedAt, context: context),
                       style: GoogleFonts.nunito(
                         fontSize: 13,
                         color: colors.textMuted,
@@ -55,7 +56,7 @@ class PreviousFilterChoiceScreen extends StatelessWidget {
               ),
               const SizedBox(height: 20),
               Text(
-                'Feeling it again\ntoday?',
+                context.tr('Feeling it again\ntoday?'),
                 style: GoogleFonts.fredoka(
                   fontSize: 36,
                   fontWeight: FontWeight.w700,
@@ -65,7 +66,9 @@ class PreviousFilterChoiceScreen extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               Text(
-                'Here\'s what you picked last time.\nJump back in or start fresh.',
+                context.tr(
+                  'Here\'s what you picked last time.\nJump back in or start fresh.',
+                ),
                 style: GoogleFonts.nunito(
                   fontSize: 18,
                   height: 1.35,
@@ -82,7 +85,7 @@ class PreviousFilterChoiceScreen extends StatelessWidget {
                 child: ElevatedButton.icon(
                   onPressed: onUsePreset,
                   icon: const Icon(Icons.thumb_up_alt_rounded, size: 20),
-                  label: const Text('Yes, same vibe'),
+                  label: Text(context.tr('Yes, same vibe')),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: colors.buttonPrimaryBackground,
                     foregroundColor: colors.buttonPrimaryText,
@@ -115,7 +118,7 @@ class PreviousFilterChoiceScreen extends StatelessWidget {
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  child: const Text('No, let me change filters'),
+                  child: Text(context.tr('No, let me change filters')),
                 ),
               ),
             ],
@@ -126,30 +129,24 @@ class PreviousFilterChoiceScreen extends StatelessWidget {
   }
 }
 
-String lastUsedLabel(DateTime usedAt) {
-  final DateTime now = DateTime.now();
-  final DateTime today = DateTime(now.year, now.month, now.day);
-  final DateTime usedDay = DateTime(usedAt.year, usedAt.month, usedAt.day);
-  final int days = today.difference(usedDay).inDays;
-  if (days <= 0) return 'Last used today';
-  if (days == 1) return 'Last used yesterday';
-  if (days < 7) return 'Last used $days days ago';
-  if (days < 14) return 'Last used last week';
-  const List<String> months = <String>[
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
-  return 'Last used on ${months[usedAt.month - 1]} ${usedAt.day}';
+String lastUsedLabel(DateTime usedAt, {BuildContext? context}) {
+  final copy = context?.copy ?? const AppLocalizations(Locale('en'));
+  final now = DateTime.now();
+  final local = usedAt.toLocal();
+  // UTC date arithmetic avoids daylight-saving changes in calendar-day counts.
+  final days = DateTime.utc(
+    now.year,
+    now.month,
+    now.day,
+  ).difference(DateTime.utc(local.year, local.month, local.day)).inDays;
+  if (days <= 0) return copy.text('Last used today');
+  if (days == 1) return copy.text('Last used yesterday');
+  if (days < 7) return copy.text('Last used {count} days ago', {'count': days});
+  if (days < 14) return copy.text('Last used last week');
+  final date = context == null
+      ? '${local.day}.${local.month}.${local.year}'
+      : MaterialLocalizations.of(context).formatMediumDate(local);
+  return copy.text('Last used on {date}', {'date': date});
 }
 
 class _PresetCard extends StatelessWidget {
@@ -226,7 +223,7 @@ class _FilterSection extends StatelessWidget {
               Icon(icon, color: pillColors.foreground, size: 22),
               const SizedBox(width: 10),
               Text(
-                label,
+                context.tr(label),
                 style: GoogleFonts.nunito(
                   fontSize: 15,
                   color: colors.textMuted,
@@ -291,7 +288,7 @@ class _PresetChip extends StatelessWidget {
         border: Border.all(color: colors.border),
       ),
       child: Text(
-        label,
+        context.tr(label),
         style: GoogleFonts.nunito(
           fontSize: 13,
           fontWeight: FontWeight.w800,
@@ -384,7 +381,7 @@ class _MatchedCard extends StatelessWidget {
         children: <Widget>[
           Expanded(
             child: Text(
-              'Previous total dishes',
+              context.tr('Previous total dishes'),
               style: GoogleFonts.nunito(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
@@ -402,7 +399,7 @@ class _MatchedCard extends StatelessWidget {
           ),
           const SizedBox(width: 4),
           Text(
-            count == 1 ? 'dish' : 'dishes',
+            context.tr(count == 1 ? 'dish' : 'dishes'),
             style: GoogleFonts.nunito(
               fontSize: 14,
               fontWeight: FontWeight.w700,

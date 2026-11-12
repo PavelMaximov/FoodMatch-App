@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
@@ -72,7 +73,9 @@ class _FoodMatchOnboardingScreenState extends State<FoodMatchOnboardingScreen> {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final bool isDark = theme.brightness == Brightness.dark;
-    final _OnboardingPalette palette = _OnboardingPalette.fromBrightness(isDark);
+    final _OnboardingPalette palette = _OnboardingPalette.fromBrightness(
+      isDark,
+    );
     final String blobAsset = isDark
         ? 'assets/animations/onboarding_blob_dark.json'
         : 'assets/animations/onboarding_blob_light.json';
@@ -86,62 +89,78 @@ class _FoodMatchOnboardingScreenState extends State<FoodMatchOnboardingScreen> {
         ),
         child: SafeArea(
           child: LayoutBuilder(
-          builder: (BuildContext context, BoxConstraints constraints) {
-            final double contentWidth = constraints.maxWidth.clamp(0.0, 440.0).toDouble();
-            final double textWidth = constraints.maxWidth < 700 ? 360.0 : 440.0;
-            final double heroSize = constraints.maxWidth < 700 ? 330.0 : 440.0;
-            return Center(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: contentWidth),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Column(
-                    children: <Widget>[
-                      Expanded(
-                        child: PageView.builder(
-                          controller: _pageController,
-                          physics: const NeverScrollableScrollPhysics(),
-                          onPageChanged: (int index) {
-                            setState(() => _pageIndex = index);
-                          },
-                          itemCount: _pages.length,
-                          itemBuilder: (BuildContext context, int index) {
-                            return _OnboardingPage(
-                              key: ValueKey<String>(_pages[index].title),
-                              data: _pages[index],
-                              blobAsset: blobAsset,
-                              palette: palette,
-                              heroSize: heroSize,
-                              textWidth: textWidth,
-                              pageIndex: index,
-                            );
-                          },
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 26, top: 18),
-                        child: Semantics(
-                          label: _pageIndex == _pages.length - 1
-                              ? 'Continue to FoodMatch'
-                              : 'Next onboarding screen',
-                          value: 'Step ${_pageIndex + 1} of ${_pages.length}',
-                          button: true,
-                          child: OnboardingProgressButton(
-                            progress: (_pageIndex + 1) / _pages.length,
-                            semanticProgress:
-                                'Step ${_pageIndex + 1} of ${_pages.length}',
-                            onPressed: _handlePrimaryAction,
+            builder: (BuildContext context, BoxConstraints constraints) {
+              final double contentWidth = constraints.maxWidth
+                  .clamp(0.0, 440.0)
+                  .toDouble();
+              final double textWidth = constraints.maxWidth < 700
+                  ? 360.0
+                  : 440.0;
+              final double heroSize = constraints.maxWidth < 700
+                  ? 330.0
+                  : 440.0;
+              return Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: contentWidth),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Column(
+                      children: <Widget>[
+                        Expanded(
+                          child: PageView.builder(
+                            controller: _pageController,
+                            physics: const NeverScrollableScrollPhysics(),
+                            onPageChanged: (int index) {
+                              setState(() => _pageIndex = index);
+                            },
+                            itemCount: _pages.length,
+                            itemBuilder: (BuildContext context, int index) {
+                              return _OnboardingPage(
+                                key: ValueKey<String>(_pages[index].title),
+                                data: _pages[index],
+                                blobAsset: blobAsset,
+                                palette: palette,
+                                heroSize: heroSize,
+                                textWidth: textWidth,
+                                pageIndex: index,
+                              );
+                            },
                           ),
                         ),
-                      ),
-                    ],
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 26, top: 18),
+                          child: Semantics(
+                            label: context.tr(
+                              _pageIndex == _pages.length - 1
+                                  ? 'Continue to FoodMatch'
+                                  : 'Next onboarding screen',
+                            ),
+                            value: context.tr('Step {current} of {total}', {
+                              'current': _pageIndex + 1,
+                              'total': _pages.length,
+                            }),
+                            button: true,
+                            child: OnboardingProgressButton(
+                              progress: (_pageIndex + 1) / _pages.length,
+                              semanticProgress: context.tr(
+                                'Step {current} of {total}',
+                                {
+                                  'current': _pageIndex + 1,
+                                  'total': _pages.length,
+                                },
+                              ),
+                              onPressed: _handlePrimaryAction,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
-      ),
       ),
     );
   }
@@ -171,7 +190,8 @@ class _OnboardingPage extends StatelessWidget {
       physics: const ClampingScrollPhysics(),
       child: ConstrainedBox(
         constraints: BoxConstraints(
-          minHeight: MediaQuery.sizeOf(context).height -
+          minHeight:
+              MediaQuery.sizeOf(context).height -
               MediaQuery.paddingOf(context).vertical -
               116,
         ),
@@ -194,7 +214,7 @@ class _OnboardingPage extends StatelessWidget {
               child: Semantics(
                 header: true,
                 child: Text(
-                  data.title,
+                  context.tr(data.title),
                   textAlign: TextAlign.center,
                   style: GoogleFonts.fredoka(
                     color: palette.title,
@@ -213,7 +233,7 @@ class _OnboardingPage extends StatelessWidget {
               child: ConstrainedBox(
                 constraints: BoxConstraints(maxWidth: textWidth),
                 child: Text(
-                  data.description,
+                  context.tr(data.description),
                   textAlign: TextAlign.center,
                   style: GoogleFonts.nunito(
                     color: palette.description,
@@ -268,7 +288,8 @@ class _HeroBlobStack extends StatelessWidget {
             width: effectiveSize * 0.78,
             height: effectiveSize * 0.78,
             fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => _HeroFallback(color: palette.heroFallback),
+            errorBuilder: (_, __, ___) =>
+                _HeroFallback(color: palette.heroFallback),
           ),
         ],
       ),
@@ -304,8 +325,10 @@ class _StaggeredAppearState extends State<_StaggeredAppear>
       curve: Curves.easeOutCubic,
     );
     _opacity = Tween<double>(begin: 0, end: 1).animate(curved);
-    _offset = Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero)
-        .animate(curved);
+    _offset = Tween<Offset>(
+      begin: const Offset(0, 0.08),
+      end: Offset.zero,
+    ).animate(curved);
     Future<void>.delayed(widget.delay, () {
       if (mounted) _controller.forward();
     });
@@ -347,12 +370,30 @@ class _BlobFallbackPainter extends CustomPainter {
     final Paint paint = Paint()..color = color;
     final Path path = Path()
       ..moveTo(size.width * 0.50, size.height * 0.05)
-      ..cubicTo(size.width * 0.84, 0, size.width, size.height * 0.24,
-          size.width * 0.91, size.height * 0.55)
-      ..cubicTo(size.width * 0.82, size.height * 0.88, size.width * 0.48,
-          size.height, size.width * 0.20, size.height * 0.82)
-      ..cubicTo(-size.width * 0.05, size.height * 0.66, size.width * 0.02,
-          size.height * 0.26, size.width * 0.50, size.height * 0.05)
+      ..cubicTo(
+        size.width * 0.84,
+        0,
+        size.width,
+        size.height * 0.24,
+        size.width * 0.91,
+        size.height * 0.55,
+      )
+      ..cubicTo(
+        size.width * 0.82,
+        size.height * 0.88,
+        size.width * 0.48,
+        size.height,
+        size.width * 0.20,
+        size.height * 0.82,
+      )
+      ..cubicTo(
+        -size.width * 0.05,
+        size.height * 0.66,
+        size.width * 0.02,
+        size.height * 0.26,
+        size.width * 0.50,
+        size.height * 0.05,
+      )
       ..close();
     canvas.drawPath(path, paint);
   }
@@ -371,7 +412,11 @@ class _HeroFallback extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-      child: const Icon(Icons.restaurant_rounded, size: 88, color: Colors.white),
+      child: const Icon(
+        Icons.restaurant_rounded,
+        size: 88,
+        color: Colors.white,
+      ),
     );
   }
 }

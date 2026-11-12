@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -158,7 +159,7 @@ class FoodMatchSplashScreen extends StatelessWidget {
                             -(logoBottomInset - taglineSpacing),
                           ),
                           child: Text(
-                            'Swipe. Match. Dine',
+                            context.tr('Swipe. Match. Dine'),
                             textAlign: TextAlign.center,
                             style: GoogleFonts.nunito(
                               color: tagline,
@@ -181,8 +182,10 @@ class FoodMatchSplashScreen extends StatelessWidget {
                   bottom: isLarge ? 110 : 88,
                   child: Center(
                     child: Semantics(
-                      label: 'Starting FoodMatch',
-                      value: '${(progress * 100).round()} percent',
+                      label: context.tr('Starting FoodMatch'),
+                      value: context.tr('{count} percent', {
+                        'count': (progress * 100).round(),
+                      }),
                       child: _SplashProgressBar(
                         width: progressWidth,
                         progress: progress,

@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -76,7 +77,7 @@ class InlineDeckEndRestartCard extends StatelessWidget {
                 ),
               const SizedBox(height: 24),
               Text(
-                title,
+                context.tr(title),
                 textAlign: TextAlign.center,
                 style: GoogleFonts.fredoka(
                   fontSize: 32,
@@ -86,7 +87,7 @@ class InlineDeckEndRestartCard extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               Text(
-                subtitle,
+                context.tr(subtitle),
                 textAlign: TextAlign.center,
                 style: GoogleFonts.nunito(
                   fontSize: 16,
@@ -98,7 +99,7 @@ class InlineDeckEndRestartCard extends StatelessWidget {
                   errorMessage!.trim().isNotEmpty) ...<Widget>[
                 const SizedBox(height: 16),
                 Text(
-                  errorMessage!,
+                  context.copy.error(errorMessage!),
                   textAlign: TextAlign.center,
                   style: GoogleFonts.nunito(
                     fontSize: 14,
@@ -127,14 +128,14 @@ class InlineDeckEndRestartCard extends StatelessWidget {
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    child: const Text('Change filters'),
+                    child: Text(context.tr('Change filters')),
                   ),
                 ),
                 if (onViewMatches != null) ...<Widget>[
                   const SizedBox(height: 12),
                   TextButton(
                     onPressed: onViewMatches,
-                    child: const Text('View matches'),
+                    child: Text(context.tr('View matches')),
                   ),
                 ],
               ],
@@ -147,9 +148,7 @@ class InlineDeckEndRestartCard extends StatelessWidget {
 }
 
 class _DeckStatusIcon extends StatelessWidget {
-  const _DeckStatusIcon({
-    required this.colors,
-  });
+  const _DeckStatusIcon({required this.colors});
 
   final FoodMatchThemeColors colors;
 
