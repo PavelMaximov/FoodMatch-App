@@ -8,14 +8,19 @@ import '../../core/constants/app_strings.dart';
 import '../../core/theme/app_colors.dart';
 
 class NetworkStatusBar extends StatefulWidget {
-  const NetworkStatusBar({super.key});
+  const NetworkStatusBar({super.key}) : _initialOnline = null;
+
+  @visibleForTesting
+  const NetworkStatusBar.offlineForTest({super.key}) : _initialOnline = false;
+
+  final bool? _initialOnline;
 
   @override
   State<NetworkStatusBar> createState() => _NetworkStatusBarState();
 }
 
 class _NetworkStatusBarState extends State<NetworkStatusBar> {
-  bool _isOnline = true;
+  late bool _isOnline = widget._initialOnline ?? true;
   Timer? _timer;
 
   @override
@@ -64,11 +69,16 @@ class _NetworkStatusBarState extends State<NetworkStatusBar> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
-          Icon(Icons.wifi_off, size: 16, color: Colors.white),
-          SizedBox(width: 8),
-          Text(
-            context.tr(AppStrings.noInternet),
-            style: TextStyle(color: Colors.white, fontSize: 12),
+          const Icon(Icons.wifi_off, size: 16, color: Colors.white),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              context.tr(AppStrings.noInternet),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white, fontSize: 12),
+            ),
           ),
         ],
       ),

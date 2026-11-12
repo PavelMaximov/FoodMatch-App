@@ -2141,6 +2141,21 @@ class _SwipesScreenState extends State<SwipesScreen>
                       );
                     }
 
+                    if (provider.isSoloMode &&
+                        provider.activeSoloSessionId != null &&
+                        provider.deck.isEmpty) {
+                      return EmptyState(
+                        icon: Icons.restaurant_menu,
+                        title: 'No dishes found',
+                        subtitle:
+                            'No dishes found for these filters. Try changing your choices.',
+                        buttonText: 'Change filters',
+                        onButtonPressed: () => _runSoloPreSwipeFlow(
+                          intent: PreSwipeFilterIntent.updateActiveSoloSession,
+                        ),
+                      );
+                    }
+
                     _preloadVisibleDishImages(provider);
 
                     final bool allowDeckEnd =

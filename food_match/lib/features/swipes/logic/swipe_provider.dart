@@ -572,7 +572,8 @@ class SwipeProvider extends ChangeNotifier {
         .map((Map item) => Dish.fromJson(Map<String, dynamic>.from(item)))
         .toList();
     debugPrint(
-      '[DeckApply] mode=solo source=backend firstIds='
+      '[DeckApply] mode=solo source=backend deckCount=${sessionDeck.length} '
+      'firstIds='
       '${sessionDeck.take(8).map((Dish dish) => dish.id).join(',')}',
     );
     _soloRemainingCount = sessionDeck.length;
