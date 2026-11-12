@@ -8,12 +8,17 @@ import '../../core/constants/app_strings.dart';
 import '../../core/theme/app_colors.dart';
 
 class NetworkStatusBar extends StatefulWidget {
-  const NetworkStatusBar({super.key}) : _initialOnline = null;
+  const NetworkStatusBar({super.key})
+    : _initialOnline = null,
+      _skipConnectivityChecks = false;
 
   @visibleForTesting
-  const NetworkStatusBar.offlineForTest({super.key}) : _initialOnline = false;
+  const NetworkStatusBar.offlineForTest({super.key})
+    : _initialOnline = false,
+      _skipConnectivityChecks = true;
 
   final bool? _initialOnline;
+  final bool _skipConnectivityChecks;
 
   @override
   State<NetworkStatusBar> createState() => _NetworkStatusBarState();
@@ -26,11 +31,13 @@ class _NetworkStatusBarState extends State<NetworkStatusBar> {
   @override
   void initState() {
     super.initState();
-    _checkConnectivity();
-    _timer = Timer.periodic(
-      const Duration(seconds: 10),
-      (_) => _checkConnectivity(),
-    );
+    if (!widget._skipConnectivityChecks) {
+      _checkConnectivity();
+      _timer = Timer.periodic(
+        const Duration(seconds: 10),
+        (_) => _checkConnectivity(),
+      );
+    }
   }
 
   Future<void> _checkConnectivity() async {
