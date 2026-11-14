@@ -1,0 +1,201 @@
+{
+  "dish": {
+    "id": "04c779af-d709-441b-960e-3e65f2f6e8eb",
+    "name": "Ajapsandali (Georgian Vegetable Stew)",
+    "description": "Eggplant, pepper, and tomato stewed together with garlic and herbs — Georgia's everyday summer vegetable dish, made whenever the garden is full.",
+    "prep_time_minutes": 15,
+    "cook_time_minutes": 25,
+    "total_time_minutes": 40,
+    "total_time_tier": {
+      "tier": "under_45_minutes",
+      "display_tier": "Under 45 min"
+    },
+    "diet": [],
+    "cuisine": "georgian",
+    "type": "dinner",
+    "effort": "easy",
+    "dish_register": "everyday_staple",
+    "nutrition": {
+      "fat": 16,
+      "fiber": 8,
+      "sugar": 14,
+      "sodium": 480,
+      "protein": 5,
+      "calories": 260,
+      "carbohydrates": 26
+    },
+    "nutrition_visibility": "public",
+    "updated_at": "2026-10-26T16:27:03.154089+00:00"
+  },
+  "tags": [
+    {
+      "id": "0967bcdc-36d8-4642-b97e-2bf9c50394ee",
+      "name": "georgian",
+      "type": "cuisine",
+      "value": null,
+      "dish_id": "04c779af-d709-441b-960e-3e65f2f6e8eb",
+      "position": 0,
+      "display_name": "Georgian"
+    },
+    {
+      "id": "4dcc1283-3b92-4795-8fc9-dd7cce2abfc3",
+      "name": "dinner",
+      "type": "meal",
+      "value": null,
+      "dish_id": "04c779af-d709-441b-960e-3e65f2f6e8eb",
+      "position": 1,
+      "display_name": "Dinner"
+    },
+    {
+      "id": "72a453ef-8fee-4276-b33f-d38267489de4",
+      "name": "everyday",
+      "type": "occasion",
+      "value": null,
+      "dish_id": "04c779af-d709-441b-960e-3e65f2f6e8eb",
+      "position": 2,
+      "display_name": "Everyday"
+    },
+    {
+      "id": "bd39784e-0d76-46e4-84fe-2d5d48127763",
+      "name": "weeknight",
+      "type": "occasion",
+      "value": null,
+      "dish_id": "04c779af-d709-441b-960e-3e65f2f6e8eb",
+      "position": 3,
+      "display_name": "Weeknight"
+    },
+    {
+      "id": "2ddfc161-6862-474a-9e2f-eab524e99512",
+      "name": "comfort",
+      "type": "mood",
+      "value": null,
+      "dish_id": "04c779af-d709-441b-960e-3e65f2f6e8eb",
+      "position": 4,
+      "display_name": "Comfort"
+    },
+    {
+      "id": "c91e2885-4b95-4b67-854e-f5d5f78b5209",
+      "name": "easy",
+      "type": "difficulty",
+      "value": null,
+      "dish_id": "04c779af-d709-441b-960e-3e65f2f6e8eb",
+      "position": 5,
+      "display_name": "Easy"
+    },
+    {
+      "id": "907269f1-af94-43d2-8927-5d725aace12f",
+      "name": "simmered",
+      "type": "technique",
+      "value": null,
+      "dish_id": "04c779af-d709-441b-960e-3e65f2f6e8eb",
+      "position": 6,
+      "display_name": "Simmered"
+    }
+  ],
+  "steps": [
+    {
+      "id": "e49451a6-3c4a-456b-8a52-4a41b0d443c0",
+      "dish_id": "04c779af-d709-441b-960e-3e65f2f6e8eb",
+      "end_time": null,
+      "position": 0,
+      "start_time": null,
+      "display_text": "Cut the eggplant, peppers, tomatoes, and onion into bite-sized chunks."
+    },
+    {
+      "id": "5a2339cf-7ef7-4673-b754-7c2accbc4eb4",
+      "dish_id": "04c779af-d709-441b-960e-3e65f2f6e8eb",
+      "end_time": 600,
+      "position": 1,
+      "start_time": null,
+      "display_text": "Salt the eggplant and let sit for 10 minutes, then pat dry."
+    },
+    {
+      "id": "c64b412e-aac0-4edc-af47-84a2351f68d9",
+      "dish_id": "04c779af-d709-441b-960e-3e65f2f6e8eb",
+      "end_time": 480,
+      "position": 2,
+      "start_time": null,
+      "display_text": "Heat oil in a wide pan and fry the eggplant until softened and lightly golden, about 8 minutes."
+    },
+    {
+      "id": "f5bf1066-f0d2-4648-8ebe-2dbf0e403db5",
+      "dish_id": "04c779af-d709-441b-960e-3e65f2f6e8eb",
+      "end_time": 300,
+      "position": 3,
+      "start_time": null,
+      "display_text": "Add the onion and peppers, and cook for another 5 minutes."
+    },
+    {
+      "id": "fea784b6-f9d9-4641-be46-ae3182261a15",
+      "dish_id": "04c779af-d709-441b-960e-3e65f2f6e8eb",
+      "end_time": 840,
+      "position": 4,
+      "start_time": null,
+      "display_text": "Stir in the tomatoes, garlic, and khmeli-suneli, cover, and simmer for 12-15 minutes until everything is soft and stewed together."
+    },
+    {
+      "id": "981a7ebb-340f-4885-852b-e8ec24d8da31",
+      "dish_id": "04c779af-d709-441b-960e-3e65f2f6e8eb",
+      "end_time": null,
+      "position": 5,
+      "start_time": null,
+      "display_text": "Season with salt, stir in cilantro, and serve warm or at room temperature."
+    }
+  ],
+  "components": [
+    {
+      "id": "987842c1-2307-5e2b-a5d9-463b132ac438",
+      "ingredient_name": "eggplant",
+      "raw_text": "eggplant",
+      "extra_comment": null
+    },
+    {
+      "id": "a240698b-9793-5eb7-9148-33baf78a0148",
+      "ingredient_name": "red bell peppers",
+      "raw_text": "red bell peppers",
+      "extra_comment": null
+    },
+    {
+      "id": "66ac6395-8aa9-5f07-bc25-a78d31f8e1b1",
+      "ingredient_name": "tomatoes",
+      "raw_text": "tomatoes",
+      "extra_comment": null
+    },
+    {
+      "id": "3191ab5a-8e76-5fc4-ab41-33619b8760d7",
+      "ingredient_name": "onion",
+      "raw_text": "onion",
+      "extra_comment": null
+    },
+    {
+      "id": "ea3e1ae1-2858-59ad-861d-84d86cbfe90a",
+      "ingredient_name": "garlic",
+      "raw_text": "garlic",
+      "extra_comment": null
+    },
+    {
+      "id": "773ccf72-13ea-58f1-abb1-1081a336b005",
+      "ingredient_name": "vegetable oil",
+      "raw_text": "vegetable oil",
+      "extra_comment": null
+    },
+    {
+      "id": "32a9564c-e97a-5cac-9701-5b7078a8f81a",
+      "ingredient_name": "cilantro",
+      "raw_text": "cilantro",
+      "extra_comment": null
+    },
+    {
+      "id": "8e2b4c74-1d71-5e60-86e0-1b3d227a3722",
+      "ingredient_name": "khmeli-suneli",
+      "raw_text": "khmeli-suneli",
+      "extra_comment": null
+    },
+    {
+      "id": "08778010-9aaa-5386-bebf-4a4b0827bd1b",
+      "ingredient_name": "salt",
+      "raw_text": "salt",
+      "extra_comment": null
+    }
+  ]
+}
