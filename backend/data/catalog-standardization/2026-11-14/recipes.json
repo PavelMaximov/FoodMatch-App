@@ -1,0 +1,98 @@
+[
+  {
+    "name": "Nachos", "servings": 3,
+    "reason": "Replace the implausible two-chip amount with an explicit editorial serving basis.",
+    "ingredients": [
+      ["tortilla chips",150,"g"],["cheddar",60,"g"],["monterey jack",60,"g"],
+      ["jalapeños",30,"g","sliced"],["salsa",100,"g"],["sour cream",100,"g"],["guacamole",100,"g"]
+    ],
+    "steps": [
+      "Preheat the oven to 200°C. Spread 150 g tortilla chips in a single layer on a baking tray.",
+      "Grate the cheddar and Monterey Jack and scatter both evenly over the chips.",
+      "Add the sliced jalapeños and bake for 8–10 minutes, until the cheese has melted.",
+      "Divide into 3 portions and serve immediately with the measured salsa, sour cream and guacamole."
+    ]
+  },
+  {
+    "name": "Croissant", "servings": 6, "prep":45, "cook":18, "total":363,
+    "reason": "Define a small-batch dough, separate dough and lamination butter, and include egg wash.",
+    "ingredients": [
+      ["bread flour",200,"g"],["butter",100,"g","20 g for the dough; 80 g for lamination"],
+      ["instant yeast",4,"g"],["whole milk",120,"ml"],["sugar",20,"g"],["salt",4,"g"],
+      ["egg wash",10,"g","beaten whole egg; amount used for brushing"]
+    ],
+    "steps": [
+      "Mix the flour, yeast, milk, sugar, salt and 20 g softened butter into a smooth dough. Cover and refrigerate for 1 hour.",
+      "Flatten the remaining 80 g cold butter between sheets of baking paper into a small square. Chill until firm but pliable.",
+      "Roll the dough around the butter to enclose it. Roll into a rectangle and fold in thirds. Chill for 30 minutes. Repeat the rolling, folding and chilling 3 more times, keeping the butter cold.",
+      "Roll the dough about 4 mm thick and cut into 6 long triangles. Roll each triangle from its base to its tip and place on a lined baking tray.",
+      "Leave to proof for about 2 hours at room temperature, until visibly puffy. The butter should not melt during proofing.",
+      "Preheat the oven to 200°C. Brush with 10 g beaten egg and bake for 15–18 minutes, until deeply golden. Makes 6 small croissants."
+    ]
+  },
+  {
+    "name": "Apple Pie", "servings": 8, "prep":25, "cook":60, "total":205,
+    "reason": "Choose one pastry method instead of counting ready-made pastry and incomplete homemade pastry together; add egg wash and define the filling.",
+    "ingredients": [
+      ["pie pastry",500,"g","ready-made pastry for a base and lid"],["apples",700,"g","peeled and cored weight"],
+      ["cinnamon",2,"g"],["sugar",90,"g","80 g for filling; 10 g for topping"],["butter",20,"g"],
+      ["lemon juice",15,"ml"],["flour",20,"g","for thickening the filling"],["egg wash",15,"g","beaten whole egg; amount used"]
+    ],
+    "steps": [
+      "Preheat the oven to 200°C. Divide the ready-made pastry in half. Roll one half to line a 23 cm pie dish and keep the other half chilled for the lid.",
+      "Slice the peeled, cored apples. Toss with 80 g sugar, cinnamon, 20 g flour and lemon juice.",
+      "Spoon the filling into the pastry case and dot with the 20 g butter.",
+      "Roll out the remaining pastry, cover the pie and seal the edges. Cut several steam vents in the lid.",
+      "Brush with 15 g beaten egg and sprinkle with the remaining 10 g sugar.",
+      "Bake for 20 minutes at 200°C, then reduce to 175°C and bake for another 35–40 minutes, until golden and bubbling. Cool for about 2 hours before cutting into 8 slices."
+    ]
+  },
+  {
+    "name": "French Mushroom Omelette", "servings": 1,
+    "reason": "Resolve the two-versus-three egg conflict, reduce the contradictory teaspoon of salt, and allocate butter between the two cooking steps.",
+    "ingredients": [
+      ["eggs",150,"g","3 large eggs, without shells"],["mushrooms",150,"g"],["gruyère cheese",30,"g"],
+      ["butter",15,"g","10 g for mushrooms; 5 g for eggs"],["chives",3,"g"],["salt",0.5,"g"]
+    ],
+    "steps": [
+      "Slice the mushrooms and cook in 10 g butter until golden and their moisture has evaporated. Set aside.",
+      "Whisk the 3 eggs with 0.5 g salt until uniform.",
+      "Melt the remaining 5 g butter in a non-stick pan over medium heat. Pour in the eggs.",
+      "Gently draw the set egg from the edges towards the centre while tilting the pan so the uncooked egg fills the gaps.",
+      "When the surface is almost set, add the mushrooms, grated Gruyère and chopped chives to one half.",
+      "Fold the omelette in half and slide onto a plate. Serve immediately."
+    ]
+  },
+  {
+    "name": "Mushroom Omelette", "servings": 1,
+    "reason": "Resolve the egg and salt contradictions and choose a specified cheese for a reproducible recipe.",
+    "ingredients": [
+      ["eggs",150,"g","3 large eggs, without shells"],["chestnut mushrooms",150,"g"],["cheddar",30,"g"],
+      ["butter",15,"g","10 g for mushrooms; 5 g for eggs"],["chives",3,"g"],["salt",0.5,"g"],["black pepper",0.2,"g"]
+    ],
+    "steps": [
+      "Slice the mushrooms and cook in 10 g butter over medium-high heat until golden and their moisture has evaporated. Set aside.",
+      "Whisk the 3 eggs with the measured salt and pepper.",
+      "Melt the remaining 5 g butter in a non-stick pan over medium heat and pour in the eggs.",
+      "Gently draw the set egg towards the centre while tilting the pan to fill the gaps with uncooked egg.",
+      "When almost set, add the mushrooms, grated cheddar and chopped chives to one half. Fold over and serve immediately."
+    ]
+  },
+  {
+    "name": "Double Smash Burger", "servings": 1,
+    "reason": "Make two 90 g patties and one double burger agree with the ingredient quantities; specify onion and butter rather than an unexplained prepared component.",
+    "ingredients": [
+      ["ground beef 80/20",180,"g"],["brioche bun",75,"g","1 bun"],["american cheese",40,"g","2 slices"],
+      ["onion",80,"g"],["butter",5,"g"],["special sauce",25,"g"],["pickles",30,"g"],
+      ["salt",1,"g"],["black pepper",0.2,"g"]
+    ],
+    "steps": [
+      "Thinly slice the onion and cook in 5 g butter over low heat for 25–30 minutes, stirring occasionally, until soft and golden. Add a splash of water if it begins to catch.",
+      "Divide the 180 g beef into two loose 90 g balls without compacting them.",
+      "Heat a cast-iron pan until very hot. Add the beef balls, spaced apart, and press each firmly into a thin patty.",
+      "Season with the measured salt and pepper. Cook until the underside is well browned, about 90 seconds.",
+      "Flip each patty, add one slice of cheese and continue cooking until the beef is cooked through.",
+      "Toast the split bun. Spread with the sauce and stack both patties, the cooked onion and sliced pickles inside the single bun."
+    ]
+  }
+]

@@ -1,0 +1,69 @@
+[
+  {
+    "name":"Borscht with Beef","servings":4,"prep":20,"cook":95,"total":115,
+    "reason":"Specify the missing sautéing fat, seasonings and liquid; use boneless meat so the edible weight is explicit.",
+    "ingredients":[["beef chuck",400,"g","boneless"],["beetroot",300,"g","peeled"],["white cabbage",250,"g"],["potatoes",300,"g","peeled"],["carrot",100,"g"],["onion",100,"g"],["tomato paste",20,"g"],["vinegar",15,"ml"],["sunflower oil",15,"ml"],["sugar",4,"g"],["salt",4,"g"],["black pepper",1,"g"],["water",1200,"ml"],["sour cream",80,"g"],["dill",8,"g"]],
+    "steps":["Cut the beef into bite-sized pieces. Cover with 1.2 litres water, bring to a boil and skim the surface. Simmer gently for about 1 hour, until the meat is nearly tender.","Grate the beetroot and carrot and dice the onion. Heat the sunflower oil in a separate pan and cook the vegetables for 10 minutes. Stir in the tomato paste and vinegar.","Add diced potatoes and shredded cabbage to the beef broth and cook for 15 minutes.","Add the beetroot mixture and simmer for another 10 minutes, until the meat and vegetables are tender. Add a little water if needed to keep a soup consistency.","Stir in the measured sugar, salt and pepper. Divide into 4 bowls and add 20 g sour cream and chopped dill to each portion."]
+  },
+  {
+    "name":"Vegetarian Borscht","servings":4,"prep":20,"cook":35,"total":55,
+    "reason":"Include the vegetable stock, oil and sugar already required by the method, with explicit edible vegetable weights.",
+    "ingredients":[["beetroot",300,"g","peeled"],["white cabbage",250,"g"],["potatoes",300,"g","peeled"],["carrot",100,"g"],["onion",100,"g"],["tomato paste",20,"g"],["vinegar",15,"ml"],["sunflower oil",15,"ml"],["vegetable stock",1200,"ml","prepared, reduced-salt"],["sugar",4,"g"],["salt",2,"g"],["black pepper",1,"g"],["sour cream",80,"g"],["dill",8,"g"]],
+    "steps":["Grate the beetroot and carrot and dice the onion. Heat the oil in a pan and cook the vegetables for 10 minutes. Stir in the tomato paste and vinegar.","Bring the vegetable stock to a boil in a pot. Add diced potatoes and shredded cabbage and cook for 15 minutes.","Add the beetroot mixture and simmer for another 10 minutes, until all the vegetables are tender.","Stir in the measured sugar, salt and pepper. Divide into 4 bowls and serve each with 20 g sour cream and chopped dill."]
+  },
+  {
+    "name":"Eintopf (German One-Pot)","servings":4,"prep":20,"cook":70,"total":90,
+    "reason":"Add missing cooking oil and liquid and replace ambiguous half-root and piece amounts with edible weights.",
+    "ingredients":[["pork shoulder",400,"g","boneless"],["potatoes",400,"g","peeled"],["carrot",150,"g"],["celeriac",150,"g","peeled"],["pearl barley",100,"g","dry"],["leek",150,"g","trimmed"],["bay leaf",1,"piece"],["parsley",8,"g"],["sunflower oil",15,"ml"],["vegetable stock",1000,"ml","prepared, reduced-salt"],["salt",2,"g"],["black pepper",1,"g"]],
+    "steps":["Cut the pork into small cubes. Heat the oil in a large pot and brown the pork for about 10 minutes.","Add chopped carrot, celeriac and leek and cook for 5 minutes, stirring.","Add the dry pearl barley, bay leaf and vegetable stock. Bring to a boil, then cover and simmer for 35 minutes.","Add diced potatoes and simmer for another 20 minutes, until the pork, barley and vegetables are tender. Add a little water if necessary.","Remove the bay leaf. Stir in the measured salt and pepper and scatter with chopped parsley. Divide into 4 portions."]
+  },
+  {
+    "name":"Minestrone Soup","servings":4,"prep":15,"cook":35,"total":50,
+    "reason":"Define canned/drained beans and measured oil; include Parmesan from the serving instructions and make extra bread optional.",
+    "ingredients":[["canned tomatoes",400,"g"],["zucchini",200,"g"],["white beans",240,"g","canned, drained"],["small pasta",120,"g","dry"],["carrot",100,"g"],["celery",80,"g"],["onion",100,"g"],["garlic",6,"g"],["vegetable stock",800,"ml","prepared, reduced-salt"],["basil",5,"g"],["olive oil",20,"ml","15 ml for cooking; 5 ml for serving"],["parmesan",20,"g"],["salt",2,"g"],["black pepper",0.5,"g"]],
+    "steps":["Dice the onion, carrot and celery. Heat 15 ml olive oil in a pot and cook the vegetables for 8 minutes. Add chopped garlic and cook for 1 minute.","Add the canned tomatoes and vegetable stock and bring to a boil.","Add diced zucchini and the drained canned beans. Simmer for 15 minutes.","Stir in the dry pasta and cook for the time stated on its packet, usually 8–10 minutes. Add a little water if the soup becomes too thick.","Stir in chopped basil, salt and pepper. Divide into 4 bowls, finish with the remaining 5 ml olive oil and grated Parmesan. Any extra bread is optional and is not included in the recipe quantities."]
+  },
+  {
+    "name":"Lentil Soup (Linsensuppe)","servings":4,"prep":15,"cook":45,"total":60,
+    "reason":"Add the missing stock and sautéing oil and define sausage weight.",
+    "ingredients":[["brown lentils",200,"g","dry"],["smoked sausage",200,"g"],["carrot",150,"g"],["celery",80,"g"],["onion",120,"g"],["red wine vinegar",15,"ml"],["bay leaf",1,"piece"],["thyme",0.5,"g","dried"],["sunflower oil",15,"ml"],["vegetable stock",1000,"ml","prepared, reduced-salt"],["salt",2,"g"],["black pepper",0.5,"g"]],
+    "steps":["Dice the onion, carrot and celery. Heat the oil in a pot and cook the vegetables for 8 minutes. Add the bay leaf and thyme.","Rinse the dry lentils and add them with the sliced sausage and vegetable stock. Bring to a boil.","Simmer for 30–35 minutes, until the lentils are tender. Remove the bay leaf.","Mash a ladleful of lentils and return them to the pot to thicken the soup.","Stir in the vinegar, measured salt and pepper. Add a little water if needed and divide into 4 portions."]
+  },
+  {
+    "name":"Solyanka","servings":4,"prep":15,"cook":30,"total":45,
+    "reason":"Include cooking oil and sour cream, define sausage weight and use an explicit broth volume.",
+    "ingredients":[["smoked sausage",200,"g"],["ham",100,"g"],["pickles",120,"g","drained; no extra brine included"],["olives",40,"g","pitted"],["capers",15,"g","drained"],["tomato paste",25,"g"],["lemon juice",15,"ml"],["onion",120,"g"],["beef stock",1200,"ml","prepared, reduced-salt"],["sunflower oil",15,"ml"],["sour cream",80,"g"],["black pepper",0.5,"g"]],
+    "steps":["Dice the onion and cook in the oil for about 7 minutes, until softened. Add the tomato paste and cook for 3 minutes.","Slice the sausage, ham and drained pickles and add them to the pot.","Pour in the beef stock, add the olives and capers and bring to a simmer.","Simmer for 15–20 minutes. Stir in the lemon juice and pepper. Taste before adding any extra salt because the sausage, pickles and broth already contain salt.","Divide into 4 bowls and top each with 20 g sour cream."
+    ]
+  },
+  {
+    "name":"Gulaschsuppe (German Goulash Soup)","servings":4,"prep":20,"cook":80,"total":100,
+    "reason":"Add browning oil and define enough broth and beef for four soup portions.",
+    "ingredients":[["beef chuck",450,"g","boneless"],["sweet paprika",6,"g"],["hot paprika",1,"g"],["red bell pepper",150,"g"],["potatoes",350,"g","peeled"],["onion",180,"g"],["caraway seeds",1,"g"],["beef stock",1000,"ml","prepared, reduced-salt"],["tomato paste",25,"g"],["sunflower oil",20,"ml"],["salt",2,"g"],["black pepper",1,"g"]],
+    "steps":["Cut the beef into small cubes. Heat the oil in a pot and brown the beef in batches, about 10 minutes in total. Remove to a plate.","Dice the onion and pepper and cook them in the same pot for 5 minutes. Take the pot off the heat and stir in both paprikas.","Return the beef and add the tomato paste, caraway seeds and beef stock. Bring to a gentle simmer.","Cover and simmer for 45 minutes, then add diced potatoes.","Cook for another 20 minutes, or until the beef and potatoes are tender. Add water if required to keep a soup consistency.","Stir in the measured salt and pepper and divide into 4 portions. Extra bread or sour cream is optional and is not included in the quantities."]
+  },
+  {
+    "name":"Hungarian Goulash","servings":4,"prep":20,"cook":105,"total":125,
+    "reason":"Add the missing oil, stock and bay leaf; ensure the listed pepper is actually used.",
+    "ingredients":[["beef chuck",600,"g","boneless"],["sweet paprika",8,"g"],["hot paprika",1,"g"],["potatoes",400,"g","peeled"],["red bell pepper",150,"g"],["onion",200,"g"],["carrot",150,"g"],["caraway seeds",1,"g"],["tomato paste",25,"g"],["beef stock",700,"ml","prepared, reduced-salt"],["bay leaf",1,"piece"],["sunflower oil",20,"ml"],["salt",2,"g"],["black pepper",1,"g"]],
+    "steps":["Cut the beef into cubes. Heat the oil in a heavy pot and brown the beef in batches, about 10 minutes in total. Remove to a plate.","Dice the onion and pepper and cook in the same pot for 5 minutes. Take off the heat and stir in the sweet and hot paprika.","Return the beef and add the stock, tomato paste, caraway seeds and bay leaf. Bring to a gentle simmer.","Cover and simmer for 60–70 minutes, until the beef is almost tender.","Add diced potatoes and carrots and simmer for another 20 minutes, until tender. Add a little water if the pot becomes too dry.","Remove the bay leaf and stir in the measured salt and pepper. Divide into 4 portions. Extra bread or noodles is optional and is not included in the quantities."]
+  },
+  {
+    "name":"Hungarian Goulash (Bogrács)","servings":4,"prep":20,"cook":105,"total":125,
+    "reason":"Add missing oil and bay leaf and explicitly use the pepper; retain the brothier kettle-style version.",
+    "ingredients":[["beef chuck",600,"g","boneless"],["sweet paprika",8,"g"],["hot paprika",1,"g"],["potatoes",400,"g","peeled"],["red bell pepper",150,"g"],["onion",200,"g"],["carrot",150,"g"],["caraway seeds",1,"g"],["tomato paste",25,"g"],["beef stock",1000,"ml","prepared, reduced-salt"],["bay leaf",1,"piece"],["sunflower oil",20,"ml"],["salt",2,"g"],["black pepper",1,"g"]],
+    "steps":["Cut the beef into cubes. Heat the oil in a heavy pot or kettle and brown the beef in batches, about 10 minutes in total. Remove to a plate.","Cook diced onion and pepper in the same pot for 5 minutes. Remove from direct heat and stir in both paprikas.","Return the beef and add tomato paste, caraway seeds, bay leaf and the litre of stock. Bring to a gentle simmer.","Cover and simmer for 60–70 minutes, until the beef is almost tender.","Add diced potatoes and carrots and cook for another 20 minutes, until tender. Keep a generous amount of broth, adding water if necessary.","Remove the bay leaf, stir in salt and pepper and serve in 4 deep bowls. Extra bread is optional and is not included in the quantities."]
+  },
+  {
+    "name":"Roast Red Pepper Soup","servings":4,"prep":15,"cook":45,"total":60,
+    "reason":"Add sautéing oil and specify the cream already used for cooking and the final swirl.",
+    "ingredients":[["red bell peppers",400,"g","trimmed"],["canned tomatoes",400,"g"],["onion",120,"g"],["garlic",6,"g"],["smoked paprika",2,"g"],["cream",100,"ml","single cream, about 18% fat; 80 ml in soup and 20 ml for serving"],["vegetable stock",500,"ml","prepared, reduced-salt"],["olive oil",15,"ml"],["salt",2,"g"],["black pepper",0.5,"g"]],
+    "steps":["Preheat the oven to 200°C. Halve the peppers and remove their seeds. Roast cut-side down for about 25 minutes, until the skin is charred, then peel.","Dice the onion and cook in the olive oil for 8 minutes. Add chopped garlic and smoked paprika and cook for 1 minute.","Add the tomatoes, roasted peppers and stock and simmer for 10 minutes.","Blend until smooth. Return to the pan and stir in 80 ml cream, salt and pepper. Heat gently without boiling.","Divide into 4 bowls and finish with the remaining 20 ml cream. Extra croutons are optional and are not included in the quantities."]
+  },
+  {
+    "name":"Roasted Red Pepper Soup","servings":4,"prep":15,"cook":45,"total":60,
+    "reason":"Add sautéing oil and specify cream quantities; preserve this recipe ID despite the separately tracked possible duplicate.",
+    "ingredients":[["red bell peppers",400,"g","trimmed"],["canned tomatoes",400,"g"],["onion",120,"g"],["garlic",6,"g"],["smoked paprika",2,"g"],["cream",100,"ml","single cream, about 18% fat; 80 ml in soup and 20 ml for serving"],["vegetable stock",500,"ml","prepared, reduced-salt"],["olive oil",15,"ml"],["salt",2,"g"],["black pepper",0.5,"g"]],
+    "steps":["Preheat the oven to 200°C. Halve and deseed the peppers. Roast cut-side down for about 25 minutes, until the skin is charred, then peel.","Dice the onion and cook in the olive oil for 8 minutes. Add chopped garlic and smoked paprika and cook for 1 minute.","Add the canned tomatoes, roasted peppers and stock. Simmer for 10 minutes.","Blend until smooth. Stir in 80 ml cream, salt and pepper and heat gently without boiling.","Divide into 4 bowls and finish with the remaining 20 ml cream. Extra bread is optional and is not included in the quantities."]
+  }
+]
