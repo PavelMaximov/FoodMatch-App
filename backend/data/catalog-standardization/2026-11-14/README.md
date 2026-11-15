@@ -47,6 +47,8 @@ Backend build/type check, runtime dependency audit and all 12 regression scripts
 
 Flutter tests were not run: dependency setup was rejected by automatic approval review because of an unrelated cloud metadata request. Run `flutter test test/data/models/dish_test.dart` and check the estimated-calorie label on a device.
 
-**Not applied to the hosted database yet.** Supabase's confirmation for the dry-run expired. Merging or generating SQL does not apply it. Before application, run the guarded dry-run, then apply and independently compare all 34 snapshots. Deploy the backend and Flutter update for the estimate marker; older clients show the numeric value without `≈`.
+**Applied and independently verified on 2026-11-15.** See `deployment.json`: all 34 exact source snapshots matched before application and all 34 full target snapshots matched afterward. Counts remain 239 curated and 3 custom dishes. Hosted dry-run confirmation expired; the committed operation used the same guards and transaction-wide postconditions tested in isolated PostgreSQL. The original rows remain in the versioned patches, and generated rollback refuses later edits.
+
+Backend and Flutter code have not been deployed by this database update. Deploy them for the estimate marker; older clients remain compatible but display the numeric value without `≈`.
 
 German recipe-content localization remains outstanding. Translate the finalized sources against the same dish/ingredient IDs; never create duplicate German dishes or separate session/match identities by language.
