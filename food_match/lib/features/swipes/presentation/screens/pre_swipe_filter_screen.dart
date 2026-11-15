@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import 'dart:async';
 
 import 'package:animations/animations.dart';
@@ -365,7 +366,10 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: <Widget>[
                   Text(
-                    'Step $_step / 3',
+                    context.tr('Step {current} of {total}', {
+                      'current': _step,
+                      'total': 3,
+                    }),
                     style: GoogleFonts.nunito(fontSize: 16),
                   ),
                   IconButton(
@@ -376,19 +380,19 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
                       Icons.close,
                       color: context.fmColors.textSecondary,
                     ),
-                    tooltip: 'Close filters',
+                    tooltip: context.tr('Close filters'),
                   ),
                 ],
               ),
               Text(
-                _title,
+                context.tr(_title),
                 style: AppTextStyles.pageTitle.copyWith(
                   color: context.fmColors.textPrimary,
                 ),
               ),
               const SizedBox(height: 10),
               Text(
-                _subtitle,
+                context.tr(_subtitle),
                 style: GoogleFonts.nunito(
                   fontSize: 18,
                   color: context.fmColors.textSecondary,
@@ -489,8 +493,12 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     if (option != 'custom_dishes' &&
         !_dishRegisters.contains(option) &&
         _dishRegisters.length >= 3) {
-      FoodMatchNotifications.show(context, type: FoodMatchNotificationType.info,
-        title: 'Category limit', message: 'Choose up to 3 categories.');
+      FoodMatchNotifications.show(
+        context,
+        type: FoodMatchNotificationType.info,
+        title: 'Category limit',
+        message: 'Choose up to 3 categories.',
+      );
       return;
     }
     setState(() {
@@ -803,7 +811,9 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       _flowGeneration++;
       context.read<PreSwipeProvider>().clearDraft();
       if (widget.mode == 'paired') {
-        _coupleProvider.resumeFilterStatePollingAfterDeckPrepare(succeeded: false);
+        _coupleProvider.resumeFilterStatePollingAfterDeckPrepare(
+          succeeded: false,
+        );
       }
       setState(() {
         _isPreparingSharedDeck = false;
@@ -812,8 +822,8 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         _isApplyingFilters = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Something went wrong. Please try again.'),
+        SnackBar(
+          content: Text(context.tr('Something went wrong. Please try again.')),
         ),
       );
     } catch (error) {
@@ -827,9 +837,11 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            widget.mode == 'paired'
-                ? 'Could not save your filters. Please try again.'
-                : 'Could not create your session. Please try again.',
+            context.tr(
+              widget.mode == 'paired'
+                  ? 'Could not save your filters. Please try again.'
+                  : 'Could not create your session. Please try again.',
+            ),
           ),
         ),
       );
@@ -927,8 +939,10 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              swipeProvider.error ??
-                  'Could not update filters. You can go back to your current deck.',
+              context.copy.error(
+                swipeProvider.error ??
+                    'Could not update filters. You can go back to your current deck.',
+              ),
             ),
           ),
         );
@@ -973,7 +987,9 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              coupleProvider.error ?? 'Could not apply filter changes.',
+              context.copy.error(
+                coupleProvider.error ?? 'Could not apply filter changes.',
+              ),
             ),
           ),
         );
@@ -1025,7 +1041,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
                 ),
                 const SizedBox(height: 18),
                 Text(
-                  'Shared deck unavailable',
+                  context.tr('Shared deck unavailable'),
                   textAlign: TextAlign.center,
                   style: GoogleFonts.fredoka(
                     fontWeight: FontWeight.w700,
@@ -1035,8 +1051,10 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  _sharedDeckError ??
-                      'Could not load the shared deck. Please try again.',
+                  context.copy.error(
+                    _sharedDeckError ??
+                        'Could not load the shared deck. Please try again.',
+                  ),
                   textAlign: TextAlign.center,
                   style: GoogleFonts.nunito(
                     fontSize: 16,
@@ -1053,12 +1071,12 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
                           setState(() => _sharedDeckError = null);
                           _prepareSharedDeck(userId);
                         },
-                  child: const Text('Retry'),
+                  child: Text(context.tr('Retry')),
                 ),
                 const SizedBox(height: 8),
                 TextButton(
                   onPressed: () => Navigator.of(context).maybePop(),
-                  child: const Text('Back'),
+                  child: Text(context.tr('Back')),
                 ),
               ],
             ),
@@ -1108,7 +1126,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 320),
                 child: Text(
-                  title,
+                  context.tr(title),
                   textAlign: TextAlign.center,
                   style: GoogleFonts.fredoka(
                     fontWeight: FontWeight.w700,
@@ -1122,7 +1140,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 340),
                 child: Text(
-                  description,
+                  context.tr(description),
                   textAlign: TextAlign.center,
                   style: GoogleFonts.nunito(
                     fontSize: 16,
@@ -1138,7 +1156,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
                 onPressed: _isPreparingSharedDeck || _isReturningFromWaiting
                     ? null
                     : _returnFromWaitingToFilters,
-                child: const Text('Back to session settings'),
+                child: Text(context.tr('Back to session settings')),
               ),
               const Spacer(flex: 2),
             ],
@@ -1180,8 +1198,10 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     } catch (_) {
       if (!mounted || !isCurrent()) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not reopen filters. Please try again.'),
+        SnackBar(
+          content: Text(
+            context.tr('Could not reopen filters. Please try again.'),
+          ),
         ),
       );
     } finally {
@@ -1208,8 +1228,12 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     _hasStartedPrepareAfterBothConfirmed = true;
     final isCurrent = _captureScope(includePairGeneration: true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !isCurrent() || !_waitingForPartner || _isPreparingSharedDeck ||
-          _isReturningFromWaiting || !coupleProvider.bothConfirmed) {
+      if (!mounted ||
+          !isCurrent() ||
+          !_waitingForPartner ||
+          _isPreparingSharedDeck ||
+          _isReturningFromWaiting ||
+          !coupleProvider.bothConfirmed) {
         return;
       }
       debugPrint('[PreSwipe] both confirmed, preparing shared deck');
@@ -1270,7 +1294,8 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
             _isPreparingSharedDeck = false;
             _waitingForPartner = false;
             _pendingUserId = null;
-            _sharedDeckError = 'Your session changed. Go back and reopen filters.';
+            _sharedDeckError =
+                'Your session changed. Go back and reopen filters.';
           });
         }
         if (mounted && isCurrent()) {
@@ -1345,7 +1370,7 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     for (final String message in deckMessages) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      ).showSnackBar(SnackBar(content: Text(context.tr(message))));
     }
 
     if (result.dishes.isEmpty) {
@@ -1364,7 +1389,6 @@ class _PreSwipeFilterScreenState extends State<PreSwipeFilterScreen> {
     debugPrint('[PreFilterSubmit] navigating=swipes');
     Navigator.pop(context, result);
   }
-
 }
 
 String formatOptionLabel(String value) {
@@ -1424,7 +1448,7 @@ class PreSwipeIntroScreen extends StatelessWidget {
               ),
               const SizedBox(height: 13),
               Text(
-                'Let’s tune your food vibe.',
+                context.tr('Let’s tune your food vibe.'),
                 textAlign: TextAlign.center,
                 style: GoogleFonts.fredoka(
                   fontWeight: FontWeight.w700,
@@ -1435,7 +1459,9 @@ class PreSwipeIntroScreen extends StatelessWidget {
               ),
               const SizedBox(height: 18),
               Text(
-                'FoodMatch has a large dish database. A few quick filters help us build a deck that feels closer to what you actually want today.',
+                context.tr(
+                  'FoodMatch has a large dish database. A few quick filters help us build a deck that feels closer to what you actually want today.',
+                ),
                 textAlign: TextAlign.center,
                 style: GoogleFonts.nunito(
                   fontSize: 17,
@@ -1457,7 +1483,7 @@ class PreSwipeIntroScreen extends StatelessWidget {
                     ),
                   ),
                   child: Text(
-                    'Customize my feed',
+                    context.tr('Customize my feed'),
                     style: GoogleFonts.nunito(
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
@@ -1574,7 +1600,7 @@ class _FilterOptionChip extends StatelessWidget {
               ),
             const SizedBox(width: 8),
             Text(
-              label,
+              context.tr(label),
               style: GoogleFonts.nunito(
                 fontSize: _PreSwipeFilterScreenState._chipFontSize,
                 color: textColor,
@@ -1617,10 +1643,6 @@ class _FilterBottomPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String dishLabel = availability.availableCount == 1
-        ? 'dish'
-        : 'dishes';
-
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -1636,7 +1658,7 @@ class _FilterBottomPanel extends StatelessWidget {
             children: <Widget>[
               Expanded(
                 child: Text(
-                  '🎯 ${_summaryChoiceText()}',
+                  '🎯 ${_summaryChoiceText(context)}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.nunito(
@@ -1648,7 +1670,7 @@ class _FilterBottomPanel extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Text(
-                '⚡ ${availability.availableCount} $dishLabel',
+                '⚡ ${context.copy.count('dishes', availability.availableCount)}',
                 style: GoogleFonts.nunito(
                   fontSize: 14,
                   fontWeight: FontWeight.w800,
@@ -1662,7 +1684,7 @@ class _FilterBottomPanel extends StatelessWidget {
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'Finding your perfect dinner...',
+                context.tr('Finding your perfect dinner...'),
                 style: GoogleFonts.nunito(fontSize: 13),
               ),
             ),
@@ -1696,7 +1718,7 @@ class _FilterBottomPanel extends StatelessWidget {
                       borderRadius: BorderRadius.circular(36),
                     ),
                   ),
-                  child: const Text('Back'),
+                  child: Text(context.tr('Back')),
                 ),
               ),
               const SizedBox(width: 10),
@@ -1711,7 +1733,7 @@ class _FilterBottomPanel extends StatelessWidget {
                       borderRadius: BorderRadius.circular(36),
                     ),
                   ),
-                  child: Text(primaryLabel),
+                  child: Text(context.tr(primaryLabel)),
                 ),
               ),
             ],
@@ -1721,7 +1743,7 @@ class _FilterBottomPanel extends StatelessWidget {
     );
   }
 
-  String _summaryChoiceText() {
+  String _summaryChoiceText(BuildContext context) {
     final List<String> values = <String>[
       if (includeCustomDishesFirst)
         'Your custom dishes'
@@ -1731,7 +1753,9 @@ class _FilterBottomPanel extends StatelessWidget {
       ...diet.map(formatOptionLabel),
       ...exclusions.map(formatOptionLabel),
     ];
-    return values.isEmpty ? 'Any cuisine' : values.join(', ');
+    return values.isEmpty
+        ? context.tr('Any cuisine')
+        : values.map(context.tr).join(', ');
   }
 
   String _mealFormatLabel(String value) => switch (value) {
@@ -1756,14 +1780,14 @@ class _EmptyPoolScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
               Text(
-                'No dishes found',
+                context.tr('No dishes found'),
                 style: GoogleFonts.nunito(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 10),
-              const Text('Try resetting filters to widen your options.'),
+              Text(context.tr('Try resetting filters to widen your options.')),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () => Navigator.of(context).pop(),
@@ -1772,7 +1796,7 @@ class _EmptyPoolScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(36),
                   ),
                 ),
-                child: const Text('Reset filters'),
+                child: Text(context.tr('Reset filters')),
               ),
             ],
           ),

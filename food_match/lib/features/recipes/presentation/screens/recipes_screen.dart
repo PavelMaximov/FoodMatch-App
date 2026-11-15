@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import '../../../../shared/logic/favorite_actions.dart';
 import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
@@ -141,7 +142,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
                     children: <Widget>[
                       Expanded(
                         child: Text(
-                          'Recipes',
+                          context.tr('Recipes'),
                           style: AppTextStyles.pageTitle.copyWith(
                             color: colors.textPrimary,
                           ),
@@ -251,7 +252,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
         const SizedBox(height: 18),
         if (categories.isNotEmpty) ...<Widget>[
           Text(
-            'Popular Categories',
+            context.tr('Popular Categories'),
             style: GoogleFonts.nunito(
               fontSize: 25,
               fontWeight: FontWeight.w800,
@@ -278,7 +279,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
             child: Row(
               children: <Widget>[
                 Text(
-                  'All Recipes',
+                  context.tr('All Recipes'),
                   style: GoogleFonts.nunito(
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
@@ -663,7 +664,7 @@ class MealTabsBar extends StatelessWidget {
                     Icon(_iconForTab(tab), size: 18, color: colors.textPrimary),
                     const SizedBox(width: 6),
                     Text(
-                      _labelForTab(tab),
+                      context.tr(_labelForTab(tab)),
                       style: GoogleFonts.nunito(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
@@ -769,7 +770,7 @@ class PopularCategoriesGrid extends StatelessWidget {
                           child: SizedBox(
                             width: constraints.maxWidth * 0.58,
                             child: Text(
-                              category.title,
+                              context.tr(category.title),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               softWrap: true,
@@ -824,7 +825,7 @@ class _PopularCategoryFallback extends StatelessWidget {
         border: Border.all(color: colors.border),
       ),
       child: Text(
-        title,
+        context.tr(title),
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
         softWrap: true,
@@ -907,7 +908,7 @@ class _FavoritesPillButton extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                'My Favorites',
+                context.tr('My Favorites'),
                 style: GoogleFonts.nunito(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -953,7 +954,7 @@ class _RecipeSearchBar extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Search any recipe',
+                    context.tr('Search any recipe'),
                     style: GoogleFonts.nunito(
                       fontSize: 16,
                       fontWeight: FontWeight.w400,

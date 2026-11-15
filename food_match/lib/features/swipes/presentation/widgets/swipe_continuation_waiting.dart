@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/theme_extensions.dart';
@@ -24,7 +25,7 @@ class SwipeContinuationWaiting extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'Waiting for your partner',
+                context.tr('Waiting for your partner'),
                 textAlign: TextAlign.center,
                 style: GoogleFonts.fredoka(
                   fontWeight: FontWeight.w700,
@@ -37,7 +38,9 @@ class SwipeContinuationWaiting extends StatelessWidget {
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 340),
                 child: Text(
-                  'Your partner needs to confirm continuing the last session.',
+                  context.tr(
+                    'Your partner needs to confirm continuing the last session.',
+                  ),
                   textAlign: TextAlign.center,
                   style: GoogleFonts.nunito(
                     fontSize: 16,
@@ -49,10 +52,7 @@ class SwipeContinuationWaiting extends StatelessWidget {
               const SizedBox(height: 12),
               const FoodMatchLoader(size: 144),
               const SizedBox(height: 6),
-              TextButton(
-                onPressed: onBack,
-                child: const Text('Back'),
-              ),
+              TextButton(onPressed: onBack, child: Text(context.tr('Back'))),
               const Spacer(flex: 2),
             ],
           ),
@@ -60,5 +60,4 @@ class SwipeContinuationWaiting extends StatelessWidget {
       ),
     );
   }
-
 }

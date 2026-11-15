@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -25,11 +26,14 @@ class AppCenteredHeader extends StatelessWidget {
         _HeaderBackButton(onTap: onBackTap),
         Expanded(
           child: Text(
-            title,
+            context.tr(title),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
-            style: AppTextStyles.pageTitle.copyWith(fontSize: 34, color: colors.textPrimary),
+            style: AppTextStyles.pageTitle.copyWith(
+              fontSize: 34,
+              color: colors.textPrimary,
+            ),
           ),
         ),
         const SizedBox(width: iconSize, height: iconSize),
@@ -84,7 +88,7 @@ class RecipeSearchFilterBar extends StatelessWidget {
                 color: colors.textPrimary,
               ),
               decoration: InputDecoration(
-                hintText: 'Search any recipe',
+                hintText: context.tr('Search any recipe'),
                 hintStyle: GoogleFonts.nunito(
                   fontSize: 15,
                   color: colors.textMuted,
@@ -96,7 +100,11 @@ class RecipeSearchFilterBar extends StatelessWidget {
                     ? IconButton(
                         padding: EdgeInsets.zero,
                         onPressed: onCloseOrClear,
-                        icon: Icon(Icons.close, size: 18, color: colors.textPrimary),
+                        icon: Icon(
+                          Icons.close,
+                          size: 18,
+                          color: colors.textPrimary,
+                        ),
                       )
                     : null,
                 filled: true,
@@ -128,7 +136,9 @@ class RecipeSearchFilterBar extends StatelessWidget {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: hasActiveFilters ? colors.primary : colors.inputBorder,
+                    color: hasActiveFilters
+                        ? colors.primary
+                        : colors.inputBorder,
                     width: 1.4,
                   ),
                 ),
@@ -146,9 +156,9 @@ class RecipeSearchFilterBar extends StatelessWidget {
   }
 
   OutlineInputBorder _border(Color color) => OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: color, width: 1.4),
-      );
+    borderRadius: BorderRadius.circular(12),
+    borderSide: BorderSide(color: color, width: 1.4),
+  );
 }
 
 class RecentSearchBlock extends StatelessWidget {
@@ -176,14 +186,20 @@ class RecentSearchBlock extends StatelessWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
-              Text('Recent', style: GoogleFonts.nunito(fontSize: 14, color: colors.textSecondary)),
+              Text(
+                context.tr('Recent'),
+                style: GoogleFonts.nunito(
+                  fontSize: 14,
+                  color: colors.textSecondary,
+                ),
+              ),
               const Spacer(),
               FoodMatchRipple(
                 onTap: onClear,
                 borderRadius: BorderRadius.circular(8),
                 rippleColor: colors.neutralRipple,
                 child: Text(
-                  'Clear',
+                  context.tr('Clear'),
                   style: GoogleFonts.nunito(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
@@ -207,7 +223,10 @@ class RecentSearchBlock extends StatelessWidget {
                     Expanded(
                       child: Text(
                         query,
-                        style: GoogleFonts.nunito(fontSize: 15, color: colors.textPrimary),
+                        style: GoogleFonts.nunito(
+                          fontSize: 15,
+                          color: colors.textPrimary,
+                        ),
                       ),
                     ),
                   ],
@@ -234,7 +253,11 @@ class _HeaderBackButton extends StatelessWidget {
       child: SizedBox(
         width: AppCenteredHeader.iconSize,
         height: AppCenteredHeader.iconSize,
-        child: Icon(Icons.arrow_back, size: 24, color: context.fmColors.textPrimary),
+        child: Icon(
+          Icons.arrow_back,
+          size: 24,
+          color: context.fmColors.textPrimary,
+        ),
       ),
     );
   }

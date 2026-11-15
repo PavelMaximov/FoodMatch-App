@@ -3,7 +3,11 @@ part of '../screens/recipe_detail_screen.dart';
 enum _RecipeDetailTab { ingredients, instructions }
 
 class _HeroImage extends StatelessWidget {
-  const _HeroImage({required this.dish, required this.dishId, required this.height});
+  const _HeroImage({
+    required this.dish,
+    required this.dishId,
+    required this.height,
+  });
 
   final Dish dish;
   final String dishId;
@@ -22,7 +26,10 @@ class _HeroImage extends StatelessWidget {
         child: Hero(
           tag: 'dish-image-$dishId',
           child: SafeDishImage(
-            imageUrl: ImageUtils.getImageUrl(dish.imageUrl, usage: ImageUsage.dishHero),
+            imageUrl: ImageUtils.getImageUrl(
+              dish.imageUrl,
+              usage: ImageUsage.dishHero,
+            ),
             fit: BoxFit.cover,
             emptyImageAsset: isCustomDishWithoutPhoto(dish)
                 ? AppEmptyStateAssets.customDishPlaceholder
@@ -60,8 +67,12 @@ class _StickyOverlayButtons extends StatelessWidget {
           children: <Widget>[
             _OverlayCircleButton(
               icon: Icons.arrow_back,
-              iconColor: isScrolled ? colors.buttonPrimaryText : colors.textPrimary,
-              backgroundColor: isScrolled ? colors.overlay : colors.cardElevated,
+              iconColor: isScrolled
+                  ? colors.buttonPrimaryText
+                  : colors.textPrimary,
+              backgroundColor: isScrolled
+                  ? colors.overlay
+                  : colors.cardElevated,
               onTap: onBackTap,
             ),
             _OverlayCircleButton(
@@ -69,9 +80,11 @@ class _StickyOverlayButtons extends StatelessWidget {
               iconColor: isFavorite
                   ? colors.favoriteActive
                   : isScrolled
-                      ? colors.buttonPrimaryText
-                      : colors.favoriteInactive,
-              backgroundColor: isScrolled ? colors.overlay : colors.cardElevated,
+                  ? colors.buttonPrimaryText
+                  : colors.favoriteInactive,
+              backgroundColor: isScrolled
+                  ? colors.overlay
+                  : colors.cardElevated,
               onTap: isFavoriteUpdating ? null : onFavoriteTap,
               isLoading: isFavoriteUpdating,
             ),
@@ -146,16 +159,22 @@ class _RecipeContent extends StatelessWidget {
   final Future<void> Function(
     Dish dish,
     List<ShoppingListIngredientInput> ingredients,
-  ) onAddIngredients;
+  )
+  onAddIngredients;
 
   @override
   Widget build(BuildContext context) {
     final FoodMatchThemeColors colors = context.fmColors;
     final EdgeInsets safePadding = MediaQuery.paddingOf(context);
-    final List<_IngredientDisplayRow> ingredientRows = _buildIngredientRows(dish, measurementSystem);
-    final bool groceryListLocked = !context.watch<PremiumProvider>().canAddRecipeIngredients(
-      shared: context.watch<ShoppingListProvider>().isShared,
+    final List<_IngredientDisplayRow> ingredientRows = _buildIngredientRows(
+      dish,
+      measurementSystem,
     );
+    final bool groceryListLocked = !context
+        .watch<PremiumProvider>()
+        .canAddRecipeIngredients(
+          shared: context.watch<ShoppingListProvider>().isShared,
+        );
     final List<ShoppingListIngredientInput> shoppingIngredients =
         _buildShoppingIngredients(dish, measurementSystem);
 
@@ -166,13 +185,15 @@ class _RecipeContent extends StatelessWidget {
           AppDimensions.paddingM,
           26,
           AppDimensions.paddingL,
-          safePadding.bottom + AppDimensions.bottomNavHeight + AppDimensions.paddingXL,
+          safePadding.bottom +
+              AppDimensions.bottomNavHeight +
+              AppDimensions.paddingXL,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Text(
-              dish.name.isNotEmpty ? dish.name : 'Dish $fallbackDishId',
+              dish.name.isNotEmpty ? dish.name : context.tr('Untitled dish'),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.nunito(
@@ -215,10 +236,22 @@ class _RecipeContent extends StatelessWidget {
                         dimension: 17,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : Icon(groceryListLocked ? Icons.lock_outline_rounded : Icons.add_rounded, size: 21),
+                    : Icon(
+                        groceryListLocked
+                            ? Icons.lock_outline_rounded
+                            : Icons.add_rounded,
+                        size: 21,
+                      ),
                 label: Text(
-                  groceryListLocked ? 'Grocery list · Premium' : 'Add ingredients to the grocery list',
-                  style: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w800),
+                  context.tr(
+                    groceryListLocked
+                        ? 'Grocery list · Premium'
+                        : 'Add ingredients to the grocery list',
+                  ),
+                  style: GoogleFonts.nunito(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
               const SizedBox(height: 10),
@@ -235,7 +268,10 @@ class _RecipeContent extends StatelessWidget {
     );
   }
 
-  List<_IngredientDisplayRow> _buildIngredientRows(Dish dish, MeasurementSystem system) {
+  List<_IngredientDisplayRow> _buildIngredientRows(
+    Dish dish,
+    MeasurementSystem system,
+  ) {
     final List<_IngredientDisplayRow> displayRows = dish.ingredients
         .map(_IngredientDisplayRow.fromDisplayText)
         .where((_IngredientDisplayRow row) => row.displayText.isNotEmpty)
@@ -257,11 +293,17 @@ class _RecipeContent extends StatelessWidget {
     return structuredRows;
   }
 
-  List<ShoppingListIngredientInput> _buildShoppingIngredients(Dish dish, MeasurementSystem system) {
-    final List<ShoppingListIngredientInput> displayIngredients = dish.ingredients
+  List<ShoppingListIngredientInput> _buildShoppingIngredients(
+    Dish dish,
+    MeasurementSystem system,
+  ) {
+    final List<ShoppingListIngredientInput> displayIngredients = dish
+        .ingredients
         .map(ShoppingListIngredientInput.fromDisplayText)
-        .where((ShoppingListIngredientInput ingredient) =>
-            ingredient.name.trim().isNotEmpty)
+        .where(
+          (ShoppingListIngredientInput ingredient) =>
+              ingredient.name.trim().isNotEmpty,
+        )
         .toList();
     if (displayIngredients.isNotEmpty) return displayIngredients;
 
@@ -281,8 +323,10 @@ class _RecipeContent extends StatelessWidget {
     if (richIngredients.isNotEmpty) return richIngredients;
     return dish.ingredients
         .map(ShoppingListIngredientInput.fromName)
-        .where((ShoppingListIngredientInput ingredient) =>
-            ingredient.name.trim().isNotEmpty)
+        .where(
+          (ShoppingListIngredientInput ingredient) =>
+              ingredient.name.trim().isNotEmpty,
+        )
         .toList();
   }
 }
@@ -294,18 +338,19 @@ class _TagChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final List<String> tags = <String>[
-      dish.cuisine,
-      dish.effort,
-      dish.type,
-      ...dish.mood,
-      ...dish.tags,
-    ]
-        .map((String item) => item.trim())
-        .where((String item) => item.isNotEmpty)
-        .toSet()
-        .take(4)
-        .toList();
+    final List<String> tags =
+        <String>[
+              dish.cuisine,
+              dish.effort,
+              dish.type,
+              ...dish.mood,
+              ...dish.tags,
+            ]
+            .map((String item) => item.trim())
+            .where((String item) => item.isNotEmpty)
+            .toSet()
+            .take(4)
+            .toList();
 
     if (tags.isEmpty) {
       return const SizedBox.shrink();
@@ -335,7 +380,7 @@ class _TagChip extends StatelessWidget {
         border: Border.all(color: colors.chipBorder),
       ),
       child: Text(
-        label,
+        context.tr(label),
         style: GoogleFonts.nunito(
           color: colors.textSecondary,
           fontSize: 12.5,
@@ -363,9 +408,21 @@ class _StatsRow extends StatelessWidget {
       ),
       child: Row(
         children: <Widget>[
-          Expanded(child: _StatItem(icon: Icons.schedule, label: dish.totalTimeDisplay.isEmpty ? '— min' : dish.totalTimeDisplay)),
+          Expanded(
+            child: _StatItem(
+              icon: Icons.schedule,
+              label: dish.totalTimeDisplay.isEmpty
+                  ? context.tr('— min')
+                  : context.copy.duration(dish.totalTimeDisplay),
+            ),
+          ),
           _VerticalDivider(color: colors.chipBorder),
-          Expanded(child: _StatItem(icon: Icons.groups_outlined, label: _formatServings(dish.servings))),
+          Expanded(
+            child: _StatItem(
+              icon: Icons.groups_outlined,
+              label: context.copy.servings(dish.servings),
+            ),
+          ),
           _VerticalDivider(color: colors.chipBorder),
           Expanded(
             child: _StatItem(
@@ -376,17 +433,6 @@ class _StatsRow extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  String _formatServings(String servings) {
-    final String trimmed = servings.trim();
-    if (trimmed.isEmpty) {
-      return '— servings';
-    }
-    if (trimmed.toLowerCase().contains(AppStrings.servings)) {
-      return trimmed;
-    }
-    return '$trimmed ${AppStrings.servings}';
   }
 
   String _formatCalories(Dish dish) {
@@ -429,7 +475,7 @@ class _StatItem extends StatelessWidget {
         const SizedBox(width: 5),
         Flexible(
           child: Text(
-            label,
+            context.tr(label),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.nunito(
@@ -483,7 +529,11 @@ class _Tabs extends StatelessWidget {
 }
 
 class _TabButton extends StatelessWidget {
-  const _TabButton({required this.title, required this.isActive, required this.onTap});
+  const _TabButton({
+    required this.title,
+    required this.isActive,
+    required this.onTap,
+  });
 
   final String title;
   final bool isActive;
@@ -501,7 +551,7 @@ class _TabButton extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 11),
           child: Text(
-            title,
+            context.tr(title),
             style: GoogleFonts.nunito(
               fontSize: 14,
               fontWeight: FontWeight.w800,
@@ -640,7 +690,9 @@ class _InstructionsContent extends StatelessWidget {
 
     return Column(
       children: steps.asMap().entries.map((MapEntry<int, RecipeStep> entry) {
-        final int stepNumber = entry.value.step > 0 ? entry.value.step : entry.key + 1;
+        final int stepNumber = entry.value.step > 0
+            ? entry.value.step
+            : entry.key + 1;
         return _DashedSeparatedRow(
           showDivider: entry.key < steps.length - 1,
           child: Row(
@@ -673,7 +725,6 @@ class _InstructionsContent extends StatelessWidget {
   }
 }
 
-
 class _InlineEmptyState extends StatelessWidget {
   const _InlineEmptyState({required this.icon, required this.message});
 
@@ -691,7 +742,7 @@ class _InlineEmptyState extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              message,
+              context.tr(message),
               style: GoogleFonts.nunito(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -737,7 +788,9 @@ class _DashedDivider extends StatelessWidget {
     return SizedBox(
       height: 1,
       width: double.infinity,
-      child: CustomPaint(painter: _DashedDividerPainter(context.fmColors.divider)),
+      child: CustomPaint(
+        painter: _DashedDividerPainter(context.fmColors.divider),
+      ),
     );
   }
 }
@@ -757,11 +810,16 @@ class _DashedDividerPainter extends CustomPainter {
       ..strokeWidth = 1;
 
     while (startX < size.width) {
-      canvas.drawLine(Offset(startX, 0), Offset(math.min(startX + dashWidth, size.width), 0), paint);
+      canvas.drawLine(
+        Offset(startX, 0),
+        Offset(math.min(startX + dashWidth, size.width), 0),
+        paint,
+      );
       startX += dashWidth + dashGap;
     }
   }
 
   @override
-  bool shouldRepaint(covariant _DashedDividerPainter oldDelegate) => oldDelegate.color != color;
+  bool shouldRepaint(covariant _DashedDividerPainter oldDelegate) =>
+      oldDelegate.color != color;
 }

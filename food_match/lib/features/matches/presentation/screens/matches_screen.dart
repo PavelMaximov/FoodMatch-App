@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import '../../../../shared/logic/favorite_actions.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -42,13 +43,27 @@ class _MatchesScreenState extends State<MatchesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final List<MatchItem> matches = context.select<MatchProvider, List<MatchItem>>((MatchProvider p) => p.matches);
-    final bool isLoading = context.select<MatchProvider, bool>((MatchProvider p) => p.isLoading);
-    final String? error = context.select<MatchProvider, String?>((MatchProvider p) => p.error);
-    final Set<String> savedDishIds = context.select<FavoritesProvider, Set<String>>((FavoritesProvider p) => p.savedDishIds);
-    final bool isSoloMode = context.select<MatchProvider, bool>((MatchProvider p) => p.isSoloMode);
-    final Couple? currentCouple = context.select<CoupleProvider, Couple?>((CoupleProvider p) => p.currentCouple);
-    final String? currentUserId = context.select<AuthProvider, String?>((AuthProvider p) => p.currentUser?.id);
+    final List<MatchItem> matches = context
+        .select<MatchProvider, List<MatchItem>>((MatchProvider p) => p.matches);
+    final bool isLoading = context.select<MatchProvider, bool>(
+      (MatchProvider p) => p.isLoading,
+    );
+    final String? error = context.select<MatchProvider, String?>(
+      (MatchProvider p) => p.error,
+    );
+    final Set<String> savedDishIds = context
+        .select<FavoritesProvider, Set<String>>(
+          (FavoritesProvider p) => p.savedDishIds,
+        );
+    final bool isSoloMode = context.select<MatchProvider, bool>(
+      (MatchProvider p) => p.isSoloMode,
+    );
+    final Couple? currentCouple = context.select<CoupleProvider, Couple?>(
+      (CoupleProvider p) => p.currentCouple,
+    );
+    final String? currentUserId = context.select<AuthProvider, String?>(
+      (AuthProvider p) => p.currentUser?.id,
+    );
     final CoupleMemberProfile? partner = resolvePartnerProfile(
       couple: currentCouple,
       currentUserId: currentUserId,
@@ -56,7 +71,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
     final String partnerName = resolvePartnerDisplayName(
       couple: currentCouple,
       currentUserId: currentUserId,
-      fallback: AppStrings.yourPartner,
+      fallback: context.tr(AppStrings.yourPartner),
     );
     final String? partnerAvatarUrl = partner?.avatarUrl;
 
@@ -64,7 +79,9 @@ class _MatchesScreenState extends State<MatchesScreen> {
       backgroundColor: context.fmColors.background,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingM),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppDimensions.paddingM,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
@@ -75,7 +92,15 @@ class _MatchesScreenState extends State<MatchesScreen> {
                 partnerAvatarUrl: partnerAvatarUrl,
               ),
               const SizedBox(height: AppDimensions.paddingL),
-              Expanded(child: _buildBody(matches, isLoading, error, savedDishIds, isSoloMode)),
+              Expanded(
+                child: _buildBody(
+                  matches,
+                  isLoading,
+                  error,
+                  savedDishIds,
+                  isSoloMode,
+                ),
+              ),
             ],
           ),
         ),
@@ -83,7 +108,13 @@ class _MatchesScreenState extends State<MatchesScreen> {
     );
   }
 
-  Widget _buildBody(List<MatchItem> matches, bool isLoading, String? error, Set<String> savedDishIds, bool isSoloMode) {
+  Widget _buildBody(
+    List<MatchItem> matches,
+    bool isLoading,
+    String? error,
+    Set<String> savedDishIds,
+    bool isSoloMode,
+  ) {
     if (isLoading && matches.isEmpty) {
       return ListView.builder(
         itemCount: 4,
@@ -138,8 +169,11 @@ class _MatchesScreenState extends State<MatchesScreen> {
                 key: ValueKey<String>(dish.id),
                 dish: dish,
                 isSaved: savedDishIds.contains(dish.id),
-                onTap: () => context.push('/recipe-detail/${dish.id}', extra: dish),
-                onFavoriteTap: updating ? null : () => toggleDishFavorite(context, dish),
+                onTap: () =>
+                    context.push('/recipe-detail/${dish.id}', extra: dish),
+                onFavoriteTap: updating
+                    ? null
+                    : () => toggleDishFavorite(context, dish),
               ),
             ),
           );
@@ -164,8 +198,12 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     if (isSoloMode) {
       return Text(
-        "Dishes you've liked",
-        style: GoogleFonts.fredoka(fontSize: 36, fontWeight: FontWeight.w700, color: context.fmColors.textPrimary),
+        context.tr("Dishes you've liked"),
+        style: GoogleFonts.fredoka(
+          fontSize: 36,
+          fontWeight: FontWeight.w700,
+          color: context.fmColors.textPrimary,
+        ),
       );
     }
 
@@ -173,14 +211,18 @@ class _Header extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Text(
-          AppStrings.matches,
-          style: GoogleFonts.fredoka(fontSize: 36, fontWeight: FontWeight.w700, color: context.fmColors.textPrimary),
+          context.tr(AppStrings.matches),
+          style: GoogleFonts.fredoka(
+            fontSize: 36,
+            fontWeight: FontWeight.w700,
+            color: context.fmColors.textPrimary,
+          ),
         ),
         const SizedBox(height: 1),
         Row(
           children: <Widget>[
             Text(
-              '${AppStrings.matchesWith} ',
+              '${context.tr(AppStrings.matchesWith)} ',
               style: GoogleFonts.nunito(
                 fontSize: 22,
                 fontWeight: FontWeight.w500,
@@ -211,22 +253,18 @@ class _Header extends StatelessWidget {
 }
 
 class _PartnerAvatar extends StatelessWidget {
-  const _PartnerAvatar({
-    required this.partnerName,
-    this.avatarUrl,
-  });
+  const _PartnerAvatar({required this.partnerName, this.avatarUrl});
 
   final String partnerName;
   final String? avatarUrl;
 
   @override
   Widget build(BuildContext context) {
-    final String initials = partnerName.trim().isEmpty ? '?' : partnerName.trim()[0].toUpperCase();
+    final String initials = partnerName.trim().isEmpty
+        ? '?'
+        : partnerName.trim()[0].toUpperCase();
     if (avatarUrl != null && avatarUrl!.trim().isNotEmpty) {
-      return SafeAvatarImage(
-        imageUrl: avatarUrl,
-        size: 30,
-      );
+      return SafeAvatarImage(imageUrl: avatarUrl, size: 30);
     }
     return _buildFallback(context, initials);
   }

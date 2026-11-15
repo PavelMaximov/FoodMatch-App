@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -11,7 +12,7 @@ class VerifyEmailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
-    final email = auth.currentUser?.email ?? 'your email address';
+    final email = auth.currentUser?.email ?? context.tr('your email address');
 
     final colors = context.fmColors;
 
@@ -24,17 +25,43 @@ class VerifyEmailScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Icon(Icons.mark_email_unread_outlined, size: 72, color: colors.primary),
+              Icon(
+                Icons.mark_email_unread_outlined,
+                size: 72,
+                color: colors.primary,
+              ),
               const SizedBox(height: 24),
-              Text('Check your email', style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: colors.textPrimary), textAlign: TextAlign.center),
+              Text(
+                context.tr('Check your email'),
+                style: Theme.of(
+                  context,
+                ).textTheme.headlineSmall?.copyWith(color: colors.textPrimary),
+                textAlign: TextAlign.center,
+              ),
               const SizedBox(height: 12),
-              Text('We sent a verification link to $email. Verify your address, then come back and check again.', textAlign: TextAlign.center, style: TextStyle(color: colors.textSecondary)),
+              Text(
+                context.tr(
+                  'We sent a verification link to {email}. Verify your address, then come back and check again.',
+                  {'email': email},
+                ),
+                textAlign: TextAlign.center,
+                style: TextStyle(color: colors.textSecondary),
+              ),
               const SizedBox(height: 32),
-              AppButton(text: 'I verified, check again', onPressed: auth.checkVerificationStatus),
+              AppButton(
+                text: 'I verified, check again',
+                onPressed: auth.checkVerificationStatus,
+              ),
               const SizedBox(height: 12),
-              OutlinedButton(onPressed: auth.resendVerification, child: const Text('Resend email')),
+              OutlinedButton(
+                onPressed: auth.resendVerification,
+                child: Text(context.tr('Resend email')),
+              ),
               const SizedBox(height: 12),
-              TextButton(onPressed: auth.logout, child: const Text('Logout')),
+              TextButton(
+                onPressed: auth.logout,
+                child: Text(context.tr('Logout')),
+              ),
             ],
           ),
         ),

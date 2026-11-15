@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import '../../../../shared/logic/favorite_actions.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -33,6 +34,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   void _onHistoryChanged() {
     if (mounted) setState(() {});
   }
+
   RecipeListFilters _listFilters = const RecipeListFilters();
   List<Dish>? _lastFavoritesInput;
   String? _lastFilterSignature;
@@ -397,7 +399,7 @@ class _ResultSummary extends StatelessWidget {
     return Row(
       children: <Widget>[
         Text(
-          '$count result${count == 1 ? '' : 's'}',
+          context.copy.count('results', count),
           style: GoogleFonts.nunito(
             fontSize: 13,
             fontWeight: FontWeight.w700,
@@ -405,7 +407,7 @@ class _ResultSummary extends StatelessWidget {
           ),
         ),
         const Spacer(),
-        TextButton(onPressed: onClear, child: const Text('Clear')),
+        TextButton(onPressed: onClear, child: Text(context.tr('Clear'))),
       ],
     );
   }

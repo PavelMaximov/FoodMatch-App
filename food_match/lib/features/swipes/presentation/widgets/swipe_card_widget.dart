@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -91,138 +92,144 @@ class SwipeCardWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final FoodMatchThemeColors colors = context.fmColors;
     final Dish dish = this.dish;
-    final String heroImageUrl = ImageUtils.getImageUrl(dish.imageUrl, usage: ImageUsage.swipeCard);
+    final String heroImageUrl = ImageUtils.getImageUrl(
+      dish.imageUrl,
+      usage: ImageUsage.swipeCard,
+    );
     return RepaintBoundary(
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AppDimensions.radiusL),
         child: Stack(
           fit: StackFit.expand,
           children: <Widget>[
-          Hero(
-            tag: 'dish-image-${dish.id}',
-            child: SafeDishImage(
-              imageUrl: heroImageUrl,
-              fit: BoxFit.cover,
-              width: double.infinity,
-              height: double.infinity,
-              emptyImageAsset: isCustomDishWithoutPhoto(dish)
-                  ? AppEmptyStateAssets.customDishPlaceholder
-                  : null,
+            Hero(
+              tag: 'dish-image-${dish.id}',
+              child: SafeDishImage(
+                imageUrl: heroImageUrl,
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
+                emptyImageAsset: isCustomDishWithoutPhoto(dish)
+                    ? AppEmptyStateAssets.customDishPlaceholder
+                    : null,
+              ),
             ),
-          ),
 
-          if (showSeenBadge)
-            Positioned(
-              top: 16,
-              left: 16,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.55),
-                  borderRadius: BorderRadius.circular(AppDimensions.radiusXL),
-                ),
-                child: Text(
-                  'Seen before',
-                  style: GoogleFonts.nunito(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
+            if (showSeenBadge)
+              Positioned(
+                top: 16,
+                left: 16,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
                   ),
-                ),
-              ),
-            ),
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              height: 280,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: <Color>[
-                    Colors.transparent,
-                    Colors.black.withValues(alpha: 0.85),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: 100,
-            left: 20,
-            right: 20,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: Text(
-                        dish.name,
-                        style: GoogleFonts.nunito(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.55),
+                    borderRadius: BorderRadius.circular(AppDimensions.radiusXL),
+                  ),
+                  child: Text(
+                    context.tr('Seen before'),
+                    style: GoogleFonts.nunito(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
                     ),
-                    _buildInfoButton(context),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  dish.description,
-                  style: GoogleFonts.nunito(
-                    fontSize: 14,
-                    color: Colors.white.withValues(alpha: 0.85),
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 8),
-                _buildTags(context),
-              ],
-            ),
-          ),
-          if (onBack != null)
+              ),
             Positioned(
-              top: 20,
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                height: 280,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: <Color>[
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: 0.85),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: 100,
+              left: 20,
               right: 20,
-              child: _buildPreviousButton(context),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: Text(
+                          dish.name,
+                          style: GoogleFonts.nunito(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      _buildInfoButton(context),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    dish.description,
+                    style: GoogleFonts.nunito(
+                      fontSize: 14,
+                      color: Colors.white.withValues(alpha: 0.85),
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+                  _buildTags(context),
+                ],
+              ),
             ),
-          Positioned(
-            bottom: 20,
-            left: 0,
-            right: 0,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                _buildCircleSvgButton(
-                  size: 64,
-                  bgColor: const Color(0xFFFFFFFF),
-                  assetPath: 'assets/icons/swipe/dislike_swipe.svg',
-                  iconColor: colors.error,
-                  rippleColor: colors.dislikeRipple,
-                  onTap: onDislike,
-                ),
-                const SizedBox(width: 32),
-                _buildCircleSvgButton(
-                  size: 64,
-                  bgColor: colors.buttonPrimaryBackground,
-                  assetPath: 'assets/icons/swipe/like_swipe.svg',
-                  rippleColor: colors.likeRipple,
-                  onTap: onLike,
-                ),
-              ],
+            if (onBack != null)
+              Positioned(
+                top: 20,
+                right: 20,
+                child: _buildPreviousButton(context),
+              ),
+            Positioned(
+              bottom: 20,
+              left: 0,
+              right: 0,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  _buildCircleSvgButton(
+                    size: 64,
+                    bgColor: const Color(0xFFFFFFFF),
+                    assetPath: 'assets/icons/swipe/dislike_swipe.svg',
+                    iconColor: colors.error,
+                    rippleColor: colors.dislikeRipple,
+                    onTap: onDislike,
+                  ),
+                  const SizedBox(width: 32),
+                  _buildCircleSvgButton(
+                    size: 64,
+                    bgColor: colors.buttonPrimaryBackground,
+                    assetPath: 'assets/icons/swipe/like_swipe.svg',
+                    rippleColor: colors.likeRipple,
+                    onTap: onLike,
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
-        )
+          ],
+        ),
       ),
     );
   }
@@ -241,11 +248,7 @@ class SwipeCardWidget extends StatelessWidget {
           color: infoStyle.background,
           border: Border.all(color: infoStyle.border),
         ),
-        child: Icon(
-          Icons.undo_rounded,
-          color: infoStyle.icon,
-          size: 16,
-        ),
+        child: Icon(Icons.undo_rounded, color: infoStyle.icon, size: 16),
       ),
     );
   }
@@ -263,11 +266,7 @@ class SwipeCardWidget extends StatelessWidget {
           color: infoStyle.background,
           border: Border.all(color: infoStyle.border),
         ),
-        child: Icon(
-          Icons.info_outline,
-          color: infoStyle.icon,
-          size: 18,
-        ),
+        child: Icon(Icons.info_outline, color: infoStyle.icon, size: 18),
       ),
     );
   }
@@ -293,7 +292,7 @@ class SwipeCardWidget extends StatelessWidget {
         border: Border.all(color: pillStyle.border),
       ),
       child: Text(
-        text,
+        context.tr(text),
         style: GoogleFonts.nunito(
           fontSize: 12,
           color: pillStyle.text,

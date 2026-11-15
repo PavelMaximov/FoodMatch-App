@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 
@@ -17,8 +18,9 @@ class FoodMatchLoader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color foreground =
-        dimmed ? Colors.white : context.fmColors.textPrimary;
+    final Color foreground = dimmed
+        ? Colors.white
+        : context.fmColors.textPrimary;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
@@ -35,12 +37,12 @@ class FoodMatchLoader extends StatelessWidget {
         if (label != null) ...<Widget>[
           const SizedBox(height: 16),
           Text(
-            label!,
+            context.tr(label!),
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: foreground,
-                  fontWeight: FontWeight.w700,
-                ),
+              color: foreground,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ],

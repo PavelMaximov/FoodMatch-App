@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -90,8 +91,10 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
   @override
   void initState() {
     super.initState();
-    _results = RecipeResultsController(fetchPage: _fetchPage, postFilter: widget.postFilter)
-      ..addListener(_onChanged);
+    _results = RecipeResultsController(
+      fetchPage: _fetchPage,
+      postFilter: widget.postFilter,
+    )..addListener(_onChanged);
     _history.addListener(_onChanged);
     _scrollController.addListener(_maybeLoadMore);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -423,8 +426,13 @@ class _RecipeResultsPageState extends State<RecipeResultsPage> {
                 child: Center(child: CircularProgressIndicator()),
               )
             : _results.loadMoreError != null
-                ? Center(child: TextButton(onPressed: _loadMore, child: const Text('Retry loading recipes')))
-                : null,
+            ? Center(
+                child: TextButton(
+                  onPressed: _loadMore,
+                  child: Text(context.tr('Retry loading recipes')),
+                ),
+              )
+            : null,
         dishes: _dishes,
         savedDishIds: savedDishIds,
         onFavoriteTap: widget.onFavoriteTap,

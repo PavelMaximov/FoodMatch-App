@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -77,8 +78,10 @@ class SwipesScreen extends StatefulWidget {
   State<SwipesScreen> createState() => _SwipesScreenState();
 }
 
-class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver {
-  final GlobalKey<SwipeableStackState> _swipeStackKey = GlobalKey<SwipeableStackState>();
+class _SwipesScreenState extends State<SwipesScreen>
+    with WidgetsBindingObserver {
+  final GlobalKey<SwipeableStackState> _swipeStackKey =
+      GlobalKey<SwipeableStackState>();
   bool _isOpeningPreSwipe = false;
   bool _isPreSwipeRouteActive = false;
   final SwipeActionController _cardActions = SwipeActionController();
@@ -93,6 +96,7 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
   void _onCardActionChanged() {
     if (mounted) setState(() {});
   }
+
   bool _showPairConnectionStep = false;
   bool _isHandlingSessionEnded = false;
   bool _isWaitingForDepartedPartner = false;
@@ -136,7 +140,9 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       _coupleProvider = coupleProvider;
       coupleProvider.addListener(_handleCoupleSessionEnded);
       coupleProvider.startFilterStatePolling(reason: 'swipes_screen');
-      _loadedAuthBoundaryVersion = context.read<AuthProvider>().authBoundaryVersion;
+      _loadedAuthBoundaryVersion = context
+          .read<AuthProvider>()
+          .authBoundaryVersion;
       _loadExistingBackendDeckOrStart();
     });
   }
@@ -144,8 +150,11 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final int authBoundaryVersion = context.watch<AuthProvider>().authBoundaryVersion;
-    if (_loadedAuthBoundaryVersion == -1 || _loadedAuthBoundaryVersion == authBoundaryVersion) {
+    final int authBoundaryVersion = context
+        .watch<AuthProvider>()
+        .authBoundaryVersion;
+    if (_loadedAuthBoundaryVersion == -1 ||
+        _loadedAuthBoundaryVersion == authBoundaryVersion) {
       return;
     }
     _loadedAuthBoundaryVersion = authBoundaryVersion;
@@ -187,7 +196,9 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       _lastPairDeckReadyLoadAttemptAt = null;
     });
     context.read<CoupleProvider>().consumeOpenPreviousChoiceAfterInvite();
-    debugPrint('[AppFlow] authBoundary startup: suppress previous choice auto-open');
+    debugPrint(
+      '[AppFlow] authBoundary startup: suppress previous choice auto-open',
+    );
   }
 
   @override
@@ -206,7 +217,6 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
-
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -247,7 +257,6 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     }
   }
 
-
   Future<void> _handlePairNeedsResync() async {
     final CoupleProvider coupleProvider = context.read<CoupleProvider>();
     final isCurrent = _captureSessionScope();
@@ -287,27 +296,33 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     _isPairResyncDialogOpen = true;
     bool startNew;
     try {
-      startNew = await showDialog<bool>(
-        context: context,
-        barrierDismissible: false,
-        builder: (dialogContext) => PopScope(
-          canPop: false,
-          child: AlertDialog(
-            title: const Text('Partner left the session'),
-            content: const Text('Your partner left this session. You can wait for them to continue or start a new session.'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext, false),
-                child: const Text('Wait here'),
+      startNew =
+          await showDialog<bool>(
+            context: context,
+            barrierDismissible: false,
+            builder: (dialogContext) => PopScope(
+              canPop: false,
+              child: AlertDialog(
+                title: Text(context.tr('Partner left the session')),
+                content: Text(
+                  context.tr(
+                    'Your partner left this session. You can wait for them to continue or start a new session.',
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogContext, false),
+                    child: Text(context.tr('Wait here')),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(dialogContext, true),
+                    child: Text(context.tr('Start new session')),
+                  ),
+                ],
               ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(dialogContext, true),
-                child: const Text('Start new session'),
-              ),
-            ],
-          ),
-        ),
-      ) ?? false;
+            ),
+          ) ??
+          false;
     } finally {
       _isPairResyncDialogOpen = false;
     }
@@ -320,7 +335,9 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
         _pairDeckReadyAutoLoadEnabled = false;
       });
       context.read<CoupleProvider>().endSoloResumeIsolation();
-      context.read<CoupleProvider>().startInvitationPolling(reason: 'waiting_for_departed_partner');
+      context.read<CoupleProvider>().startInvitationPolling(
+        reason: 'waiting_for_departed_partner',
+      );
       return;
     }
     final couple = context.read<CoupleProvider>();
@@ -328,7 +345,13 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     if (!mounted || !auth.isCurrentAuthBoundary(authVersion)) return;
     if (couple.error != null || couple.hasCouple) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(couple.error ?? 'Could not leave the session. Please try again.')),
+        SnackBar(
+          content: Text(
+            context.copy.error(
+              couple.error ?? 'Could not leave the session. Please try again.',
+            ),
+          ),
+        ),
       );
       return;
     }
@@ -337,7 +360,9 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
 
   void _resetPairFilterChangeDialogMarkers({required String reason}) {
     if (_shownPairFilterChangeInviteIds.isNotEmpty) {
-      debugPrint('[PairFilterChange] clearing handled dialog markers reason=$reason');
+      debugPrint(
+        '[PairFilterChange] clearing handled dialog markers reason=$reason',
+      );
     }
     _shownPairFilterChangeInviteIds.clear();
     _lastPairFilterMarkerSessionId = null;
@@ -346,16 +371,22 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
 
   void _syncPairFilterChangeDialogMarkers(CoupleProvider coupleProvider) {
     final String? sessionId = coupleProvider.currentCouple?.id;
-    final int generation = coupleProvider.currentCouple?.lifecycleGeneration ?? 0;
-    if (sessionId != _lastPairFilterMarkerSessionId || generation != _lastPairFilterMarkerGeneration) {
-      _resetPairFilterChangeDialogMarkers(reason: 'session_or_generation_changed');
+    final int generation =
+        coupleProvider.currentCouple?.lifecycleGeneration ?? 0;
+    if (sessionId != _lastPairFilterMarkerSessionId ||
+        generation != _lastPairFilterMarkerGeneration) {
+      _resetPairFilterChangeDialogMarkers(
+        reason: 'session_or_generation_changed',
+      );
       _lastPairFilterMarkerSessionId = sessionId;
       _lastPairFilterMarkerGeneration = generation;
     }
   }
 
   void _clearStalePairDeckSetupState({required String reason}) {
-    debugPrint('[PairDeck] clearing stale local deck-end/setup state reason=$reason');
+    debugPrint(
+      '[PairDeck] clearing stale local deck-end/setup state reason=$reason',
+    );
     setState(() {
       _sessionResumeChoiceType = null;
       _showPairConnectionStep = false;
@@ -408,12 +439,14 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
         preparation: context.read<PreSwipeProvider>(),
         swipes: swipeProvider,
         couple: coupleProvider,
-        isCurrent: () => mounted &&
+        isCurrent: () =>
+            mounted &&
             loadGeneration == _pairDeckLoadGeneration &&
             context.read<AuthProvider>().currentUser?.id == requestUserId &&
             swipeProvider.isSoloMode == requestWasSolo &&
             coupleProvider.currentCouple?.id == requestSessionId &&
-            (coupleProvider.currentCouple?.lifecycleGeneration ?? 0) == requestSessionGeneration,
+            (coupleProvider.currentCouple?.lifecycleGeneration ?? 0) ==
+                requestSessionGeneration,
       );
       if (!mounted || loadGeneration != _pairDeckLoadGeneration) {
         return;
@@ -455,7 +488,9 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
 
   Future<void> _showCoupleSessionEndedDialog() async {
     final couple = _coupleProvider;
-    if (!mounted || couple == null || couple.sessionEndedMessage == null ||
+    if (!mounted ||
+        couple == null ||
+        couple.sessionEndedMessage == null ||
         _isHandlingSessionEnded) {
       return;
     }
@@ -464,7 +499,8 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     try {
       // Continuation closes the old session before creating the replacement.
       // Keep waiting for its invite instead of resetting the recipient's route.
-      if (_isWaitingForDepartedPartner || _isPairResyncDialogOpen ||
+      if (_isWaitingForDepartedPartner ||
+          _isPairResyncDialogOpen ||
           _isSendingPairContinuation ||
           couple.outgoingContinuationInvite?.isPending == true ||
           couple.shouldAcquireDeckAfterContinuationInvite) {
@@ -553,23 +589,21 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
         if (!mounted || !isCurrent()) return;
         if (coupleProvider.error != null && !coupleProvider.hasCouple) {
           setState(() => _initialSessionError = coupleProvider.error);
-          debugPrint('[PageLoad] error page=Swipe error=${coupleProvider.error}');
+          debugPrint(
+            '[PageLoad] error page=Swipe error=${coupleProvider.error}',
+          );
           return;
         }
       }
 
       final StartupRouteDecision decision = await _appFlow
-          .resolveStartupRoute(
-            swipeRepository: context.read<SwipeRepository>(),
-          )
+          .resolveStartupRoute(swipeRepository: context.read<SwipeRepository>())
           .timeout(const Duration(seconds: 15));
       if (!mounted || !isCurrent()) {
         return;
       }
       if (_isPreSwipeRouteActive) {
-        debugPrint(
-          '[AppFlow] startup result ignored reason=pre_filter_active',
-        );
+        debugPrint('[AppFlow] startup result ignored reason=pre_filter_active');
         return;
       }
 
@@ -609,7 +643,10 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     } catch (e) {
       debugPrint('[PageLoad] error page=Swipe error=$e');
       if (mounted && isCurrent()) {
-        setState(() => _initialSessionError = 'We couldn’t load your swipe session. Please try again.');
+        setState(
+          () => _initialSessionError =
+              'We couldn’t load your swipe session. Please try again.',
+        );
       }
     } finally {
       if (mounted && isCurrent()) {
@@ -633,7 +670,8 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       );
       if (!mounted || !auth.isCurrentAuthBoundary(authVersion)) return;
       final expectedMode = choiceType == _SessionResumeChoiceType.solo
-          ? AppFlowMode.solo : AppFlowMode.paired;
+          ? AppFlowMode.solo
+          : AppFlowMode.paired;
       if (latest.route != StartupRoute.sessionResumeChoice ||
           latest.previousMode != expectedMode ||
           (_resumeSessionId != null && latest.sessionId != _resumeSessionId)) {
@@ -643,7 +681,13 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     } catch (_) {
       if (!mounted || !auth.isCurrentAuthBoundary(authVersion)) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not check the previous session. Please try again.')),
+        SnackBar(
+          content: Text(
+            context.tr(
+              'Could not check the previous session. Please try again.',
+            ),
+          ),
+        ),
       );
       return;
     }
@@ -655,20 +699,26 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       final CoupleProvider coupleProvider = context.read<CoupleProvider>();
       coupleProvider.beginSoloResumeIsolation();
       final SwipeProvider swipeProvider = context.read<SwipeProvider>();
-      debugPrint('[ResumeChoice] solo resume started session=${swipeProvider.activeSoloSessionId ?? 'backend_active'}');
+      debugPrint(
+        '[ResumeChoice] solo resume started session=${swipeProvider.activeSoloSessionId ?? 'backend_active'}',
+      );
       final bool loaded = await swipeProvider.loadResumableSoloSession();
       if (!mounted) {
         return;
       }
       if (loaded) {
-        debugPrint('[ResumeChoice] solo resume loaded deckSize=${swipeProvider.deck.length} index=${swipeProvider.currentIndex} exhausted=${swipeProvider.isSoloSessionCompleted}');
+        debugPrint(
+          '[ResumeChoice] solo resume loaded deckSize=${swipeProvider.deck.length} index=${swipeProvider.currentIndex} exhausted=${swipeProvider.isSoloSessionCompleted}',
+        );
         debugPrint('[ResumeChoice] route=swipes mode=solo');
         setState(() {});
         return;
       }
       // Availability may change while this screen is open; resolve again.
       await _loadExistingBackendDeckOrStart();
-      debugPrint('[ResumeChoice] solo resume no longer available; resolved again');
+      debugPrint(
+        '[ResumeChoice] solo resume no longer available; resolved again',
+      );
       return;
     }
     await _continuePairedSession();
@@ -685,16 +735,18 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     _pairDeckReadyAutoLoadEnabled = false;
     swipeProvider.clearPreparedDeck();
     context.read<MatchProvider>().setActiveCouple(
-          coupleProvider.currentCouple?.id,
-          sessionStateVersion: coupleProvider.sessionStateVersion,
-        );
+      coupleProvider.currentCouple?.id,
+      sessionStateVersion: coupleProvider.sessionStateVersion,
+    );
     _stopPairLifecyclePolling();
     _stopPairMatchPolling();
     debugPrint('[ResumeChoice] route=pair_continuation');
     await _sendPairContinuationInvite(coupleProvider);
   }
 
-  Future<void> _sendPairContinuationInvite(CoupleProvider coupleProvider) async {
+  Future<void> _sendPairContinuationInvite(
+    CoupleProvider coupleProvider,
+  ) async {
     if (_isSendingPairContinuation) return;
     final auth = context.read<AuthProvider>();
     final version = auth.authBoundaryVersion;
@@ -706,7 +758,13 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       }
       if (invitation == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(coupleProvider.error ?? 'Could not invite your partner.')),
+          SnackBar(
+            content: Text(
+              context.copy.error(
+                coupleProvider.error ?? 'Could not invite your partner.',
+              ),
+            ),
+          ),
         );
         _pairDeckReadyAutoLoadEnabled = false;
         setState(() {
@@ -724,10 +782,12 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
         _sessionResumeChoiceType = null;
         _isWaitingForDepartedPartner = false;
       });
-      coupleProvider.startInvitationPolling(reason: 'session_resume_continue_pair');
+      coupleProvider.startInvitationPolling(
+        reason: 'session_resume_continue_pair',
+      );
       _startPairLifecyclePolling();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Your invitation was sent.')),
+        SnackBar(content: Text(context.tr('Your invitation was sent.'))),
       );
       setState(() {});
     } finally {
@@ -752,21 +812,24 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
 
   Future<void> _confirmPairFilterChange() async {
     debugPrint('[PairFilterChange] warning opened');
-    final bool confirmed = await showDialog<bool>(
+    final bool confirmed =
+        await showDialog<bool>(
           context: context,
           builder: (BuildContext dialogContext) => AlertDialog(
-            title: const Text('Change filters?'),
-            content: const Text(
-              'Changing filters will pause this deck for both of you. Your partner will also need to update their filters before you can continue swiping together.',
+            title: Text(context.tr('Change filters?')),
+            content: Text(
+              context.tr(
+                'Changing filters will pause this deck for both of you. Your partner will also need to update their filters before you can continue swiping together.',
+              ),
             ),
             actions: <Widget>[
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext, false),
-                child: const Text('Cancel'),
+                child: Text(context.tr('Cancel')),
               ),
               ElevatedButton(
                 onPressed: () => Navigator.pop(dialogContext, true),
-                child: const Text('Change filters'),
+                child: Text(context.tr('Change filters')),
               ),
             ],
           ),
@@ -780,43 +843,51 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     final CoupleProvider coupleProvider = context.read<CoupleProvider>();
     context.read<SwipeProvider>().setPairedMode();
     context.read<MatchProvider>().setActiveCouple(
-          coupleProvider.currentCouple?.id,
-          sessionStateVersion: coupleProvider.sessionStateVersion,
-        );
+      coupleProvider.currentCouple?.id,
+      sessionStateVersion: coupleProvider.sessionStateVersion,
+    );
     _startPairLifecyclePolling();
     _startPairMatchPolling();
     final bool started = await coupleProvider.startPairFilterChange();
     if (!mounted || !started) {
       return;
     }
-    await _runPreSwipeFlow(origin: _PreSwipeFlowOrigin.filtersButton, commitPairFilterChange: true);
+    await _runPreSwipeFlow(
+      origin: _PreSwipeFlowOrigin.filtersButton,
+      commitPairFilterChange: true,
+    );
   }
 
   Future<void> _showPartnerChangingFiltersDialog() async {
-    final int generation = context.read<CoupleProvider>().currentCouple?.lifecycleGeneration ?? 0;
+    final int generation =
+        context.read<CoupleProvider>().currentCouple?.lifecycleGeneration ?? 0;
     if (!_shownPairFilterChangeInviteIds.add(generation.toString())) {
       return;
     }
-    debugPrint('[PairFilterChange] partner committed event=$generation generation=$generation');
+    debugPrint(
+      '[PairFilterChange] partner committed event=$generation generation=$generation',
+    );
     final bool? updateFilters = await showDialog<bool>(
-          context: context,
-          builder: (BuildContext dialogContext) => AlertDialog(
-              title: const Text('Partner changed filters'),
-              content: const Text(
-                'Your partner updated their filters. Change yours or confirm your current choices to prepare one shared deck.',
-              ),
-              actions: <Widget>[
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext, false),
-                  child: const Text('Keep my filters'),
-                ),
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(dialogContext, true),
-                  child: const Text('Update filters'),
-                ),
-              ],
-            ),
-        );
+      context: context,
+      builder: (BuildContext dialogContext) => AlertDialog(
+        title: Text(context.tr('Partner changed filters')),
+        content: Text(
+          context.tr(
+            'Your partner updated their filters. Change yours or confirm your current choices to prepare one shared deck.',
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(context.tr('Keep my filters')),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(context.tr('Update filters')),
+          ),
+        ],
+      ),
+    );
     if (!mounted || updateFilters == null) {
       return;
     }
@@ -833,7 +904,9 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
         if (!mounted) {
           return;
         }
-        await _loadCanonicalPairDeckAndShowSwipe(reason: 'partner_filters_kept');
+        await _loadCanonicalPairDeckAndShowSwipe(
+          reason: 'partner_filters_kept',
+        );
       } catch (_) {
         if (!mounted) {
           return;
@@ -841,7 +914,11 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
         setState(() => _pairFilterUpdateRequired = true);
         _shownPairFilterChangeInviteIds.remove(generation.toString());
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not confirm filters. Please try again.')),
+          SnackBar(
+            content: Text(
+              context.tr('Could not confirm filters. Please try again.'),
+            ),
+          ),
         );
       }
     }
@@ -867,8 +944,11 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
               if (choiceType == _SessionResumeChoiceType.paired) {
                 if (coupleProvider.hasCouple) {
                   await coupleProvider.leaveCouple();
-                  if (coupleProvider.error != null || coupleProvider.hasCouple) {
-                    throw StateError(coupleProvider.error ?? 'Pair session is still active.');
+                  if (coupleProvider.error != null ||
+                      coupleProvider.hasCouple) {
+                    throw StateError(
+                      coupleProvider.error ?? 'Pair session is still active.',
+                    );
                   }
                 }
               }
@@ -886,9 +966,11 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'Could not start a new session. Please check your connection and try again.',
+            context.tr(
+              'Could not start a new session. Please check your connection and try again.',
+            ),
           ),
         ),
       );
@@ -903,23 +985,35 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
   Future<LastFilterPreset?> _loadDeckEndPreset(bool isSoloMode) async {
     final String mode = isSoloMode ? 'solo' : 'paired';
     try {
-      final dynamic data = await context.read<SwipeRepository>().getLastFilterPreset(mode);
+      final dynamic data = await context
+          .read<SwipeRepository>()
+          .getLastFilterPreset(mode);
       if (!mounted) {
         return null;
       }
-      final dynamic presetJson = data is Map<String, dynamic> ? data['preset'] : null;
+      final dynamic presetJson = data is Map<String, dynamic>
+          ? data['preset']
+          : null;
       if (presetJson is Map) {
-        final LastFilterPreset preset = LastFilterPreset.fromJson(Map<String, dynamic>.from(presetJson));
+        final LastFilterPreset preset = LastFilterPreset.fromJson(
+          Map<String, dynamic>.from(presetJson),
+        );
         if (kDebugMode) {
           final String? userId = context.read<AuthProvider>().currentUser?.id;
           final Couple? couple = context.read<CoupleProvider>().currentCouple;
-          debugPrint('[PreviousSetup] loaded mode=$mode userId=$userId pairKey=${couple?.members.join('_')} usedAt=${preset.usedAt.toIso8601String()}');
+          debugPrint(
+            '[PreviousSetup] loaded mode=$mode userId=$userId pairKey=${couple?.members.join('_')} usedAt=${preset.usedAt.toIso8601String()}',
+          );
         }
         return preset;
       }
       if (kDebugMode) {
-        final Object? legacyAvailable = data is Map<String, dynamic> ? data['legacyPresetAvailable'] : false;
-        debugPrint('[PreviousSetup] no preset for mode=$mode legacyAvailable=$legacyAvailable');
+        final Object? legacyAvailable = data is Map<String, dynamic>
+            ? data['legacyPresetAvailable']
+            : false;
+        debugPrint(
+          '[PreviousSetup] no preset for mode=$mode legacyAvailable=$legacyAvailable',
+        );
       }
     } catch (e) {
       debugPrint('[PreviousSetup] load failed mode=$mode error=$e');
@@ -930,7 +1024,9 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
   Future<void> _restartFromInlineDeckEnd({required bool isSoloMode}) async {
     if (isSoloMode) {
       final SwipeProvider swipeProvider = context.read<SwipeProvider>();
-      debugPrint('[DeckEndFilter] start mode=solo exhausted=${swipeProvider.isDeckEmpty} hasActiveSession=${swipeProvider.hasActiveSoloSession}');
+      debugPrint(
+        '[DeckEndFilter] start mode=solo exhausted=${swipeProvider.isDeckEmpty} hasActiveSession=${swipeProvider.hasActiveSoloSession}',
+      );
       debugPrint('[DeckEndFilter] using createNewSoloSession=true');
       swipeProvider.clearPreparedDeck();
       context.read<PreSwipeProvider>().clearDraft();
@@ -979,7 +1075,9 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       return;
     }
     final isCurrent = _captureSessionScope();
-    final Map<String, dynamic>? status = await context.read<CoupleProvider>().getDeckRestartStatus();
+    final Map<String, dynamic>? status = await context
+        .read<CoupleProvider>()
+        .getDeckRestartStatus();
     if (!isCurrent()) {
       return;
     }
@@ -988,7 +1086,11 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
 
   Future<void> _handlePairRestartStatus(Map<String, dynamic>? status) async {
     if (status == null) {
-      setState(() => _pairRestartError = context.read<CoupleProvider>().error ?? 'Could not restart the pair session.');
+      setState(
+        () => _pairRestartError =
+            context.read<CoupleProvider>().error ??
+            'Could not restart the pair session.',
+      );
       return;
     }
     if (status['allRequested'] == true || status['status'] == 'ready') {
@@ -1001,7 +1103,9 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
         _isPairRestartWaiting = false;
         _pairRestartError = null;
       });
-      debugPrint('[AppFlow] previousChoice open requested: origin=${_PreSwipeFlowOrigin.deckRestart.logName}');
+      debugPrint(
+        '[AppFlow] previousChoice open requested: origin=${_PreSwipeFlowOrigin.deckRestart.logName}',
+      );
       await _runPreSwipeFlow(origin: _PreSwipeFlowOrigin.deckRestart);
       return;
     }
@@ -1013,7 +1117,11 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
   }
 
   void _startPairRestartPolling() {
-    _polling.start('restart', const Duration(seconds: 3), _pollPairRestartStatus);
+    _polling.start(
+      'restart',
+      const Duration(seconds: 3),
+      _pollPairRestartStatus,
+    );
   }
 
   void _stopPairRestartPolling() {
@@ -1039,7 +1147,9 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     debugPrint('[ResumeChoice] route=mode_selection');
   }
 
-  Future<void> _runSoloPreSwipeFlow({PreSwipeFilterIntent intent = PreSwipeFilterIntent.createNewSession}) async {
+  Future<void> _runSoloPreSwipeFlow({
+    PreSwipeFilterIntent intent = PreSwipeFilterIntent.createNewSession,
+  }) async {
     if (_isOpeningPreSwipe) {
       return;
     }
@@ -1049,9 +1159,18 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     final String? requestUserId = context.read<AuthProvider>().currentUser?.id;
     final String? requestSessionId = swipeProvider.activeSoloSessionId;
     swipeProvider.setActiveUser(requestUserId);
-    final PreparedPoolResult? result = await Navigator.of(context).push<PreparedPoolResult>(MaterialPageRoute<PreparedPoolResult>(fullscreenDialog: true, builder: (_) => PreSwipeFilterScreen(mode: 'solo', intent: intent)));
+    final PreparedPoolResult? result = await Navigator.of(context)
+        .push<PreparedPoolResult>(
+          MaterialPageRoute<PreparedPoolResult>(
+            fullscreenDialog: true,
+            builder: (_) => PreSwipeFilterScreen(mode: 'solo', intent: intent),
+          ),
+        );
     _isPreSwipeRouteActive = false;
-    if (!mounted) { _isOpeningPreSwipe = false; return; }
+    if (!mounted) {
+      _isOpeningPreSwipe = false;
+      return;
+    }
     final bool staleContext =
         context.read<AuthProvider>().currentUser?.id != requestUserId ||
         !swipeProvider.isSoloMode ||
@@ -1065,8 +1184,13 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       _resetSwipeStackController();
       _stopPairLifecyclePolling();
       _stopPairMatchPolling();
-      context.read<MatchProvider>().setSoloSession(swipeProvider.activeSoloSessionId);
-      swipeProvider.applyPreparedDeck(result.dishes, preparedDeckMeta: result.preparedDeckMeta);
+      context.read<MatchProvider>().setSoloSession(
+        swipeProvider.activeSoloSessionId,
+      );
+      swipeProvider.applyPreparedDeck(
+        result.dishes,
+        preparedDeckMeta: result.preparedDeckMeta,
+      );
     }
     if (mounted) {
       setState(() => _isOpeningPreSwipe = false);
@@ -1075,9 +1199,16 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     }
   }
 
-  Future<void> _runPreSwipeFlow({required _PreSwipeFlowOrigin origin, bool commitPairFilterChange = false}) async {
-    debugPrint('[AppFlow] _runPreSwipeFlow requested: origin=${origin.logName}');
-    debugPrint('[PairFlow] previousChoice opened origin=${origin.logName} session=${context.read<CoupleProvider>().currentCouple?.id ?? 'none'} generation=${context.read<CoupleProvider>().currentCouple?.lifecycleGeneration ?? 0}');
+  Future<void> _runPreSwipeFlow({
+    required _PreSwipeFlowOrigin origin,
+    bool commitPairFilterChange = false,
+  }) async {
+    debugPrint(
+      '[AppFlow] _runPreSwipeFlow requested: origin=${origin.logName}',
+    );
+    debugPrint(
+      '[PairFlow] previousChoice opened origin=${origin.logName} session=${context.read<CoupleProvider>().currentCouple?.id ?? 'none'} generation=${context.read<CoupleProvider>().currentCouple?.lifecycleGeneration ?? 0}',
+    );
     if (_isOpeningPreSwipe) {
       return;
     }
@@ -1104,12 +1235,16 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
         currentCoupleProvider.currentCouple?.lifecycleGeneration ?? 0;
     swipeProvider.setActiveUser(userId);
 
-    final PreparedPoolResult? result = await Navigator.of(context).push<PreparedPoolResult>(
-      MaterialPageRoute<PreparedPoolResult>(
-        fullscreenDialog: true,
-        builder: (_) => PreSwipeFilterScreen(mode: 'paired', commitPairFilterChange: commitPairFilterChange),
-      ),
-    );
+    final PreparedPoolResult? result = await Navigator.of(context)
+        .push<PreparedPoolResult>(
+          MaterialPageRoute<PreparedPoolResult>(
+            fullscreenDialog: true,
+            builder: (_) => PreSwipeFilterScreen(
+              mode: 'paired',
+              commitPairFilterChange: commitPairFilterChange,
+            ),
+          ),
+        );
     _isPreSwipeRouteActive = false;
 
     if (!mounted) {
@@ -1136,18 +1271,25 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       return;
     }
 
-    (_coupleProvider ?? context.read<CoupleProvider>())
-        .startFilterStatePolling(reason: 'swipes_resumed_after_pre_swipe');
+    (_coupleProvider ?? context.read<CoupleProvider>()).startFilterStatePolling(
+      reason: 'swipes_resumed_after_pre_swipe',
+    );
 
     if (result == null) {
-      final CoupleProvider coupleProvider = _coupleProvider ?? context.read<CoupleProvider>();
+      final CoupleProvider coupleProvider =
+          _coupleProvider ?? context.read<CoupleProvider>();
       if (!swipeProvider.isSoloMode) {
         if (coupleProvider.bothConfirmed) {
-          await _loadCanonicalPairDeckAndShowSwipe(reason: 'pre_swipe_closed_after_pair_ready');
+          await _loadCanonicalPairDeckAndShowSwipe(
+            reason: 'pre_swipe_closed_after_pair_ready',
+          );
         } else {
-          debugPrint('[PairDeck] pre-swipe closed before both confirmed; staying in waiting state');
+          debugPrint(
+            '[PairDeck] pre-swipe closed before both confirmed; staying in waiting state',
+          );
         }
-      } else if (!swipeProvider.hasPreparedDeck && (!coupleProvider.hasCouple || coupleProvider.bothConfirmed)) {
+      } else if (!swipeProvider.hasPreparedDeck &&
+          (!coupleProvider.hasCouple || coupleProvider.bothConfirmed)) {
         await swipeProvider.loadDeck();
       }
       if (mounted) {
@@ -1159,12 +1301,17 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     }
 
     if (result.dishes.isEmpty) {
-      final CoupleProvider coupleProvider = _coupleProvider ?? context.read<CoupleProvider>();
+      final CoupleProvider coupleProvider =
+          _coupleProvider ?? context.read<CoupleProvider>();
       if (!swipeProvider.isSoloMode) {
         if (coupleProvider.bothConfirmed) {
-          await _loadCanonicalPairDeckAndShowSwipe(reason: 'empty_pre_swipe_result_after_pair_ready');
+          await _loadCanonicalPairDeckAndShowSwipe(
+            reason: 'empty_pre_swipe_result_after_pair_ready',
+          );
         } else {
-          debugPrint('[PairDeck] empty pre-swipe result before both confirmed; no local Pair deck applied');
+          debugPrint(
+            '[PairDeck] empty pre-swipe result before both confirmed; no local Pair deck applied',
+          );
         }
       } else {
         swipeProvider.applyPreparedDeck(<Dish>[]);
@@ -1177,15 +1324,15 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       return;
     }
 
-    resultCoupleProvider.stopInvitationPolling(
-      reason: 'pair_deck_transition',
-    );
+    resultCoupleProvider.stopInvitationPolling(reason: 'pair_deck_transition');
     swipeProvider.applyPreparedDeck(
       result.dishes,
       seenDishIds: result.seenDishIds,
       preparedDeckMeta: result.preparedDeckMeta,
     );
-    debugPrint('[PairDeck] canonical deck loaded session=${(_coupleProvider ?? context.read<CoupleProvider>()).currentCouple?.id ?? 'none'} generation=${result.preparedDeckMeta?.filtersHash ?? (_coupleProvider ?? context.read<CoupleProvider>()).currentCouple?.lifecycleGeneration ?? 0} size=${result.dishes.length}');
+    debugPrint(
+      '[PairDeck] canonical deck loaded session=${(_coupleProvider ?? context.read<CoupleProvider>()).currentCouple?.id ?? 'none'} generation=${result.preparedDeckMeta?.filtersHash ?? (_coupleProvider ?? context.read<CoupleProvider>()).currentCouple?.lifecycleGeneration ?? 0} size=${result.dishes.length}',
+    );
     _clearStalePairDeckSetupState(reason: 'pre_swipe_result_ready');
     _startPairLifecyclePolling();
     _startPairMatchPolling();
@@ -1196,9 +1343,9 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       deckMeta: result.preparedDeckMeta ?? swipeProvider.preparedDeckMeta,
     );
     if (waitingMessage != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(waitingMessage)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.tr(waitingMessage))));
     }
 
     if (mounted) {
@@ -1208,14 +1355,15 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     }
   }
 
-
   void _preloadVisibleDishImages(SwipeProvider provider) {
     if (!mounted || provider.deck.isEmpty) {
       return;
     }
 
     final int start = provider.currentIndex;
-    final int end = start + 3 < provider.deck.length ? start + 3 : provider.deck.length - 1;
+    final int end = start + 3 < provider.deck.length
+        ? start + 3
+        : provider.deck.length - 1;
     for (int index = start; index <= end; index += 1) {
       final String optimizedUrl = ImageUtils.getImageUrl(
         provider.deck[index].imageUrl,
@@ -1226,13 +1374,26 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
           !_preloadedImageUrls.add(optimizedUrl)) {
         continue;
       }
-      precacheImage(CachedNetworkImageProvider(optimizedUrl), context).catchError((_) {});
+      precacheImage(
+        CachedNetworkImageProvider(optimizedUrl),
+        context,
+      ).catchError((_) {});
     }
 
     if (_preloadedImageUrls.length > 24) {
-      _preloadedImageUrls.removeWhere((String url) =>
-          !provider.deck.skip(provider.currentIndex).take(8).any((Dish dish) =>
-              ImageUtils.getImageUrl(dish.imageUrl, usage: ImageUsage.swipeCard) == url));
+      _preloadedImageUrls.removeWhere(
+        (String url) => !provider.deck
+            .skip(provider.currentIndex)
+            .take(8)
+            .any(
+              (Dish dish) =>
+                  ImageUtils.getImageUrl(
+                    dish.imageUrl,
+                    usage: ImageUsage.swipeCard,
+                  ) ==
+                  url,
+            ),
+      );
     }
   }
 
@@ -1243,7 +1404,8 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     if (!coupleProvider.hasCouple) {
       return null;
     }
-    if (deckMeta?.bothConfirmed == true || deckMeta?.usedPartnerChoices == true) {
+    if (deckMeta?.bothConfirmed == true ||
+        deckMeta?.usedPartnerChoices == true) {
       return null;
     }
     if (coupleProvider.bothConfirmed) {
@@ -1278,7 +1440,6 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       ),
     );
   }
-
 
   void _startPairLifecyclePolling() {
     _polling.start('lifecycle', const Duration(seconds: 3), _pollPairLifecycle);
@@ -1353,14 +1514,19 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     }
     final int authVersion = context.read<AuthProvider>().authBoundaryVersion;
     final String? coupleId = context.read<CoupleProvider>().currentCouple?.id;
-    final List<MatchItem> newMatches = await context.read<MatchProvider>().syncPairedMatchesForNotifications(seedOnly: seedOnly);
-    if (!mounted || seedOnly || newMatches.isEmpty || swipeProvider.isSoloMode) {
+    final List<MatchItem> newMatches = await context
+        .read<MatchProvider>()
+        .syncPairedMatchesForNotifications(seedOnly: seedOnly);
+    if (!mounted ||
+        seedOnly ||
+        newMatches.isEmpty ||
+        swipeProvider.isSoloMode) {
       return;
     }
     if (context.read<AuthProvider>().authBoundaryVersion != authVersion ||
         context.read<CoupleProvider>().currentCouple?.id != coupleId) {
-          return;
-        }
+      return;
+    }
     _showMatchNotification(newMatches.first.dish.name);
   }
 
@@ -1419,12 +1585,13 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
           (wasSoloMode
               ? swipeProvider.activeSoloSessionId != soloSessionId
               : context.read<CoupleProvider>().currentCouple?.id != coupleId)) {
-                return;
-              }
-      if (result == null && swipeProvider.error != null &&
+        return;
+      }
+      if (result == null &&
+          swipeProvider.error != null &&
           swipeProvider.currentDish?.id == swipedDish?.id) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(swipeProvider.error!)),
+          SnackBar(content: Text(context.copy.error(swipeProvider.error!))),
         );
       }
       final Map<String, dynamic>? swipeData = result is Map<String, dynamic>
@@ -1433,7 +1600,8 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       final String? backendDirection = swipeData != null
           ? swipeData['direction']?.toString()
           : null;
-      final bool createdMatch = direction == SwipeDirection.right &&
+      final bool createdMatch =
+          direction == SwipeDirection.right &&
           (backendDirection == null || backendDirection == 'like') &&
           swipeData != null &&
           swipeData['matchCreated'] == true;
@@ -1475,42 +1643,49 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
 
   Future<void> _handleDislike() => _runButtonSwipe(SwipeDirection.left);
 
-  Future<void> _runButtonSwipe(SwipeDirection direction) => _cardActions.run(() async {
-    final stack = _swipeStackKey.currentState;
-    if (stack == null) {
-      return;
-    }
-    if (direction == SwipeDirection.right) {
-      await stack.swipeRightFromButton();
-    } else {
-      await stack.swipeLeftFromButton();
-    }
-  });
+  Future<void> _runButtonSwipe(SwipeDirection direction) =>
+      _cardActions.run(() async {
+        final stack = _swipeStackKey.currentState;
+        if (stack == null) {
+          return;
+        }
+        if (direction == SwipeDirection.right) {
+          await stack.swipeRightFromButton();
+        } else {
+          await stack.swipeLeftFromButton();
+        }
+      });
 
-  Future<void> _handleBack(SwipeProvider provider) => _cardActions.run(() async {
-    if (!provider.canUndo) {
-      return;
-    }
-    final int authVersion = context.read<AuthProvider>().authBoundaryVersion;
-    final String? undoDishId = provider.lastSwipedDish?.id;
-    final SwipeDirection? undoDirection = switch (provider.lastSwipedDirection) {
-      'like' => SwipeDirection.right,
-      'dislike' => SwipeDirection.left,
-      _ => null,
-    };
-    final stack = _swipeStackKey.currentState;
-    final animation = undoDishId != null && undoDirection != null
-        ? stack?.playUndoReturnAnimation(direction: undoDirection)
-        : null;
-    await provider.undo();
-    if (!mounted || context.read<AuthProvider>().authBoundaryVersion != authVersion) {
-      return;
-    }
-    if (undoDishId == null || undoDirection == null || provider.currentDish?.id != undoDishId) {
-      stack?.resetInteractionState();
-    }
-    if (animation != null) await animation;
-  });
+  Future<void> _handleBack(SwipeProvider provider) => _cardActions.run(
+    () async {
+      if (!provider.canUndo) {
+        return;
+      }
+      final int authVersion = context.read<AuthProvider>().authBoundaryVersion;
+      final String? undoDishId = provider.lastSwipedDish?.id;
+      final SwipeDirection? undoDirection =
+          switch (provider.lastSwipedDirection) {
+            'like' => SwipeDirection.right,
+            'dislike' => SwipeDirection.left,
+            _ => null,
+          };
+      final stack = _swipeStackKey.currentState;
+      final animation = undoDishId != null && undoDirection != null
+          ? stack?.playUndoReturnAnimation(direction: undoDirection)
+          : null;
+      await provider.undo();
+      if (!mounted ||
+          context.read<AuthProvider>().authBoundaryVersion != authVersion) {
+        return;
+      }
+      if (undoDishId == null ||
+          undoDirection == null ||
+          provider.currentDish?.id != undoDishId) {
+        stack?.resetInteractionState();
+      }
+      if (animation != null) await animation;
+    },
+  );
 
   bool Function() _captureSessionScope() {
     final authVersion = context.read<AuthProvider>().authBoundaryVersion;
@@ -1520,7 +1695,8 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     final couple = context.read<CoupleProvider>();
     final pairId = couple.currentCouple?.id;
     final generation = couple.currentCouple?.lifecycleGeneration;
-    return () => mounted &&
+    return () =>
+        mounted &&
         context.read<AuthProvider>().authBoundaryVersion == authVersion &&
         swipes.isSoloMode == solo &&
         swipes.activeSoloSessionId == soloId &&
@@ -1535,7 +1711,10 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     });
   }
 
-  bool _schedulePairFlowEffects(CoupleProvider inviteCoupleProvider, SwipeProvider provider) {
+  bool _schedulePairFlowEffects(
+    CoupleProvider inviteCoupleProvider,
+    SwipeProvider provider,
+  ) {
     _syncPairFilterChangeDialogMarkers(inviteCoupleProvider);
     if (inviteCoupleProvider.needsPairFilterChange &&
         !provider.isSoloMode &&
@@ -1549,35 +1728,46 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       });
     }
     if (inviteCoupleProvider.needsPairResync && !_isOpeningPreSwipe) {
-      final int versionAtSchedule = context.read<AuthProvider>().authBoundaryVersion;
+      final int versionAtSchedule = context
+          .read<AuthProvider>()
+          .authBoundaryVersion;
       _scheduleEffect('resync', () {
         if (!mounted) {
           return;
         }
-        if (context.read<AuthProvider>().authBoundaryVersion != versionAtSchedule) {
+        if (context.read<AuthProvider>().authBoundaryVersion !=
+            versionAtSchedule) {
           return;
         }
         unawaited(_handlePairNeedsResync());
       });
     }
-    if (inviteCoupleProvider.shouldOpenPreviousChoiceAfterInvite && !_isOpeningPreSwipe) {
-      final int versionAtSchedule = context.read<AuthProvider>().authBoundaryVersion;
+    if (inviteCoupleProvider.shouldOpenPreviousChoiceAfterInvite &&
+        !_isOpeningPreSwipe) {
+      final int versionAtSchedule = context
+          .read<AuthProvider>()
+          .authBoundaryVersion;
       _scheduleEffect('previous-choice', () {
         if (!mounted) {
           return;
         }
-        if (context.read<AuthProvider>().authBoundaryVersion != versionAtSchedule) {
+        if (context.read<AuthProvider>().authBoundaryVersion !=
+            versionAtSchedule) {
           return;
         }
         final CoupleProvider coupleProvider = context.read<CoupleProvider>();
         if (_suppressPreviousChoiceAutoOpen &&
             !coupleProvider.previousChoiceAfterInviteWasUserAccepted) {
           coupleProvider.consumeOpenPreviousChoiceAfterInvite();
-          debugPrint('[AppFlow] authBoundary -> blocked previous choice auto-open');
+          debugPrint(
+            '[AppFlow] authBoundary -> blocked previous choice auto-open',
+          );
           return;
         }
         if (coupleProvider.consumeOpenPreviousChoiceAfterInvite()) {
-          debugPrint('[AppFlow] previousChoice open requested: origin=${_PreSwipeFlowOrigin.pairInvitationAccepted.logName}');
+          debugPrint(
+            '[AppFlow] previousChoice open requested: origin=${_PreSwipeFlowOrigin.pairInvitationAccepted.logName}',
+          );
           _runPreSwipeFlow(origin: _PreSwipeFlowOrigin.pairInvitationAccepted);
         }
       });
@@ -1588,18 +1778,24 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
         !provider.isSoloMode &&
         !_isOpeningPreSwipe &&
         !_isPairDeckReadyLoading) {
-      final int versionAtSchedule = context.read<AuthProvider>().authBoundaryVersion;
+      final int versionAtSchedule = context
+          .read<AuthProvider>()
+          .authBoundaryVersion;
       _scheduleEffect('continuation-deck', () {
-        if (!mounted || context.read<AuthProvider>().authBoundaryVersion != versionAtSchedule) {
+        if (!mounted ||
+            context.read<AuthProvider>().authBoundaryVersion !=
+                versionAtSchedule) {
           return;
         }
         final CoupleProvider coupleProvider = context.read<CoupleProvider>();
-        final PairContinuationFlowOrigin origin =
-            coupleProvider.consumeContinuationDeckAcquisition();
+        final PairContinuationFlowOrigin origin = coupleProvider
+            .consumeContinuationDeckAcquisition();
         if (origin == PairContinuationFlowOrigin.none) {
           return;
         }
-        debugPrint('[PairDeck] continuation accepted; acquiring canonical deck');
+        debugPrint(
+          '[PairDeck] continuation accepted; acquiring canonical deck',
+        );
         _sessionResumeChoiceType = null;
         _isWaitingForDepartedPartner = false;
         _showPairConnectionStep = false;
@@ -1616,28 +1812,22 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
       return true;
     }
 
-    if (inviteCoupleProvider
-        .shouldReturnToResumeAfterContinuationDeclined) {
+    if (inviteCoupleProvider.shouldReturnToResumeAfterContinuationDeclined) {
       _scheduleEffect('continuation-declined', () {
         if (!mounted) {
           return;
         }
-        final CoupleProvider coupleProvider =
-            context.read<CoupleProvider>();
-        if (!coupleProvider
-            .consumeReturnToResumeAfterContinuationDeclined()) {
+        final CoupleProvider coupleProvider = context.read<CoupleProvider>();
+        if (!coupleProvider.consumeReturnToResumeAfterContinuationDeclined()) {
           return;
         }
         _pairDeckReadyAutoLoadEnabled = false;
         setState(() {
-          _sessionResumeChoiceType =
-              _SessionResumeChoiceType.paired;
+          _sessionResumeChoiceType = _SessionResumeChoiceType.paired;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Your partner declined the invitation.',
-            ),
+          SnackBar(
+            content: Text(context.tr('Your partner declined the invitation.')),
           ),
         );
       });
@@ -1650,7 +1840,9 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
     _appFlow.logFiltersButton();
     _suppressPreviousChoiceAutoOpen = false;
     if (context.read<SwipeProvider>().isSoloMode) {
-      _runSoloPreSwipeFlow(intent: PreSwipeFilterIntent.updateActiveSoloSession);
+      _runSoloPreSwipeFlow(
+        intent: PreSwipeFilterIntent.updateActiveSoloSession,
+      );
     } else {
       _pairDeckReadyAutoLoadEnabled = true;
       unawaited(_confirmPairFilterChange());
@@ -1659,24 +1851,46 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
 
   @override
   Widget build(BuildContext context) {
-    final bool hasCouple = context.select<CoupleProvider, bool>((CoupleProvider p) => p.hasCouple);
-    final bool bothConfirmed = context.select<CoupleProvider, bool>((CoupleProvider p) => p.bothConfirmed);
-    final bool hasPartner = context.select<CoupleProvider, bool>((CoupleProvider p) => p.hasPartner);
-    final bool isMyChoicesConfirmed = context.select<CoupleProvider, bool>((CoupleProvider p) => p.isMyChoicesConfirmed);
-    final bool isSoloMode = context.select<SwipeProvider, bool>((SwipeProvider p) => p.isSoloMode);
-    final bool deckIsEmpty = context.select<SwipeProvider, bool>((SwipeProvider p) => p.deck.isEmpty);
-    final bool hasCurrentDeckCard = context.select<SwipeProvider, bool>((SwipeProvider p) => p.deck.isNotEmpty && !p.isDeckEmpty);
-    final bool showSessionResumeChoice = !_isLoadingInitialSession && _sessionResumeChoiceType != null;
-    final bool showModeSelection = !_isLoadingInitialSession &&
+    final bool hasCouple = context.select<CoupleProvider, bool>(
+      (CoupleProvider p) => p.hasCouple,
+    );
+    final bool bothConfirmed = context.select<CoupleProvider, bool>(
+      (CoupleProvider p) => p.bothConfirmed,
+    );
+    final bool hasPartner = context.select<CoupleProvider, bool>(
+      (CoupleProvider p) => p.hasPartner,
+    );
+    final bool isMyChoicesConfirmed = context.select<CoupleProvider, bool>(
+      (CoupleProvider p) => p.isMyChoicesConfirmed,
+    );
+    final bool isSoloMode = context.select<SwipeProvider, bool>(
+      (SwipeProvider p) => p.isSoloMode,
+    );
+    final bool deckIsEmpty = context.select<SwipeProvider, bool>(
+      (SwipeProvider p) => p.deck.isEmpty,
+    );
+    final bool hasCurrentDeckCard = context.select<SwipeProvider, bool>(
+      (SwipeProvider p) => p.deck.isNotEmpty && !p.isDeckEmpty,
+    );
+    final bool showSessionResumeChoice =
+        !_isLoadingInitialSession && _sessionResumeChoiceType != null;
+    final bool showModeSelection =
+        !_isLoadingInitialSession &&
         _sessionResumeChoiceType == null &&
         !hasCouple &&
         !isSoloMode &&
         deckIsEmpty &&
         !_showPairConnectionStep;
-    final bool showPairConnection = !_isLoadingInitialSession &&
+    final bool showPairConnection =
+        !_isLoadingInitialSession &&
         _sessionResumeChoiceType == null &&
         (_showPairConnectionStep || (hasCouple && !hasPartner && !isSoloMode));
-    final bool showHeaderActions = hasCurrentDeckCard && !showSessionResumeChoice && !showModeSelection && !showPairConnection && !_isOpeningPreSwipe;
+    final bool showHeaderActions =
+        hasCurrentDeckCard &&
+        !showSessionResumeChoice &&
+        !showModeSelection &&
+        !showPairConnection &&
+        !_isOpeningPreSwipe;
     final FoodMatchThemeColors colors = context.fmColors;
     return Scaffold(
       backgroundColor: colors.background,
@@ -1690,15 +1904,15 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
               ),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.only(
-                  left: 10,
-                  right: 10,
-                  bottom: 13,
-                ),
+                padding: const EdgeInsets.only(left: 10, right: 10, bottom: 13),
                 child: Consumer<SwipeProvider>(
                   builder: (BuildContext context, SwipeProvider provider, _) {
-                    final CoupleProvider inviteCoupleProvider = context.watch<CoupleProvider>();
-                    if (_schedulePairFlowEffects(inviteCoupleProvider, provider)) {
+                    final CoupleProvider inviteCoupleProvider = context
+                        .watch<CoupleProvider>();
+                    if (_schedulePairFlowEffects(
+                      inviteCoupleProvider,
+                      provider,
+                    )) {
                       return const ShimmerCard();
                     }
 
@@ -1714,15 +1928,21 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                     }
 
                     if (!provider.isSoloMode &&
-                        (_isWaitingForDepartedPartner || inviteCoupleProvider.isWaitingForPartnerReturn)) {
+                        (_isWaitingForDepartedPartner ||
+                            inviteCoupleProvider.isWaitingForPartnerReturn)) {
                       return SwipeContinuationWaiting(
                         onBack: () => unawaited(_showPairResyncDialog()),
                       );
                     }
 
-                    final outgoingInvite = inviteCoupleProvider.outgoingContinuationInvite;
-                    if (outgoingInvite != null && outgoingInvite.isPending && !provider.isSoloMode) {
-                      return _buildContinuationInviteWaiting(inviteCoupleProvider);
+                    final outgoingInvite =
+                        inviteCoupleProvider.outgoingContinuationInvite;
+                    if (outgoingInvite != null &&
+                        outgoingInvite.isPending &&
+                        !provider.isSoloMode) {
+                      return _buildContinuationInviteWaiting(
+                        inviteCoupleProvider,
+                      );
                     }
 
                     final bool shouldLoadCanonicalPairDeck =
@@ -1733,27 +1953,43 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                         _pairDeckReadyAutoLoadEnabled &&
                         provider.deck.isEmpty &&
                         (_lastPairDeckReadyLoadAttemptAt == null ||
-                            DateTime.now().difference(_lastPairDeckReadyLoadAttemptAt!) > const Duration(seconds: 2));
+                            DateTime.now().difference(
+                                  _lastPairDeckReadyLoadAttemptAt!,
+                                ) >
+                                const Duration(seconds: 2));
                     if (shouldLoadCanonicalPairDeck) {
                       _scheduleEffect('canonical-deck', () {
                         if (mounted) {
-                          unawaited(_loadCanonicalPairDeckAndShowSwipe(reason: 'both_confirmed_waiting_poll'));
+                          unawaited(
+                            _loadCanonicalPairDeckAndShowSwipe(
+                              reason: 'both_confirmed_waiting_poll',
+                            ),
+                          );
                         }
                       });
                       return const ShimmerCard();
                     }
 
                     if (showSessionResumeChoice) {
-                      final _SessionResumeChoiceType choiceType = _sessionResumeChoiceType!;
-                      final bool soloContext = choiceType == _SessionResumeChoiceType.solo;
-                      final CoupleMemberProfile? partner = resolvePartnerProfile(
-                        couple: context.read<CoupleProvider>().currentCouple,
-                        currentUserId: context.read<AuthProvider>().currentUser?.id,
-                      );
+                      final _SessionResumeChoiceType choiceType =
+                          _sessionResumeChoiceType!;
+                      final bool soloContext =
+                          choiceType == _SessionResumeChoiceType.solo;
+                      final CoupleMemberProfile? partner =
+                          resolvePartnerProfile(
+                            couple: context
+                                .read<CoupleProvider>()
+                                .currentCouple,
+                            currentUserId: context
+                                .read<AuthProvider>()
+                                .currentUser
+                                ?.id,
+                          );
                       return SessionResumeChoiceScreen(
                         isSoloMode: soloContext,
                         partner: partner,
-                        onLoadPreviousSetup: () => _loadDeckEndPreset(soloContext),
+                        onLoadPreviousSetup: () =>
+                            _loadDeckEndPreset(soloContext),
                         onUsePreviousFilter: (_) => _continueActiveSession(),
                         onStartNew: _startNewFromActiveSession,
                       );
@@ -1763,14 +1999,18 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                       return SwipeModeSelectionScreen(
                         notice: _startupNotice,
                         onSolo: () {
-                          context.read<CoupleProvider>().beginSoloResumeIsolation();
+                          context
+                              .read<CoupleProvider>()
+                              .beginSoloResumeIsolation();
                           _appFlow.logModeSelection(AppFlowMode.solo);
                           _suppressPreviousChoiceAutoOpen = false;
                           setState(() => _showPairConnectionStep = false);
                           _runSoloPreSwipeFlow();
                         },
                         onPairUp: () {
-                          context.read<CoupleProvider>().endSoloResumeIsolation();
+                          context
+                              .read<CoupleProvider>()
+                              .endSoloResumeIsolation();
                           _appFlow.logModeSelection(AppFlowMode.paired);
                           _suppressPreviousChoiceAutoOpen = false;
                           // Pair setup must not acquire a deck until the user
@@ -1784,7 +2024,8 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                     }
 
                     if (showPairConnection) {
-                      if (provider.hasPreparedDeck || provider.deck.isNotEmpty) {
+                      if (provider.hasPreparedDeck ||
+                          provider.deck.isNotEmpty) {
                         _scheduleEffect('clear-connection-deck', () {
                           if (mounted) {
                             provider.clearPreparedDeck();
@@ -1804,14 +2045,22 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                           _pairDeckReadyAutoLoadEnabled = true;
                           setState(() => _showPairConnectionStep = false);
                           _appFlow.logInviteAccepted();
-                          debugPrint('[AppFlow] previousChoice open requested: origin=${_PreSwipeFlowOrigin.pairConnectionReady.logName}');
-                          await _runPreSwipeFlow(origin: _PreSwipeFlowOrigin.pairConnectionReady);
+                          debugPrint(
+                            '[AppFlow] previousChoice open requested: origin=${_PreSwipeFlowOrigin.pairConnectionReady.logName}',
+                          );
+                          await _runPreSwipeFlow(
+                            origin: _PreSwipeFlowOrigin.pairConnectionReady,
+                          );
                         },
                       );
                     }
 
-                    if (hasCouple && hasPartner && !bothConfirmed && !provider.isSoloMode) {
-                      if (provider.hasPreparedDeck || provider.deck.isNotEmpty) {
+                    if (hasCouple &&
+                        hasPartner &&
+                        !bothConfirmed &&
+                        !provider.isSoloMode) {
+                      if (provider.hasPreparedDeck ||
+                          provider.deck.isNotEmpty) {
                         _scheduleEffect('clear-unconfirmed-deck', () {
                           if (mounted) {
                             provider.clearPreparedDeck();
@@ -1831,24 +2080,28 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                       );
                     }
 
-
                     if (_pairFilterUpdateRequired && !provider.isSoloMode) {
                       return EmptyState(
                         icon: Icons.tune,
                         title: 'Update filters required',
-                        subtitle: 'Your partner changed their filters. Update yours to continue swiping together.',
+                        subtitle:
+                            'Your partner changed their filters. Update yours to continue swiping together.',
                         buttonText: 'Update filters',
                         onButtonPressed: () {
                           setState(() => _pairFilterUpdateRequired = false);
                           context.read<SwipeProvider>().clearPreparedDeck();
-                          context.read<CoupleProvider>().consumeOpenPairFilterChange();
-                          _runPreSwipeFlow(origin: _PreSwipeFlowOrigin.filtersButton);
+                          context
+                              .read<CoupleProvider>()
+                              .consumeOpenPairFilterChange();
+                          _runPreSwipeFlow(
+                            origin: _PreSwipeFlowOrigin.filtersButton,
+                          );
                         },
                       );
                     }
 
                     if (_isPairDeckReadyLoading && !provider.isSoloMode) {
-                      return const Center(
+                      return Center(
                         child: Padding(
                           padding: EdgeInsets.all(32),
                           child: Column(
@@ -1856,10 +2109,15 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                             children: <Widget>[
                               FoodMatchLoader(size: 150),
                               SizedBox(height: 16),
-                              Text('Preparing your shared deck', textAlign: TextAlign.center),
+                              Text(
+                                context.tr('Preparing your shared deck'),
+                                textAlign: TextAlign.center,
+                              ),
                               SizedBox(height: 8),
                               Text(
-                                'We’re matching your filters. This may take a moment.',
+                                context.tr(
+                                  'We’re matching your filters. This may take a moment.',
+                                ),
                                 textAlign: TextAlign.center,
                               ),
                             ],
@@ -1877,29 +2135,54 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                         message: provider.error!,
                         onRetry: provider.isSoloMode
                             ? provider.loadDeck
-                            : () => _loadCanonicalPairDeckAndShowSwipe(reason: 'pair_deck_error_retry'),
+                            : () => _loadCanonicalPairDeckAndShowSwipe(
+                                reason: 'pair_deck_error_retry',
+                              ),
+                      );
+                    }
+
+                    if (provider.isSoloMode &&
+                        provider.activeSoloSessionId != null &&
+                        provider.deck.isEmpty) {
+                      return EmptyState(
+                        icon: Icons.restaurant_menu,
+                        title: 'No dishes found',
+                        subtitle:
+                            'No dishes found for these filters. Try changing your choices.',
+                        buttonText: 'Change filters',
+                        onButtonPressed: () => _runSoloPreSwipeFlow(
+                          intent: PreSwipeFilterIntent.updateActiveSoloSession,
+                        ),
                       );
                     }
 
                     _preloadVisibleDishImages(provider);
 
-                    final bool allowDeckEnd = provider.deck.isNotEmpty &&
+                    final bool allowDeckEnd =
+                        provider.deck.isNotEmpty &&
                         provider.isDeckEmpty &&
                         !provider.isSendingSwipe &&
                         !_isSwipeTransitionActive &&
                         !_isPairDeckReadyLoading &&
                         !_isOpeningPreSwipe &&
                         _sessionResumeChoiceType == null &&
-                        !(hasCouple && hasPartner && !bothConfirmed && !provider.isSoloMode) &&
+                        !(hasCouple &&
+                            hasPartner &&
+                            !bothConfirmed &&
+                            !provider.isSoloMode) &&
                         provider.error == null;
-                    debugPrint('[DeckEnd] render check mode=${provider.currentSwipeMode} deckSize=${provider.deck.length} index=${provider.currentIndex} loaded=${provider.deck.isNotEmpty} exhausted=${provider.isDeckEmpty} allowed=$allowDeckEnd reason=${allowDeckEnd ? 'deck_exhausted' : 'not_current_exhausted_deck'}');
+                    debugPrint(
+                      '[DeckEnd] render check mode=${provider.currentSwipeMode} deckSize=${provider.deck.length} index=${provider.currentIndex} loaded=${provider.deck.isNotEmpty} exhausted=${provider.isDeckEmpty} allowed=$allowDeckEnd reason=${allowDeckEnd ? 'deck_exhausted' : 'not_current_exhausted_deck'}',
+                    );
                     if (allowDeckEnd) {
                       final bool soloContext = provider.isSoloMode;
                       return InlineDeckEndRestartCard(
-                        isWaitingForPartner: !soloContext && _isPairRestartWaiting,
+                        isWaitingForPartner:
+                            !soloContext && _isPairRestartWaiting,
                         isLoading: !soloContext && _isPairRestartLoading,
                         errorMessage: _pairRestartError,
-                        onRestart: () => _restartFromInlineDeckEnd(isSoloMode: soloContext),
+                        onRestart: () =>
+                            _restartFromInlineDeckEnd(isSoloMode: soloContext),
                         onViewMatches: () => context.go('/matches'),
                       );
                     }
@@ -1911,7 +2194,8 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                       provider: provider,
                       stackKey: _swipeStackKey,
                       onTransitionChanged: (active) {
-                        if (mounted) setState(() => _isSwipeTransitionActive = active);
+                        if (mounted)
+                          setState(() => _isSwipeTransitionActive = active);
                       },
                       isCardActionInProgress: _isCardActionInProgress,
                       onLike: _handleLike,
@@ -1921,7 +2205,8 @@ class _SwipesScreenState extends State<SwipesScreen> with WidgetsBindingObserver
                         '/recipe-detail/${dish.id}?source=swipes',
                         extra: dish,
                       ),
-                      onSwipe: (direction) => unawaited(_handleSwipe(direction)),
+                      onSwipe: (direction) =>
+                          unawaited(_handleSwipe(direction)),
                     );
                   },
                 ),

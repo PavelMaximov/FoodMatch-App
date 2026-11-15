@@ -1,3 +1,4 @@
+import '../../../l10n/app_localizations.dart';
 import '../domain/premium_purchase.dart';
 
 /// Display selection only; never an entitlement or purchase state.
@@ -12,10 +13,31 @@ class PremiumPlanPresentation {
     required this.detail,
     required this.cta,
     this.badge,
+    this.storeProduct,
   });
   final PremiumPlanSelection selection;
   final String title, price, suffix, detail, cta;
   final String? badge;
+  final PremiumStoreProduct? storeProduct;
+
+  String localizedDetail(AppLocalizations copy) {
+    final intro = storeProduct?.introOffer;
+    if (intro != null && intro.eligible == true) {
+      return copy.text('plan.offer', {
+        'period': intro.period,
+        'price': intro.localizedPrice,
+      });
+    }
+    return copy.text(detail);
+  }
+
+  String localizedCta(AppLocalizations copy) {
+    if (storeProduct == null) return copy.text(cta);
+    final hasOffer = storeProduct!.introOffer?.eligible == true;
+    return copy.text(hasOffer ? 'plan.offerCta' : 'plan.cta', {
+      'plan': copy.text(title),
+    });
+  }
 
   static PremiumPlanPresentation forSelection(
     PremiumPlanSelection selection,
@@ -48,6 +70,7 @@ class PremiumPlanPresentation {
       selection: selection,
       title: title,
       price: product.localizedPrice,
+      storeProduct: product,
       suffix: suffix,
       detail: intro != null && intro.eligible == true
           ? '${intro.period} introductory offer: ${intro.localizedPrice}'

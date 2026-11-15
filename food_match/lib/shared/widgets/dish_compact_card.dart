@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 
 import 'media/safe_dish_image.dart';
@@ -51,7 +52,9 @@ class DishCompactCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(
-                      dish.name.isEmpty ? 'Untitled dish' : dish.name,
+                      dish.name.isEmpty
+                          ? context.tr('Untitled dish')
+                          : dish.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.nunito(
@@ -75,11 +78,11 @@ class DishCompactCard extends StatelessWidget {
                           icon: Icons.access_time,
                           text: dish.totalTimeDisplay.isEmpty
                               ? '—'
-                              : dish.totalTimeDisplay,
+                              : context.copy.duration(dish.totalTimeDisplay),
                         ),
                         _MetaItem(
                           icon: Icons.people_outline,
-                          text: '${dish.servings.isEmpty ? '2' : dish.servings} servings',
+                          text: context.copy.servings(dish.servings),
                         ),
                       ],
                     ),
@@ -135,7 +138,10 @@ class _CompactDishImage extends StatelessWidget {
         ClipRRect(
           borderRadius: BorderRadius.circular(20),
           child: SafeDishImage(
-            imageUrl: ImageUtils.getImageUrl(dish.imageUrl, usage: ImageUsage.dishCard),
+            imageUrl: ImageUtils.getImageUrl(
+              dish.imageUrl,
+              usage: ImageUsage.dishCard,
+            ),
             width: 100,
             height: 100,
             fit: BoxFit.cover,
@@ -153,26 +159,20 @@ class _CompactDishImage extends StatelessWidget {
               child: Icon(
                 isBookmarked! ? Icons.bookmark : Icons.bookmark_border,
                 size: 18,
-                color: isBookmarked! ? context.fmColors.favoriteActive : context.fmColors.buttonPrimaryText,
+                color: isBookmarked!
+                    ? context.fmColors.favoriteActive
+                    : context.fmColors.buttonPrimaryText,
               ),
             ),
           ),
-        if (trailing != null)
-          Positioned(
-            top: 6,
-            right: 6,
-            child: trailing!,
-          ),
+        if (trailing != null) Positioned(top: 6, right: 6, child: trailing!),
       ],
     );
   }
 }
 
 class _ImageActionButton extends StatelessWidget {
-  const _ImageActionButton({
-    required this.onTap,
-    required this.child,
-  });
+  const _ImageActionButton({required this.onTap, required this.child});
 
   final VoidCallback onTap;
   final Widget child;
@@ -185,10 +185,7 @@ class _ImageActionButton extends StatelessWidget {
       child: InkWell(
         customBorder: const CircleBorder(),
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(6),
-          child: child,
-        ),
+        child: Padding(padding: const EdgeInsets.all(6), child: child),
       ),
     );
   }
@@ -214,7 +211,11 @@ class DishCompactCardIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final Widget button = _ImageActionButton(
       onTap: onTap,
-      child: Icon(icon, size: 16, color: color ?? context.fmColors.buttonPrimaryText),
+      child: Icon(
+        icon,
+        size: 16,
+        color: color ?? context.fmColors.buttonPrimaryText,
+      ),
     );
 
     if (backgroundColor == null && tooltip == null) {
@@ -231,7 +232,11 @@ class DishCompactCardIconButton extends StatelessWidget {
               onTap: onTap,
               child: Padding(
                 padding: const EdgeInsets.all(6),
-                child: Icon(icon, size: 16, color: color ?? context.fmColors.buttonPrimaryText),
+                child: Icon(
+                  icon,
+                  size: 16,
+                  color: color ?? context.fmColors.buttonPrimaryText,
+                ),
               ),
             ),
           );
@@ -240,10 +245,7 @@ class DishCompactCardIconButton extends StatelessWidget {
       return themedButton;
     }
 
-    return Tooltip(
-      message: tooltip!,
-      child: themedButton,
-    );
+    return Tooltip(message: tooltip!, child: themedButton);
   }
 }
 
@@ -262,7 +264,7 @@ class _TagChip extends StatelessWidget {
         border: Border.all(color: context.fmColors.chipBorder, width: 1.5),
       ),
       child: Text(
-        label,
+        context.tr(label),
         style: GoogleFonts.nunito(
           fontSize: 12,
           fontWeight: FontWeight.w600,
@@ -274,10 +276,7 @@ class _TagChip extends StatelessWidget {
 }
 
 class _MetaItem extends StatelessWidget {
-  const _MetaItem({
-    required this.icon,
-    required this.text,
-  });
+  const _MetaItem({required this.icon, required this.text});
 
   final IconData icon;
   final String text;
@@ -290,7 +289,7 @@ class _MetaItem extends StatelessWidget {
         Icon(icon, size: 15, color: context.fmColors.metadataIcon),
         const SizedBox(width: 4),
         Text(
-          text,
+          context.tr(text),
           softWrap: true,
           overflow: TextOverflow.visible,
           style: GoogleFonts.nunito(

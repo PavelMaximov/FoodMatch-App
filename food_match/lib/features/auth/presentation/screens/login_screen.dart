@@ -1,3 +1,4 @@
+import 'package:food_match/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
@@ -76,7 +77,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return Row(
       children: <Widget>[
         Text(
-          text,
+          context.tr(text),
           style: GoogleFonts.nunito(
             fontSize: 13,
             color: context.fmColors.textSecondary,
@@ -165,7 +166,7 @@ class _LoginScreenState extends State<LoginScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
             Text(
-              text,
+              context.tr(text),
               style: GoogleFonts.nunito(
                 fontSize: 14,
                 color: context.fmColors.textInverse,
@@ -173,7 +174,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             const SizedBox(width: 4),
             Text(
-              actionText,
+              context.tr(actionText),
               style: GoogleFonts.nunito(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
@@ -200,7 +201,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 20),
                 const AppLogoHeader(showSubtitle: true),
                 Text(
-                  AppStrings.login,
+                  context.tr(AppStrings.login),
                   style: GoogleFonts.fredoka(
                     fontSize: 36,
                     fontWeight: FontWeight.w700,
@@ -258,7 +259,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          AppStrings.rememberMe,
+                          context.tr(AppStrings.rememberMe),
                           style: GoogleFonts.nunito(
                             fontSize: 14,
                             color: context.fmColors.textPrimary,
@@ -271,7 +272,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       borderRadius: BorderRadius.circular(8),
                       rippleColor: context.fmColors.neutralRipple,
                       child: Text(
-                        AppStrings.forgotPassword,
+                        context.tr(AppStrings.forgotPassword),
                         style: GoogleFonts.nunito(
                           fontSize: 14,
                           color: context.fmColors.textPrimary,
