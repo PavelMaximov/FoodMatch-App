@@ -1,7 +1,7 @@
 {
   "formatVersion": 1,
-  "status": "editorial_draft",
-  "nutritionPublicationReady": false,
+  "status": "approved_for_application",
+  "nutritionPublicationReady": true,
   "scope": "public approved non-custom recipes only",
   "sourceFiles": [
     "recipes.json",
@@ -44,5 +44,10 @@
     "patches/32.json",
     "patches/33.json",
     "patches/34.json"
-  ]
+  ],
+  "recipeApproval": {
+    "date": "2026-11-15",
+    "basis": "User approved the proposed standardized recipes in chat."
+  },
+  "nutritionReferenceRevision": "1407caa5e3d96ce3765d8b70498aba632c32d201eff7c8fd65abea2a1cb6280e"
 }

@@ -99,9 +99,11 @@ class DishIngredientMeasurement {
 
 @JsonSerializable()
 class DishNutrition {
-  const DishNutrition({this.calories});
+  const DishNutrition({this.calories, this.estimated = false});
 
   final int? calories;
+  @JsonKey(defaultValue: false)
+  final bool estimated;
 
   factory DishNutrition.fromJson(Map<String, dynamic> json) =>
       _$DishNutritionFromJson(json);

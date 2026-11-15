@@ -1,53 +1,52 @@
-# Recipe standardization — editorial draft
+# Approved recipe standardization and estimated nutrition
 
-This package proposes coherent ingredient quantities, serving counts and methods for **34 existing curated recipes**. It does not claim that missing original recipe measurements have been recovered. The only source recipe content available was the Supabase catalog; the old JSON export contains no ingredient measurements.
+The user accepted these **34 standardized recipes** on 2026-11-15. They are editorial formulations based on Supabase, not recovered original measurements or kitchen-tested recipes. The old JSON export contains no ingredient measurements.
 
-**Not deployed. Not ready for nutrition publication.** The 99 metadata corrections in PR #133 are a separate, already applied package. This proposal preserves dish IDs, canonical ingredient IDs, dietary claims, section IDs and existing child IDs where their meaning is retained. It does not touch private/custom dishes, matches, saved recipes, purchases or session history.
+This package preserves dish IDs, canonical ingredient IDs, dietary claims and section IDs, and reuses child IDs where their meaning is retained. It never targets custom/private dishes, matches, saved recipes, purchases or sessions. PR #133's 99 metadata corrections are separate.
 
-## Review
+## Content and evidence
 
-Read [review.md](review.md) for all proposed quantities and instructions. Each `patches/NN.json` contains the exact current source rows and proposed target rows. The source snapshot was read on 2026-11-15 and is restricted to public, approved, non-custom recipes.
+- `review.md`: ingredient quantities, instructions and servings.
+- `patches/NN.json`: exact before/after database rows, including nutrition.
+- `nutrition-results.md`: rounded estimates per serving.
+- `nutrition/food-mapping.tsv`: explicit ingredient-to-USDA mappings and proxy choices.
+- `nutrition/references.json`: USDA nutrient values and liquid portion weights.
+- `nutrition/assumptions.json`: manufacturer sources, composite-food formulas, densities and edible retention.
+- `nutrition/trace-*.json`: every ingredient's mass and energy contribution.
 
-The four authoring files are `recipes.json`, `soups.json`, `mains.json` and `mixed-dishes.json`. Ingredient labels resolve to existing canonical IDs; changing these IDs or creating duplicate dishes is not part of this package.
+USDA SR Legacy April 2018 is pinned by archive SHA-256. Manufacturer labels supplement paneer, nori and sumac. Generic/brand proxies are explicit; actual foods, cooking losses and serving sizes vary. Available carbohydrate excludes fiber; unknown nutrients remain null. Falafel uses an assumed 45 g retained frying oil per recipe (sensitivity 30–60 g), not its 500 ml frying bath. Schnitzel uses 20 g retained frying oil (10–30 g sensitivity), plus dressing oil and estimated retained coating. These ranges cover oil assumptions only, not total uncertainty.
 
-Notable editorial choices requiring content review:
+Calculated nutrition carries `estimated: true` and `basis: per_serving`. The API preserves these flags, the Flutter cache retains the estimate marker, and recipe details display `≈ N kcal`. Internal source hashes stay out of the public DTO. Calories are rounded to 5 kcal. Low/medium/high are product filter bands (<400, 400–<700, ≥700), not health claims. The other 205 curated recipes have not received this ingredient-based recalculation.
 
-- Apple Pie uses ready-made vegetarian butter pastry instead of mixing ready-made and incomplete homemade pastry instructions.
-- Croissant defines dough butter separately from lamination butter and includes egg wash.
-- Double Smash Burger makes one burger with two 90 g patties.
-- Grilled Salmon is renamed Pan-Seared Salmon to match its method.
-- Shawarma uses a measured yogurt-garlic sauce; Roštilj specifies ćevapi and chicken skewers.
-- Minestrone remains vegan: no Parmesan or egg pasta. Vegetarian cheese variants explicitly require suitable rennet.
-- Two similarly named pepper soups remain distinct IDs; no history is consolidated or deleted.
-- Cooking times are editorial estimates, including required waiting where specified; no kitchen testing is claimed.
-
-## Nutrition boundary
-
-`nutrition`, `calories_level` and `nutrition_visibility` are unchanged in this draft only to preserve a reversible comparison. Their old values must not be presented as recalculated values for the revised recipes. Source-to-food mappings, edible portion weights, servings and assumptions must be reviewed before publishing ingredient-based estimates.
-
-Falafel's 500 ml frying bath and the schnitzel frying bath/unused coating must **not** be counted as fully eaten. These two recipes have explicit `nutritionReview` notes. Other brand-dependent products (pastry, sauce, sausage, stock, cheese) also require selected reference foods. Numeric estimates are not laboratory measurements.
-
-German content localization remains outstanding. Translate the finalized English source and keep translations keyed to the same dish/ingredient IDs; translated dishes must not be duplicated as new catalog entities.
-
-## Validation and rollback
+## Reproduce and verify
 
 From the repository root:
 
 ```sh
+node backend/scripts/catalog-standardization/calculateNutrition.js
+node backend/scripts/catalog-standardization/testNutrition.js
 node backend/scripts/catalog-standardization/renderPatch.js
 ```
 
-This generates `dry-run.sql` (transaction rolled back) and `rollback.sql` (reverse transaction). It deliberately does **not** generate a deployable forward file while the package is an editorial draft and nutrition publication readiness is false. Do not bypass those flags merely to deploy this draft.
-
-The renderer locks only catalog tables, refuses non-curated targets, compares all source rows before changing anything, checks postconditions, rejects mixed application and preserves unrelated rows. Position changes are staged to satisfy immediate unique constraints. The reverse transaction also refuses later editorial changes instead of silently erasing them. Generated SQL files are ignored by Git.
-
-Run the isolated regression suite with PGlite 0.5.16 (temporary test dependency, not an application dependency):
+The renderer independently recalculates nutrition and refuses changed values or source revisions. It generates `apply.sql`, `dry-run.sql` and `rollback.sql` (ignored by Git). Dry-run ends in ROLLBACK. Application and reverse use single transactions, exact source/postcondition checks, safe row ordering and catalog-only locks. Mixed application is rejected; rollback refuses to erase later edits.
 
 ```sh
 npm install --prefix /tmp/foodmatch-catalog-validation --no-audit --no-fund @electric-sql/pglite@0.5.16
 CATALOG_PGLITE_MODULE=/tmp/foodmatch-catalog-validation/node_modules/@electric-sql/pglite node backend/scripts/catalog-standardization/testPatch.js
 ```
 
-Eight groups passed on 2026-11-15: draft/publication gates; dry-run rollback; application with actual FK/unique shapes and idempotency; exact reverse; source-drift refusal; mixed-state refusal; later-edit protection on rollback; custom-dish and child-reference validation. This verifies package mechanics, not culinary accuracy or production deployment.
+Eight SQL test groups passed: publication gates, full dry-run rollback, application with FK/unique constraints and idempotency, exact reverse, source drift, mixed states, later-edit protection and custom-dish/child-reference boundaries. Nutrition tests cover independent arithmetic, alternative units, missing nutrients, invalid inputs, retained oil/coating, all 34 calculations, tampering and stale references.
 
-`buildManifest.py SNAPSHOT_JSON INGREDIENT_TEMPLATES_JSON` rebuilds the package. Input snapshots use the same object shape as each patch's `before`; templates have `ingredient_name`, `ingredient_id`, `display_singular`, `display_plural`. Export only the intended public curated catalog. Review new snapshots and differences before replacing this package.
+To reproduce USDA extraction, download the URL recorded in `references.json` as `source.zip` and extract beside it. Then run `python backend/scripts/catalog-standardization/extractNutritionSources.py /path/to/FoodData_Central_sr_legacy_food_csv_2018-04`. Both archive checksum and CSV/archive equality are checked.
+
+`buildManifest.py SNAPSHOT_JSON INGREDIENT_TEMPLATES_JSON` is an authoring-stage tool: it intentionally creates an unapproved draft. Do not use it to refresh an approved source snapshot or bypass drift checks. Changed formulations need separate review. Authoring files: `recipes.json`, `soups.json`, `mains.json`, `mixed-dishes.json`.
+
+## Verification and deployment limits
+
+Backend build/type check, runtime dependency audit and all 12 regression scripts passed on 2026-11-15. Full `check:backend` stops at an existing possible-secret finding in `backend/scripts/testPairLifecycleRaces.js:6`; that file was unchanged. The remaining regression scripts were run separately and passed.
+
+Flutter tests were not run: dependency setup was rejected by automatic approval review because of an unrelated cloud metadata request. Run `flutter test test/data/models/dish_test.dart` and check the estimated-calorie label on a device.
+
+**Not applied to the hosted database yet.** Supabase's confirmation for the dry-run expired. Merging or generating SQL does not apply it. Before application, run the guarded dry-run, then apply and independently compare all 34 snapshots. Deploy the backend and Flutter update for the estimate marker; older clients show the numeric value without `≈`.
+
+German recipe-content localization remains outstanding. Translate the finalized sources against the same dish/ingredient IDs; never create duplicate German dishes or separate session/match identities by language.

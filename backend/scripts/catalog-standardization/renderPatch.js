@@ -10,6 +10,7 @@ const tables = {
   steps: ['dish_instructions', ['id','dish_id','position','display_text','start_time','end_time']],
   tags: ['dish_tags', ['id','dish_id','name','display_name','type','position','value']],
 };
+const {calculateRecipe,loadSources}=require('./calculateNutrition');
 const uuid = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;
 const sorted = rows => [...rows].sort((a,b) => a.id.localeCompare(b.id));
 function loadManifest(folder) {
@@ -23,6 +24,8 @@ function validate(m) {
   assert.equal(m.formatVersion,1);
   assert.ok(m.patches.length > 0);
   const ids = new Set();
+  const sources=m.nutritionPublicationReady?loadSources():null;
+  if(sources)assert.equal(m.nutritionReferenceRevision,sources.revision,'Nutrition reference revision changed');
   const globalIds = {before:new Set(),after:new Set()};
   for (const p of m.patches) {
     assert.match(p.id,uuid); assert.ok(!ids.has(p.id)); ids.add(p.id);
@@ -57,8 +60,14 @@ function validate(m) {
     }
     assert.deepEqual(p.before.sections,p.after.sections,'Section changes need separate review');
     assert.deepEqual(p.before.dish.diet,p.after.dish.diet,'Dietary claims need separate review');
-    for(const f of ['nutrition','calories_level','nutrition_visibility'])
-      assert.deepEqual(p.before.dish[f],p.after.dish[f],'Draft must not invent nutrition');
+    assert.equal(p.before.dish.nutrition_visibility,p.after.dish.nutrition_visibility);
+    if(sources){
+      const calculated=calculateRecipe(p.name,p.after,sources);
+      assert.deepEqual(p.after.dish.nutrition,calculated.nutrition,'Nutrition differs from reproducible ingredient calculation');
+      assert.equal(p.after.dish.calories_level,calculated.caloriesLevel);
+    }else{
+      for(const f of ['nutrition','calories_level'])assert.deepEqual(p.before.dish[f],p.after.dish[f],'Draft must not invent nutrition');
+    }
     const d=p.after.dish;
     for(const f of ['num_servings','prep_time_minutes','cook_time_minutes','total_time_minutes'])
       assert.ok(Number.isSafeInteger(d[f]) && d[f]>0);
@@ -133,6 +142,9 @@ if(require.main===module) {
   const m=loadManifest(folder);
   fs.writeFileSync(path.join(folder,'dry-run.sql'),render(m));
   fs.writeFileSync(path.join(folder,'rollback.sql'),render(m,{reverse:true,dryRun:false}));
-  console.log(`Rendered guarded dry-run and rollback for ${m.patches.length} proposals. No apply file: editorial and nutrition review pending.`);
+  if(m.status==='approved_for_application' && m.nutritionPublicationReady){
+    fs.writeFileSync(path.join(folder,'apply.sql'),render(m,{dryRun:false}));
+    console.log(`Rendered guarded apply, dry-run and rollback for ${m.patches.length} approved recipes.`);
+  }else console.log('Draft only: application remains blocked.');
 }
 module.exports={loadManifest,validate,render,fields,tables};
