@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "approvedRecipeBasis": "User accepted the 34 proposed formulations on 2026-11-15; this does not turn nutrient estimates into measured facts.",
+  "method": "Sum edible ingredient contributions and divide by the exact number of servings. Prefer metric quantities; imperial measurements are alternatives, never additional ingredients. Carbohydrates are available carbohydrate (USDA carbohydrate minus fiber; EU manufacturer values already exclude fiber). Unknown nutrient values remain null.",
+  "globalLimitations": [
+    "Generic reference foods and explicitly named proxies are estimates, not the exact brand used by the cook.",
+    "No unmeasured cooking-loss correction is applied. Full wine energy, rendered meat fat, marinades and ordinary sauteing oil are included unless a recipe-specific override says otherwise.",
+    "Water gain/loss changes cooked weight but not ingredient totals per recipe. No per-100-g cooked-dish value is claimed.",
+    "Frying oil and coating retention are stated assumptions, not measured absorption. The reported sensitivity interval covers those assumptions only, not all food variability.",
+    "Rounding: calories to 5 kcal, macronutrients to 0.1 g, sodium to 10 mg. Nutrition is always marked estimated and per serving."
+  ],
+  "volumeConversions": {
+    "whole milk": {"portionId": "88315", "volumeMl": 29.5735295625},
+    "cream": {"portionId": "87425", "volumeMl": 29.5735295625},
+    "olive oil": {"portionId": "88667", "volumeMl": 14.78676478125},
+    "sunflower oil": {"portionId": "87797", "volumeMl": 14.78676478125},
+    "lemon juice": {"portionId": "81888", "volumeMl": 29.5735295625},
+    "red wine": {"portionId": "92066", "volumeMl": 29.5735295625},
+    "red wine vinegar": {"portionId": "90142", "volumeMl": 14.78676478125},
+    "white wine vinegar": {"portionId": "90142", "volumeMl": 14.78676478125},
+    "rice vinegar": {"portionId": "90136", "volumeMl": 14.78676478125},
+    "vinegar": {"portionId": "90136", "volumeMl": 14.78676478125},
+    "soy sauce": {"portionId": "94068", "volumeMl": 14.78676478125},
+    "fish sauce": {"portionId": "94526", "volumeMl": 14.78676478125},
+    "worcestershire sauce": {"portionId": "89070", "volumeMl": 14.78676478125},
+    "water": {"gramsPerMl": 1, "reason": "Drinking water, nominal 1 g/ml; USDA portion 93025 is 1000 g per litre."},
+    "beef stock": {"gramsPerMl": 1, "reason": "Water-like density assumption for prepared broth; not a measured density for a specific brand."},
+    "vegetable stock": {"gramsPerMl": 1, "reason": "Water-like density assumption for prepared broth; not a measured density for a specific brand."}
+  },
+  "defaultIngredientOverrides": {
+    "bay leaf": {"edibleGrams": 0, "reason": "Whole leaf is removed before serving; extracted trace nutrients are not modeled."}
+  },
+  "recipeOverrides": {
+    "Falafel": {
+      "sunflower oil": {"edibleGrams": 45, "lowGrams": 30, "highGrams": 60, "reason": "Estimated retained frying oil for 12 falafel. The 500 ml bath is not consumed in full; sensitivity is 30–60 g retained per whole recipe."}
+    },
+    "Schnitzel with Potato Salad": {
+      "sunflower oil": {"edibleGrams": 33.796121262351944, "lowGrams": 23.796121262351944, "highGrams": 43.796121262351944, "reason": "15 ml dressing oil converted with USDA 13.6 g/tbsp (=13.796121 g) plus assumed 20 g retained frying oil (sensitivity 10–30 g)."},
+      "flour": {"edibleGrams": 20, "reason": "Assume half the 40 g dredging flour adheres; discard excess."},
+      "eggs": {"edibleGrams": 35, "reason": "Assume 35 g of the 50 g egg wash adheres; discard excess."},
+      "breadcrumbs": {"edibleGrams": 50, "reason": "Assume 50 g of the 70 g crumbs adheres; discard excess."}
+    },
+    "Pad Thai": {"lime": {"edibleGrams": 30, "reason": "Assume 30 g juice from the listed 60 g lime; peel is not eaten."}},
+    "Pašticada (Dalmatian Pot Roast)": {"cloves": {"edibleGrams": 0, "reason": "Whole cloves are removed before blending; extracted trace nutrients are not modeled."}},
+    "Sushi Set": {"ginger": {"reference": "usda:169765", "reason": "Use pickled ginger instead of raw ginger; source is a low-sugar canned variant, so sweeter brands differ."}}
+  },
+  "compositeFoods": {
+    "guacamole": {"parts": [["usda:171705",85],["usda:170000",5],["usda:170457",5],["usda:168156",4],["usda:173468",1]], "reason": "Explicit generic guacamole proxy by mass: avocado 85%, onion 5%, tomato 5%, lime juice 4%, salt 1%; not a recovered brand formulation."},
+    "ajvar": {"parts": [["usda:170108",80],["usda:171025",10],["usda:169228",5],["usda:172237",4],["usda:173468",1]], "reason": "Explicit pepper-spread proxy: red pepper 80%, oil 10%, eggplant 5%, vinegar 4%, salt 1%; roasting concentration and brand variation are not modeled."},
+    "garam masala": {"parts": [["usda:170923",25],["usda:170922",25],["usda:171320",15],["usda:171321",5],["usda:170931",15],["usda:170919",15]], "reason": "Explicit unsalted spice-blend proxy; actual blend proportions vary."},
+    "shawarma spices": {"parts": [["usda:171329",30],["usda:170923",25],["usda:170922",25],["usda:171325",10],["usda:170931",10]], "reason": "Explicit unsalted paprika/cumin/coriander/garlic/pepper proxy; separately listed salt is counted separately."},
+    "tandoori masala": {"parts": [["usda:171329",35],["usda:170922",25],["usda:170923",20],["usda:170926",10],["usda:172231",10]], "reason": "Explicit unsalted spice-blend proxy; actual blends vary."},
+    "yeast dough": {"parts": [["usda:169761",180],["usda:173647",110],["usda:171025",5],["usda:175043",3],["usda:173468",2]], "reason": "Explicit 300 g raw savoury dough proxy (flour, water, oil, dry yeast, salt); not baked bread or a recovered manufacturer's recipe."}
+  },
+  "manufacturerFoods": {
+    "paneer": {"id": "arla:apetina-paneer-225g", "description": "Arla Apetina Paneer, UK label", "url": "https://www.arlafoods.co.uk/brands/apetina/paneer-225g/", "accessed": "2026-11-15", "per100g": {"calories":174,"protein":21,"fat":8,"carbohydrates":3.2,"fiber":null,"sugar":3.2,"sodium":40}, "note": "Specific lower-fat paneer reference; other paneer can contain considerably more fat. Sodium derived from 0.1 g salt / 2.5. Fiber not declared and remains unknown."},
+    "nori": {"id": "muso:SWD016-2025-03-03", "description": "MUSO toasted sushi nori, specification dated 2025-03-03", "url": "https://muso-intl.com/wp-content/uploads/2022/01/SWD016-SUSHI-NORI-TOASTED-NORI-WEB.pdf", "accessed": "2026-11-15", "per100g": {"calories":333,"protein":42.2,"fat":5.8,"carbohydrates":15.7,"fiber":24.5,"sugar":0,"sodium":1310}, "note": "Manufacturer-declared EU available carbohydrate; not hydrated raw seaweed."},
+    "sumac": {"id": "culpepers:sumac-2026-08-27", "description": "Culpepers ground sumac with salt, specification dated 2026-08-27", "url": "https://www.culpepers.com.au/uploaded/files/product_documents/sumac_-_ground.pdf", "accessed": "2026-11-15", "per100g": {"calories":352.5334608030593,"protein":4.6,"fat":8.6,"carbohydrates":63.5,"fiber":null,"sugar":1.4,"sodium":1715}, "note": "1475 kJ divided by 4.184. Reference includes added salt; unsalted sumac differs. Fiber not declared and remains unknown."}
+  }
+}
