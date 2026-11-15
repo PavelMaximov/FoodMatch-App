@@ -1,0 +1,20 @@
+{
+  "formatVersion": 1,
+  "projectId": "vdvsaxfnakjkemftmejc",
+  "sourceCommit": "252103d9529b942979d3bf9ec0ce6945273ec5b1",
+  "capturedAt": "2026-11-13",
+  "scope": "Approved public curated catalog only; no custom dishes, user data or dish IDs are changed.",
+  "timingPolicy": "Editorial elapsed-time estimates from the stored recipe steps, including mandatory waits. They are not measured kitchen timings. Optional longer waits are excluded. Existing API tier boundaries <30, <45, <60, >=60 are preserved.",
+  "patchFiles": [
+    "patches/01.json",
+    "patches/02.json",
+    "patches/03.json",
+    "patches/04.json",
+    "patches/05.json",
+    "patches/06.json",
+    "patches/07.json",
+    "patches/08.json",
+    "patches/09.json",
+    "patches/10.json"
+  ]
+}

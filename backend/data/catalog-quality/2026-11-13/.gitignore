@@ -1,0 +1,5 @@
+# Reproducible outputs; the complete reversible source is in patches/*.json.
+/apply.sql
+/dry-run.sql
+/rollback.sql
+/before.json.gz
