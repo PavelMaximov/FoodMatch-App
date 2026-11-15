@@ -79,7 +79,7 @@
     ]
   },
   {
-    "name": "Dal",
+    "name": "Dal (Indian Lentil Curry)",
     "servings": 3,
     "prep": 10,
     "cook": 30,
@@ -362,7 +362,7 @@
     "newName": "Pan-Seared Salmon"
   },
   {
-    "name": "Brudet",
+    "name": "Brudet (Croatian Fish Stew)",
     "servings": 4,
     "prep": 15,
     "cook": 35,
@@ -444,7 +444,7 @@
     "description": "Dalmatian-style tomato and white fish stew served over buttery polenta."
   },
   {
-    "name": "Samsa",
+    "name": "Samsa (Central Asian Pastry)",
     "servings": 3,
     "prep": 20,
     "cook": 30,
@@ -502,7 +502,7 @@
     ]
   },
   {
-    "name": "Zwiebelkuchen",
+    "name": "Zwiebelkuchen (German Onion Cake)",
     "servings": 6,
     "prep": 20,
     "cook": 60,
