@@ -2,6 +2,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:food_match/data/models/dish.dart';
 
 void main() {
+  test('nutrition estimate survives the dish cache round trip', () {
+    final dish = Dish.fromJson({
+      'id': 'estimated',
+      'nutrition': {'calories': 380, 'estimated': true, 'basis': 'per_serving'},
+    });
+    final cached = Dish.fromJson(dish.toJson());
+    expect(cached.nutrition?.calories, 380);
+    expect(cached.nutrition?.estimated, isTrue);
+    expect(DishNutrition.fromJson({'calories': 380}).estimated, isFalse);
+  });
+
   test('Dish.fromJson parses the current dish contract', () {
     final Map<String, dynamic> json = <String, dynamic>{
       'id': '123',

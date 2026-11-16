@@ -438,7 +438,7 @@ class _StatsRow extends StatelessWidget {
   String _formatCalories(Dish dish) {
     final int? numericCalories = dish.nutrition?.calories;
     if (numericCalories != null && numericCalories > 0) {
-      return '$numericCalories kcal';
+      return '${dish.nutrition?.estimated == true ? '≈ ' : ''}$numericCalories kcal';
     }
 
     final String trimmed = dish.calories.trim();

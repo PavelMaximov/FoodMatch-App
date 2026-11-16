@@ -1,0 +1,130 @@
+ingredient	fdc_id	note
+american cheese	171290	Processed American cheese; actual brand varies.
+apples	171689	Peeled raw apple, edible weight.
+avocado	171705	Raw edible flesh.
+bacon	168277	Raw bacon; assumes all rendered fat stays in filling.
+baking soda	175040	Sodium bicarbonate.
+basil	172232	Fresh leaves.
+bay leaf	170917	Removed after cooking; zero consumed mass assigned by recipe override.
+bean sprouts	169957	Raw mung bean sprouts.
+beef chuck	171206	Raw boneless stewing beef, lean and fat.
+beef mince	171796	Raw 85% lean / 15% fat mince.
+beef rump	174046	Raw lean bottom-round roast as rump proxy.
+beef stock	172889	Ready-to-serve reduced-sodium beef broth; brand-dependent sodium.
+beetroot	169145	Raw edible beetroot.
+black pepper	170931	Ground black pepper.
+bread flour	168913	Unenriched bread flour.
+breadcrumbs	174928	Dry plain crumbs; consumed amount adjusted for schnitzel.
+brioche bun	172673	Egg bread proxy for an unspecified brioche bun; brand fat/sugar varies.
+brown lentils	172420	Dry mature lentils.
+butter	173430	Unsalted butter; added salt is counted separately.
+canned tomatoes	170138	Tomatoes in juice, no added salt.
+capers	172238	Canned capers; drained weight.
+caraway seeds	170918	Caraway seeds.
+carrot	170393	Raw carrots.
+celeriac	170400	Raw edible celeriac.
+celery	169988	Raw celery.
+cheddar	173414	Full-fat cheddar; vegetarian rennet affects dietary suitability, not this reference choice.
+cheese	171242	Gruyere nutrient proxy; recipe requires vegetarian Gruyere-style cheese.
+chestnut mushrooms	168434	Raw brown/crimini mushrooms.
+chicken thighs	173627	Raw skinless thigh meat only.
+chickpeas	173756	Dry chickpeas, before soaking.
+chili flakes	170932	Dried red/cayenne pepper proxy; blend varies.
+chives	169994	Fresh chives.
+cilantro	169997	Fresh coriander leaves.
+cinnamon	171320	Ground cinnamon.
+cloves	171321	Ground clove reference; whole cloves removed in pot roast are assigned zero consumed mass.
+coriander seeds	170922	Coriander seed.
+cream	170857	Light table cream, approximately 19% fat, proxy for 18% cream.
+cumin	170923	Cumin seed, whole or ground.
+curry powder	170924	Generic curry blend.
+dill	172233	Fresh dill.
+egg wash	171287	Raw beaten whole egg; specified brushing amount only.
+eggs	171287	Raw whole egg without shell.
+feta	173420	Full-fat feta; vegetarian rennet required by recipe.
+fish sauce	174531	Ready-to-serve fish sauce; brand-dependent sodium.
+flatbread	172816	White pita proxy for flatbread.
+flour	169761	All-purpose wheat flour.
+garlic	169230	Raw garlic.
+ginger	169231	Raw root; sushi uses a component override for pickled ginger.
+green onion	170005	Raw spring onion including tops.
+ground beef 80/20	174036	Raw 80/20 beef mince; no assumed fat drainage.
+ham	173864	Sliced ham, approximately 11% fat.
+hot paprika	171329	Paprika; hot and sweet share a generic nutrient reference.
+instant yeast	175043	Active dry yeast nutrient proxy.
+jalapeños	168576	Raw jalapeno peppers; no pickle brine.
+ketchup	168556	Generic tomato ketchup.
+lamb mince	174370	Raw ground lamb, unspecified fat percentage.
+leek	169246	Trimmed raw leek.
+lemon juice	167747	Raw juice.
+lime	168156	Juice only; edible yield adjusted explicitly for Pad Thai.
+monterey jack	170844	Monterey cheese.
+mushrooms	169251	Raw white mushrooms.
+mustard	172234	Prepared yellow mustard.
+mustard seeds	170929	Ground mustard seed nutrient proxy for whole seed.
+olive oil	171413	Olive oil, density derived from tablespoon reference.
+olives	169094	Canned ripe olives; pitted edible weight.
+onion	170000	Raw onion.
+onions	170000	Raw onion.
+oyster sauce	174529	Ready-to-serve oyster sauce.
+paprika	171329	Ground paprika.
+parmesan	170848	Hard Parmesan.
+parsley	170416	Fresh parsley.
+peanuts	173806	Dry-roasted unsalted peanuts.
+pearl barley	170284	Dry pearled barley.
+pickles	168558	Dill pickles; drained edible weight, no extra brine.
+pie pastry	167932	Unbaked refrigerated pastry nutrient proxy; recipe requires vegetarian butter pastry, actual fat profile varies.
+plain yogurt	171284	Plain whole-milk yogurt.
+polenta	168929	Dry degermed yellow cornmeal.
+pork loin cutlet	168251	Raw boneless lean loin cutlet.
+pork mince	168372	Raw 84% lean / 16% fat pork mince assumed.
+pork sausage	173876	Fully cooked unheated pork sausage; brand varies.
+pork shoulder	167843	Raw lean-and-fat shoulder, edible boneless weight.
+potatoes	170026	Raw potato flesh-and-skin proxy for peeled potatoes; skin-related differences are not modeled.
+prunes	168162	Dried pitted prunes.
+puff pastry	172790	Frozen ready-to-bake puff pastry, unbaked.
+red bell pepper	170108	Raw sweet red pepper.
+red bell peppers	170108	Raw sweet red pepper.
+red lentils	174284	Dry red lentils.
+red wine	173190	Red table wine; full energy counted, alcohol evaporation not quantified.
+red wine vinegar	172240	Red wine vinegar.
+rice noodles	169742	Dry rice noodles.
+rice vinegar	172237	Unseasoned distilled-vinegar proxy; recipe sugar counted separately.
+rosemary	173473	Fresh rosemary; small stem loss not modeled.
+salmon	175167	Raw farmed Atlantic salmon assumed.
+salmon fillet	175167	Raw farmed Atlantic salmon; skin consumption variation not modeled.
+salsa	174524	Ready-to-serve salsa.
+salt	173468	Table salt.
+sesame seeds	170150	Whole dried sesame seeds.
+shrimp	175179	Raw peeled shrimp.
+small pasta	168927	Dry unenriched wheat pasta, no egg.
+smoked paprika	171329	Generic paprika nutrient proxy.
+smoked sausage	174584	Smoked pork link sausage; brand varies.
+sour cream	171257	Full-fat cultured sour cream.
+soy sauce	174277	Regular shoyu soy sauce.
+spaghetti	168927	Dry unenriched wheat pasta.
+special sauce	171402	Thousand Island dressing proxy for unspecified burger sauce.
+spinach	168462	Raw spinach; blanching losses not modeled.
+sugar	169655	Granulated sugar.
+sunflower oil	171025	Sunflower oil; retained quantity explicitly overrides frying baths.
+sushi rice	168931	Raw short-grain white rice.
+sweet paprika	171329	Ground paprika.
+tamarind	167763	Raw tamarind pulp proxy for unsweetened paste; concentration varies.
+thyme	170938	Dried thyme.
+tomato	170457	Raw ripe red tomato.
+tomato paste	170459	Canned tomato paste without added salt.
+tomatoes	170457	Raw ripe red tomato.
+tortilla chips	173143	Plain salted yellow corn chips.
+tuna	175159	Raw yellowfin tuna assumed.
+turmeric	172231	Ground turmeric.
+vegetable stock	171583	Generic ready-to-serve vegetable broth proxy; reduced-salt brands may have less sodium.
+vinegar	172237	Distilled vinegar.
+wasabi	171831	Prepared wasabi; brand varies.
+water	173647	Drinking water, 1 g/ml.
+white beans	175204	Canned white beans proxy for drained beans; liquid/drainage variation not modeled.
+white cabbage	169975	Raw white/green cabbage.
+white fish	171955	Raw Atlantic cod proxy for unspecified lean white fish.
+white wine vinegar	172240	Red wine vinegar nutrient proxy; negligible macronutrient difference assumed.
+whole milk	171265	Whole milk, 3.25% fat.
+worcestershire sauce	171610	Ready-to-serve Worcestershire sauce.
+zucchini	169291	Raw zucchini with skin.

@@ -84,10 +84,16 @@ Map<String, dynamic> _$DishIngredientMeasurementToJson(
 };
 
 DishNutrition _$DishNutritionFromJson(Map<String, dynamic> json) =>
-    DishNutrition(calories: _readOptionalInt(json['calories']));
+    DishNutrition(
+      calories: _readOptionalInt(json['calories']),
+      estimated: json['estimated'] == true,
+    );
 
 Map<String, dynamic> _$DishNutritionToJson(DishNutrition instance) =>
-    <String, dynamic>{'calories': instance.calories};
+    <String, dynamic>{
+      'calories': instance.calories,
+      'estimated': instance.estimated,
+    };
 
 Dish _$DishFromJson(Map<String, dynamic> json) => Dish(
   id: json['id'] as String? ?? '',

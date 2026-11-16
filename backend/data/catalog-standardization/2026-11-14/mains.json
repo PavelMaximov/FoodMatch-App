@@ -1,0 +1,615 @@
+[
+  {
+    "name": "Pasta Bolognese",
+    "servings": 3,
+    "prep": 15,
+    "cook": 50,
+    "total": 65,
+    "reason": "Include the milk and cooking oil used in the method and define the dry pasta and meat weights.",
+    "ingredients": [
+      [
+        "spaghetti",
+        200,
+        "g",
+        "dry"
+      ],
+      [
+        "beef mince",
+        250,
+        "g",
+        "about 15% fat"
+      ],
+      [
+        "tomatoes",
+        250,
+        "g"
+      ],
+      [
+        "onion",
+        100,
+        "g"
+      ],
+      [
+        "carrot",
+        100,
+        "g"
+      ],
+      [
+        "celery",
+        60,
+        "g"
+      ],
+      [
+        "red wine",
+        100,
+        "ml"
+      ],
+      [
+        "olive oil",
+        15,
+        "ml"
+      ],
+      [
+        "whole milk",
+        50,
+        "ml"
+      ],
+      [
+        "parmesan",
+        20,
+        "g"
+      ],
+      [
+        "salt",
+        2,
+        "g"
+      ],
+      [
+        "black pepper",
+        0.5,
+        "g"
+      ]
+    ],
+    "steps": [
+      "Dice the onion, carrot and celery. Heat the olive oil in a saucepan and soften the vegetables for 8 minutes.",
+      "Add the beef mince and cook for 5 minutes, breaking it up. Add the wine and simmer for 2–3 minutes.",
+      "Add the chopped tomatoes, milk, salt and pepper. Simmer gently for 30–40 minutes, stirring occasionally and adding a little water if needed.",
+      "Cook the spaghetti according to its packet instructions. Drain, reserving a little cooking water.",
+      "Toss the spaghetti with the sauce, loosening with reserved water if needed. Divide into 3 portions and top with the grated Parmesan."
+    ]
+  },
+  {
+    "name": "Dal (Indian Lentil Curry)",
+    "servings": 3,
+    "prep": 10,
+    "cook": 30,
+    "total": 40,
+    "reason": "Include tempering oil and cooking water; define dry lentil quantities.",
+    "ingredients": [
+      [
+        "red lentils",
+        150,
+        "g",
+        "dry"
+      ],
+      [
+        "canned tomatoes",
+        400,
+        "g"
+      ],
+      [
+        "onion",
+        100,
+        "g"
+      ],
+      [
+        "garlic",
+        6,
+        "g"
+      ],
+      [
+        "ginger",
+        5,
+        "g"
+      ],
+      [
+        "cumin seeds",
+        2,
+        "g"
+      ],
+      [
+        "turmeric",
+        1.5,
+        "g"
+      ],
+      [
+        "mustard seeds",
+        2,
+        "g"
+      ],
+      [
+        "sunflower oil",
+        15,
+        "ml"
+      ],
+      [
+        "water",
+        600,
+        "ml"
+      ],
+      [
+        "lemon juice",
+        15,
+        "ml"
+      ],
+      [
+        "salt",
+        3,
+        "g"
+      ]
+    ],
+    "steps": [
+      "Rinse the lentils. Place in a saucepan with the water and turmeric. Bring to a boil and simmer for about 20 minutes, until soft.",
+      "Meanwhile, heat the oil in a frying pan. Add the cumin and mustard seeds and cook until fragrant. Add diced onion and cook for 8 minutes.",
+      "Add finely chopped garlic and ginger, then the canned tomatoes. Cook for 5 minutes.",
+      "Stir the tomato mixture into the lentils and simmer for 5–10 minutes. Add water if needed for a spoonable consistency.",
+      "Stir in the lemon juice and salt. Divide into 3 portions. Extra rice or bread is optional and is not included in these quantities."
+    ]
+  },
+  {
+    "name": "Palak Paneer",
+    "servings": 3,
+    "prep": 15,
+    "cook": 25,
+    "total": 40,
+    "reason": "Include cooking oil and specify the cream and paneer portions.",
+    "ingredients": [
+      [
+        "spinach",
+        300,
+        "g"
+      ],
+      [
+        "paneer",
+        200,
+        "g"
+      ],
+      [
+        "onion",
+        100,
+        "g"
+      ],
+      [
+        "tomatoes",
+        200,
+        "g"
+      ],
+      [
+        "garlic",
+        6,
+        "g"
+      ],
+      [
+        "ginger",
+        5,
+        "g"
+      ],
+      [
+        "garam masala",
+        3,
+        "g"
+      ],
+      [
+        "cream",
+        50,
+        "ml",
+        "about 18% fat"
+      ],
+      [
+        "sunflower oil",
+        15,
+        "ml"
+      ],
+      [
+        "salt",
+        3,
+        "g"
+      ]
+    ],
+    "steps": [
+      "Blanch the spinach in boiling water for 2 minutes, drain and blend to a purée.",
+      "Cut the paneer into cubes. Heat the oil in a pan and lightly brown the paneer. Transfer to a plate.",
+      "In the same pan, soften diced onion for 8 minutes. Add chopped garlic and ginger and cook for 2 minutes.",
+      "Add chopped tomatoes and garam masala and cook for 5 minutes. Stir in the spinach, cream and salt and simmer for 5 minutes.",
+      "Return the paneer and heat through. Divide into 3 portions. Extra rice or bread is optional and is not included in the quantities."
+    ]
+  },
+  {
+    "name": "Shakshuka",
+    "servings": 2,
+    "prep": 10,
+    "cook": 25,
+    "total": 35,
+    "reason": "Define four eggs for two portions, include oil and retain vegetarian-compatible feta.",
+    "ingredients": [
+      [
+        "eggs",
+        200,
+        "g",
+        "4 large eggs, without shells"
+      ],
+      [
+        "canned tomatoes",
+        400,
+        "g"
+      ],
+      [
+        "red bell pepper",
+        150,
+        "g"
+      ],
+      [
+        "onion",
+        100,
+        "g"
+      ],
+      [
+        "garlic",
+        6,
+        "g"
+      ],
+      [
+        "cumin",
+        2,
+        "g",
+        "ground"
+      ],
+      [
+        "smoked paprika",
+        2,
+        "g"
+      ],
+      [
+        "feta",
+        50,
+        "g",
+        "made with vegetarian rennet"
+      ],
+      [
+        "olive oil",
+        15,
+        "ml"
+      ],
+      [
+        "chilli flakes",
+        1,
+        "g"
+      ],
+      [
+        "salt",
+        2,
+        "g"
+      ],
+      [
+        "parsley",
+        5,
+        "g"
+      ]
+    ],
+    "steps": [
+      "Dice the onion and pepper. Heat the oil in a wide pan and cook the vegetables for 7 minutes.",
+      "Add chopped garlic, cumin, paprika and chilli flakes and cook for 1 minute. Add the tomatoes and salt and simmer for 10 minutes.",
+      "Make 4 wells in the sauce and crack an egg into each one. Cover and cook for 5–7 minutes, until the whites are set; cook longer for firm yolks.",
+      "Crumble over the feta and chopped parsley. Divide into 2 portions. Extra bread is optional and is not included in the quantities."
+    ]
+  },
+  {
+    "name": "Grilled Salmon",
+    "servings": 2,
+    "prep": 10,
+    "cook": 10,
+    "total": 20,
+    "reason": "Align the title with the pan-searing method and include basting butter and garlic.",
+    "ingredients": [
+      [
+        "salmon fillet",
+        350,
+        "g",
+        "2 boneless skin-on fillets"
+      ],
+      [
+        "lemon juice",
+        15,
+        "ml"
+      ],
+      [
+        "olive oil",
+        10,
+        "ml"
+      ],
+      [
+        "butter",
+        15,
+        "g"
+      ],
+      [
+        "rosemary",
+        2,
+        "g"
+      ],
+      [
+        "garlic",
+        6,
+        "g"
+      ],
+      [
+        "salt",
+        1.5,
+        "g"
+      ],
+      [
+        "black pepper",
+        0.5,
+        "g"
+      ]
+    ],
+    "steps": [
+      "Pat the salmon dry and season with the measured salt and pepper.",
+      "Heat the olive oil in a frying pan over medium-high heat. Place the salmon skin-side down and cook for 4–5 minutes.",
+      "Turn the fillets and add the butter, lightly crushed garlic and rosemary. Baste for 2–3 minutes, or until cooked through.",
+      "Discard the rosemary stems. Finish with lemon juice and divide between 2 plates. Side dishes are not included in these quantities."
+    ],
+    "newName": "Pan-Seared Salmon"
+  },
+  {
+    "name": "Brudet (Croatian Fish Stew)",
+    "servings": 4,
+    "prep": 15,
+    "cook": 35,
+    "total": 50,
+    "reason": "Specify boneless fish and include the polenta cooking liquid and butter.",
+    "ingredients": [
+      [
+        "white fish",
+        600,
+        "g",
+        "boneless lean fish"
+      ],
+      [
+        "canned tomatoes",
+        400,
+        "g"
+      ],
+      [
+        "onion",
+        150,
+        "g"
+      ],
+      [
+        "garlic",
+        6,
+        "g"
+      ],
+      [
+        "red wine vinegar",
+        15,
+        "ml"
+      ],
+      [
+        "olive oil",
+        20,
+        "ml"
+      ],
+      [
+        "polenta",
+        200,
+        "g",
+        "dry, quick-cooking"
+      ],
+      [
+        "water",
+        800,
+        "ml",
+        "for polenta; adjust to packet instructions"
+      ],
+      [
+        "butter",
+        20,
+        "g"
+      ],
+      [
+        "parsley",
+        8,
+        "g"
+      ],
+      [
+        "salt",
+        4,
+        "g",
+        "2 g for stew; 2 g for polenta"
+      ],
+      [
+        "black pepper",
+        0.5,
+        "g"
+      ]
+    ],
+    "steps": [
+      "Dice the onion. Heat the olive oil in a wide pot and cook the onion for 8 minutes. Add chopped garlic and cook for 1 minute.",
+      "Add the canned tomatoes, vinegar, 2 g salt and pepper. Simmer for 10 minutes.",
+      "Cut the fish into large pieces and add to the sauce. Cover and simmer gently for 10–15 minutes, until cooked through; shake the pot instead of stirring vigorously.",
+      "Meanwhile, bring the water and remaining 2 g salt to a boil. Whisk in the polenta and cook according to its packet instructions, adding water if necessary. Stir in the butter.",
+      "Divide the polenta and fish stew into 4 portions and scatter with parsley."
+    ],
+    "description": "Dalmatian-style tomato and white fish stew served over buttery polenta."
+  },
+  {
+    "name": "Samsa (Central Asian Pastry)",
+    "servings": 3,
+    "prep": 20,
+    "cook": 30,
+    "total": 50,
+    "reason": "Include the egg wash and define six pastries from a measured dough and filling.",
+    "ingredients": [
+      [
+        "puff pastry",
+        250,
+        "g"
+      ],
+      [
+        "lamb mince",
+        250,
+        "g"
+      ],
+      [
+        "onion",
+        150,
+        "g"
+      ],
+      [
+        "cumin",
+        2,
+        "g",
+        "ground"
+      ],
+      [
+        "black pepper",
+        0.5,
+        "g"
+      ],
+      [
+        "sesame seeds",
+        8,
+        "g"
+      ],
+      [
+        "salt",
+        3,
+        "g"
+      ],
+      [
+        "egg wash",
+        15,
+        "g",
+        "beaten whole egg; amount used"
+      ]
+    ],
+    "steps": [
+      "Preheat the oven to 220°C. Finely dice the onion and mix with the lamb, cumin, salt and pepper.",
+      "Roll out the pastry and cut into 6 equal squares. Divide the filling between them.",
+      "Fold into triangles and press the edges firmly to seal. Place on a lined baking tray.",
+      "Brush with the measured egg wash and sprinkle with sesame seeds. Bake for 25–30 minutes, until golden and the filling is cooked through. Serve 2 pastries per portion."
+    ]
+  },
+  {
+    "name": "Zwiebelkuchen (German Onion Cake)",
+    "servings": 6,
+    "prep": 20,
+    "cook": 60,
+    "total": 115,
+    "reason": "Include butter and define the prepared dough, onion and egg mixture.",
+    "ingredients": [
+      [
+        "yeast dough",
+        300,
+        "g",
+        "prepared savoury dough"
+      ],
+      [
+        "onions",
+        500,
+        "g"
+      ],
+      [
+        "bacon",
+        100,
+        "g"
+      ],
+      [
+        "eggs",
+        100,
+        "g",
+        "2 large eggs, without shells"
+      ],
+      [
+        "sour cream",
+        150,
+        "g"
+      ],
+      [
+        "caraway seeds",
+        2,
+        "g"
+      ],
+      [
+        "salt",
+        2,
+        "g"
+      ],
+      [
+        "butter",
+        20,
+        "g"
+      ]
+    ],
+    "steps": [
+      "Cover the prepared dough and leave to rise for about 1 hour, or follow its packet instructions.",
+      "Meanwhile, thinly slice the onions. Melt the butter in a pan and soften the onions for 20–25 minutes. Cook the diced bacon with them and let the mixture cool slightly.",
+      "Preheat the oven to 200°C. Roll out the dough to line a 20 × 25 cm baking tray.",
+      "Whisk the eggs, sour cream, salt and caraway seeds. Stir in the cooled onion and bacon mixture and spread over the dough.",
+      "Bake for 30–35 minutes, until the filling is set and the base is cooked. Cut into 6 portions."
+    ]
+  },
+  {
+    "name": "Currywurst",
+    "servings": 2,
+    "prep": 5,
+    "cook": 15,
+    "total": 20,
+    "reason": "Specify cooked sausage weight and include the sauce sugar and water.",
+    "ingredients": [
+      [
+        "pork sausage",
+        240,
+        "g",
+        "2 fully cooked sausages"
+      ],
+      [
+        "ketchup",
+        100,
+        "g"
+      ],
+      [
+        "curry powder",
+        4,
+        "g",
+        "3 g for sauce; 1 g for finishing"
+      ],
+      [
+        "paprika",
+        2,
+        "g"
+      ],
+      [
+        "worcestershire sauce",
+        5,
+        "ml"
+      ],
+      [
+        "sugar",
+        5,
+        "g"
+      ],
+      [
+        "water",
+        30,
+        "ml"
+      ]
+    ],
+    "steps": [
+      "Heat the fully cooked sausages in a non-stick pan or under a grill for 10–15 minutes, turning occasionally, until hot throughout.",
+      "Meanwhile, combine the ketchup, 3 g curry powder, paprika, Worcestershire sauce, sugar and water. Simmer gently for 3–5 minutes.",
+      "Slice the sausages onto 2 plates, spoon over the sauce and finish with the remaining curry powder. Extra fries or bread are optional and are not included in these quantities."
+    ]
+  }
+]

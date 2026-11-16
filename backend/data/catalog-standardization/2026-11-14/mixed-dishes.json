@@ -1,0 +1,653 @@
+[
+  {
+    "name": "Shawarma",
+    "servings": 2,
+    "prep": 20,
+    "cook": 15,
+    "total": 95,
+    "reason": "Choose a measured yogurt-garlic sauce instead of an unspecified prepared toum; include oil and marinating time.",
+    "ingredients": [
+      [
+        "chicken thigh",
+        350,
+        "g",
+        "boneless, skinless"
+      ],
+      [
+        "flatbread",
+        140,
+        "g",
+        "2 breads"
+      ],
+      [
+        "plain yogurt",
+        80,
+        "g",
+        "whole-milk"
+      ],
+      [
+        "garlic",
+        6,
+        "g"
+      ],
+      [
+        "onion",
+        80,
+        "g"
+      ],
+      [
+        "tomato",
+        120,
+        "g"
+      ],
+      [
+        "pickles",
+        60,
+        "g"
+      ],
+      [
+        "sumac",
+        2,
+        "g"
+      ],
+      [
+        "shawarma spice",
+        4,
+        "g"
+      ],
+      [
+        "lemon juice",
+        30,
+        "ml",
+        "15 ml for marinade; 15 ml for sauce"
+      ],
+      [
+        "olive oil",
+        15,
+        "ml",
+        "10 ml for marinade; 5 ml for sauce"
+      ],
+      [
+        "salt",
+        2,
+        "g",
+        "1 g for marinade; 1 g for sauce"
+      ]
+    ],
+    "steps": [
+      "Coat the chicken with the shawarma spice, 15 ml lemon juice, 10 ml olive oil and 1 g salt. Cover and marinate in the refrigerator for 1 hour.",
+      "Mix the yogurt with crushed garlic, the remaining lemon juice, olive oil and salt to make the sauce. Keep refrigerated.",
+      "Cook the chicken in a hot pan or on a grill for 10–15 minutes, turning as needed, until cooked through. Rest briefly, then slice.",
+      "Thinly slice the onion, tomato and pickles. Toss the onion with sumac.",
+      "Warm the flatbreads. Divide the chicken, vegetables and sauce between them and roll up. Makes 2 wraps."
+    ],
+    "description": "Spiced chicken wraps with vegetables, pickles and yogurt-garlic sauce."
+  },
+  {
+    "name": "Tandoori Chicken",
+    "servings": 2,
+    "prep": 15,
+    "cook": 25,
+    "total": 280,
+    "reason": "Specify boneless chicken and include the oil and finishing butter.",
+    "ingredients": [
+      [
+        "chicken thigh",
+        400,
+        "g",
+        "boneless, skinless"
+      ],
+      [
+        "plain yogurt",
+        100,
+        "g",
+        "whole-milk"
+      ],
+      [
+        "lemon juice",
+        15,
+        "ml"
+      ],
+      [
+        "tandoori masala",
+        5,
+        "g"
+      ],
+      [
+        "garlic",
+        8,
+        "g"
+      ],
+      [
+        "ginger",
+        8,
+        "g"
+      ],
+      [
+        "sunflower oil",
+        10,
+        "ml"
+      ],
+      [
+        "butter",
+        10,
+        "g"
+      ],
+      [
+        "salt",
+        2,
+        "g"
+      ]
+    ],
+    "steps": [
+      "Mix the yogurt, lemon juice, tandoori masala, crushed garlic, grated ginger, oil and salt.",
+      "Coat the chicken with the marinade. Cover and refrigerate for 4 hours.",
+      "Preheat the oven to 220°C. Arrange the chicken on a lined tray and roast for 20–25 minutes, until cooked through.",
+      "Brush with the melted butter during the final 5 minutes. Divide into 2 portions. Extra rice, bread or chutney is optional and is not included in the quantities."
+    ]
+  },
+  {
+    "name": "Roštilj (Balkan Mixed Grill)",
+    "servings": 4,
+    "prep": 25,
+    "cook": 20,
+    "total": 105,
+    "reason": "Define the actual mixed grill as ćevapi and chicken skewers and include oil and seasonings.",
+    "ingredients": [
+      [
+        "beef mince",
+        250,
+        "g",
+        "about 15% fat"
+      ],
+      [
+        "pork mince",
+        250,
+        "g"
+      ],
+      [
+        "chicken thigh",
+        300,
+        "g",
+        "boneless, skinless"
+      ],
+      [
+        "onion",
+        120,
+        "g"
+      ],
+      [
+        "paprika",
+        3,
+        "g"
+      ],
+      [
+        "ajvar",
+        60,
+        "g"
+      ],
+      [
+        "flatbread",
+        240,
+        "g",
+        "4 breads"
+      ],
+      [
+        "sour cream",
+        80,
+        "g"
+      ],
+      [
+        "garlic",
+        10,
+        "g",
+        "6 g for mince; 4 g for chicken"
+      ],
+      [
+        "baking soda",
+        1,
+        "g"
+      ],
+      [
+        "sunflower oil",
+        15,
+        "ml"
+      ],
+      [
+        "salt",
+        4,
+        "g",
+        "3 g for mince; 1 g for chicken"
+      ],
+      [
+        "black pepper",
+        1,
+        "g",
+        "0.5 g for each meat mixture"
+      ]
+    ],
+    "steps": [
+      "Mix the beef and pork with 6 g crushed garlic, baking soda, 3 g salt and 0.5 g pepper. Shape into small ćevapi fingers, cover and refrigerate for 1 hour.",
+      "Cut the chicken into chunks and coat with the oil, paprika, remaining garlic, salt and pepper. Refrigerate alongside the ćevapi.",
+      "Thread the chicken onto skewers. Grill both meats for about 15–20 minutes, turning regularly, until cooked through.",
+      "Warm the flatbreads and finely chop the onion. Divide the meats, onion, ajvar and sour cream into 4 portions."
+    ],
+    "description": "Balkan-style mixed grill of ćevapi and chicken skewers with flatbread, onion, ajvar and sour cream."
+  },
+  {
+    "name": "Pašticada (Dalmatian Pot Roast)",
+    "servings": 4,
+    "prep": 25,
+    "cook": 190,
+    "total": 695,
+    "reason": "Include marinade and browning oil; make gnocchi an optional accompaniment instead of an unmeasured component.",
+    "ingredients": [
+      [
+        "beef rump",
+        600,
+        "g",
+        "boneless"
+      ],
+      [
+        "prunes",
+        80,
+        "g",
+        "pitted"
+      ],
+      [
+        "red wine",
+        250,
+        "ml"
+      ],
+      [
+        "rosemary",
+        2,
+        "g"
+      ],
+      [
+        "carrot",
+        150,
+        "g"
+      ],
+      [
+        "tomato paste",
+        30,
+        "g"
+      ],
+      [
+        "onion",
+        150,
+        "g"
+      ],
+      [
+        "cloves",
+        1,
+        "g",
+        "whole; remove before blending"
+      ],
+      [
+        "garlic",
+        10,
+        "g"
+      ],
+      [
+        "olive oil",
+        20,
+        "ml"
+      ],
+      [
+        "water",
+        400,
+        "ml"
+      ],
+      [
+        "salt",
+        4,
+        "g"
+      ],
+      [
+        "black pepper",
+        1,
+        "g"
+      ]
+    ],
+    "steps": [
+      "Make small slits in the beef and insert garlic pieces. Place in a covered non-reactive dish with the wine, chopped carrot and onion, rosemary and cloves. Refrigerate for 8 hours.",
+      "Remove and pat dry the beef, reserving all marinade and vegetables. Heat the oil in a heavy pot and brown the beef for about 10 minutes.",
+      "Add the drained vegetables and tomato paste and cook briefly. Add the reserved marinade, water, prunes, salt and pepper and bring to a boil.",
+      "Cover and braise gently for 2½–3 hours, until the beef is tender. Add water if the pot becomes too dry.",
+      "Remove the beef, rosemary stems and cloves. Blend the sauce, slice the beef and return it to the sauce. Divide into 4 portions. Extra gnocchi is optional and is not included in these quantities."
+    ],
+    "description": "Dalmatian-style braised beef in a wine, vegetable and prune sauce."
+  },
+  {
+    "name": "Pad Thai",
+    "servings": 2,
+    "prep": 15,
+    "cook": 15,
+    "total": 60,
+    "reason": "Include the sugar, oil and oyster sauce required by the method and specify a shrimp version.",
+    "ingredients": [
+      [
+        "rice noodles",
+        150,
+        "g",
+        "dry"
+      ],
+      [
+        "shrimp",
+        250,
+        "g",
+        "raw, peeled"
+      ],
+      [
+        "eggs",
+        100,
+        "g",
+        "2 large eggs, without shells"
+      ],
+      [
+        "bean sprouts",
+        100,
+        "g"
+      ],
+      [
+        "peanuts",
+        30,
+        "g"
+      ],
+      [
+        "fish sauce",
+        15,
+        "ml"
+      ],
+      [
+        "tamarind paste",
+        20,
+        "g",
+        "unsweetened"
+      ],
+      [
+        "lime",
+        60,
+        "g",
+        "1 small lime; juice used"
+      ],
+      [
+        "sugar",
+        15,
+        "g"
+      ],
+      [
+        "oyster sauce",
+        10,
+        "g"
+      ],
+      [
+        "sunflower oil",
+        15,
+        "ml"
+      ],
+      [
+        "green onion",
+        30,
+        "g"
+      ],
+      [
+        "chilli flakes",
+        0.5,
+        "g"
+      ]
+    ],
+    "steps": [
+      "Soak the rice noodles for about 30 minutes, or according to their packet instructions, then drain.",
+      "Mix the fish sauce, tamarind, sugar, oyster sauce and 2 tablespoons water.",
+      "Heat the oil in a wok. Stir-fry the shrimp until almost cooked, push to one side and scramble the eggs in the same wok.",
+      "Add the drained noodles and sauce. Toss for 2–3 minutes, until the noodles are tender and the shrimp is cooked through. Add a little water if needed.",
+      "Fold in the bean sprouts and sliced green onion. Divide into 2 portions and top with chopped peanuts, chilli flakes and lime juice."
+    ],
+    "description": "Thai-style stir-fried rice noodles with shrimp, egg, tamarind sauce and peanuts."
+  },
+  {
+    "name": "Falafel",
+    "servings": 3,
+    "prep": 20,
+    "cook": 15,
+    "total": 785,
+    "reason": "Define dry chickpeas and a frying bath separately from consumed oil; include soaking and chilling time.",
+    "ingredients": [
+      [
+        "chickpeas",
+        180,
+        "g",
+        "dry, not canned"
+      ],
+      [
+        "cilantro",
+        20,
+        "g"
+      ],
+      [
+        "parsley",
+        20,
+        "g"
+      ],
+      [
+        "garlic",
+        6,
+        "g"
+      ],
+      [
+        "onion",
+        60,
+        "g"
+      ],
+      [
+        "cumin",
+        2,
+        "g",
+        "ground"
+      ],
+      [
+        "coriander seeds",
+        2,
+        "g",
+        "ground"
+      ],
+      [
+        "baking soda",
+        2,
+        "g"
+      ],
+      [
+        "salt",
+        3,
+        "g"
+      ],
+      [
+        "sunflower oil",
+        500,
+        "ml",
+        "frying bath; most is not consumed"
+      ]
+    ],
+    "steps": [
+      "Soak the dried chickpeas in plenty of cold water in the refrigerator for at least 12 hours. Drain thoroughly. Do not use canned or cooked chickpeas.",
+      "Process the soaked chickpeas with the herbs, garlic, onion, cumin, coriander and salt to a fine, crumbly mixture. Do not purée.",
+      "Stir in the baking soda, cover and refrigerate for 30 minutes. Shape into 12 small balls.",
+      "Heat the frying oil to 180°C in a suitable deep pan. Fry in small batches for 3–4 minutes, until golden and cooked through. Drain well.",
+      "Serve 4 falafel per portion. Extra bread, salad or sauce is optional and is not included in the quantities."
+    ],
+    "description": "Crisp chickpea falafel with fresh herbs, garlic, cumin and coriander.",
+    "nutritionReview": "The 500 ml oil is a frying bath, not an edible amount. Nutrition requires an explicit retained-oil assumption; do not count the entire bath."
+  },
+  {
+    "name": "Schnitzel with Potato Salad",
+    "servings": 2,
+    "prep": 20,
+    "cook": 25,
+    "total": 45,
+    "reason": "Separate frying oil from dressing oil and identify coating leftovers.",
+    "ingredients": [
+      [
+        "pork loin",
+        300,
+        "g",
+        "2 boneless cutlets"
+      ],
+      [
+        "flour",
+        40,
+        "g",
+        "coating; discard excess"
+      ],
+      [
+        "eggs",
+        50,
+        "g",
+        "1 large egg, without shell; coating"
+      ],
+      [
+        "breadcrumbs",
+        70,
+        "g",
+        "coating; discard excess"
+      ],
+      [
+        "potatoes",
+        400,
+        "g",
+        "peeled"
+      ],
+      [
+        "onion",
+        50,
+        "g"
+      ],
+      [
+        "lemon juice",
+        15,
+        "ml"
+      ],
+      [
+        "sunflower oil",
+        150,
+        "ml",
+        "135 ml frying bath; 15 ml dressing"
+      ],
+      [
+        "white wine vinegar",
+        20,
+        "ml"
+      ],
+      [
+        "mustard",
+        10,
+        "g"
+      ],
+      [
+        "salt",
+        3,
+        "g",
+        "1 g for pork; 2 g for salad"
+      ],
+      [
+        "black pepper",
+        0.5,
+        "g"
+      ]
+    ],
+    "steps": [
+      "Boil the potatoes until tender, about 20 minutes. Slice while warm. Toss with finely diced onion, vinegar, mustard, 15 ml oil, 2 g salt and pepper.",
+      "Pound the pork cutlets to about 5 mm thick and season with the remaining 1 g salt.",
+      "Put the flour, beaten egg and breadcrumbs in separate dishes. Coat the cutlets in that order, shaking off excess. Discard unused coating that has touched raw pork.",
+      "Heat the remaining 135 ml oil in a wide pan. Shallow-fry the cutlets for 2–3 minutes on each side, until golden and cooked through. Drain well.",
+      "Serve each cutlet with half the potato salad and lemon juice."
+    ],
+    "nutritionReview": "Do not count the entire frying bath or unused breading. Retained oil and coating require explicit estimates."
+  },
+  {
+    "name": "Sushi Set",
+    "servings": 3,
+    "prep": 35,
+    "cook": 20,
+    "total": 75,
+    "reason": "Define dry rice, edible fish weights and rice seasoning rather than an unspecified set.",
+    "ingredients": [
+      [
+        "sushi rice",
+        225,
+        "g",
+        "dry"
+      ],
+      [
+        "water",
+        300,
+        "ml",
+        "adjust to rice packet instructions"
+      ],
+      [
+        "salmon",
+        150,
+        "g",
+        "boneless; intended for raw preparation"
+      ],
+      [
+        "tuna",
+        150,
+        "g",
+        "boneless; intended for raw preparation"
+      ],
+      [
+        "avocado",
+        100,
+        "g",
+        "flesh only"
+      ],
+      [
+        "nori",
+        6,
+        "g",
+        "3 sheets"
+      ],
+      [
+        "rice vinegar",
+        45,
+        "ml"
+      ],
+      [
+        "sugar",
+        15,
+        "g"
+      ],
+      [
+        "salt",
+        3,
+        "g"
+      ],
+      [
+        "soy sauce",
+        30,
+        "ml"
+      ],
+      [
+        "wasabi",
+        6,
+        "g"
+      ],
+      [
+        "ginger",
+        30,
+        "g",
+        "pickled, drained"
+      ]
+    ],
+    "steps": [
+      "Rinse the rice and cook with the measured water according to the packet instructions, about 20 minutes.",
+      "Dissolve the sugar and salt in the rice vinegar. Fold into the hot rice and spread out to cool for about 20 minutes.",
+      "Keep the fish refrigerated until assembly. Use fish suitable for raw preparation; cut some into strips for rolls and the rest into thin slices for nigiri.",
+      "Slice the avocado. Spread part of the rice over the nori, add fish strips and avocado, roll tightly and cut into pieces.",
+      "Shape the remaining rice into small oblongs and top with the remaining fish. Divide the rolls and nigiri into 3 portions and serve promptly with the measured soy sauce, wasabi and pickled ginger."
+    ]
+  }
+]

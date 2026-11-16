@@ -76,6 +76,13 @@ const dishes = {
 };
 
 async function run() {
+  assert.deepEqual(toDishDto({ ...dish, nutrition: { calories: 380 } })?.nutrition, { calories: 380 });
+  assert.deepEqual(toDishDto({ ...dish, nutrition: {
+    calories: 380, estimated: true, basis: 'per_serving', referenceRevision: 'internal',
+  } })?.nutrition, { calories: 380, estimated: true, basis: 'per_serving' });
+  assert.deepEqual(toDishDto({ ...dish, nutrition: {
+    calories: 380, estimated: true, basis: 'per_100g',
+  } })?.nutrition, { calories: 380 }, 'never present a per-100g estimate as a serving');
   const listQueries: string[] = [];
   const listRepository = new PostgresDishRepository((async (text: string) => {
     listQueries.push(text);

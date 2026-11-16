@@ -1,5 +1,7 @@
 export interface DishNutritionDto {
   calories: number;
+  estimated?: boolean;
+  basis?: 'per_serving';
 }
 
 export interface DishDto {
@@ -221,7 +223,9 @@ function readNutrition(nutrition: any): DishNutritionDto | null {
     return null;
   }
 
-  return { calories };
+  return nutrition?.estimated === true && nutrition?.basis === 'per_serving'
+    ? { calories, estimated: true, basis: 'per_serving' }
+    : { calories };
 }
 
 function readSteps(rawDish: any): Array<{ step: number; text: string }> {
