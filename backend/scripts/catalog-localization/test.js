@@ -1,0 +1,28 @@
+const assert = require('node:assert/strict');
+const { validate, sourceHash } = require('./validate');
+const source = require('../../data/catalog-localization/source.en.json');
+const translations = require('../../data/catalog-localization/de.json');
+const clone = value => JSON.parse(JSON.stringify(value));
+
+assert.equal(source.length, 239);
+assert.equal(source.flatMap(d => d.steps || []).length, 1293);
+assert.equal(validate(source, translations, false).dishes, 4);
+assert.throws(() => validate(source, translations), /Incomplete catalog/);
+const changed = clone(source);
+changed[0].description += ' Changed.';
+assert.notEqual(sourceHash(changed[0]), sourceHash(source[0]));
+assert.throws(() => validate(changed, translations, false), /Stale translation/);
+assert.throws(() => validate(source, [...translations, translations[0]], false), /duplicate/);
+const missing = clone(translations);
+delete missing[0].strings.Croissant;
+assert.throws(() => validate(source, missing, false), /Missing text/);
+const unknown = clone(translations);
+unknown[0].strings['not part of this recipe'] = 'Fremder Text';
+assert.throws(() => validate(source, unknown, false), /Unknown source string/);
+const changedQuantity = clone(translations);
+changedQuantity[0].strings['6 servings'] = '8 Portionen';
+assert.throws(() => validate(source, changedQuantity, false), /Numerical mismatch/);
+const unknownDish = clone(translations);
+unknownDish[0].id = 'not-a-catalog-dish';
+assert.throws(() => validate(source, unknownDish, false), /Unknown or duplicate/);
+console.log('PASS localization source integrity, coverage gate, stale source, IDs, text completeness and numeric parity');

@@ -1,0 +1,93 @@
+[
+  {
+    "id": "008a73aa-1855-4108-83c7-fe6faa484af2",
+    "strings": {
+      "Croissant": "Croissant",
+      "Buttery, flaky laminated pastry with a golden crust and pillowy interior.": "Butterzartes, blättriges Gebäck mit goldener Kruste und luftigem Inneren.",
+      "6 servings": "6 Portionen",
+      "whole milk": "Vollmilch",
+      "sugar": "Zucker",
+      "bread flour": "Weizenmehl zum Brotbacken",
+      "salt": "Salz",
+      "instant yeast": "Instant-Trockenhefe",
+      "egg wash": "Ei zum Bestreichen",
+      "beaten whole egg; amount used for brushing": "verquirltes Vollei; zum Bestreichen verwendete Menge",
+      "butter": "Butter",
+      "20 g for the dough; 80 g for lamination": "20 g für den Teig; 80 g zum Tourieren",
+      "Mix the flour, yeast, milk, sugar, salt and 20 g softened butter into a smooth dough. Cover and refrigerate for 1 hour.": "Mehl, Hefe, Milch, Zucker, Salz und 20 g weiche Butter zu einem glatten Teig verkneten. Abgedeckt 1 Stunde im Kühlschrank ruhen lassen.",
+      "Flatten the remaining 80 g cold butter between sheets of baking paper into a small square. Chill until firm but pliable.": "Die restlichen 80 g kalte Butter zwischen zwei Bögen Backpapier zu einem kleinen Quadrat flach drücken. Kühlen, bis sie fest, aber noch formbar ist.",
+      "Roll the dough around the butter to enclose it. Roll into a rectangle and fold in thirds. Chill for 30 minutes. Repeat the rolling, folding and chilling 3 more times, keeping the butter cold.": "Die Butter mit dem ausgerollten Teig vollständig umschließen. Zu einem Rechteck ausrollen und in Dritteln zusammenfalten. 30 Minuten kühlen. Ausrollen, Falten und Kühlen noch 3 Mal wiederholen. Die Butter dabei stets kalt halten.",
+      "Roll the dough about 4 mm thick and cut into 6 long triangles. Roll each triangle from its base to its tip and place on a lined baking tray.": "Den Teig etwa 4 mm dick ausrollen und in 6 lange Dreiecke schneiden. Jedes Dreieck von der breiten Seite zur Spitze aufrollen und auf ein mit Backpapier belegtes Blech legen.",
+      "Leave to proof for about 2 hours at room temperature, until visibly puffy. The butter should not melt during proofing.": "Bei Raumtemperatur etwa 2 Stunden gehen lassen, bis die Croissants sichtbar aufgegangen sind. Die Butter darf dabei nicht schmelzen.",
+      "Preheat the oven to 200°C. Brush with 10 g beaten egg and bake for 15–18 minutes, until deeply golden. Makes 6 small croissants.": "Den Backofen auf 200°C vorheizen. Mit 10 g verquirltem Ei bestreichen und 15–18 Minuten kräftig goldbraun backen. Ergibt 6 kleine Croissants."
+    },
+    "sourceHash": "69f4c9c5caf3fe17f3c4977f9b14d96f3e715a9ba471f3aaff8752acee2237d5"
+  },
+  {
+    "id": "03514be5-27a4-4b3a-861e-50d9e65a92a5",
+    "strings": {
+      "Minestrone Soup": "Minestrone",
+      "Rustic Italian vegetable soup with tomatoes, zucchini, beans, and pasta.": "Italienische Gemüsesuppe mit Tomaten, Zucchini, Bohnen und Nudeln.",
+      "4 servings": "4 Portionen",
+      "small pasta": "kleine Nudeln",
+      "dry, egg-free": "trocken, ohne Ei",
+      "vegetable stock": "Gemüsebrühe",
+      "prepared, reduced-salt": "zubereitet, salzreduziert",
+      "garlic": "Knoblauch",
+      "black pepper": "schwarzer Pfeffer",
+      "basil": "Basilikum",
+      "canned tomatoes": "Tomaten aus der Dose",
+      "celery": "Staudensellerie",
+      "onion": "Zwiebel",
+      "white beans": "weiße Bohnen",
+      "canned, drained": "aus der Dose, abgetropft",
+      "olive oil": "Olivenöl",
+      "15 ml for cooking; 5 ml for serving": "15 ml zum Anbraten; 5 ml zum Servieren",
+      "salt": "Salz",
+      "zucchini": "Zucchini",
+      "carrot": "Karotte",
+      "Dice the onion, carrot and celery. Heat 15 ml olive oil in a pot and cook the vegetables for 8 minutes. Add chopped garlic and cook for 1 minute.": "Zwiebel, Karotte und Sellerie würfeln. 15 ml Olivenöl in einem Topf erhitzen und das Gemüse 8 Minuten darin anschwitzen. Gehackten Knoblauch hinzufügen und 1 Minute mitgaren.",
+      "Add the canned tomatoes and vegetable stock and bring to a boil.": "Dosentomaten und Gemüsebrühe hinzufügen und aufkochen.",
+      "Add diced zucchini and the drained canned beans. Simmer for 15 minutes.": "Gewürfelte Zucchini und abgetropfte Bohnen hinzufügen. 15 Minuten köcheln lassen.",
+      "Stir in the dry pasta and cook for the time stated on its packet, usually 8–10 minutes. Add a little water if the soup becomes too thick.": "Die trockenen Nudeln einrühren und nach Packungsangabe garen, meist 8–10 Minuten. Falls die Suppe zu dick wird, etwas Wasser hinzufügen.",
+      "Stir in chopped basil, salt and pepper. Divide into 4 bowls and finish with the remaining 5 ml olive oil. Extra bread is optional and is not included in the recipe quantities.": "Gehacktes Basilikum, Salz und Pfeffer einrühren. Auf 4 Schüsseln verteilen und mit den restlichen 5 ml Olivenöl beträufeln. Nach Wunsch Brot dazu reichen; es ist nicht in den Rezeptmengen enthalten."
+    },
+    "sourceHash": "aa6ad3f4609c83ba68902ea756d0823537c3257cd4d4009be5f41849977d6b10"
+  },
+  {
+    "id": "035355e8-6559-4863-846f-0f02b301b97d",
+    "strings": {
+      "French Fries": "Pommes frites",
+      "Golden crispy potato fries seasoned with sea salt — the ultimate side dish.": "Goldbraune, knusprige Kartoffelstäbchen mit Meersalz – eine beliebte Beilage.",
+      "2-4 servings": "2-4 Portionen",
+      "vegetable oil": "Pflanzenöl",
+      "sea salt": "Meersalz",
+      "floury potatoes": "mehligkochende Kartoffeln",
+      "Peel and cut potatoes into even sticks. Soak in cold water for 30 minutes to remove starch.": "Kartoffeln schälen und in gleichmäßige Stäbchen schneiden. 30 Minuten in kaltes Wasser legen, um Stärke auszuwaschen.",
+      "Drain and dry very thoroughly — water causes dangerous oil splashing.": "Abgießen und sehr gründlich trocknen – Wasser verursacht gefährliche Ölspritzer.",
+      "First fry at 160°C for 5 minutes (blanching). Remove and drain. They should not be golden yet.": "Zuerst bei 160°C für 5 Minuten vorfrittieren. Herausnehmen und abtropfen lassen. Die Pommes sollen noch nicht goldbraun sein.",
+      "Heat oil to 190°C. Fry again in batches for 2–3 minutes until deeply golden and crispy.": "Das Öl auf 190°C erhitzen. Die Pommes portionsweise erneut 2–3 Minuten frittieren, bis sie kräftig goldbraun und knusprig sind.",
+      "Drain on paper towels and season immediately with sea salt. Serve at once.": "Auf Küchenpapier abtropfen lassen und sofort mit Meersalz würzen. Direkt servieren."
+    },
+    "sourceHash": "de4723d7754fd122c9fcb6fd37c37305168da45fcecfe1d768640c27f54ba973"
+  },
+  {
+    "id": "049cfcb9-4fb2-435e-87db-d25ec734b61c",
+    "strings": {
+      "Crème Brûlée": "Crème brûlée",
+      "Creamy vanilla custard beneath a perfectly crackled caramelised sugar crust.": "Samtige Vanillecreme unter einer knusprigen Kruste aus karamellisiertem Zucker.",
+      "2-4 servings": "2-4 Portionen",
+      "heavy cream": "Schlagsahne",
+      "egg yolks": "Eigelb",
+      "vanilla bean": "Vanilleschote",
+      "sugar": "Zucker",
+      "Heat cream with a split vanilla bean until steaming (not boiling). Remove bean.": "Sahne mit einer längs aufgeschnittenen Vanilleschote erhitzen, bis sie dampft, aber nicht kocht. Die Schote entfernen.",
+      "Whisk egg yolks with sugar until pale. Slowly pour warm cream into yolks, whisking constantly.": "Eigelb und Zucker hellcremig aufschlagen. Die warme Sahne unter ständigem Rühren langsam zugießen.",
+      "Strain the custard and pour into ramekins.": "Die Creme durch ein Sieb gießen und auf ofenfeste Förmchen verteilen.",
+      "Place ramekins in a water bath. Bake at 150°C for 35–40 minutes until just set but still wobbly.": "Die Förmchen in ein Wasserbad stellen. Bei 150°C für 35–40 Minuten backen, bis die Creme gerade gestockt ist, in der Mitte aber noch leicht wackelt.",
+      "Cool, then refrigerate for at least 2 hours.": "Abkühlen lassen und anschließend mindestens 2 Stunden im Kühlschrank kalt stellen.",
+      "Sprinkle a thin layer of sugar over each ramekin. Caramelise with a blowtorch until amber and crackling.": "Jede Creme dünn mit Zucker bestreuen. Mit einem Küchenbrenner karamellisieren, bis eine bernsteinfarbene, knusprige Kruste entsteht."
+    },
+    "sourceHash": "542fe0322ce92350678b634ab89d16317b8c1c0b53b854edd998c641bca9b474"
+  }
+]
