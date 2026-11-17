@@ -6,7 +6,7 @@ const clone = value => JSON.parse(JSON.stringify(value));
 
 assert.equal(source.length, 239);
 assert.equal(source.flatMap(d => d.steps || []).length, 1293);
-assert.equal(validate(source, translations, false).dishes, 4);
+assert.equal(validate(source, translations, false).dishes, translations.length);
 assert.throws(() => validate(source, translations), /Incomplete catalog/);
 const changed = clone(source);
 changed[0].description += ' Changed.';
@@ -26,3 +26,13 @@ const unknownDish = clone(translations);
 unknownDish[0].id = 'not-a-catalog-dish';
 assert.throws(() => validate(source, unknownDish, false), /Unknown or duplicate/);
 console.log('PASS localization source integrity, coverage gate, stale source, IDs, text completeness and numeric parity');
+
+const unreviewed = clone(translations);
+unreviewed[0].reviewStatus = 'pending';
+assert.throws(() => validate(source, unreviewed, false), /Unreviewed/);
+const temperatureSource = [{ id: 'temperature', name: 'Bake at 180°C' }];
+assert.throws(() => validate(temperatureSource, [{ id: 'temperature',
+  sourceHash: sourceHash(temperatureSource[0]), reviewStatus: 'reviewed',
+  strings: { 'Bake at 180°C': 'Bei 180°F backen' },
+}]), /Temperature unit mismatch/);
+console.log('PASS editorial review and temperature unit release gates');

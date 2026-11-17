@@ -22,7 +22,9 @@ not a database backup or a complete numeric recipe snapshot.
 The SHA-256 source hash covers the complete exported source object, including
 child IDs. Every nonempty source text must have an explicit translation; shared
 strings are deduplicated only within one recipe. Proper names may remain equal.
-No untranslated strings are silently marked as complete.
+No untranslated strings are silently marked as complete. Each approved entry must
+carry `reviewStatus: "reviewed"`; pending drafts fail validation. Temperature
+units are checked as well as numbers.
 
 Use consistent German cooking infinitives. Preserve quantities, times,
 temperatures, alternatives and safety instructions. Keep ingredient identities,
@@ -40,7 +42,7 @@ node backend/scripts/catalog-localization/validate.js --progress
 node backend/scripts/catalog-localization/validate.js
 ```
 
-The last command is the release gate. Currently 4/239 recipes are translated;
+The last command is the release gate. Currently 12/239 recipes are translated;
 it intentionally fails. Progress mode still validates every submitted recipe
 and does not accept partial translations within a recipe.
 
@@ -62,7 +64,7 @@ For future additions see [NEW_DISHES.md](NEW_DISHES.md).
 
 ## Remaining in this same PR
 
-- Translate and review all remaining 235 recipes, plus display unit vocabulary.
+- Translate and review all remaining 227 recipes, plus display unit vocabulary.
 - Store translations in Supabase with source guards and restricted client writes;
   do not duplicate recipes or change canonical IDs.
 - Complete shopping-list translations and structured measurement unit display.

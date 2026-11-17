@@ -23,6 +23,7 @@ function validate(source, translations, requireComplete = true) {
     const dish = byId.get(entry.id);
     if (!dish || seen.has(entry.id)) throw new Error(`Unknown or duplicate dish: ${entry.id}`);
     seen.add(entry.id);
+    if (entry.reviewStatus !== 'reviewed') throw new Error(`Unreviewed translation: ${dish.name}`);
     if (entry.sourceHash !== sourceHash(dish)) throw new Error(`Stale translation: ${dish.name}`);
     const sourceStrings = stringsFor(dish);
     const targets = entry.strings;
@@ -35,6 +36,10 @@ function validate(source, translations, requireComplete = true) {
       const numbers = text => (text.match(/\d+(?:[.,]\d+)?/g) || []).map(n => n.replace(',', '.')).sort();
       if (JSON.stringify(numbers(original)) !== JSON.stringify(numbers(targets[original]))) {
         throw new Error(`Numerical mismatch in ${dish.name}: ${original}`);
+      }
+      const temperatures = text => (text.match(/°\s*[CF]/g) || []).map(unit => unit.replace(/\s/g, '')).sort();
+      if (JSON.stringify(temperatures(original)) !== JSON.stringify(temperatures(targets[original]))) {
+        throw new Error(`Temperature unit mismatch in ${dish.name}: ${original}`);
       }
       translatedStrings++;
     }

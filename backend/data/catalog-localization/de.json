@@ -21,7 +21,8 @@
       "Leave to proof for about 2 hours at room temperature, until visibly puffy. The butter should not melt during proofing.": "Bei Raumtemperatur etwa 2 Stunden gehen lassen, bis die Croissants sichtbar aufgegangen sind. Die Butter darf dabei nicht schmelzen.",
       "Preheat the oven to 200°C. Brush with 10 g beaten egg and bake for 15–18 minutes, until deeply golden. Makes 6 small croissants.": "Den Backofen auf 200°C vorheizen. Mit 10 g verquirltem Ei bestreichen und 15–18 Minuten kräftig goldbraun backen. Ergibt 6 kleine Croissants."
     },
-    "sourceHash": "69f4c9c5caf3fe17f3c4977f9b14d96f3e715a9ba471f3aaff8752acee2237d5"
+    "sourceHash": "69f4c9c5caf3fe17f3c4977f9b14d96f3e715a9ba471f3aaff8752acee2237d5",
+    "reviewStatus": "reviewed"
   },
   {
     "id": "03514be5-27a4-4b3a-861e-50d9e65a92a5",
@@ -52,7 +53,8 @@
       "Stir in the dry pasta and cook for the time stated on its packet, usually 8–10 minutes. Add a little water if the soup becomes too thick.": "Die trockenen Nudeln einrühren und nach Packungsangabe garen, meist 8–10 Minuten. Falls die Suppe zu dick wird, etwas Wasser hinzufügen.",
       "Stir in chopped basil, salt and pepper. Divide into 4 bowls and finish with the remaining 5 ml olive oil. Extra bread is optional and is not included in the recipe quantities.": "Gehacktes Basilikum, Salz und Pfeffer einrühren. Auf 4 Schüsseln verteilen und mit den restlichen 5 ml Olivenöl beträufeln. Nach Wunsch Brot dazu reichen; es ist nicht in den Rezeptmengen enthalten."
     },
-    "sourceHash": "aa6ad3f4609c83ba68902ea756d0823537c3257cd4d4009be5f41849977d6b10"
+    "sourceHash": "aa6ad3f4609c83ba68902ea756d0823537c3257cd4d4009be5f41849977d6b10",
+    "reviewStatus": "reviewed"
   },
   {
     "id": "035355e8-6559-4863-846f-0f02b301b97d",
@@ -69,7 +71,8 @@
       "Heat oil to 190°C. Fry again in batches for 2–3 minutes until deeply golden and crispy.": "Das Öl auf 190°C erhitzen. Die Pommes portionsweise erneut 2–3 Minuten frittieren, bis sie kräftig goldbraun und knusprig sind.",
       "Drain on paper towels and season immediately with sea salt. Serve at once.": "Auf Küchenpapier abtropfen lassen und sofort mit Meersalz würzen. Direkt servieren."
     },
-    "sourceHash": "de4723d7754fd122c9fcb6fd37c37305168da45fcecfe1d768640c27f54ba973"
+    "sourceHash": "de4723d7754fd122c9fcb6fd37c37305168da45fcecfe1d768640c27f54ba973",
+    "reviewStatus": "reviewed"
   },
   {
     "id": "049cfcb9-4fb2-435e-87db-d25ec734b61c",
@@ -88,6 +91,190 @@
       "Cool, then refrigerate for at least 2 hours.": "Abkühlen lassen und anschließend mindestens 2 Stunden im Kühlschrank kalt stellen.",
       "Sprinkle a thin layer of sugar over each ramekin. Caramelise with a blowtorch until amber and crackling.": "Jede Creme dünn mit Zucker bestreuen. Mit einem Küchenbrenner karamellisieren, bis eine bernsteinfarbene, knusprige Kruste entsteht."
     },
-    "sourceHash": "542fe0322ce92350678b634ab89d16317b8c1c0b53b854edd998c641bca9b474"
+    "sourceHash": "542fe0322ce92350678b634ab89d16317b8c1c0b53b854edd998c641bca9b474",
+    "reviewStatus": "reviewed"
+  },
+  {
+    "id": "04c779af-d709-441b-960e-3e65f2f6e8eb",
+    "sourceHash": "7c5113cb0aa73cac002aa8e2023c69eb48639a909bf1a2a2b71f2731190967b5",
+    "reviewStatus": "reviewed",
+    "strings": {
+      "Ajapsandali (Georgian Vegetable Stew)": "Adschapsandali (georgischer Gemüseeintopf)",
+      "Eggplant, pepper, and tomato stewed together with garlic and herbs — Georgia's everyday summer vegetable dish, made whenever the garden is full.": "Auberginen, Paprika und Tomaten, mit Knoblauch und Kräutern geschmort – ein georgisches Alltagsgericht für den Sommer, wenn der Garten reichlich Gemüse liefert.",
+      "2 servings": "2 Portionen",
+      "salt": "Salz",
+      "onion": "Zwiebel",
+      "cilantro": "Koriandergrün",
+      "tomatoes": "Tomaten",
+      "vegetable oil": "Pflanzenöl",
+      "khmeli-suneli": "Chmeli-Suneli",
+      "eggplant": "Aubergine",
+      "red bell peppers": "rote Paprika",
+      "garlic": "Knoblauch",
+      "Cut the eggplant, peppers, tomatoes, and onion into bite-sized chunks.": "Aubergine, Paprika, Tomaten und Zwiebel in mundgerechte Stücke schneiden.",
+      "Salt the eggplant and let sit for 10 minutes, then pat dry.": "Die Aubergine salzen und 10 Minuten ziehen lassen, dann trocken tupfen.",
+      "Heat oil in a wide pan and fry the eggplant until softened and lightly golden, about 8 minutes.": "Öl in einer breiten Pfanne erhitzen und die Aubergine etwa 8 Minuten braten, bis sie weich und leicht goldbraun ist.",
+      "Add the onion and peppers, and cook for another 5 minutes.": "Zwiebel und Paprika hinzufügen und weitere 5 Minuten garen.",
+      "Stir in the tomatoes, garlic, and khmeli-suneli, cover, and simmer for 12-15 minutes until everything is soft and stewed together.": "Tomaten, Knoblauch und Chmeli-Suneli unterrühren. Zugedeckt 12–15 Minuten köcheln lassen, bis das Gemüse weich und gut durchgeschmort ist.",
+      "Season with salt, stir in cilantro, and serve warm or at room temperature.": "Mit Salz abschmecken, Koriandergrün unterrühren und warm oder bei Zimmertemperatur servieren."
+    }
+  },
+  {
+    "id": "050f7660-0c68-4776-965f-8b281616df56",
+    "sourceHash": "d6d74012393c614e0c55f8b194c2445d4b87a4f434d0f5322a3628382dbbd3cb",
+    "reviewStatus": "reviewed",
+    "strings": {
+      "Mashed Potatoes": "Kartoffelpüree",
+      "Buttery, silky smooth mashed potatoes — the ultimate comfort side dish.": "Samtig-cremiges Kartoffelpüree mit Butter – eine wohltuende Beilage für viele Gerichte.",
+      "2-4 servings": "2–4 Portionen",
+      "floury potatoes": "mehligkochende Kartoffeln",
+      "salt": "Salz",
+      "whole milk": "Vollmilch",
+      "nutmeg": "Muskatnuss",
+      "butter": "Butter",
+      "Peel and cube potatoes. Cover with cold salted water and bring to a boil.": "Kartoffeln schälen und würfeln. Mit kaltem Salzwasser bedecken und zum Kochen bringen.",
+      "Cook for 15–20 minutes until completely tender when pierced. Drain thoroughly.": "15–20 Minuten kochen, bis sich die Kartoffeln leicht einstechen lassen und vollständig weich sind. Gründlich abgießen.",
+      "Return to the dry pot over low heat for 1 minute to drive off excess moisture.": "Zurück in den trockenen Topf geben und bei schwacher Hitze 1 Minute ausdampfen lassen.",
+      "Mash with a potato ricer or masher. Do not use a blender — it makes them gluey.": "Durch eine Kartoffelpresse drücken oder mit einem Kartoffelstampfer zerdrücken. Keinen Mixer verwenden, da das Püree sonst klebrig wird.",
+      "Gradually beat in hot milk and cold butter in stages until silky. Season with salt and a pinch of nutmeg.": "Heiße Milch und kalte Butter nach und nach einarbeiten, bis das Püree samtig ist. Mit Salz und einer Prise Muskatnuss abschmecken."
+    }
+  },
+  {
+    "id": "062fe68b-d0c4-4e63-961b-bbd8f9ee0a22",
+    "sourceHash": "8e8c81de9ca90276e594c1ac6306cf6643154ce7afe344d3b129f295022f250c",
+    "reviewStatus": "reviewed",
+    "strings": {
+      "Gazpacho": "Gazpacho",
+      "Ice-cold Spanish blended tomato soup with cucumber, pepper, and sherry vinegar.": "Eiskalte spanische Tomatensuppe, fein püriert mit Gurke, Paprika und Sherryessig.",
+      "2-4 servings": "2–4 Portionen",
+      "cucumber": "Gurke",
+      "garlic": "Knoblauch",
+      "olive oil": "Olivenöl",
+      "stale bread": "altbackenes Brot",
+      "red bell pepper": "rote Paprika",
+      "sherry vinegar": "Sherryessig",
+      "ripe tomatoes": "reife Tomaten",
+      "Roughly chop tomatoes, cucumber, and pepper. Soak a slice of stale bread in water.": "Tomaten, Gurke und Paprika grob schneiden. Eine Scheibe altbackenes Brot in Wasser einweichen.",
+      "Blend all vegetables with garlic, soaked bread, sherry vinegar, and olive oil until smooth.": "Das Gemüse mit Knoblauch, eingeweichtem Brot, Sherryessig und Olivenöl glatt pürieren.",
+      "Season with salt. Add a splash of cold water to adjust consistency.": "Mit Salz abschmecken. Die Konsistenz bei Bedarf mit etwas kaltem Wasser anpassen.",
+      "Refrigerate for at least 2 hours until very cold. Serve in glasses with diced vegetable garnish.": "Mindestens 2 Stunden im Kühlschrank sehr gut durchkühlen lassen. In Gläsern servieren und mit gewürfeltem Gemüse garnieren."
+    }
+  },
+  {
+    "id": "0749a0ba-88d8-4bdd-a945-bca30a09043f",
+    "sourceHash": "b22efa05e552691d545778d27b71261b8806636804c6307768b266b7a04c1312",
+    "reviewStatus": "reviewed",
+    "strings": {
+      "Żurek (Polish Sour Rye Soup)": "Żurek (polnische saure Roggensuppe)",
+      "Thick, tangy Polish soup made from fermented rye starter with sausage and hard-boiled egg.": "Sämige, säuerliche polnische Suppe aus fermentiertem Roggensauer mit Wurst und hart gekochtem Ei.",
+      "4-6 servings": "4–6 Portionen",
+      "hard-boiled eggs": "hart gekochte Eier",
+      "rye sour base (zakwas)": "Roggensauer für Suppe (Zakwas)",
+      "white sausage (biała kiełbasa)": "polnische weiße Wurst (Biała Kiełbasa)",
+      "meat stock": "Fleischbrühe",
+      "garlic": "Knoblauch",
+      "dried marjoram": "getrockneter Majoran",
+      "sour cream": "saure Sahne",
+      "potato": "Kartoffel",
+      "Boil white sausage and potatoes in separate pots until cooked through. Slice sausage.": "Weiße Wurst und Kartoffeln in getrennten Töpfen vollständig garen. Die Wurst in Scheiben schneiden.",
+      "In a pot, combine rye sour base (zakwas) with meat stock. Bring to a gentle simmer.": "Roggensauer (Zakwas) und Fleischbrühe in einem Topf vermischen und sanft zum Köcheln bringen.",
+      "Add crushed garlic and dried marjoram. Stir in a large spoonful of sour cream.": "Zerdrückten Knoblauch und getrockneten Majoran hinzufügen. Einen großen Löffel saure Sahne unterrühren.",
+      "Add sliced sausage and diced potatoes. Simmer for 10 minutes.": "Wurstscheiben und gewürfelte Kartoffeln hinzufügen und 10 Minuten köcheln lassen.",
+      "Season with salt and white pepper. The soup should have a distinct, pleasant sourness.": "Mit Salz und weißem Pfeffer abschmecken. Die Suppe soll eine deutlich wahrnehmbare, angenehme Säure haben.",
+      "Serve in deep bowls or hallowed bread rolls, topped with a halved hard-boiled egg.": "In tiefen Schalen oder ausgehöhlten Brötchen servieren und mit einem halbierten hart gekochten Ei garnieren."
+    }
+  },
+  {
+    "id": "089492ee-a842-41b1-bd82-b4b99781995d",
+    "sourceHash": "b92a051460c6003f9a5cd670d3ac74b3a0378a0f06879e6fbaea54a094fa59d5",
+    "reviewStatus": "reviewed",
+    "strings": {
+      "Rote Grütze (Red Berry Pudding)": "Rote Grütze",
+      "Northern German summer dessert of mixed red berries in a light vanilla sauce.": "Norddeutsches Sommerdessert aus gemischten roten Beeren mit einer leichten Vanillesoße.",
+      "2-4 servings": "2–4 Portionen",
+      "cherries": "Kirschen",
+      "vanilla sauce": "Vanillesoße",
+      "raspberries": "Himbeeren",
+      "cornstarch": "Maisstärke",
+      "redcurrants": "rote Johannisbeeren",
+      "strawberries": "Erdbeeren",
+      "sugar": "Zucker",
+      "Combine all berries and cherries in a saucepan with sugar and a splash of water.": "Alle Beeren und Kirschen mit Zucker und etwas Wasser in einen Topf geben.",
+      "Heat gently until berries soften and release juice, about 5 minutes.": "Etwa 5 Minuten sanft erhitzen, bis die Beeren weich werden und Saft abgeben.",
+      "Mix cornstarch with cold water. Stir into the bubbling berries.": "Maisstärke mit kaltem Wasser glatt rühren und in die köchelnden Beeren einrühren.",
+      "Cook 2–3 minutes until the mixture thickens. Do not overcook — keep it glossy.": "2–3 Minuten kochen, bis die Mischung eindickt. Nicht zu lange kochen, damit sie ihren Glanz behält.",
+      "Pour into individual glasses. Cool, then refrigerate. Serve with vanilla sauce or cream.": "In Portionsgläser füllen. Abkühlen lassen und anschließend in den Kühlschrank stellen. Mit Vanillesoße oder Sahne servieren."
+    }
+  },
+  {
+    "id": "08974273-2a39-49f6-8d01-3b594a2ff765",
+    "sourceHash": "c6ae3f5d3830a20c0b6ecfb1154549c76735ddf9afd30043171c4e5347b0e7d8",
+    "reviewStatus": "reviewed",
+    "strings": {
+      "Mamaliga with Bryndza": "Mămăligă mit Brimsen",
+      "Romanian golden polenta served with creamy sheep's milk cheese and sour cream.": "Goldgelber rumänischer Maisbrei, serviert mit cremigem Schafskäse und saurer Sahne.",
+      "2-4 servings": "2–4 Portionen",
+      "butter": "Butter",
+      "sour cream": "saure Sahne",
+      "bryndza cheese": "Brimsen (Schafskäse)",
+      "water": "Wasser",
+      "coarse cornmeal": "grober Maisgrieß",
+      "salt": "Salz",
+      "Bring salted water to a boil. Slowly pour cornmeal in a steady stream, whisking constantly.": "Salzwasser zum Kochen bringen. Maisgrieß langsam in einem gleichmäßigen Strahl einrieseln lassen und dabei ständig mit dem Schneebesen rühren.",
+      "Switch to a wooden spoon. Cook on medium heat for 20–25 minutes, stirring frequently, until thick and pulling away from sides.": "Mit einem Holzlöffel weiterrühren. Bei mittlerer Hitze unter häufigem Rühren 20–25 Minuten garen, bis der Brei dick ist und sich vom Topfrand löst.",
+      "Remove from heat and stir in butter.": "Vom Herd nehmen und die Butter unterrühren.",
+      "Pour onto a wooden board or plates. Make a well in the centre.": "Auf ein Holzbrett oder auf Teller geben und in der Mitte eine Mulde formen.",
+      "Fill the well with crumbled bryndza cheese. Serve immediately with cold sour cream.": "Die Mulde mit zerbröseltem Brimsen füllen. Sofort mit kalter saurer Sahne servieren."
+    }
+  },
+  {
+    "id": "094ebc8d-615a-4436-ba16-b7869d6dd4a7",
+    "sourceHash": "4bcc63b9166522f71af8a86582194b549d1545071deacb8c1bfdaf83223aa6da",
+    "reviewStatus": "reviewed",
+    "strings": {
+      "Nicoise Salad": "Nizza-Salat",
+      "French composed salad with tuna, soft eggs, green beans, olives, and anchovy.": "Französischer Salat mit Thunfisch, wachsweichen Eiern, grünen Bohnen, Oliven und Sardellen.",
+      "2-3 servings": "2–3 Portionen",
+      "green beans": "grüne Bohnen",
+      "new potatoes": "Frühkartoffeln",
+      "eggs": "Eier",
+      "cherry tomatoes": "Kirschtomaten",
+      "niçoise olives": "Nizza-Oliven",
+      "Niçoise olives": "Nizza-Oliven",
+      "anchovies": "Sardellen",
+      "dijon vinaigrette": "Dijon-Vinaigrette",
+      "Dijon vinaigrette": "Dijon-Vinaigrette",
+      "tuna in oil": "Thunfisch in Öl",
+      "Soft-boil eggs for 7–8 minutes. Cool and halve.": "Eier 7–8 Minuten wachsweich kochen, abkühlen lassen und halbieren.",
+      "Blanch green beans in boiling salted water for 3 minutes. Plunge into ice water.": "Grüne Bohnen in kochendem Salzwasser 3 Minuten blanchieren und anschließend in Eiswasser abschrecken.",
+      "Boil new potatoes until tender. Drain and halve while warm.": "Frühkartoffeln weich kochen, abgießen und noch warm halbieren.",
+      "Make vinaigrette: whisk Dijon mustard, red wine vinegar, olive oil, salt, and pepper.": "Für die Vinaigrette Dijon-Senf, Rotweinessig, Olivenöl, Salz und Pfeffer verquirlen.",
+      "Arrange all ingredients on a platter in separate groups — do not toss. Drape anchovy fillets over.": "Alle Zutaten getrennt voneinander auf einer Platte anrichten und nicht vermischen. Die Sardellenfilets darauflegen.",
+      "Drizzle vinaigrette over everything. Serve immediately with crusty bread.": "Alles mit der Vinaigrette beträufeln und sofort mit knusprigem Brot servieren."
+    }
+  },
+  {
+    "id": "0a485b75-2c3b-4344-9e7e-7ea0e4b0e73a",
+    "sourceHash": "6339b391a1613335e3ca9cda2d2063c672705eafb4289089b2f03b8b4de96db9",
+    "reviewStatus": "reviewed",
+    "strings": {
+      "Sauerbraten": "Sauerbraten",
+      "German pot roast marinated in vinegar and spices for days, served with red cabbage.": "Deutscher Rinderschmorbraten, der mehrere Tage in Essig und Gewürzen mariniert und mit Rotkohl serviert wird.",
+      "4-6 servings": "4–6 Portionen",
+      "onion": "Zwiebel",
+      "juniper berries": "Wacholderbeeren",
+      "bay leaf": "Lorbeerblatt",
+      "cloves": "Gewürznelken",
+      "red wine": "Rotwein",
+      "beef rump": "Rinderhüfte",
+      "ginger snaps": "Ingwerkekse",
+      "red wine vinegar": "Rotweinessig",
+      "Make marinade: boil vinegar, wine, onion, bay leaf, juniper berries, and cloves. Cool completely.": "Für die Marinade Essig, Wein, Zwiebel, Lorbeerblatt, Wacholderbeeren und Gewürznelken aufkochen und vollständig abkühlen lassen.",
+      "Submerge beef in marinade in the fridge for 3–5 days, turning daily.": "Das Rindfleisch vollständig mit der Marinade bedecken und 3–5 Tage im Kühlschrank marinieren. Täglich wenden.",
+      "Remove beef and pat dry. Strain and reserve marinade.": "Das Fleisch herausnehmen und trocken tupfen. Die Marinade durch ein Sieb gießen und aufbewahren.",
+      "Brown beef on all sides in a heavy pot. Add strained marinade.": "Das Fleisch in einem schweren Topf von allen Seiten anbraten. Die gesiebte Marinade hinzufügen.",
+      "Braise covered at 160°C for 2.5–3 hours until very tender.": "Zugedeckt bei 160°C 2,5–3 Stunden schmoren, bis das Fleisch sehr zart ist.",
+      "Crumble ginger snap cookies into the braising liquid — they thicken the sauce and add sweetness. Serve sliced with red cabbage.": "Ingwerkekse in die Schmorflüssigkeit bröseln; sie binden die Soße und geben ihr Süße. Den Braten in Scheiben schneiden und mit Rotkohl servieren."
+    }
   }
 ]
