@@ -91,7 +91,7 @@ class SwipeCardWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final FoodMatchThemeColors colors = context.fmColors;
-    final Dish dish = this.dish;
+    final Dish dish = context.displayDish(this.dish);
     final String heroImageUrl = ImageUtils.getImageUrl(
       dish.imageUrl,
       usage: ImageUsage.swipeCard,

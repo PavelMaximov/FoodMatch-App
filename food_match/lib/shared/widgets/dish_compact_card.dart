@@ -29,6 +29,7 @@ class DishCompactCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dish = context.displayDish(this.dish);
     final FoodMatchThemeColors colors = context.fmColors;
     return FoodMatchRipple(
       onTap: onTap,

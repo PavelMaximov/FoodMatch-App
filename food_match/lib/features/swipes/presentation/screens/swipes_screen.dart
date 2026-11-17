@@ -1527,7 +1527,7 @@ class _SwipesScreenState extends State<SwipesScreen>
         context.read<CoupleProvider>().currentCouple?.id != coupleId) {
       return;
     }
-    _showMatchNotification(newMatches.first.dish.name);
+    _showMatchNotification(context.displayDish(newMatches.first.dish).name);
   }
 
   void _showMatchNotification(String? dishName) {
