@@ -74,3 +74,16 @@ For future additions see [NEW_DISHES.md](NEW_DISHES.md).
 - Test mixed-language paired sessions, missing/stale translations, existing caches,
   custom recipes, German search and all recipe display surfaces.
 - Validate a guarded deployment and rollback before changing the live catalog.
+
+## Saved editorial work
+
+`glossary.de.json` contains the German names for the remaining 227 dishes and
+curated culinary terms. `reviewed-texts.de.json` contains manually translated
+descriptions and cooking steps for source entries 12–41. These are working
+resources, not an import package; `de.json` remains the deployable contract
+and its complete-catalog gate still fails until the remaining text is ready.
+
+Two local translation models were evaluated and rejected for culinary meaning
+errors. Their output is not included in the approved catalog. An external
+translation request was blocked by automatic review pending explicit consent.
+No live database changes were made.
