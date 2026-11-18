@@ -7,7 +7,9 @@ const clone = value => JSON.parse(JSON.stringify(value));
 assert.equal(source.length, 239);
 assert.equal(source.flatMap(d => d.steps || []).length, 1293);
 assert.equal(validate(source, translations, false).dishes, translations.length);
-assert.throws(() => validate(source, translations), /Incomplete catalog/);
+assert.equal(validate(source, translations).dishes, 239);
+assert.equal(validate(source, translations).translatedStrings, 4005);
+assert.throws(() => validate(source, translations.slice(0, -1)), /Incomplete catalog/);
 const changed = clone(source);
 changed[0].description += ' Changed.';
 assert.notEqual(sourceHash(changed[0]), sourceHash(source[0]));
@@ -36,3 +38,21 @@ assert.throws(() => validate(temperatureSource, [{ id: 'temperature',
   strings: { 'Bake at 180°C': 'Bei 180°F backen' },
 }]), /Temperature unit mismatch/);
 console.log('PASS editorial review and temperature unit release gates');
+
+const fractionSource = [{ id: 'fraction', name: 'Fill ¾ full; cook for 2½ hours.' }];
+assert.throws(() => validate(fractionSource, [{ id: 'fraction',
+  sourceHash: sourceHash(fractionSource[0]), reviewStatus: 'reviewed',
+  strings: { [fractionSource[0].name]: 'Zu ¼ füllen; 2½ Stunden garen.' },
+}]), /Fraction mismatch/);
+const strings = Object.assign({}, ...translations.map(d => d.strings));
+assert.equal(strings.honey, 'Honig');
+assert.equal(strings['condensed milk'], 'gezuckerte Kondensmilch');
+assert.equal(strings['evaporated milk'], 'ungezuckerte Kondensmilch');
+assert.equal(strings.pepperoni, 'scharfe Salami');
+assert.equal(strings.paneer, 'Paneer');
+for (const entry of translations) {
+  for (const value of Object.values(entry.strings)) {
+    assert.equal(/[\u0400-\u04ff]|\[FM\d+\]|MISSING/.test(value), false, 'Unexpected script or draft marker');
+  }
+}
+console.log('PASS complete German catalog, fractional quantities and culinary term regressions');

@@ -37,6 +37,10 @@ function validate(source, translations, requireComplete = true) {
       if (JSON.stringify(numbers(original)) !== JSON.stringify(numbers(targets[original]))) {
         throw new Error(`Numerical mismatch in ${dish.name}: ${original}`);
       }
+      const fractions = text => (text.match(/[¼½¾⅐⅑⅒⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]/g) || []).sort();
+      if (JSON.stringify(fractions(original)) !== JSON.stringify(fractions(targets[original]))) {
+        throw new Error(`Fraction mismatch in ${dish.name}: ${original}`);
+      }
       const temperatures = text => (text.match(/°\s*[CF]/g) || []).map(unit => unit.replace(/\s/g, '')).sort();
       if (JSON.stringify(temperatures(original)) !== JSON.stringify(temperatures(targets[original]))) {
         throw new Error(`Temperature unit mismatch in ${dish.name}: ${original}`);

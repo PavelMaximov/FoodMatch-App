@@ -1,8 +1,8 @@
-# German catalog content — work in progress
+# German catalog content — complete translation package
 
 This package is not ready for deployment or merge. It adds the API translation envelope and Flutter display projections, but does not
-change the hosted database. Shopping-list localization and deployment are pending. The complete-catalog validation must
-fail until every curated recipe is translated.
+change the hosted database. Shopping-list localization and deployment are pending. The complete-catalog translation gate now passes for all 239 curated recipes;
+that does not by itself validate database deployment or mobile behavior.
 
 ## Source
 
@@ -42,9 +42,10 @@ node backend/scripts/catalog-localization/validate.js --progress
 node backend/scripts/catalog-localization/validate.js
 ```
 
-The last command is the release gate. Currently 12/239 recipes are translated;
-it intentionally fails. Progress mode still validates every submitted recipe
-and does not accept partial translations within a recipe.
+The last command is the translation release gate. All 239/239 recipes are translated:
+4,005 per-recipe text mappings, covering all 1,293 instruction rows. Both full and
+progress checks validate every submitted recipe. Numeric tokens, Unicode fractions,
+and Celsius/Fahrenheit units must match the source. No incomplete recipe is accepted.
 
 ## Implemented runtime contract
 
@@ -64,7 +65,7 @@ For future additions see [NEW_DISHES.md](NEW_DISHES.md).
 
 ## Remaining in this same PR
 
-- Translate and review all remaining 227 recipes, plus display unit vocabulary.
+- Complete display unit vocabulary integration (recipe text translation is complete).
 - Store translations in Supabase with source guards and restricted client writes;
   do not duplicate recipes or change canonical IDs.
 - Complete shopping-list translations and structured measurement unit display.
@@ -75,15 +76,20 @@ For future additions see [NEW_DISHES.md](NEW_DISHES.md).
   custom recipes, German search and all recipe display surfaces.
 - Validate a guarded deployment and rollback before changing the live catalog.
 
-## Saved editorial work
+## Editorial resources and provenance
 
-`glossary.de.json` contains the German names for the remaining 227 dishes and
-curated culinary terms. `reviewed-texts.de.json` contains manually translated
-descriptions and cooking steps for source entries 12–41. These are working
-resources, not an import package; `de.json` remains the deployable contract
-and its complete-catalog gate still fails until the remaining text is ready.
+`glossary.de.json` contains dish names and culinary terms. `reviewed-texts.de.json`
+contains the directly translated descriptions and steps; `editorial.de.json` holds
+additional ingredient labels and corrections. The complete import contract is
+`de.json`, which is the only translation package consumed by the validator.
 
-Two local translation models were evaluated and rejected for culinary meaning
-errors. Their output is not included in the approved catalog. An external
-translation request was blocked by automatic review pending explicit consent.
-No live database changes were made.
+The user authorized sending public recipe names, descriptions, ingredients and
+steps to Google Translate on 2026-11-18. Requests encountered rate limiting; the
+final package was completed by direct translation and editorial correction instead.
+No external-service draft is included and no external translation service is used
+by the application. No private user recipes or account data are included.
+
+Source recipe content was translated, not re-audited for culinary or food-safety
+accuracy. Existing methods, serving alternatives and warnings are retained. The
+source snapshot and canonical identifiers have not been modified. No live database
+changes were made by preparing this package.
