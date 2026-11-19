@@ -205,10 +205,12 @@ class Dish {
   @JsonKey(fromJson: _readContentTranslations)
   final Map<String, Map<String, String>> contentTranslations;
 
-  String contentText(String text, String languageCode) =>
-      !isCustom && languageCode == 'de'
-          ? contentTranslations['de']?[text] ?? text
-          : text;
+  String contentText(String text, String languageCode) {
+    if (isCustom || languageCode != 'de') return text;
+    final translations = contentTranslations['de'];
+    if (translations == null) return text;
+    return translations[text] ?? text;
+  }
 
   static final Expando<Dish> _germanDisplay = Expando<Dish>();
 
