@@ -140,6 +140,7 @@ class Dish {
     this.tags = const <String>[],
     this.sections = const <DishSection>[],
     this.nutrition,
+    this.contentTranslations = const {},
   });
 
   @JsonKey(defaultValue: '')
@@ -201,7 +202,64 @@ class Dish {
   final List<DishSection> sections;
   final DishNutrition? nutrition;
 
+  @JsonKey(fromJson: _readContentTranslations)
+  final Map<String, Map<String, String>> contentTranslations;
+
+  String contentText(String text, String languageCode) {
+    if (isCustom || languageCode != 'de') return text;
+    final translations = contentTranslations['de'];
+    if (translations == null) return text;
+    return translations[text] ?? text;
+  }
+
+  static final Expando<Dish> _germanDisplay = Expando<Dish>();
+
+  /// A display projection only. Keep the original dish for persistence/actions.
+  Dish displayForLanguage(String languageCode) {
+    if (isCustom || languageCode != 'de' || contentTranslations['de'] == null) {
+      return this;
+    }
+    final cached = _germanDisplay[this];
+    if (cached != null) return cached;
+    String tr(String text) => contentText(text, languageCode);
+    final display = Dish(
+      id: id, name: tr(name), description: tr(description), imageUrl: imageUrl,
+      imagePublicId: imagePublicId, cuisine: cuisine, type: type, mood: mood,
+      dishRegister: dishRegister, spiceLevel: spiceLevel, isCustom: isCustom,
+      diet: diet, ingredients: ingredients.map(tr).toList(), cookTime: cookTime,
+      prepTimeMinutes: prepTimeMinutes, cookTimeMinutes: cookTimeMinutes,
+      totalTimeMinutes: totalTimeMinutes, totalTimeTier: totalTimeTier,
+      calories: calories, effort: effort, source: source, servings: servings,
+      season: season, popular: popular, qualityScore: qualityScore, tags: tags,
+      nutrition: nutrition, contentTranslations: contentTranslations,
+      steps: steps.map((s) => RecipeStep(step: s.step, text: tr(s.text))).toList(),
+      sections: sections.map((s) => DishSection(name: tr(s.name), position: s.position,
+        components: s.components.map((c) => DishComponent(
+          ingredient: DishIngredient(name: tr(c.ingredient.name),
+            displaySingular: tr(c.ingredient.displaySingular),
+            displayPlural: tr(c.ingredient.displayPlural)),
+          position: c.position, name: tr(c.name), displayName: tr(c.displayName),
+          rawText: c.rawText == null ? null : tr(c.rawText!),
+          extraComment: c.extraComment == null ? null : tr(c.extraComment!),
+          measurements: c.measurements,
+        )).toList(),
+      )).toList(),
+    );
+    _germanDisplay[this] = display;
+    return display;
+  }
+
   factory Dish.fromJson(Map<String, dynamic> json) => _$DishFromJson(json);
 
   Map<String, dynamic> toJson() => _$DishToJson(this);
+}
+
+Map<String, Map<String, String>> _readContentTranslations(dynamic value) {
+  if (value is! Map || value['de'] is! Map) return const {};
+  return {'de': {
+    for (final entry in (value['de'] as Map).entries)
+      if (entry.key is String && entry.value is String &&
+          (entry.value as String).trim().isNotEmpty)
+        entry.key as String: entry.value as String,
+  }};
 }

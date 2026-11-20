@@ -1016,7 +1016,7 @@ class _SavedDishTile extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  dish.name,
+                  context.displayDish(dish).name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.nunito(
@@ -1102,7 +1102,7 @@ class _RecipeSearchDelegate extends SearchDelegate<Dish?> {
     final List<Dish> source = q.isEmpty
         ? List<Dish>.from(_dishes)
         : _dishes
-              .where((Dish dish) => dish.name.toLowerCase().contains(q))
+              .where((Dish dish) => context.displayDish(dish).name.toLowerCase().contains(q))
               .toList();
     final List<Dish> results = List<Dish>.from(source)
       ..sort(

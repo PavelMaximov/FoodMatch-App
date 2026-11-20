@@ -65,12 +65,12 @@ void main() {
     'malformed timestamps and old dish-only cache are cache misses',
     () async {
       SharedPreferences.setMockInitialValues({
-        'cached_match_snapshot_v2':
+        'cached_match_snapshot_v3':
             '{"scope":"user","cachedAt":"bad","items":[]}',
         'cached_matches': '[]',
         'matches_cached_at': 'bad',
-        'cached_dishes': '[]',
-        'dishes_cached_at': 'bad',
+        'cached_dishes_content_v2': '[]',
+        'dishes_content_cached_at_v2': 'bad',
       });
       expect(
         await CacheService().getCachedMatchItems(scopeKey: 'user'),

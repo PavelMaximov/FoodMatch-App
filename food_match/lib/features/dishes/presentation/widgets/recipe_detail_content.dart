@@ -165,6 +165,7 @@ class _RecipeContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final FoodMatchThemeColors colors = context.fmColors;
+    final dish = context.displayDish(this.dish);
     final EdgeInsets safePadding = MediaQuery.paddingOf(context);
     final List<_IngredientDisplayRow> ingredientRows = _buildIngredientRows(
       dish,
@@ -176,7 +177,7 @@ class _RecipeContent extends StatelessWidget {
           shared: context.watch<ShoppingListProvider>().isShared,
         );
     final List<ShoppingListIngredientInput> shoppingIngredients =
-        _buildShoppingIngredients(dish, measurementSystem);
+        _buildShoppingIngredients(this.dish, measurementSystem);
 
     return ColoredBox(
       color: colors.background,
@@ -225,7 +226,7 @@ class _RecipeContent extends StatelessWidget {
               TextButton.icon(
                 onPressed: isAddingIngredients
                     ? null
-                    : () => onAddIngredients(dish, shoppingIngredients),
+                    : () => onAddIngredients(this.dish, shoppingIngredients),
                 style: TextButton.styleFrom(
                   foregroundColor: colors.primary,
                   padding: EdgeInsets.zero,

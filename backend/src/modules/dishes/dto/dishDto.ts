@@ -1,3 +1,5 @@
+import { DishContentTranslations, readDishContentTranslations } from './dishContentTranslations';
+
 export interface DishNutritionDto {
   calories: number;
   estimated?: boolean;
@@ -5,6 +7,7 @@ export interface DishNutritionDto {
 }
 
 export interface DishDto {
+  contentTranslations?: DishContentTranslations;
   id: string;
   name: string;
   description: string;
@@ -72,7 +75,7 @@ export function toDishDto(dish: any): DishDto | null {
     cookTime,
   );
 
-  return {
+  const dto: DishDto = {
     id: firstString(raw.id, raw.sourceId, raw._id?.toString()),
     name: asString(raw.name),
     description: asString(raw.description),
@@ -107,6 +110,19 @@ export function toDishDto(dish: any): DishDto | null {
     // sourceType=custom. Keep the API and custom-first eligibility aligned.
     isCustom: raw.isCustom === true || raw.sourceType === 'custom'
   };
+  const strings = readDishContentTranslations(raw)?.de;
+  if (strings) {
+    const visible = new Set([
+      dto.name, dto.description, dto.servings, ...dto.ingredients,
+      ...dto.steps.map(step => step.text),
+      ...(dto.ingredientSections ?? []).flatMap(section => [section.name,
+        ...section.components.flatMap(component => [component.name, component.displayName,
+          component.rawText ?? '', component.extraComment ?? ''])]),
+    ]);
+    const de = Object.fromEntries(Object.entries(strings).filter(([key]) => visible.has(key)));
+    if (Object.keys(de).length) dto.contentTranslations = { de };
+  }
+  return dto;
 }
 
 export function toRawDish(dish: any) {

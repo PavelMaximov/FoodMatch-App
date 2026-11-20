@@ -1,3 +1,4 @@
+import { readDishContentTranslations } from '../../../modules/dishes/dto/dishContentTranslations';
 import { queryPostgres } from '../../../shared/db/postgresClient';
 
 export type CatalogDish = Record<string, any> & {
@@ -79,6 +80,34 @@ export function mapCatalogDish(
   const ingredients = Array.isArray(row.ingredient_components)
     ? buildIngredientDisplayStrings(id, row.ingredient_components)
     : normalizeStringArray(row.ingredients);
+  const strings = readDishContentTranslations(row)?.de;
+  let contentTranslations = row.content_translations;
+  if (strings && Array.isArray(row.ingredient_components)) {
+    const de = { ...strings };
+    const units: Record<string, string> = {
+      piece: 'Stück', pieces: 'Stück', clove: 'Zehe', cloves: 'Zehen',
+      tbsp: 'EL', tsp: 'TL', cup: 'Tasse', cups: 'Tassen', pinch: 'Prise',
+      bunch: 'Bund', slice: 'Scheibe', slices: 'Scheiben',
+    };
+    for (const value of row.ingredient_components) {
+      if (!value || typeof value !== 'object') continue;
+      const component = value as Record<string, unknown>;
+      const localized = { ...component };
+      for (const key of ['rawText', 'originalText', 'ingredientName', 'displaySingular',
+        'displayPlural', 'normalizedName', 'joinedIngredientName']) {
+        const text = component[key];
+        if (typeof text === 'string') localized[key] = strings[text] ?? text;
+      }
+      for (const key of ['unit', 'unitName']) {
+        const text = component[key];
+        if (typeof text === 'string') localized[key] = units[text] ?? text;
+      }
+      const canonical = buildIngredientDisplayStrings(id, [component])[0];
+      const translated = buildIngredientDisplayStrings(id, [localized])[0];
+      if (canonical && translated) de[canonical] = translated;
+    }
+    contentTranslations = { de: { strings: de } };
+  }
   const steps = normalizeSteps(row.steps);
   if (options.logIngredients !== false) {
     console.info(`[DishCatalog] ingredient display built dish=${id} count=${ingredients.length}`);
@@ -88,6 +117,7 @@ export function mapCatalogDish(
   }
   return {
     ...row,
+    content_translations: contentTranslations,
     _id: id,
     id,
     name: stringOrEmpty(row.name),

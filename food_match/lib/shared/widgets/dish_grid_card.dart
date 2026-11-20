@@ -33,6 +33,7 @@ class DishGridCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dish = context.displayDish(this.dish);
     final FoodMatchThemeColors colors = context.fmColors;
     final Widget image = SafeDishImage(
       cacheWidth:

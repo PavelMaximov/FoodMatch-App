@@ -1,3 +1,4 @@
+import '../data/models/dish.dart';
 import 'package:flutter/material.dart';
 
 import 'ui_catalog.g.dart';
@@ -65,4 +66,10 @@ extension FoodMatchLocalization on BuildContext {
       AppLocalizations(Localizations.maybeLocaleOf(this) ?? const Locale('en'));
   String tr(String key, [Map<String, Object> parameters = const {}]) =>
       copy.text(key, parameters);
+}
+
+extension DishContentLocalization on BuildContext {
+  Dish displayDish(Dish dish) => dish.displayForLanguage(
+    Localizations.maybeLocaleOf(this)?.languageCode ?? 'en',
+  );
 }
