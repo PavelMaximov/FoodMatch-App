@@ -31,6 +31,8 @@
     	<string>en</string>
     	<string>de</string>
 	</array>
+	<key>FlutterDeepLinkingEnabled</key>
+	<false/>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>FoodMatch uses your photo library to let you choose photos for your dishes and profile.</string>
 	<key>NSCameraUsageDescription</key>
@@ -64,6 +66,18 @@
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+    	<dict>
+        	<key>CFBundleURLName</key>
+        	<string>foodmatch</string>
+
+        	<key>CFBundleURLSchemes</key>
+        	<array>
+            <string>foodmatch</string>
+        </array>
+    </dict>
+</array>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
