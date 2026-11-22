@@ -2,6 +2,7 @@ class ShoppingListItem {
   const ShoppingListItem({
     required this.id,
     required this.name,
+    this.nameDe,
     required this.normalizedName,
     required this.checked,
     required this.sortOrder,
@@ -15,6 +16,10 @@ class ShoppingListItem {
 
   final String id;
   final String name;
+  final String? nameDe;
+
+  String displayName(String languageCode) =>
+      languageCode == 'de' ? (nameDe ?? name) : name;
   final String normalizedName;
   final String? quantity;
   final String? measure;
@@ -26,44 +31,47 @@ class ShoppingListItem {
   final DateTime updatedAt;
 
   ShoppingListItem copyWith({
+    String? nameDe,
     String? quantity,
     String? measure,
     bool? checked,
     int? sortOrder,
     DateTime? updatedAt,
-  }) =>
-      ShoppingListItem(
-        id: id,
-        name: name,
-        normalizedName: normalizedName,
-        quantity: quantity ?? this.quantity,
-        measure: measure ?? this.measure,
-        sourceDishId: sourceDishId,
-        sourceDishName: sourceDishName,
-        checked: checked ?? this.checked,
-        sortOrder: sortOrder ?? this.sortOrder,
-        createdAt: createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
-      );
+  }) => ShoppingListItem(
+    id: id,
+    name: name,
+    nameDe: nameDe ?? this.nameDe,
+    normalizedName: normalizedName,
+    quantity: quantity ?? this.quantity,
+    measure: measure ?? this.measure,
+    sourceDishId: sourceDishId,
+    sourceDishName: sourceDishName,
+    checked: checked ?? this.checked,
+    sortOrder: sortOrder ?? this.sortOrder,
+    createdAt: createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'id': id,
-        'name': name,
-        'normalizedName': normalizedName,
-        'quantity': quantity,
-        'measure': measure,
-        'sourceDishId': sourceDishId,
-        'sourceDishName': sourceDishName,
-        'checked': checked,
-        'sortOrder': sortOrder,
-        'createdAt': createdAt.toIso8601String(),
-        'updatedAt': updatedAt.toIso8601String(),
-      };
+    'id': id,
+    'name': name,
+    'nameDe': nameDe,
+    'normalizedName': normalizedName,
+    'quantity': quantity,
+    'measure': measure,
+    'sourceDishId': sourceDishId,
+    'sourceDishName': sourceDishName,
+    'checked': checked,
+    'sortOrder': sortOrder,
+    'createdAt': createdAt.toIso8601String(),
+    'updatedAt': updatedAt.toIso8601String(),
+  };
 
   factory ShoppingListItem.fromJson(Map<String, dynamic> json) {
     return ShoppingListItem(
       id: json['id'] as String,
       name: json['name'] as String,
+      nameDe: json['nameDe'] as String?,
       normalizedName: json['normalizedName'] as String,
       quantity: json['quantity'] as String?,
       measure: json['measure'] as String?,

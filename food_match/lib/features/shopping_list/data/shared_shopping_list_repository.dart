@@ -10,11 +10,13 @@ class SharedShoppingListRepository {
       _items(await _api.get(ApiConstants.sharedShoppingList));
   Future<List<ShoppingListItem>> add({
     required String name,
+    String? nameDe,
     String? quantity,
     String? measure,
   }) async => _items(
     await _api.post(ApiConstants.sharedShoppingListItems, <String, dynamic>{
       'name': name,
+      if (nameDe != null) 'nameDe': nameDe,
       'quantity': quantity,
       'measure': measure,
     }),
@@ -42,6 +44,7 @@ class SharedShoppingListRepository {
       return ShoppingListItem(
         id: '${json['id']}',
         name: '${json['name']}',
+        nameDe: json['name_de'] as String?,
         normalizedName: '${json['normalized_name'] ?? json['normalizedName']}',
         quantity: json['quantity']?.toString(),
         measure: json['measure']?.toString(),

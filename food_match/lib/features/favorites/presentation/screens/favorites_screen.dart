@@ -123,6 +123,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     final String query = _query.trim().toLowerCase();
     final String signature = <String>[
       query,
+      Localizations.localeOf(context).languageCode,
       _listFilters.mealCategory ?? '',
       _listFilters.maxCookTime?.toString() ?? '',
       _listFilters.difficulty ?? '',
@@ -134,7 +135,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     }
     final List<Dish> visible = favorites
         .where((Dish dish) {
-          if (query.isNotEmpty && !dish.name.toLowerCase().contains(query)) {
+          if (query.isNotEmpty && !context.displayDish(dish).name.toLowerCase().contains(query)) {
             return false;
           }
 

@@ -1,4 +1,7 @@
+import dotenv from 'dotenv';
 import { z } from 'zod';
+
+dotenv.config();
 
 const optionalUrl = z.string().url().optional();
 const invalidUrlMessage = 'Invalid SUPABASE_URL. Use the Supabase project root URL, for example https://<project-ref>.supabase.co. Do not include /rest/v1, /auth/v1, or /api.';

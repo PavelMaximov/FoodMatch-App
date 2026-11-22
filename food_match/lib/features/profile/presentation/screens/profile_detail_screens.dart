@@ -226,7 +226,7 @@ class _MatchHistorySessionScreenState extends State<MatchHistorySessionScreen> {
                     height: 52,
                   ),
                 ),
-                title: Text(dish.name),
+                title: Text(context.displayDish(dish).name),
                 subtitle: Text(
                   context.tr(
                     session.mode == MatchHistoryMode.solo
@@ -296,7 +296,7 @@ class _HistorySessionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final String names = session.previewDishes
         .take(3)
-        .map((dish) => dish.name)
+        .map((dish) => context.displayDish(dish).name)
         .join(', ');
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),

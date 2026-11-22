@@ -8,6 +8,7 @@ import '../data/shared_shopping_list_repository.dart';
 class ShoppingListIngredientInput {
   const ShoppingListIngredientInput({
     required this.name,
+    this.nameDe,
     this.quantity,
     this.measure,
   });
@@ -34,6 +35,7 @@ class ShoppingListIngredientInput {
   }
 
   final String name;
+  final String? nameDe;
   final String? quantity;
   final String? measure;
 }
@@ -67,7 +69,8 @@ class ShoppingListProvider extends ChangeNotifier {
 
   void setActiveUser(String? userId, {required int authBoundaryVersion}) {
     if (_disposed ||
-        (_activeUserId == userId && _authBoundaryVersion == authBoundaryVersion)) {
+        (_activeUserId == userId &&
+            _authBoundaryVersion == authBoundaryVersion)) {
       return;
     }
     _activeUserId = userId;
@@ -82,7 +85,8 @@ class ShoppingListProvider extends ChangeNotifier {
   }
 
   Future<void> load() async {
-    if (_disposed || _isLoaded ||
+    if (_disposed ||
+        _isLoaded ||
         (_authBoundaryVersion != null && _activeUserId == null)) {
       return;
     }
@@ -98,8 +102,8 @@ class ShoppingListProvider extends ChangeNotifier {
     }
   }
 
-  bool get _canAccessScope => !_disposed &&
-      (_authBoundaryVersion == null || _activeUserId != null);
+  bool get _canAccessScope =>
+      !_disposed && (_authBoundaryVersion == null || _activeUserId != null);
 
   bool _isCurrentScope(int generation, String? sessionId) =>
       _canAccessScope &&
@@ -212,6 +216,7 @@ class ShoppingListProvider extends ChangeNotifier {
         if (ingredient.name.trim().isEmpty) continue;
         loaded = await _sharedRepository.add(
           name: ingredient.name,
+          nameDe: ingredient.nameDe,
           quantity: ingredient.quantity,
           measure: ingredient.measure,
         );
@@ -245,9 +250,12 @@ class ShoppingListProvider extends ChangeNotifier {
             existing.quantity ?? _optional(ingredient.quantity);
         final String? measure =
             existing.measure ?? _optional(ingredient.measure);
-        if (quantity != existing.quantity || measure != existing.measure) {
+        if (quantity != existing.quantity ||
+            measure != existing.measure ||
+            (existing.nameDe == null && ingredient.nameDe != null)) {
           _items[existingIndex] = existing.copyWith(
             quantity: quantity,
+            nameDe: ingredient.nameDe,
             measure: measure,
             updatedAt: DateTime.now(),
           );
@@ -260,6 +268,7 @@ class ShoppingListProvider extends ChangeNotifier {
         ShoppingListItem(
           id: '${now.microsecondsSinceEpoch}-${_idSequence++}',
           name: name,
+          nameDe: ingredient.nameDe,
           normalizedName: normalized,
           quantity: _optional(ingredient.quantity),
           measure: _optional(ingredient.measure),
@@ -445,7 +454,8 @@ class ShoppingListProvider extends ChangeNotifier {
   }
 
   Future<void> _persist() async {
-    if (_disposed || isShared ||
+    if (_disposed ||
+        isShared ||
         (_authBoundaryVersion != null && _activeUserId == null)) {
       return;
     }

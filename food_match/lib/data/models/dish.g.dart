@@ -96,6 +96,7 @@ Map<String, dynamic> _$DishNutritionToJson(DishNutrition instance) =>
     };
 
 Dish _$DishFromJson(Map<String, dynamic> json) => Dish(
+  contentTranslations: _readContentTranslations(json['contentTranslations']),
   id: json['id'] as String? ?? '',
   name: json['name'] as String? ?? '',
   description: json['description'] as String? ?? '',
@@ -148,6 +149,7 @@ Dish _$DishFromJson(Map<String, dynamic> json) => Dish(
 );
 
 Map<String, dynamic> _$DishToJson(Dish instance) => <String, dynamic>{
+  'contentTranslations': instance.contentTranslations,
   'id': instance.id,
   'name': instance.name,
   'description': instance.description,

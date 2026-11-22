@@ -26,7 +26,7 @@ const entitlements = new EntitlementService({
   }] : [],
 });
 const pair = { id: 'pair', status: 'active', memberIds: ['premium', 'free'] } as CoupleSessionRecord;
-type Item = { id: string; sessionId: string; normalized_name: string; quantity: string | null; measure: string | null; sort_order: number; checked: boolean };
+type Item = { name_de?: string | null; id: string; sessionId: string; normalized_name: string; quantity: string | null; measure: string | null; sort_order: number; checked: boolean };
 function shoppingFixture(members = pair.memberIds) {
   let items: Item[] = [
     { id: 'one', sessionId: 'pair', normalized_name: 'tomato', quantity: null, measure: 'g', sort_order: 0, checked: false },
@@ -54,6 +54,7 @@ function shoppingFixture(members = pair.memberIds) {
       assert.ok(existing);
       existing.quantity ??= args[4] as string | null;
       existing.measure ??= args[5] as string | null;
+      existing.name_de ??= args[6] as string | null;
     } else {
       assert.ok(sql.includes('where id=$1 and couple_session_id=$2'));
       rows = items.filter((x) => x.id === args[0] && x.sessionId === args[1]);
@@ -118,6 +119,16 @@ async function main() {
   });
   await test('Free-only pair rejected', async () => {
     await assert.rejects(shoppingFixture(['free', 'other-free']).service.list('free'), fails('PREMIUM_SHOPPING_LIST_REQUIRED'));
+  });
+  await test('German grocery label preserves canonical merge key for both partners', async () => {
+    const fixture = shoppingFixture();
+    await fixture.service.add('premium', { name: 'tomato', nameDe: 'Tomate', quantity: '2' });
+    await fixture.service.add('free', { name: 'tomato', quantity: '3' });
+    const items = (await fixture.service.list('free')).items;
+    assert.equal(items.length, 2);
+    assert.equal(items[0].normalized_name, 'tomato');
+    assert.equal(items[0].name_de, 'Tomate');
+    await assert.rejects(fixture.service.add('free', { name: 'tomato', nameDe: 'a'.repeat(501) }), fails('SHOPPING_LIST_ITEM_NAME_INVALID'));
   });
   await test('mixed pair allowed for both members', async () => {
     const { service } = shoppingFixture();
