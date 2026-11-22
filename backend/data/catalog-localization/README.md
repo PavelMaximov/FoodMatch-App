@@ -1,8 +1,10 @@
 # German catalog content — complete translation package
 
-This package is not ready for deployment or merge. It adds the API translation envelope and Flutter display projections, but does not
-change the hosted database. Shopping-list localization and deployment are pending. The complete-catalog translation gate now passes for all 239 curated recipes;
-that does not by itself validate database deployment or mobile behavior.
+All 239 curated recipes have German content. The package was applied to
+foodmatch-dev on 2026-11-22: 4,005 translations, with all canonical dish values
+unchanged (excluding the normal updated_at timestamp). Three custom dishes were
+untouched. Backend and Flutter display integration is included; device checks
+remain necessary before merge.
 
 ## Source
 
@@ -63,18 +65,64 @@ Backend regression test: `SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_SERVICE_R
 
 For future additions see [NEW_DISHES.md](NEW_DISHES.md).
 
-## Remaining in this same PR
+## Deployment and rollback
 
-- Complete display unit vocabulary integration (recipe text translation is complete).
-- Store translations in Supabase with source guards and restricted client writes;
-  do not duplicate recipes or change canonical IDs.
-- Complete shopping-list translations and structured measurement unit display.
-- Verify Flutter display changes and search on a device.
-- Ensure an EN/DE switch updates existing screens and offline cached data without
-  restarting sessions or losing pending swipe/Undo actions.
-- Test mixed-language paired sessions, missing/stale translations, existing caches,
-  custom recipes, German search and all recipe display surfaces.
-- Validate a guarded deployment and rollback before changing the live catalog.
+Migration `20261122202618_catalog_content_translations.sql` adds the JSONB translation
+column and an optional German grocery label. It is already applied on foodmatch-dev;
+its local version matches the remote migration history. Do not repair or reapply it
+manually on that database. Other environments must run the normal migration deployment
+before the updated backend.
+
+From the repository root, generate SQL (UTF-8):
+
+```sh
+node backend/scripts/catalog-localization/deploy.js --dry-run > catalog-de-check.sql
+node backend/scripts/catalog-localization/deploy.js > catalog-de-apply.sql
+node backend/scripts/catalog-localization/deploy.js --rollback > catalog-de-rollback.sql
+```
+
+Execute the check first, then apply against the explicitly selected database. Both
+lock only catalog tables and compare every source recipe and its children before
+writing. One transaction covers all recipes. Source drift or an unrelated existing
+German translation aborts the entire transaction. Reapplying identical content is
+idempotent. Rollback removes only this package's German content, keeps other locales
+and canonical values, and refuses to overwrite later source/translation changes.
+The initial German value was absent for every recipe; no previous translation was
+replaced. This is a targeted reversible content deployment, not a full database backup.
+
+The original source snapshot remains in `source.en.json`. Invalidation triggers clear
+translations when source recipe/section/component/instruction data changes. Update and
+review the translation package before republishing edited recipes.
+
+## Runtime and acceptance checks
+
+Restart/deploy the backend from this branch before testing the new Flutter client.
+Catalog/match cache versions are bumped so pre-deployment English-only cached responses
+are refreshed online. Newly fetched dish objects retain both languages for offline use.
+Old grocery entries without a translation remain in their original language; adding the
+recipe again fills the missing German label without creating a duplicate. User-entered
+items and custom dishes are not automatically translated. Paired users share canonical
+ingredient names and optional German labels, and choose their own display language.
+
+```sh
+# backend directory
+npm run check:backend
+SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_SERVICE_ROLE_KEY=test-only node -r ts-node/register src/scripts/testCatalogContentTranslations.ts
+SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_SERVICE_ROLE_KEY=test-only node -r ts-node/register src/scripts/testShoppingContentTranslations.ts
+# food_match directory
+flutter test test/data/models/dish_content_translation_test.dart test/data/models/shopping_content_translation_test.dart test/data/local/match_cache_test.dart
+```
+
+`testDeployment.js` exercises real PostgreSQL semantics through PGlite: full dry-run,
+239-row apply, idempotence, rollback, private/custom isolation, stale-source rejection,
+and source-edit invalidation. Set `CATALOG_PGLITE_MODULE` to a separately installed
+`@electric-sql/pglite` module when it is not on the default module path.
+
+On a device, check EN → DE → EN in Recipes, Swipe, Likes, Favorites, recipe details,
+and the grocery list; German search; a subsequent offline launch; and a pair with
+one English and one German user. Session IDs, checked items and pending actions must
+survive language changes. Mobile test execution was blocked in the patch environment
+by automatic review of a cloud-metadata request, including with offline pub get.
 
 ## Editorial resources and provenance
 
@@ -91,5 +139,4 @@ by the application. No private user recipes or account data are included.
 
 Source recipe content was translated, not re-audited for culinary or food-safety
 accuracy. Existing methods, serving alternatives and warnings are retained. The
-source snapshot and canonical identifiers have not been modified. No live database
-changes were made by preparing this package.
+source snapshot and canonical identifiers have not been modified. The translation package was subsequently deployed as recorded above.

@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../domain/shopping_list_item.dart';
+import '../../../../data/models/content_units.dart';
 import '../../logic/shopping_list_provider.dart';
 
 class ShoppingListScreen extends StatelessWidget {
@@ -219,7 +220,7 @@ class _ShoppingRow extends StatelessWidget {
   String quantityLabel(BuildContext context) {
     if (item.quantity == null) return '';
     if (item.measure == null) return item.quantity!;
-    return '${item.quantity} ${context.tr(item.measure!)}';
+    return '${item.quantity} ${contentUnit(item.measure!, Localizations.localeOf(context).languageCode)}';
   }
 
   @override
@@ -242,7 +243,7 @@ class _ShoppingRow extends StatelessWidget {
           ),
           Expanded(
             child: Text(
-              item.name,
+              item.displayName(Localizations.localeOf(context).languageCode),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.nunito(

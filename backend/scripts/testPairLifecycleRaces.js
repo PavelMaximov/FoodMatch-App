@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 require('ts-node/register');
 const { supabaseConfig } = require('../src/config/supabase');
-supabaseConfig.databaseUrl = 'postgres://stub:stub@127.0.0.1/stub';
+supabaseConfig.databaseUrl = 'postgres://test-stub:test-stub@127.0.0.1/stub';
 const { getPostgresPool } = require('../src/shared/db/postgresClient');
 const { domainRepositories: r } = require('../src/infrastructure/repositories/domainRepositories');
 const { postgresDishes } = require('../src/infrastructure/postgres/repositories/PostgresCatalogRepositories');

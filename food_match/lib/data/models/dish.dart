@@ -1,6 +1,7 @@
 import 'package:json_annotation/json_annotation.dart';
 
 import 'recipe_step.dart';
+import 'content_units.dart';
 
 part 'dish.g.dart';
 
@@ -128,7 +129,10 @@ class Dish {
     required this.diet,
     required this.ingredients,
     required this.cookTime,
-    this.prepTimeMinutes = 0, this.cookTimeMinutes = 0, this.totalTimeMinutes = 0, this.totalTimeTier = '',
+    this.prepTimeMinutes = 0,
+    this.cookTimeMinutes = 0,
+    this.totalTimeMinutes = 0,
+    this.totalTimeTier = '',
     required this.calories,
     required this.effort,
     required this.source,
@@ -172,14 +176,23 @@ class Dish {
   final int cookTime;
   final int prepTimeMinutes, cookTimeMinutes, totalTimeMinutes;
   final String totalTimeTier;
-  int get resolvedTotalTimeMinutes => totalTimeMinutes > 0 ? totalTimeMinutes : cookTime > 0 ? cookTime : prepTimeMinutes + cookTimeMinutes;
+  int get resolvedTotalTimeMinutes => totalTimeMinutes > 0
+      ? totalTimeMinutes
+      : cookTime > 0
+      ? cookTime
+      : prepTimeMinutes + cookTimeMinutes;
   bool get hasTime => resolvedTotalTimeMinutes > 0 || totalTimeTier.isNotEmpty;
   String get totalTimeDisplay {
     final minutes = resolvedTotalTimeMinutes;
     if (minutes <= 0) return totalTimeTier;
     final hours = minutes ~/ 60, remainder = minutes % 60;
-    return hours == 0 ? '$minutes min' : remainder == 0 ? '$hours hr' : '$hours hr $remainder min';
+    return hours == 0
+        ? '$minutes min'
+        : remainder == 0
+        ? '$hours hr'
+        : '$hours hr $remainder min';
   }
+
   @JsonKey(defaultValue: '')
   final String calories;
   @JsonKey(defaultValue: '')
@@ -223,27 +236,74 @@ class Dish {
     if (cached != null) return cached;
     String tr(String text) => contentText(text, languageCode);
     final display = Dish(
-      id: id, name: tr(name), description: tr(description), imageUrl: imageUrl,
-      imagePublicId: imagePublicId, cuisine: cuisine, type: type, mood: mood,
-      dishRegister: dishRegister, spiceLevel: spiceLevel, isCustom: isCustom,
-      diet: diet, ingredients: ingredients.map(tr).toList(), cookTime: cookTime,
-      prepTimeMinutes: prepTimeMinutes, cookTimeMinutes: cookTimeMinutes,
-      totalTimeMinutes: totalTimeMinutes, totalTimeTier: totalTimeTier,
-      calories: calories, effort: effort, source: source, servings: servings,
-      season: season, popular: popular, qualityScore: qualityScore, tags: tags,
-      nutrition: nutrition, contentTranslations: contentTranslations,
-      steps: steps.map((s) => RecipeStep(step: s.step, text: tr(s.text))).toList(),
-      sections: sections.map((s) => DishSection(name: tr(s.name), position: s.position,
-        components: s.components.map((c) => DishComponent(
-          ingredient: DishIngredient(name: tr(c.ingredient.name),
-            displaySingular: tr(c.ingredient.displaySingular),
-            displayPlural: tr(c.ingredient.displayPlural)),
-          position: c.position, name: tr(c.name), displayName: tr(c.displayName),
-          rawText: c.rawText == null ? null : tr(c.rawText!),
-          extraComment: c.extraComment == null ? null : tr(c.extraComment!),
-          measurements: c.measurements,
-        )).toList(),
-      )).toList(),
+      id: id,
+      name: tr(name),
+      description: tr(description),
+      imageUrl: imageUrl,
+      imagePublicId: imagePublicId,
+      cuisine: cuisine,
+      type: type,
+      mood: mood,
+      dishRegister: dishRegister,
+      spiceLevel: spiceLevel,
+      isCustom: isCustom,
+      diet: diet,
+      ingredients: ingredients.map(tr).toList(),
+      cookTime: cookTime,
+      prepTimeMinutes: prepTimeMinutes,
+      cookTimeMinutes: cookTimeMinutes,
+      totalTimeMinutes: totalTimeMinutes,
+      totalTimeTier: totalTimeTier,
+      calories: calories,
+      effort: effort,
+      source: source,
+      servings: servings,
+      season: season,
+      popular: popular,
+      qualityScore: qualityScore,
+      tags: tags,
+      nutrition: nutrition,
+      contentTranslations: contentTranslations,
+      steps: steps
+          .map((s) => RecipeStep(step: s.step, text: tr(s.text)))
+          .toList(),
+      sections: sections
+          .map(
+            (s) => DishSection(
+              name: tr(s.name),
+              position: s.position,
+              components: s.components
+                  .map(
+                    (c) => DishComponent(
+                      ingredient: DishIngredient(
+                        name: tr(c.ingredient.name),
+                        displaySingular: tr(c.ingredient.displaySingular),
+                        displayPlural: tr(c.ingredient.displayPlural),
+                      ),
+                      position: c.position,
+                      name: tr(c.name),
+                      displayName: tr(c.displayName),
+                      rawText: c.rawText == null ? null : tr(c.rawText!),
+                      extraComment: c.extraComment == null
+                          ? null
+                          : tr(c.extraComment!),
+                      measurements: c.measurements
+                          .map(
+                            (m) => DishIngredientMeasurement(
+                              quantity: m.quantity,
+                              system: m.system,
+                              unit: m.unit == null
+                                  ? null
+                                  : contentUnit(m.unit!, languageCode),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  )
+                  .toList(),
+            ),
+          )
+          .toList(),
     );
     _germanDisplay[this] = display;
     return display;
@@ -256,10 +316,13 @@ class Dish {
 
 Map<String, Map<String, String>> _readContentTranslations(dynamic value) {
   if (value is! Map || value['de'] is! Map) return const {};
-  return {'de': {
-    for (final entry in (value['de'] as Map).entries)
-      if (entry.key is String && entry.value is String &&
-          (entry.value as String).trim().isNotEmpty)
-        entry.key as String: entry.value as String,
-  }};
+  return {
+    'de': {
+      for (final entry in (value['de'] as Map).entries)
+        if (entry.key is String &&
+            entry.value is String &&
+            (entry.value as String).trim().isNotEmpty)
+          entry.key as String: entry.value as String,
+    },
+  };
 }

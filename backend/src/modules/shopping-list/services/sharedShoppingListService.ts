@@ -28,7 +28,7 @@ async function transaction<T>(task: (query: Query) => Promise<T>): Promise<T> {
   }
 }
 
-const columns = 'id,name,normalized_name,quantity,measure,checked,sort_order,created_at,updated_at';
+const columns = 'id,name,name_de,normalized_name,quantity,measure,checked,sort_order,created_at,updated_at';
 export class SharedShoppingListService {
   private readonly dependencies: Dependencies;
   constructor(dependencies: Partial<Dependencies> = {}) {
@@ -61,16 +61,19 @@ export class SharedShoppingListService {
     });
   }
 
-  async add(userId: string, input: { name?: unknown; quantity?: unknown; measure?: unknown }) {
+  async add(userId: string, input: { name?: unknown; nameDe?: unknown; quantity?: unknown; measure?: unknown }) {
     const name = String(input.name ?? '').trim();
     if (!name) throw new AppError('Item name is required.', 400, 'SHOPPING_LIST_ITEM_NAME_REQUIRED');
+    const nameDe = typeof input.nameDe === 'string' ? input.nameDe.trim() : null;
+    if (nameDe && nameDe.length > 500) throw new AppError('Translated item name is too long.', 400, 'SHOPPING_LIST_ITEM_NAME_INVALID');
     return this.mutate(userId, async (sessionId, query) => {
-      await query(`insert into shared_shopping_list_items(couple_session_id,created_by,name,normalized_name,quantity,measure,sort_order)
-        values($1,$2,$3,$4,$5,$6,(select coalesce(max(sort_order),-1)+1 from shared_shopping_list_items where couple_session_id=$1))
+      await query(`insert into shared_shopping_list_items(couple_session_id,created_by,name,normalized_name,quantity,measure,name_de,sort_order)
+        values($1,$2,$3,$4,$5,$6,$7,(select coalesce(max(sort_order),-1)+1 from shared_shopping_list_items where couple_session_id=$1))
         on conflict(couple_session_id,normalized_name) do update set
+        name_de=coalesce(shared_shopping_list_items.name_de,excluded.name_de),
         quantity=coalesce(shared_shopping_list_items.quantity,excluded.quantity),
         measure=coalesce(shared_shopping_list_items.measure,excluded.measure),updated_at=now()`,
-      [sessionId, userId, name, name.toLowerCase(), clean(input.quantity), clean(input.measure)]);
+      [sessionId, userId, name, name.toLowerCase(), clean(input.quantity), clean(input.measure), nameDe || null]);
     });
   }
 

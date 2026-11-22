@@ -14,8 +14,8 @@ class IngredientDisplayParts {
 
 final RegExp _ingredientPrefix = RegExp(
   r'^(?:(about|approx\.)\s+)?'
-  r'(\d+\s+\d+/\d+|\d+(?:\.\d+)?(?:[-–]\d+(?:\.\d+)?)?|\d+/\d+|[¼½¾])'
-  r'(?:\s+(kg|g|ml|l|tsp|tbsp|cups?|oz|lb|cloves?|slices?|pieces?|pinch|handful))?'
+  r'(\d+\s+\d+/\d+|\d+(?:[.,]\d+)?(?:[-–]\d+(?:[.,]\d+)?)?|\d+/\d+|[¼½¾])'
+  r'(?:\s+(kg|g|ml|l|tsp|tbsp|cups?|oz|lb|cloves?|slices?|pieces?|pinch|handful|TL|EL|Tassen?|Zehen?|Scheiben?|Stück|Prise|Handvoll))?'
   r'(?=\s|$)',
   caseSensitive: false,
 );

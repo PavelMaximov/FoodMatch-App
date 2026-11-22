@@ -9,9 +9,9 @@ import '../models/match_item.dart';
 class CacheService {
   static const Duration _cacheExpiry = Duration(hours: 24);
 
-  static const String _dishesKey = 'cached_dishes_content_v2';
+  static const String _dishesKey = 'cached_dishes_content_v3';
   static const String _dishesCachedAtKey = 'dishes_content_cached_at_v2';
-  static const String _matchSnapshotKey = 'cached_match_snapshot_v3';
+  static const String _matchSnapshotKey = 'cached_match_snapshot_v4';
   static const String _matchesKey = 'cached_matches';
   static const String _matchesCachedAtKey = 'matches_cached_at';
   static const String _matchesCoupleIdKey = 'matches_couple_id';

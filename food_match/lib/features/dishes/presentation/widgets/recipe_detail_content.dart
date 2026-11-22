@@ -300,7 +300,19 @@ class _RecipeContent extends StatelessWidget {
   ) {
     final List<ShoppingListIngredientInput> displayIngredients = dish
         .ingredients
-        .map(ShoppingListIngredientInput.fromDisplayText)
+        .map((text) {
+          final original = ShoppingListIngredientInput.fromDisplayText(text);
+          final translated = dish.contentText(text, 'de');
+          final german = ShoppingListIngredientInput.fromDisplayText(
+            translated,
+          );
+          return ShoppingListIngredientInput(
+            name: original.name,
+            quantity: original.quantity,
+            measure: original.measure,
+            nameDe: translated == text ? null : german.name,
+          );
+        })
         .where(
           (ShoppingListIngredientInput ingredient) =>
               ingredient.name.trim().isNotEmpty,
@@ -316,6 +328,7 @@ class _RecipeContent extends StatelessWidget {
               selectIngredientMeasurement(component.measurements, system);
           return ShoppingListIngredientInput(
             name: component.resolvedName,
+            nameDe: dish.contentText(component.resolvedName, 'de'),
             quantity: formatIngredientQuantity(measurement?.quantity),
             measure: measurement?.unit,
           );
