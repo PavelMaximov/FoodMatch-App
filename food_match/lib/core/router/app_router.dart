@@ -30,176 +30,242 @@ import '../../shared/widgets/root_tab_skeleton.dart';
 import '../../shell/presentation/screens/main_shell.dart';
 
 class AppRouter {
-  AppRouter({
-    required AuthProvider authProvider,
-  }) : router = GoRouter(
-          initialLocation: '/login',
-          refreshListenable: authProvider,
-          redirect: (BuildContext context, GoRouterState state) {
-            final bool isLoggedIn = authProvider.isAuthenticated;
-            final bool isAuthRoute = state.matchedLocation == '/login' ||
-                state.matchedLocation == '/register' ||
-                state.matchedLocation == '/forgot-password';
-            final bool isVerifyRoute = state.matchedLocation == '/verify-email';
+  AppRouter({required AuthProvider authProvider})
+    : router = GoRouter(
+        initialLocation: '/login',
+        refreshListenable: authProvider,
+        redirect: (BuildContext context, GoRouterState state) {
+          final bool isLoggedIn = authProvider.isAuthenticated;
+          final bool isAuthRoute =
+              state.matchedLocation == '/login' ||
+              state.matchedLocation == '/register' ||
+              state.matchedLocation == '/forgot-password';
+          final bool isVerifyRoute = state.matchedLocation == '/verify-email';
 
-            if (!isLoggedIn && !isAuthRoute) {
-              return '/login';
-            }
-            if (isLoggedIn && authProvider.needsEmailVerification && !isVerifyRoute) {
-              return '/verify-email';
-            }
-            if (isLoggedIn && !authProvider.needsEmailVerification && isVerifyRoute) {
-              return '/swipes';
-            }
-            if (isLoggedIn && isAuthRoute) {
-              return '/swipes';
-            }
-            return null;
-          },
-          routes: <RouteBase>[
-            GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
-            GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
-            GoRoute(
-              path: '/forgot-password',
-              builder: (_, __) => const ForgotPasswordScreen(),
-            ),
-            GoRoute(path: '/verify-email', builder: (_, __) => const VerifyEmailScreen()),
-            GoRoute(
-              path: '/connect-couple',
-              builder: (_, __) => const Scaffold(
-                backgroundColor: Colors.transparent,
-                body: SafeArea(child: ConnectSessionSheet()),
-              ),
-            ),
-            GoRoute(
-              path: '/recipe-detail/:dishId',
-              pageBuilder: (BuildContext context, GoRouterState state) => _bottomUpPage(
-                context: context,
-                state: state,
-                child: RecipeDetailScreen(
-                  dishId: state.pathParameters['dishId'] ?? 'unknown',
-                  dish: state.extra is Dish ? state.extra! as Dish : null,
-                  source: state.uri.queryParameters['source'],
+          if (!isLoggedIn && !isAuthRoute) {
+            return '/login';
+          }
+          if (isLoggedIn &&
+              authProvider.needsEmailVerification &&
+              !isVerifyRoute) {
+            return '/verify-email';
+          }
+          if (isLoggedIn &&
+              !authProvider.needsEmailVerification &&
+              isVerifyRoute) {
+            return '/swipes';
+          }
+          if (isLoggedIn && isAuthRoute) {
+            return '/swipes';
+          }
+          return null;
+        },
+        routes: <RouteBase>[
+          GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
+          GoRoute(
+            path: '/register',
+            builder: (_, __) => const RegisterScreen(),
+          ),
+          GoRoute(
+            path: '/forgot-password',
+            builder: (_, __) => const ForgotPasswordScreen(),
+          ),
+          GoRoute(
+            path: '/verify-email',
+            builder: (_, __) => const VerifyEmailScreen(),
+          ),
+          GoRoute(
+            path: '/connect-couple',
+            builder: (_, state) => Scaffold(
+              backgroundColor: Colors.transparent,
+              body: SafeArea(
+                child: ConnectSessionSheet(
+                  initialCode: state.uri.queryParameters['code'],
                 ),
               ),
             ),
-            GoRoute(
-              path: '/shopping-list',
-              name: 'shoppingList',
-              pageBuilder: (BuildContext context, GoRouterState state) =>
-                  CustomTransitionPage<void>(
-                key: state.pageKey,
-                transitionDuration: const Duration(milliseconds: 380),
-                reverseTransitionDuration: const Duration(milliseconds: 300),
-                child: (context.watch<PremiumProvider>().canUse(PremiumFeature.shoppingList) || context.watch<PremiumProvider>().canUse(PremiumFeature.sharedShoppingList))
-                    ? const ShoppingListScreen()
-                    : const PremiumScreen(entryPoint: PremiumEntryPoint.shoppingList),
-                transitionsBuilder: slideFromRightFadeTransition,
-              ),
-            ),
-            GoRoute(
-              path: '/match-overlay',
-              pageBuilder: (BuildContext context, GoRouterState state) => _fadeScalePage(
-                context: context,
-                state: state,
-                child: MatchOverlayScreen(
-                  dish: state.extra is Dish ? state.extra! as Dish : null,
-                ),
-              ),
-            ),
-            StatefulShellRoute(
-              navigatorContainerBuilder: (
-                BuildContext context,
-                StatefulNavigationShell navigationShell,
-                List<Widget> children,
-              ) =>
-                  RootTabBranchStack(
-                currentIndex: navigationShell.currentIndex,
-                children: children,
-              ),
-              builder: (
-                BuildContext context,
-                GoRouterState state,
-                StatefulNavigationShell navigationShell,
-              ) =>
-                  MainShell(
-                    key: ValueKey<String>(authProvider.currentUser?.id ?? 'anonymous'),
-                    navigationShell: navigationShell,
+          ),
+          GoRoute(
+            path: '/recipe-detail/:dishId',
+            pageBuilder: (BuildContext context, GoRouterState state) =>
+                _bottomUpPage(
+                  context: context,
+                  state: state,
+                  child: RecipeDetailScreen(
+                    dishId: state.pathParameters['dishId'] ?? 'unknown',
+                    dish: state.extra is Dish ? state.extra! as Dish : null,
+                    source: state.uri.queryParameters['source'],
                   ),
-              branches: <StatefulShellBranch>[
-                StatefulShellBranch(
-                  routes: <RouteBase>[
-                    GoRoute(path: '/recipes', builder: (_, __) => const RecipesScreen()),
-                    GoRoute(
-                      path: '/favorites',
-                      pageBuilder: (BuildContext context, GoRouterState state) =>
-                          _bottomUpPage(
-                        context: context,
-                        state: state,
-                        child: const FavoritesScreen(),
+                ),
+          ),
+          GoRoute(
+            path: '/shopping-list',
+            name: 'shoppingList',
+            pageBuilder: (BuildContext context, GoRouterState state) =>
+                CustomTransitionPage<void>(
+                  key: state.pageKey,
+                  transitionDuration: const Duration(milliseconds: 380),
+                  reverseTransitionDuration: const Duration(milliseconds: 300),
+                  child:
+                      (context.watch<PremiumProvider>().canUse(
+                            PremiumFeature.shoppingList,
+                          ) ||
+                          context.watch<PremiumProvider>().canUse(
+                            PremiumFeature.sharedShoppingList,
+                          ))
+                      ? const ShoppingListScreen()
+                      : const PremiumScreen(
+                          entryPoint: PremiumEntryPoint.shoppingList,
+                        ),
+                  transitionsBuilder: slideFromRightFadeTransition,
+                ),
+          ),
+          GoRoute(
+            path: '/match-overlay',
+            pageBuilder: (BuildContext context, GoRouterState state) =>
+                _fadeScalePage(
+                  context: context,
+                  state: state,
+                  child: MatchOverlayScreen(
+                    dish: state.extra is Dish ? state.extra! as Dish : null,
+                  ),
+                ),
+          ),
+          StatefulShellRoute(
+            navigatorContainerBuilder:
+                (
+                  BuildContext context,
+                  StatefulNavigationShell navigationShell,
+                  List<Widget> children,
+                ) => RootTabBranchStack(
+                  currentIndex: navigationShell.currentIndex,
+                  children: children,
+                ),
+            builder:
+                (
+                  BuildContext context,
+                  GoRouterState state,
+                  StatefulNavigationShell navigationShell,
+                ) => MainShell(
+                  key: ValueKey<String>(
+                    authProvider.currentUser?.id ?? 'anonymous',
+                  ),
+                  navigationShell: navigationShell,
+                ),
+            branches: <StatefulShellBranch>[
+              StatefulShellBranch(
+                routes: <RouteBase>[
+                  GoRoute(
+                    path: '/recipes',
+                    builder: (_, __) => const RecipesScreen(),
+                  ),
+                  GoRoute(
+                    path: '/favorites',
+                    pageBuilder: (BuildContext context, GoRouterState state) =>
+                        _bottomUpPage(
+                          context: context,
+                          state: state,
+                          child: const FavoritesScreen(),
+                        ),
+                  ),
+                ],
+              ),
+              StatefulShellBranch(
+                routes: <RouteBase>[
+                  GoRoute(
+                    path: '/matches',
+                    builder: (_, __) => const MatchesScreen(),
+                  ),
+                ],
+              ),
+              StatefulShellBranch(
+                routes: <RouteBase>[
+                  GoRoute(
+                    path: '/swipes',
+                    builder: (_, __) => const SwipesScreen(),
+                  ),
+                ],
+              ),
+              StatefulShellBranch(
+                routes: <RouteBase>[
+                  GoRoute(
+                    path: '/add-dish',
+                    builder: (_, __) => const AddDishScreen(),
+                  ),
+                ],
+              ),
+              StatefulShellBranch(
+                routes: <RouteBase>[
+                  GoRoute(
+                    path: '/profile',
+                    builder: (_, __) => const ProfileScreen(),
+                    routes: <RouteBase>[
+                      GoRoute(
+                        path: 'edit',
+                        builder: (_, __) => const EditProfileScreen(),
                       ),
-                    ),
-                  ],
-                ),
-                StatefulShellBranch(
-                  routes: <RouteBase>[
-                    GoRoute(path: '/matches', builder: (_, __) => const MatchesScreen()),
-                  ],
-                ),
-                StatefulShellBranch(
-                  routes: <RouteBase>[
-                    GoRoute(path: '/swipes', builder: (_, __) => const SwipesScreen()),
-                  ],
-                ),
-                StatefulShellBranch(
-                  routes: <RouteBase>[
-                    GoRoute(path: '/add-dish', builder: (_, __) => const AddDishScreen()),
-                  ],
-                ),
-                StatefulShellBranch(
-                  routes: <RouteBase>[
-                    GoRoute(
-                      path: '/profile',
-                      builder: (_, __) => const ProfileScreen(),
-                      routes: <RouteBase>[
-                        GoRoute(
-                          path: 'edit',
-                          builder: (_, __) => const EditProfileScreen(),
-                        ),
-                        GoRoute(
-                          path: 'edit-profile',
-                          redirect: (_, __) => '/profile/edit',
-                        ),
-                        GoRoute(path: 'settings', builder: (_, __) => const ProfileSettingsScreen()),
-                        GoRoute(path: 'premium', builder: (_, __) => const PremiumScreen()),
-                        GoRoute(
-                          path: 'match-history',
-                          builder: (BuildContext context, __) => context.watch<PremiumProvider>().canUse(PremiumFeature.sessionHistory) ? const MatchHistoryScreen() : const PremiumScreen(entryPoint: PremiumEntryPoint.sessionHistory),
-                          routes: <RouteBase>[
-                            GoRoute(
-                              path: 'session/:sessionId',
-                              builder: (BuildContext context, GoRouterState state) =>
-                                  context.watch<PremiumProvider>().canUse(PremiumFeature.sessionHistory) ? MatchHistorySessionScreen(
-                                    sessionId:
-                                        state.pathParameters['sessionId']!,
-                                    initialSession:
-                                        state.extra is MatchHistorySession
-                                        ? state.extra! as MatchHistorySession
-                                        : null,
-                                  ) : const PremiumScreen(entryPoint: PremiumEntryPoint.sessionHistory),
-                            ),
-                          ],
-                        ),
-                        GoRoute(path: 'about', builder: (_, __) => const AboutFoodMatchScreen()),
-                        GoRoute(path: 'help', builder: (_, __) => const HelpScreen()),
-                      ],
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ],
-        );
+                      GoRoute(
+                        path: 'edit-profile',
+                        redirect: (_, __) => '/profile/edit',
+                      ),
+                      GoRoute(
+                        path: 'settings',
+                        builder: (_, __) => const ProfileSettingsScreen(),
+                      ),
+                      GoRoute(
+                        path: 'premium',
+                        builder: (_, __) => const PremiumScreen(),
+                      ),
+                      GoRoute(
+                        path: 'match-history',
+                        builder: (BuildContext context, __) =>
+                            context.watch<PremiumProvider>().canUse(
+                              PremiumFeature.sessionHistory,
+                            )
+                            ? const MatchHistoryScreen()
+                            : const PremiumScreen(
+                                entryPoint: PremiumEntryPoint.sessionHistory,
+                              ),
+                        routes: <RouteBase>[
+                          GoRoute(
+                            path: 'session/:sessionId',
+                            builder:
+                                (BuildContext context, GoRouterState state) =>
+                                    context.watch<PremiumProvider>().canUse(
+                                      PremiumFeature.sessionHistory,
+                                    )
+                                    ? MatchHistorySessionScreen(
+                                        sessionId:
+                                            state.pathParameters['sessionId']!,
+                                        initialSession:
+                                            state.extra is MatchHistorySession
+                                            ? state.extra!
+                                                  as MatchHistorySession
+                                            : null,
+                                      )
+                                    : const PremiumScreen(
+                                        entryPoint:
+                                            PremiumEntryPoint.sessionHistory,
+                                      ),
+                          ),
+                        ],
+                      ),
+                      GoRoute(
+                        path: 'about',
+                        builder: (_, __) => const AboutFoodMatchScreen(),
+                      ),
+                      GoRoute(
+                        path: 'help',
+                        builder: (_, __) => const HelpScreen(),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      );
 
   final GoRouter router;
 }

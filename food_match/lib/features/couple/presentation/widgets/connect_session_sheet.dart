@@ -16,7 +16,12 @@ import '../../../swipes/logic/swipe_provider.dart';
 import '../../logic/couple_provider.dart';
 
 class ConnectSessionSheet extends StatefulWidget {
-  const ConnectSessionSheet({super.key});
+  const ConnectSessionSheet({
+    super.key,
+    this.initialCode,
+    });
+
+  final String? initialCode;
 
   @override
   State<ConnectSessionSheet> createState() => _ConnectSessionSheetState();
@@ -31,6 +36,7 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadCurrentSession());
+    _codeController.text = widget.initialCode?.trim() ?? '';
   }
 
   @override
