@@ -14,6 +14,8 @@ import 'features/couple/logic/couple_provider.dart';
 import 'features/onboarding/data/onboarding_storage.dart';
 import 'features/onboarding/presentation/screens/onboarding_screen.dart';
 import 'features/startup/presentation/screens/food_match_splash_screen.dart';
+import 'dart:async';
+import 'package:app_links/app_links.dart';
 
 class FoodMatchApp extends StatefulWidget {
   const FoodMatchApp({super.key});
@@ -25,6 +27,7 @@ class FoodMatchApp extends StatefulWidget {
 class _FoodMatchAppState extends State<FoodMatchApp>
     with WidgetsBindingObserver {
   static const Duration _minimumSplashDuration = Duration(milliseconds: 3000);
+  StreamSubscription<Uri>? _deepLinkSubscription;
 
   late final GoRouter _router;
   final OnboardingStorage _onboardingStorage = OnboardingStorage();
@@ -41,6 +44,15 @@ class _FoodMatchAppState extends State<FoodMatchApp>
 
     final authProvider = context.read<AuthProvider>();
     _router = AppRouter(authProvider: authProvider).router;
+
+    _deepLinkSubscription = AppLinks().uriLinkStream.listen(
+  (Uri uri) {
+    debugPrint('[DeepLink] received=$uri');
+  },
+  onError: (Object error) {
+    debugPrint('[DeepLink] error=$error');
+  },
+);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _bootstrapApp();
@@ -86,6 +98,7 @@ class _FoodMatchAppState extends State<FoodMatchApp>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _deepLinkSubscription?.cancel();
     super.dispose();
   }
 
