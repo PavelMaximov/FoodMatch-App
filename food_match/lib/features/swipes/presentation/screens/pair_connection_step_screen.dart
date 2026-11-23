@@ -1,3 +1,4 @@
+import '../../../../shared/widgets/share_session_button.dart';
 import 'package:food_match/l10n/app_localizations.dart';
 import 'dart:async';
 
@@ -398,6 +399,7 @@ class _InviteCard extends StatelessWidget {
               ),
             ],
           ),
+          ShareSessionButton(code: inviteCode),
           const SizedBox(height: 10),
           Row(
             children: <Widget>[

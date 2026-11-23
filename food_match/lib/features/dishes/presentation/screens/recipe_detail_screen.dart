@@ -242,40 +242,47 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     Dish dish,
     List<ShoppingListIngredientInput> ingredients,
   ) async {
+    if (_isAddingIngredientsToShoppingList ||
+        _hasScheduledShoppingListNavigation) {
+      return;
+    }
     final premium = context.read<PremiumProvider>();
     final shoppingList = context.read<ShoppingListProvider>();
     if (!premium.canAddRecipeIngredients(shared: shoppingList.isShared)) {
-      final upgrade = await showDialog<bool>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: Text(context.tr('Grocery list is a Premium feature')),
-          content: Text(
-            context.tr(
-              'Upgrade to FoodMatch Premium to add recipe ingredients to your grocery list.',
+      setState(() => _hasScheduledShoppingListNavigation = true);
+      try {
+        final upgrade = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: Text(context.tr('Grocery list is a Premium feature')),
+            content: Text(
+              context.tr(
+                'Upgrade to FoodMatch Premium to add recipe ingredients to your grocery list.',
+              ),
             ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: Text(context.tr('Not now')),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: Text(context.tr('Upgrade to Premium')),
+              ),
+            ],
           ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: Text(context.tr('Not now')),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              child: Text(context.tr('Upgrade to Premium')),
-            ),
-          ],
-        ),
-      );
-      if (mounted && upgrade == true) {
-        await context.push(
-          '/profile/premium',
-          extra: PremiumEntryPoint.shoppingList,
         );
+        if (mounted && upgrade == true) {
+          await context.push(
+            '/profile/premium',
+            extra: PremiumEntryPoint.shoppingList,
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _hasScheduledShoppingListNavigation = false);
+        }
       }
-      return;
-    }
-    if (_isAddingIngredientsToShoppingList ||
-        _hasScheduledShoppingListNavigation) {
       return;
     }
     setState(() => _isAddingIngredientsToShoppingList = true);

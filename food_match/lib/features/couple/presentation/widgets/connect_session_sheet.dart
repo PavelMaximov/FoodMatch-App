@@ -1,3 +1,5 @@
+import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/share_session_button.dart';
 import 'package:food_match/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -16,10 +18,7 @@ import '../../../swipes/logic/swipe_provider.dart';
 import '../../logic/couple_provider.dart';
 
 class ConnectSessionSheet extends StatefulWidget {
-  const ConnectSessionSheet({
-    super.key,
-    this.initialCode,
-    });
+  const ConnectSessionSheet({super.key, this.initialCode});
 
   final String? initialCode;
 
@@ -43,6 +42,22 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
   void dispose() {
     _codeController.dispose();
     super.dispose();
+  }
+
+  void _close() {
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    } else {
+      context.go('/swipes');
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant ConnectSessionSheet oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialCode != oldWidget.initialCode) {
+      _codeController.text = widget.initialCode?.trim() ?? '';
+    }
   }
 
   Future<void> _loadCurrentSession() async {
@@ -89,7 +104,7 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  _SheetHeader(onClose: () => Navigator.pop(context)),
+                  _SheetHeader(onClose: () => _close()),
                   const SizedBox(height: 34),
                   if (hasRealCouple) ...<Widget>[
                     _InviteCodePanel(
@@ -99,6 +114,11 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
                     ),
                     const SizedBox(height: 24),
                     _buildActiveSessionControls(coupleProvider),
+                    if (widget.initialCode != null &&
+                        widget.initialCode != couple.inviteCode) ...[
+                      const SizedBox(height: 24),
+                      _buildJoinControls(coupleProvider),
+                    ],
                   ] else ...<Widget>[
                     _buildNoSessionControls(coupleProvider),
                     const SizedBox(height: 24),
@@ -371,7 +391,7 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
       type: FoodMatchNotificationType.destructive,
       title: 'Session left',
     );
-    Navigator.pop(context);
+    if (widget.initialCode == null) _close();
   }
 
   Future<void> _connectToSession(CoupleProvider coupleProvider) async {
@@ -406,7 +426,7 @@ class _ConnectSessionSheetState extends State<ConnectSessionSheet> {
       return;
     }
     if (coupleProvider.currentCouple != null) {
-      Navigator.pop(context);
+      _close();
       FoodMatchNotifications.show(
         context,
         type: FoodMatchNotificationType.success,
@@ -540,6 +560,7 @@ class _InviteCodePanel extends StatelessWidget {
               _CopyButton(inviteCode: inviteCode),
             ],
           ),
+          ShareSessionButton(code: inviteCode),
           const SizedBox(height: 12),
           Text(
             context.tr('Partner: {name}', {'name': partnerLabel}),

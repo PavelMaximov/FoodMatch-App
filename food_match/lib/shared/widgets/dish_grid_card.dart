@@ -102,45 +102,50 @@ class DishGridCard extends StatelessWidget {
                             onTap: onFavoriteTap,
                           ),
                         ),
-                        if (dish.totalTimeDisplay.isNotEmpty)
-                          Positioned(
-                            left: _DishGridCardTokens.overlayInset,
-                            bottom: _DishGridCardTokens.overlayInset,
-                            child: _MetaPill(
-                              iconWidget: SvgPicture.asset(
-                                'assets/icons/time.svg',
-                                width: 10,
-                                height: 10,
-                                colorFilter: ColorFilter.mode(
-                                  colors.metadataIcon,
-                                  BlendMode.srcIn,
-                                ),
-                              ),
-                              label: context.copy.duration(
-                                dish.totalTimeDisplay,
-                              ),
-                            ),
-                          ),
-                        if (_difficultyLabel(dish.effort) != null)
-                          Positioned(
-                            right: _DishGridCardTokens.overlayInset,
-                            bottom: _DishGridCardTokens.overlayInset,
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 66),
-                              child: _MetaPill(
-                                iconWidget: SvgPicture.asset(
-                                  'assets/icons/level.svg',
-                                  width: 10,
-                                  height: 10,
-                                  colorFilter: ColorFilter.mode(
-                                    colors.metadataIcon,
-                                    BlendMode.srcIn,
+                        Positioned(
+                          left: _DishGridCardTokens.overlayInset,
+                          right: _DishGridCardTokens.overlayInset,
+                          bottom: _DishGridCardTokens.overlayInset,
+                          child: Row(
+                            children: [
+                              if (dish.totalTimeDisplay.isNotEmpty)
+                                Flexible(
+                                  child: _MetaPill(
+                                    iconWidget: SvgPicture.asset(
+                                      'assets/icons/time.svg',
+                                      width: 10,
+                                      height: 10,
+                                      colorFilter: ColorFilter.mode(
+                                        colors.metadataIcon,
+                                        BlendMode.srcIn,
+                                      ),
+                                    ),
+                                    label: context.copy.duration(
+                                      dish.totalTimeDisplay,
+                                    ),
                                   ),
                                 ),
-                                label: _difficultyLabel(dish.effort)!,
-                              ),
-                            ),
+                              if (dish.totalTimeDisplay.isNotEmpty &&
+                                  _difficultyLabel(dish.effort) != null)
+                                const SizedBox(width: 4),
+                              if (_difficultyLabel(dish.effort) != null)
+                                Flexible(
+                                  child: _MetaPill(
+                                    iconWidget: SvgPicture.asset(
+                                      'assets/icons/level.svg',
+                                      width: 10,
+                                      height: 10,
+                                      colorFilter: ColorFilter.mode(
+                                        colors.metadataIcon,
+                                        BlendMode.srcIn,
+                                      ),
+                                    ),
+                                    label: _difficultyLabel(dish.effort)!,
+                                  ),
+                                ),
+                            ],
                           ),
+                        ),
                       ],
                     ),
                   ),
@@ -254,15 +259,17 @@ class _MetaPill extends StatelessWidget {
         children: <Widget>[
           if (iconWidget != null) iconWidget!,
           if (iconWidget != null) const SizedBox(width: 3),
-          Text(
-            context.tr(label),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.nunito(
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              color: context.fmColors.textPrimary,
-              height: 1,
+          Flexible(
+            child: Text(
+              context.tr(label),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.nunito(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: context.fmColors.textPrimary,
+                height: 1,
+              ),
             ),
           ),
         ],

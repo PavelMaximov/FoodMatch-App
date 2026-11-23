@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -44,6 +45,46 @@ Iterable<GoRoute> _routes(Iterable<RouteBase> routes) sync* {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  test(
+    'recipe to Premium or shopping keeps one shell and unique page keys',
+    () {
+      final auth = _Auth();
+      final router = AppRouter(authProvider: auth).router;
+      addTearDown(router.dispose);
+      addTearDown(auth.dispose);
+      for (final tab in ['/recipes', '/swipes', '/profile']) {
+        final base = router.configuration.findMatch(Uri.parse(tab));
+        final recipe = base.push(
+          ImperativeRouteMatch(
+            pageKey: const ValueKey('recipe-push'),
+            matches: router.configuration.findMatch(
+              Uri.parse('/recipe-detail/dish'),
+            ),
+            completer: Completer<Object?>(),
+          ),
+        );
+        for (final destination in ['/profile/premium', '/shopping-list']) {
+          final result = recipe.push(
+            ImperativeRouteMatch(
+              pageKey: const ValueKey('destination-push'),
+              matches: router.configuration.findMatch(Uri.parse(destination)),
+              completer: Completer<Object?>(),
+            ),
+          );
+          final keys = result.matches.map((match) => match.pageKey).toList();
+          expect(
+            keys.toSet().length,
+            keys.length,
+            reason: '$tab -> recipe -> $destination',
+          );
+          expect(result.matches.whereType<ShellRouteMatch>(), hasLength(1));
+          expect(result.remove(result.matches.last).matches, recipe.matches);
+        }
+      }
+    },
+  );
+
   for (final access in ['free', 'premium', 'pair', 'pair-without-session']) {
     testWidgets(
       '$access selects production Shopping List and history destinations',

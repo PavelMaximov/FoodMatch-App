@@ -31,42 +31,50 @@ class DishGrid extends StatelessWidget {
 
   static const int columns = 2;
   static const double spacing = 15;
-  static const double childAspectRatio = 1.08;
 
   @override
   Widget build(BuildContext context) {
-    return CustomScrollView(
-      controller: controller,
-      cacheExtent: 900,
-      physics: physics,
-      shrinkWrap: shrinkWrap,
-      slivers: <Widget>[
-        SliverPadding(
-          padding: padding,
-          sliver: SliverGrid(
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: columns,
-              mainAxisSpacing: spacing,
-              crossAxisSpacing: spacing,
-              childAspectRatio: childAspectRatio,
-            ),
-            delegate: SliverChildBuilderDelegate((_, int index) {
-              final Dish dish = dishes[index];
-              return RepaintBoundary(
-                key: ValueKey<String>(dish.id),
-                child: DishGridCard(
-                  dish: dish,
-                  isFavorite: savedDishIds.contains(dish.id),
-                  isLoading: isFavoriteUpdating?.call(dish.id) ?? false,
-                  onFavoriteTap: () => onFavoriteTap(dish),
-                  onTap: () => onDishTap(dish),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final insets = padding.resolve(Directionality.of(context));
+        final cardWidth =
+            (constraints.maxWidth - insets.horizontal - spacing) / columns;
+        final titleHeight = MediaQuery.textScalerOf(context).scale(14) * 1.2;
+        final cardHeight = 12 + (cardWidth - 24) * 3 / 4 + titleHeight + 16;
+        return CustomScrollView(
+          controller: controller,
+          cacheExtent: 900,
+          physics: physics,
+          shrinkWrap: shrinkWrap,
+          slivers: <Widget>[
+            SliverPadding(
+              padding: padding,
+              sliver: SliverGrid(
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: columns,
+                  mainAxisSpacing: spacing,
+                  crossAxisSpacing: spacing,
+                  mainAxisExtent: cardHeight,
                 ),
-              );
-            }, childCount: dishes.length),
-          ),
-        ),
-        if (footer != null) SliverToBoxAdapter(child: footer!),
-      ],
+                delegate: SliverChildBuilderDelegate((_, int index) {
+                  final Dish dish = dishes[index];
+                  return RepaintBoundary(
+                    key: ValueKey<String>(dish.id),
+                    child: DishGridCard(
+                      dish: dish,
+                      isFavorite: savedDishIds.contains(dish.id),
+                      isLoading: isFavoriteUpdating?.call(dish.id) ?? false,
+                      onFavoriteTap: () => onFavoriteTap(dish),
+                      onTap: () => onDishTap(dish),
+                    ),
+                  );
+                }, childCount: dishes.length),
+              ),
+            ),
+            if (footer != null) SliverToBoxAdapter(child: footer!),
+          ],
+        );
+      },
     );
   }
 }

@@ -98,6 +98,16 @@ class AppRouter {
                   ),
                 ),
           ),
+          // Premium can be opened from a recipe above any tab. Keeping it at
+          // the root avoids pushing a second copy of the stateful tab shell.
+          GoRoute(
+            path: '/profile/premium',
+            builder: (_, state) => PremiumScreen(
+              entryPoint: state.extra is PremiumEntryPoint
+                  ? state.extra! as PremiumEntryPoint
+                  : PremiumEntryPoint.overview,
+            ),
+          ),
           GoRoute(
             path: '/shopping-list',
             name: 'shoppingList',
@@ -211,10 +221,6 @@ class AppRouter {
                       GoRoute(
                         path: 'settings',
                         builder: (_, __) => const ProfileSettingsScreen(),
-                      ),
-                      GoRoute(
-                        path: 'premium',
-                        builder: (_, __) => const PremiumScreen(),
                       ),
                       GoRoute(
                         path: 'match-history',
