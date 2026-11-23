@@ -19,3 +19,6 @@ build/
 /macos/Flutter/ephemeral/
 
 /backend/tmp/supabase-export/
+
+
+.dart_defines.local.json

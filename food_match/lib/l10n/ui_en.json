@@ -729,5 +729,8 @@
   "dairy-free": "Dairy-free",
   "low-carb": "Low-carb",
   "no spicy": "Not spicy",
-  "Run the app with SUPABASE_URL, SUPABASE_ANON_KEY and API_BASE_URL.": "Run the app with SUPABASE_URL, SUPABASE_ANON_KEY and API_BASE_URL."
+  "Run the app with SUPABASE_URL, SUPABASE_ANON_KEY and API_BASE_URL.": "Run the app with SUPABASE_URL, SUPABASE_ANON_KEY and API_BASE_URL.",
+  "Share invitation": "Share invitation",
+  "Join my FoodMatch session. Code: {code}": "Join my FoodMatch session. Code: {code}",
+  "Unable to share. Copy the invitation code instead.": "Unable to share. Copy the invitation code instead."
 }

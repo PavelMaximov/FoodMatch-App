@@ -1,3 +1,5 @@
+import 'package:shared_preferences/shared_preferences.dart';
+import 'core/links/session_invitation.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'l10n/locale_controller.dart';
 import 'package:flutter/material.dart';
@@ -14,6 +16,8 @@ import 'features/couple/logic/couple_provider.dart';
 import 'features/onboarding/data/onboarding_storage.dart';
 import 'features/onboarding/presentation/screens/onboarding_screen.dart';
 import 'features/startup/presentation/screens/food_match_splash_screen.dart';
+import 'dart:async';
+import 'package:app_links/app_links.dart';
 
 class FoodMatchApp extends StatefulWidget {
   const FoodMatchApp({super.key});
@@ -25,8 +29,13 @@ class FoodMatchApp extends StatefulWidget {
 class _FoodMatchAppState extends State<FoodMatchApp>
     with WidgetsBindingObserver {
   static const Duration _minimumSplashDuration = Duration(milliseconds: 3000);
+  StreamSubscription<Uri>? _deepLinkSubscription;
+  final AppLinks _appLinks = AppLinks();
 
   late final GoRouter _router;
+  late final AuthProvider _auth;
+  late final SessionInvitationInbox _invitations;
+  bool _inviteDeliveryScheduled = false;
   final OnboardingStorage _onboardingStorage = OnboardingStorage();
   bool _isStartupComplete = false;
   bool _hasLoadedOnboardingState = false;
@@ -39,12 +48,91 @@ class _FoodMatchAppState extends State<FoodMatchApp>
 
     WidgetsBinding.instance.addObserver(this);
 
-    final authProvider = context.read<AuthProvider>();
-    _router = AppRouter(authProvider: authProvider).router;
+    _auth = context.read<AuthProvider>();
+    _router = AppRouter(authProvider: _auth).router;
+    _invitations = SessionInvitationInbox(
+      read: () async => (await SharedPreferences.getInstance()).getString(
+        'pending_session_invitation',
+      ),
+      write: (code) async {
+        final prefs = await SharedPreferences.getInstance();
+        final saved = code == null
+            ? await prefs.remove('pending_session_invitation')
+            : await prefs.setString('pending_session_invitation', code);
+        if (!saved) throw StateError('Invitation storage unavailable');
+      },
+    );
+    _auth.addListener(_scheduleInvitationDelivery);
+
+    _initializeInvitationLinks();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _bootstrapApp();
     });
+  }
+
+  Future<void> _initializeInvitationLinks() async {
+    try {
+      try {
+        await _invitations.restore();
+      } catch (_) {
+        AppLogger.info('[Invite] saved invitation unavailable');
+      }
+      if (!mounted) return;
+      final links = _appLinks;
+      bool receivedLiveInvitation = false;
+      _deepLinkSubscription = links.uriLinkStream.listen((uri) {
+        if (invitationCode(uri) != null) receivedLiveInvitation = true;
+        _receiveInvitation(uri);
+      }, onError: (Object _) => AppLogger.info('[Invite] link unavailable'));
+      final initial = await links.getInitialLink();
+      if (initial != null && mounted && !receivedLiveInvitation) {
+        await _receiveInvitation(initial);
+      }
+      _scheduleInvitationDelivery();
+    } catch (_) {
+      AppLogger.info('[Invite] unable to restore invitation');
+    }
+  }
+
+  Future<void> _receiveInvitation(Uri uri) async {
+    try {
+      await _invitations.receive(uri);
+      _scheduleInvitationDelivery();
+    } catch (_) {
+      AppLogger.info('[Invite] unable to save invitation');
+    }
+  }
+
+  bool get _canOpenInvitation =>
+      mounted &&
+      _isStartupComplete &&
+      _hasLoadedOnboardingState &&
+      _hasCompletedOnboarding &&
+      _auth.isAuthenticated &&
+      !_auth.needsEmailVerification;
+
+  void _scheduleInvitationDelivery() {
+    if (!mounted || _inviteDeliveryScheduled) return;
+    _inviteDeliveryScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      _inviteDeliveryScheduled = false;
+      if (!mounted) return;
+      try {
+        await _invitations.deliver(
+          isReady: () => _canOpenInvitation,
+          navigate: (code) => _router.go(
+            Uri(
+              path: '/connect-couple',
+              queryParameters: {'code': code},
+            ).toString(),
+          ),
+        );
+      } catch (_) {
+        AppLogger.info('[Invite] delivery deferred');
+      }
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
   }
 
   Future<void> _bootstrapApp() async {
@@ -79,13 +167,20 @@ class _FoodMatchAppState extends State<FoodMatchApp>
       final Duration elapsed = DateTime.now().difference(startedAt);
       final Duration remaining = _minimumSplashDuration - elapsed;
       if (remaining > Duration.zero) await Future<void>.delayed(remaining);
-      if (mounted) setState(() => _isStartupComplete = true);
+      if (mounted) {
+        setState(() => _isStartupComplete = true);
+        _scheduleInvitationDelivery();
+      }
     }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _deepLinkSubscription?.cancel();
+    _auth.removeListener(_scheduleInvitationDelivery);
+    _invitations.dispose();
+    _router.dispose();
     super.dispose();
   }
 
@@ -141,6 +236,7 @@ class _FoodMatchAppState extends State<FoodMatchApp>
       }
 
       setState(() => _hasCompletedOnboarding = true);
+      _scheduleInvitationDelivery();
     } catch (_) {
       _isCompletingOnboarding = false;
       return;

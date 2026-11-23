@@ -1,13 +1,14 @@
 #!/bin/sh
 # This is a generated file; do not edit or check into version control.
-export "FLUTTER_ROOT=C:\Users\dirty\Downloads\flutter_windows\flutter"
-export "FLUTTER_APPLICATION_PATH=C:\Users\dirty\Downloads\Projects\FoodMatch-App\food_match"
+export "FLUTTER_ROOT=/Users/garb/development/flutter"
+export "FLUTTER_APPLICATION_PATH=/Users/garb/Projects/FoodMatch-App/food_match"
 export "COCOAPODS_PARALLEL_CODE_SIGN=true"
-export "FLUTTER_TARGET=lib\main.dart"
+export "FLUTTER_TARGET=/Users/garb/Projects/FoodMatch-App/food_match/lib/main.dart"
 export "FLUTTER_BUILD_DIR=build"
 export "FLUTTER_BUILD_NAME=0.1.0"
 export "FLUTTER_BUILD_NUMBER=1"
+export "DART_DEFINES=U1VQQUJBU0VfVVJMPWh0dHBzOi8vdmR2c2F4Zm5ha2prZW1mdG1lamMuc3VwYWJhc2UuY28=,U1VQQUJBU0VfQU5PTl9LRVk9ZXlKaGJHY2lPaUpJVXpJMU5pSXNJblI1Y0NJNklrcFhWQ0o5LmV5SnBjM01pT2lKemRYQmhZbUZ6WlNJc0luSmxaaUk2SW5aa2RuTmhlR1p1WVd0cWEyVnRablJ0Wldwaklpd2ljbTlzWlNJNkltRnViMjRpTENKcFlYUWlPakUzT0RZNU5qTTFNamNzSW1WNGNDSTZNakV3TWpVek9UVXlOMzAucncyN1E4X3drcmYxRTRQRkJJc1JBcUx5dm1HTUpLTTF4ZG96WjJrTFNGNA==,QVBJX0JBU0VfVVJMPWh0dHA6Ly8xOTIuMTY4LjAuMzk6NDAwMA==,RkxVVFRFUl9WRVJTSU9OPTMuNDEuNw==,RkxVVFRFUl9DSEFOTkVMPVt1c2VyLWJyYW5jaF0=,RkxVVFRFUl9HSVRfVVJMPXVua25vd24gc291cmNl,RkxVVFRFUl9GUkFNRVdPUktfUkVWSVNJT049Y2MwNzM0YWM3MQ==,RkxVVFRFUl9FTkdJTkVfUkVWSVNJT049NTlhYTU4NGZkZg==,RkxVVFRFUl9EQVJUX1ZFUlNJT049My4xMS41"
 export "DART_OBFUSCATION=false"
 export "TRACK_WIDGET_CREATION=true"
 export "TREE_SHAKE_ICONS=false"
-export "PACKAGE_CONFIG=.dart_tool/package_config.json"
+export "PACKAGE_CONFIG=/Users/garb/Projects/FoodMatch-App/food_match/.dart_tool/package_config.json"
