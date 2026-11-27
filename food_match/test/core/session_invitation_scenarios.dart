@@ -1,5 +1,6 @@
 import 'dart:async';
 import '../../lib/core/links/session_invitation.dart';
+import '../../lib/core/links/auth_link_policy.dart';
 
 void check(bool condition, String message) {
   if (!condition) throw StateError(message);
@@ -19,6 +20,44 @@ Future<void> main() async {
   ]) {
     check(invitationCode(Uri.parse(invalid)) == null, 'reject $invalid');
   }
+  for (final url in [
+    'foodmatch://join?code=ABC123',
+    'foodmatch://connect-couple?code=ABC123',
+    'foodmatch:///join?code=ABC123',
+    'foodmatch:///connect-couple?code=ABC123',
+  ]) {
+    final uri = Uri.parse(url);
+    check(invitationCode(uri) == 'ABC123', 'supported invitation alias');
+    check(
+      !shouldHandleAuthLink(uri),
+      'invite is never exchanged for an auth session',
+    );
+  }
+  for (final url in [
+    'foodmatch://join?code=bad',
+    'foodmatch://join?code=ABC123&code=DEF456',
+    'foodmatch://connect-couple/invalid?code=ABC123',
+    'foodmatch://join#access_token=not-an-auth-link',
+    'foodmatch://connect-couple?error=not-an-auth-link',
+  ]) {
+    final uri = Uri.parse(url);
+    check(invitationCode(uri) == null, 'malformed invite rejected');
+    check(
+      !shouldHandleAuthLink(uri),
+      'malformed invite is not an auth callback',
+    );
+  }
+  for (final url in [
+    'foodmatch://login-callback?code=pkce-code',
+    'foodmatch://login-callback#error_description=expired',
+    'https://example.com/auth/callback?code=pkce-code',
+  ]) {
+    check(shouldHandleAuthLink(Uri.parse(url)), 'real auth callback preserved');
+  }
+  check(
+    !shouldHandleAuthLink(Uri.parse('foodmatch://profile')),
+    'ordinary link ignored',
+  );
   String? stored;
   bool ready = false;
   final opened = <String>[];
@@ -30,7 +69,10 @@ Future<void> main() async {
   );
   var subject = inbox();
   await subject.restore();
-  await Future.wait([subject.receive(link), subject.receive(link)]);
+  await Future.wait([
+    subject.receive(link),
+    subject.receive(Uri.parse('foodmatch://join?code=AB12CD')),
+  ]);
   await subject.deliver(isReady: () => ready, navigate: opened.add);
   check(opened.isEmpty && stored == 'AB12CD', 'defer until auth/onboarding');
   subject.dispose();

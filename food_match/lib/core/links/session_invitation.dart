@@ -1,3 +1,11 @@
+/// Route recognition is separate from code validation: even a malformed
+/// invitation must never be interpreted as a Supabase authorization code.
+bool isSessionInvitationRoute(Uri uri) =>
+    uri.scheme == 'foodmatch' &&
+    (const {'join', 'connect-couple'}.contains(uri.host) ||
+        (uri.host.isEmpty &&
+            const {'/join', '/connect-couple'}.contains(uri.path)));
+
 /// Only the invitation route is accepted; arbitrary deep-link navigation is not.
 String? invitationCode(Uri uri) {
   if (uri.scheme != 'foodmatch' ||
@@ -6,8 +14,8 @@ String? invitationCode(Uri uri) {
       uri.fragment.isNotEmpty) {
     return null;
   }
-  if (!((uri.host == 'connect-couple' && uri.path.isEmpty) ||
-      (uri.host.isEmpty && uri.path == '/connect-couple'))) {
+  if (!isSessionInvitationRoute(uri) ||
+      (uri.host.isNotEmpty && uri.path.isNotEmpty)) {
     return null;
   }
   final values = uri.queryParametersAll['code'];

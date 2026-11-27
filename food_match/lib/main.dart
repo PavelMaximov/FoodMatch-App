@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app.dart';
+import 'core/links/auth_link_policy.dart';
 import 'core/theme/theme_controller.dart';
 import 'core/config/supabase_config.dart';
 import 'core/config/backend_api_config.dart';
@@ -67,6 +68,9 @@ Future<void> main() async {
   await Supabase.initialize(
     url: SupabaseConfig.url,
     publishableKey: SupabaseConfig.anonKey,
+    authOptions: const FlutterAuthClientOptions(
+      detectSessionInUriPredicate: shouldHandleAuthLink,
+    ),
   );
   AppLogger.info('[Auth] Supabase initialized');
   await Hive.initFlutter();

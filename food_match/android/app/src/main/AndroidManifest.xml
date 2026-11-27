@@ -27,6 +27,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="foodmatch" android:host="connect-couple" />
+                <data android:scheme="foodmatch" android:host="join" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>

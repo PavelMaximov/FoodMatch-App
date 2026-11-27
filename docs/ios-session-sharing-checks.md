@@ -48,3 +48,21 @@ machine with installed Flutter dependencies / Xcode; they were not run here.
   -> Upgrade -> Back. Premium account -> Add to grocery -> Back. Repeat, including
   quick double taps. No duplicate-page-key assertion; the recipe remains behind
   the destination. Confirm ingredients are added once.
+
+## Auth callback isolation
+
+`FlutterAuthClientOptions.detectSessionInUriPredicate` excludes the invitation
+namespace before Supabase's initial and stream processing. Both
+`foodmatch://connect-couple?code=ABC123` and the legacy
+`foodmatch://join?code=ABC123` reach the same invitation inbox. Invalid invitation
+codes are rejected, never passed to `exchangeCodeForSession`. Other auth callback
+URLs retain Supabase's query/fragment detection. No auth flow is disabled.
+
+After rebuilding, test on an already booted iOS simulator:
+
+```sh
+xcrun simctl openurl booted "foodmatch://join?code=ABC123"
+```
+
+`ABC123` only tests prefilling; joining requires an actual active invitation code.
+Also test a real email-verification/sign-in callback, not a made-up PKCE code.
