@@ -36,12 +36,13 @@ machine with installed Flutter dependencies / Xcode; they were not run here.
   the popover opens without a crash.
 - Open the received link while signed in, signed out, and on first-install
   onboarding. Finish onboarding/authentication: the connect form contains the
-  sender's code, but no join happens until confirmed.
+  sender's code in the existing six-slot PairConnectionStepScreen on Swipes,
+  identical to manual pair setup. No separate sheet and no automatic join.
 - Close the app during login, reopen and finish login: the pending code survives.
 - Deliver the same link twice; no duplicate screen is opened. Send a different
   code; the form updates. Closing the form returns to Swipes even on cold launch.
 - With an existing session, open a different invite; explicitly leave the old
-  session and confirm the new code remains in the form.
+  session before joining. Back returns to mode selection.
 - On iPhone, All Recipes: long German names, long cooking durations, medium/hard
   labels, and enlarged text. No overflow or overlapping metadata pills.
 - From a recipe above Recipes, Swipes and Profile: free account -> Add to grocery

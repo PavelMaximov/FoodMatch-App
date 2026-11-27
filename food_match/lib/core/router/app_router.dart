@@ -11,7 +11,6 @@ import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
 import '../../features/auth/presentation/screens/verify_email_screen.dart';
-import '../../features/couple/presentation/widgets/connect_session_sheet.dart';
 import '../../features/dishes/presentation/screens/add_dish_screen.dart';
 import '../../features/dishes/presentation/screens/recipe_detail_screen.dart';
 import '../../features/matches/presentation/screens/match_overlay_screen.dart';
@@ -76,14 +75,13 @@ class AppRouter {
           ),
           GoRoute(
             path: '/connect-couple',
-            builder: (_, state) => Scaffold(
-              backgroundColor: Colors.transparent,
-              body: SafeArea(
-                child: ConnectSessionSheet(
-                  initialCode: state.uri.queryParameters['code'],
-                ),
-              ),
-            ),
+            redirect: (_, state) => Uri(
+              path: '/swipes',
+              queryParameters: {
+                if (state.uri.queryParameters['code'] != null)
+                  'inviteCode': state.uri.queryParameters['code']!,
+              },
+            ).toString(),
           ),
           GoRoute(
             path: '/recipe-detail/:dishId',
@@ -192,7 +190,10 @@ class AppRouter {
                 routes: <RouteBase>[
                   GoRoute(
                     path: '/swipes',
-                    builder: (_, __) => const SwipesScreen(),
+                    builder: (_, state) => SwipesScreen(
+                      initialInvitationCode:
+                          state.uri.queryParameters['inviteCode'],
+                    ),
                   ),
                 ],
               ),

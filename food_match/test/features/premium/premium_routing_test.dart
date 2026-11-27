@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:food_match/features/swipes/presentation/screens/swipes_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -84,6 +85,53 @@ void main() {
       }
     },
   );
+
+  testWidgets('invitation reuses Swipes setup with the supplied code', (
+    tester,
+  ) async {
+    final auth = _Auth();
+    final router = AppRouter(authProvider: auth).router;
+    addTearDown(router.dispose);
+    addTearDown(auth.dispose);
+    final routes = _routes(router.configuration.routes).toList();
+    final invitation = routes.firstWhere(
+      (route) => route.path == '/connect-couple',
+    );
+    final swipes = routes.firstWhere((route) => route.path == '/swipes');
+    late BuildContext context;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (value) {
+            context = value;
+            return const SizedBox();
+          },
+        ),
+      ),
+    );
+    GoRouterState state(String path, Uri uri) => GoRouterState(
+      router.configuration,
+      uri: uri,
+      matchedLocation: path,
+      fullPath: path,
+      pathParameters: const {},
+      pageKey: const ValueKey('invite'),
+    );
+    for (final code in ['ABC123', 'XY9876']) {
+      final destination = await invitation.redirect!(
+        context,
+        state('/connect-couple', Uri.parse('/connect-couple?code=$code')),
+      );
+      expect(destination, '/swipes?inviteCode=$code');
+      final screen = swipes.builder!(
+        context,
+        state('/swipes', Uri.parse(destination!)),
+      );
+      expect(screen, isA<SwipesScreen>());
+      expect((screen as SwipesScreen).initialInvitationCode, code);
+    }
+    expect(invitation.builder, isNull, reason: 'No standalone invitation form');
+  });
 
   for (final access in ['free', 'premium', 'pair', 'pair-without-session']) {
     testWidgets(

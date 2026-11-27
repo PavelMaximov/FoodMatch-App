@@ -22,8 +22,10 @@ class PairConnectionStepScreen extends StatefulWidget {
     super.key,
     required this.onBack,
     required this.onPairConnected,
+    this.initialCode,
   });
 
+  final String? initialCode;
   final VoidCallback onBack;
   final Future<void> Function() onPairConnected;
 
@@ -41,8 +43,20 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
   @override
   void initState() {
     super.initState();
+    final code = _sanitizeCode(widget.initialCode ?? '');
+    _codeController.text = code.substring(0, code.length.clamp(0, 6));
     _codeController.addListener(() => setState(() {}));
     _codeFocusNode.addListener(() => setState(() {}));
+  }
+
+  @override
+  void didUpdateWidget(covariant PairConnectionStepScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialCode != oldWidget.initialCode) {
+      final code = _sanitizeCode(widget.initialCode ?? '');
+      _codeController.text = code.substring(0, code.length.clamp(0, 6));
+      _handledConnectedSession = false;
+    }
   }
 
   @override
@@ -220,6 +234,9 @@ class _PairConnectionStepScreenState extends State<PairConnectionStepScreen> {
         final bool hasSession =
             couple != null && couple.inviteCode.trim().isNotEmpty;
         if (hasSession &&
+            (widget.initialCode == null ||
+                _sanitizeCode(couple.inviteCode) ==
+                    _sanitizeCode(widget.initialCode!)) &&
             coupleProvider.hasPartner &&
             !_handledConnectedSession) {
           _handledConnectedSession = true;

@@ -72,7 +72,9 @@ extension _PreSwipeFlowOriginLogName on _PreSwipeFlowOrigin {
 }
 
 class SwipesScreen extends StatefulWidget {
-  const SwipesScreen({super.key});
+  const SwipesScreen({super.key, this.initialInvitationCode});
+
+  final String? initialInvitationCode;
 
   @override
   State<SwipesScreen> createState() => _SwipesScreenState();
@@ -97,6 +99,8 @@ class _SwipesScreenState extends State<SwipesScreen>
     if (mounted) setState(() {});
   }
 
+  String? _pendingInvitationCode;
+  int _invitationGeneration = 0;
   bool _showPairConnectionStep = false;
   bool _isHandlingSessionEnded = false;
   bool _isWaitingForDepartedPartner = false;
@@ -130,6 +134,7 @@ class _SwipesScreenState extends State<SwipesScreen>
   @override
   void initState() {
     super.initState();
+    _pendingInvitationCode = widget.initialInvitationCode;
     _cardActions.addListener(_onCardActionChanged);
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -145,6 +150,19 @@ class _SwipesScreenState extends State<SwipesScreen>
           .authBoundaryVersion;
       _loadExistingBackendDeckOrStart();
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant SwipesScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialInvitationCode != null &&
+        widget.initialInvitationCode != oldWidget.initialInvitationCode) {
+      _pendingInvitationCode = widget.initialInvitationCode;
+      _invitationGeneration++;
+      _pairDeckLoadGeneration++;
+      _isLoadingInitialSession = false;
+      _pairDeckReadyAutoLoadEnabled = false;
+    }
   }
 
   @override
@@ -483,6 +501,7 @@ class _SwipesScreenState extends State<SwipesScreen>
   }
 
   void _handleCoupleSessionEnded() {
+    if (_pendingInvitationCode != null) return;
     unawaited(_showCoupleSessionEndedDialog());
   }
 
@@ -527,6 +546,7 @@ class _SwipesScreenState extends State<SwipesScreen>
   }
 
   Future<void> _loadExistingBackendDeckOrStart() async {
+    if (_pendingInvitationCode != null) return;
     if (_isWaitingForDepartedPartner) {
       await context.read<CoupleProvider>().handleAppResumed();
       return;
@@ -539,7 +559,10 @@ class _SwipesScreenState extends State<SwipesScreen>
     }
     final AuthProvider authProvider = context.read<AuthProvider>();
     final requestVersion = authProvider.authBoundaryVersion;
-    bool isCurrent() => authProvider.isCurrentAuthBoundary(requestVersion);
+    final invitationGeneration = _invitationGeneration;
+    bool isCurrent() =>
+        authProvider.isCurrentAuthBoundary(requestVersion) &&
+        invitationGeneration == _invitationGeneration;
     if (!authProvider.profileSetupReady) {
       if (mounted && isCurrent()) {
         setState(() => _initialSessionError = ErrorMessages.profileNotReady);
@@ -1849,6 +1872,40 @@ class _SwipesScreenState extends State<SwipesScreen>
     }
   }
 
+  Widget _buildPairConnectionStep({String? initialCode}) {
+    return PairConnectionStepScreen(
+      initialCode: initialCode,
+      onBack: () {
+        if (_pendingInvitationCode != null) {
+          _pendingInvitationCode = null;
+          context.go('/swipes');
+        }
+        _appFlow.logCloseX();
+        unawaited(_clearActiveSessionAndShowModeSelection());
+      },
+      onPairConnected: () async {
+        if (!mounted) {
+          return;
+        }
+        if (_pendingInvitationCode != null) {
+          _pendingInvitationCode = null;
+          context.go('/swipes');
+        }
+        context.read<CoupleProvider>().endSoloResumeIsolation();
+        context.read<SwipeProvider>().setPairedMode();
+        _sessionResumeChoiceType = null;
+        _suppressPreviousChoiceAutoOpen = false;
+        _pairDeckReadyAutoLoadEnabled = true;
+        setState(() => _showPairConnectionStep = false);
+        _appFlow.logInviteAccepted();
+        debugPrint(
+          '[AppFlow] previousChoice open requested: origin=${_PreSwipeFlowOrigin.pairConnectionReady.logName}',
+        );
+        await _runPreSwipeFlow(origin: _PreSwipeFlowOrigin.pairConnectionReady);
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool hasCouple = context.select<CoupleProvider, bool>(
@@ -1886,6 +1943,7 @@ class _SwipesScreenState extends State<SwipesScreen>
         _sessionResumeChoiceType == null &&
         (_showPairConnectionStep || (hasCouple && !hasPartner && !isSoloMode));
     final bool showHeaderActions =
+        _pendingInvitationCode == null &&
         hasCurrentDeckCard &&
         !showSessionResumeChoice &&
         !showModeSelection &&
@@ -1907,6 +1965,11 @@ class _SwipesScreenState extends State<SwipesScreen>
                 padding: const EdgeInsets.only(left: 10, right: 10, bottom: 13),
                 child: Consumer<SwipeProvider>(
                   builder: (BuildContext context, SwipeProvider provider, _) {
+                    if (_pendingInvitationCode != null) {
+                      return _buildPairConnectionStep(
+                        initialCode: _pendingInvitationCode,
+                      );
+                    }
                     final CoupleProvider inviteCoupleProvider = context
                         .watch<CoupleProvider>();
                     if (_schedulePairFlowEffects(
@@ -2032,27 +2095,7 @@ class _SwipesScreenState extends State<SwipesScreen>
                           }
                         });
                       }
-                      return PairConnectionStepScreen(
-                        onBack: () {
-                          _appFlow.logCloseX();
-                          unawaited(_clearActiveSessionAndShowModeSelection());
-                        },
-                        onPairConnected: () async {
-                          if (!mounted) {
-                            return;
-                          }
-                          _suppressPreviousChoiceAutoOpen = false;
-                          _pairDeckReadyAutoLoadEnabled = true;
-                          setState(() => _showPairConnectionStep = false);
-                          _appFlow.logInviteAccepted();
-                          debugPrint(
-                            '[AppFlow] previousChoice open requested: origin=${_PreSwipeFlowOrigin.pairConnectionReady.logName}',
-                          );
-                          await _runPreSwipeFlow(
-                            origin: _PreSwipeFlowOrigin.pairConnectionReady,
-                          );
-                        },
-                      );
+                      return _buildPairConnectionStep();
                     }
 
                     if (hasCouple &&
